@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Términos y Condiciones | Sevrii</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<style>
+  :root{
+    --bg:#000;
+    --panel:#0a0e14;
+    --navy:#070b14;
+    --text:#f5f5f5;
+    --muted:#9aa0a8;
+    --muted-2:#6b7178;
+    --green:#3ddc84;
+    --border:rgba(255,255,255,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  img{display:block;max-width:100%;}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 40px;}
+
+  /* NAV */
+  header{
+    position:sticky;top:0;z-index:50;
+    background:rgba(0,0,0,.75);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  nav.wrap{
+    display:flex;align-items:center;justify-content:space-between;
+    height:78px;
+  }
+  .logo{font-size:22px;font-weight:600;letter-spacing:.5px;display:flex;align-items:center;gap:10px;}
+  .logo img{width:44px;height:44px;border-radius:8px;display:block;}
+  .logo span{color:var(--muted);font-weight:400;font-size:14px;margin-left:6px;letter-spacing:2px;}
+  .nav-links{display:flex;gap:34px;font-size:14px;color:#d9dbde;}
+  .nav-links a:hover{color:#fff;}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;
+    border:1px solid var(--border);cursor:pointer;transition:.2s;
+  }
+  .btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);}
+  .btn-outline:hover{background:rgba(255,255,255,.08);}
+  .btn-primary{background:#fff;color:#000;border:none;}
+  .btn-primary:hover{background:#e6e6e6;}
+
+  /* LEGAL CONTENT */
+  .legal-hero{
+    padding:80px 24px 40px;text-align:center;border-bottom:1px solid var(--border);
+  }
+  .legal-hero h1{font-size:clamp(32px,5vw,52px);font-weight:300;letter-spacing:-1px;margin-bottom:14px;}
+  .legal-hero p{color:var(--muted);font-size:15px;}
+
+  .legal{padding:70px 24px 100px;}
+  .legal-body{max-width:760px;margin:0 auto;}
+  .legal-body h2{
+    font-size:20px;font-weight:600;margin:44px 0 14px;color:#fff;
+  }
+  .legal-body h2:first-child{margin-top:0;}
+  .legal-body p{color:#c7cad0;font-size:15px;line-height:1.8;margin-bottom:14px;}
+  .legal-body ul{color:#c7cad0;font-size:15px;line-height:1.8;margin:0 0 14px 22px;}
+  .legal-body li{margin-bottom:6px;}
+  .legal-body strong{color:#fff;}
+
+  /* FOOTER */
+  footer{padding:70px 24px 30px;border-top:1px solid var(--border);}
+  .footer-grid{
+    display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:40px;
+    max-width:1280px;margin:0 auto 50px;
+  }
+  .footer-grid h4{font-size:16px;font-weight:600;margin-bottom:18px;}
+  .footer-grid a{display:block;font-size:14px;color:var(--muted);margin-bottom:12px;}
+  .footer-grid a:hover{color:#fff;}
+  .footer-bottom{
+    max-width:1280px;margin:0 auto;padding-top:30px;border-top:1px solid var(--border);
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;
+    font-size:13px;color:var(--muted-2);
+  }
+  .footer-bottom .links{display:flex;gap:24px;}
+  .footer-bottom .links a:hover{color:#fff;}
+
+  @media(max-width:900px){
+    .nav-links{display:none;}
+    .footer-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:600px){
+    .wrap{padding:0 20px;}
+    .footer-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="wrap">
+    <a href="index.html" class="logo"><img src="assets/sevrii-logo.jpg" alt="Sevrii">Sevrii <span>PARA SERVICIOS</span></a>
+    <div class="nav-links">
+      <a href="index.html#explorar">Explorar</a>
+      <a href="terminos.html">Términos y Condiciones</a>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center;">
+      <a href="ofrecerservicios.html" class="btn btn-primary">Ofrecer un Servicio</a>
+    </div>
+  </nav>
+</header>
+
+<section class="legal-hero">
+  <h1>Términos y Condiciones</h1>
+  <p>Última actualización: 22 de agosto de 2026</p>
+</section>
+
+<section class="legal">
+  <div class="legal-body">
+
+    <h2>1. Aceptación de los Términos</h2>
+    <p>Al acceder o usar la plataforma Sevrii (el "Servicio"), ya sea como cliente que busca contratar un servicio o como proveedor que ofrece uno, aceptas quedar sujeto a estos Términos y Condiciones. Si no estás de acuerdo con alguna parte de estos términos, no debes usar el Servicio.</p>
+
+    <h2>2. Descripción del Servicio</h2>
+    <p>Sevrii es una plataforma digital que conecta a clientes con proveedores de servicios independientes y verificados. Sevrii actúa únicamente como intermediario tecnológico: no presta directamente los servicios listados en la plataforma, y no es empleador, socio ni representante legal de los proveedores.</p>
+    <p>Cada proveedor es responsable de la calidad, legalidad, seguridad y cumplimiento normativo del servicio que ofrece, incluyendo cualquier licencia, permiso o regulación aplicable a su industria (por ejemplo, servicios financieros, de mudanza u otros servicios regulados).</p>
+
+    <h2>3. Registro y Elegibilidad</h2>
+    <p>Para ofrecer servicios a través de Sevrii, debes proporcionar información veraz, completa y actualizada durante el proceso de verificación. Sevrii se reserva el derecho de aprobar, rechazar o remover a cualquier proveedor de la plataforma a su entera discreción, incluso después de haber sido verificado.</p>
+
+    <h2>4. Responsabilidades de los Proveedores de Servicios</h2>
+    <ul>
+      <li>Ofrecer información precisa sobre los servicios, precios y condiciones.</li>
+      <li>Cumplir con todas las leyes y regulaciones aplicables a su actividad.</li>
+      <li>Atender a los clientes que lleguen a través de Sevrii de forma profesional y oportuna.</li>
+      <li>No utilizar la plataforma para fines fraudulentos, engañosos o ilegales.</li>
+    </ul>
+
+    <h2>5. Responsabilidades de los Clientes</h2>
+    <p>Los clientes son responsables de evaluar y decidir si contratan a un proveedor listado en Sevrii. Sevrii facilita el descubrimiento y contacto entre las partes, pero la relación contractual final (incluyendo pagos, entregables y condiciones del servicio) se establece directamente entre el cliente y el proveedor.</p>
+
+    <h2>6. Modelo de Publicidad y Comisiones</h2>
+    <p>Para los proveedores que se unen al ecosistema Sevrii, la plataforma puede producir contenido publicitario (videos, imágenes) y gestionar campañas de anuncios en redes como Meta, TikTok y YouTube en nombre del proveedor. El proveedor decide voluntariamente cuánto invertir en dichas campañas.</p>
+    <p>Sevrii cobra una comisión equivalente al <strong>30% de la inversión publicitaria</strong> gestionada por la plataforma. Si el proveedor no invierte en anuncios durante un período determinado, no se genera comisión por ese concepto. Sevrii no cobra mensualidades fijas por el solo hecho de tener una página dentro de la plataforma.</p>
+
+    <h2>7. Contenido y Propiedad Intelectual</h2>
+    <p>El contenido publicitario (videos, imágenes, textos) producido por Sevrii para un proveedor es propiedad de Sevrii mientras dure la relación comercial, salvo acuerdo distinto por escrito. El proveedor conserva los derechos sobre su marca, logo y contenido que haya suministrado directamente.</p>
+
+    <h2>8. Conducta Prohibida</h2>
+    <p>Está prohibido usar Sevrii para publicar información falsa, suplantar identidades, ofrecer servicios ilegales, o intentar evadir las comisiones de la plataforma mediante acuerdos paralelos con clientes referidos por Sevrii.</p>
+
+    <h2>9. Limitación de Responsabilidad</h2>
+    <p>Sevrii no garantiza resultados específicos derivados del uso de la plataforma ni de las campañas publicitarias gestionadas. En la máxima medida permitida por la ley, Sevrii no será responsable por daños indirectos, incidentales o consecuentes derivados del uso del Servicio o de la relación entre clientes y proveedores.</p>
+
+    <h2>10. Modificaciones a los Términos</h2>
+    <p>Sevrii puede actualizar estos Términos y Condiciones en cualquier momento. Los cambios entran en vigor al publicarse en esta página. El uso continuado del Servicio después de una actualización constituye la aceptación de los nuevos términos.</p>
+
+    <h2>11. Terminación</h2>
+    <p>Sevrii puede suspender o terminar el acceso de cualquier usuario o proveedor que incumpla estos términos, sin previo aviso, especialmente en casos de fraude, conducta ilegal o daño a la reputación de la plataforma.</p>
+
+    <h2>12. Contacto</h2>
+    <p>Si tienes preguntas sobre estos Términos y Condiciones, puedes contactarnos por WhatsApp a través de los canales indicados en nuestras páginas de Ofrecer Servicio o Explorar Servicios.</p>
+
+  </div>
+</section>
+
+<footer>
+  <div class="footer-grid">
+    <div>
+      <h4>Sevrii Principal</h4>
+      <a href="index.html">Inicio</a>
+      <a href="ofrecerservicios.html">Comenzar</a>
+    </div>
+    <div>
+      <h4>Para Empresas</h4>
+      <a href="ofrecerservicios.html">Soluciones Empresariales</a>
+    </div>
+    <div>
+      <h4>Para Profesionales</h4>
+      <a href="ofrecerservicios.html">Independientes</a>
+      <a href="ofrecerservicios.html">Empleados</a>
+    </div>
+    <div>
+      <h4>Nuestro Ecosistema</h4>
+      <a href="index.html#explorar">Marketplace de Servicios</a>
+    </div>
+  </div>
+  <div class="footer-bottom wrap">
+    <span>© 2026 Sevrii Ecosistema. Todos los derechos reservados.</span>
+    <div class="links">
+      <a href="terminos.html">Términos</a>
+      <a href="terminos.html">Privacidad</a>
+      <a href="#">Soporte</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

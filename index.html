@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sevrii | Todos los servicios en un solo lugar</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<style>
+  :root{
+    --bg:#000;
+    --panel:#0a0e14;
+    --navy:#070b14;
+    --text:#f5f5f5;
+    --muted:#9aa0a8;
+    --muted-2:#6b7178;
+    --green:#3ddc84;
+    --border:rgba(255,255,255,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  img{display:block;max-width:100%;}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 40px;}
+
+  /* NAV */
+  header{
+    position:sticky;top:0;z-index:50;
+    background:rgba(0,0,0,.75);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  nav.wrap{
+    display:flex;align-items:center;justify-content:space-between;
+    height:78px;
+  }
+  .logo{font-size:22px;font-weight:600;letter-spacing:.5px;display:flex;align-items:center;gap:10px;}
+  .logo img{width:44px;height:44px;border-radius:8px;display:block;}
+  .logo span{color:var(--muted);font-weight:400;font-size:14px;margin-left:6px;letter-spacing:2px;}
+  .nav-links{display:flex;gap:34px;font-size:14px;color:#d9dbde;}
+  .nav-links a:hover{color:#fff;}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;
+    border:1px solid var(--border);cursor:pointer;transition:.2s;
+  }
+  .btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);}
+  .btn-outline:hover{background:rgba(255,255,255,.08);}
+  .btn-primary{background:#fff;color:#000;border:none;}
+  .btn-primary:hover{background:#e6e6e6;}
+
+  /* HERO */
+  .hero{
+    min-height:85vh;
+    display:flex;flex-direction:column;justify-content:center;
+    position:relative;overflow:hidden;
+    background:#020a06;
+  }
+  .hero .video-bg{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;}
+  .hero .video-bg iframe{
+    position:absolute;top:50%;left:50%;
+    width:100vw;height:56.25vw;
+    min-height:100%;min-width:177.78vh;
+    transform:translate(-50%,-50%);
+  }
+  .hero .video-overlay{
+    position:absolute;inset:0;z-index:1;
+    background:
+      radial-gradient(ellipse 60% 65% at 50% 48%, rgba(0,0,0,.78) 0%, rgba(0,0,0,.4) 55%, rgba(0,0,0,0) 80%),
+      linear-gradient(to bottom, rgba(2,10,6,.72) 0%, rgba(2,10,6,.55) 45%, rgba(2,10,6,.85) 100%);
+  }
+  .hero .network{position:absolute;inset:0;z-index:2;pointer-events:none;}
+  .horizon{
+    position:absolute;left:-10%;right:-10%;bottom:-38%;height:42%;
+    border-radius:50%;
+    background:radial-gradient(ellipse at center, #163d2c 0%, #0d2818 35%, #06130c 60%, transparent 78%);
+    box-shadow:0 -2px 50px rgba(61,220,132,.12);
+    z-index:1;
+  }
+  .hero-content{
+    position:relative;z-index:3;
+    padding:0 24px;
+    display:flex;justify-content:center;
+  }
+  .hero-inner{max-width:640px;text-align:center;}
+  .hero h1{
+    font-size:clamp(38px,6vw,72px);font-weight:300;line-height:1.12;letter-spacing:-1.8px;
+    margin-bottom:28px;
+  }
+  .hero h1 span{display:block;text-shadow:0 4px 24px rgba(0,0,0,.65);}
+  .hero h1 .l1{color:#fff;}
+  .hero h1 .l2{color:rgba(255,255,255,.85);}
+  .hero h1 .l3{color:rgba(255,255,255,.65);}
+  .hero p.sub{color:#d9dbde;font-size:18px;max-width:520px;margin:0 auto 40px;text-shadow:0 2px 14px rgba(0,0,0,.6);}
+  .search-bar{
+    display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,.06);
+    border:1px solid var(--border);
+    border-radius:12px;padding:8px 8px 8px 20px;max-width:520px;margin:0 auto;
+  }
+  .search-bar input{
+    flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:15px;padding:10px 0;
+  }
+  .search-bar input::placeholder{color:var(--muted-2);}
+  .search-bar button{
+    background:#fff;color:#000;border:none;border-radius:8px;padding:12px 22px;
+    font-weight:600;font-size:14px;cursor:pointer;
+  }
+
+  /* CATEGORY FILTER */
+  .categories{
+    display:flex;gap:36px;justify-content:center;flex-wrap:wrap;
+    padding:40px 24px 30px;border-bottom:1px solid var(--border);
+    font-size:13px;letter-spacing:1px;color:var(--muted);
+  }
+  .categories .cat{cursor:pointer;padding-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .categories .cat.active{color:#fff;border-bottom:2px solid #fff;}
+  .categories .cat:hover{color:#fff;}
+
+  /* SERVICE GRID */
+  .services{padding:60px 24px 100px;}
+  .grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1280px;margin:0 auto;
+  }
+  .card{
+    position:relative;border-radius:16px;overflow:hidden;
+    aspect-ratio:4/3;
+    background:#111;
+    border:1px solid var(--border);
+    display:flex;flex-direction:column;justify-content:flex-end;
+  }
+  .card .img{
+    position:absolute;inset:0;
+    background-size:cover;background-position:center;
+  }
+  .card .overlay{
+    position:absolute;inset:0;
+    background:linear-gradient(to top, rgba(0,0,0,.9) 0%, rgba(0,0,0,.3) 45%, rgba(0,0,0,.05) 100%);
+  }
+  .card .content{position:relative;padding:22px;}
+  .verified{
+    position:absolute;top:16px;right:16px;z-index:2;
+    display:flex;align-items:center;gap:6px;
+    background:rgba(0,0,0,.6);border:1px solid rgba(61,220,132,.4);
+    color:var(--green);font-size:11px;font-weight:700;letter-spacing:1px;
+    padding:6px 12px;border-radius:999px;
+  }
+  .card h3{font-size:18px;font-weight:600;margin-bottom:6px;}
+  .card .by{font-size:13px;color:var(--muted);margin-bottom:10px;}
+  .card .meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);}
+  .card .rating{color:#f5c542;}
+
+  /* FOOTER */
+  footer{padding:70px 24px 30px;}
+  .footer-grid{
+    display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:40px;
+    max-width:1280px;margin:0 auto 50px;
+  }
+  .footer-grid h4{font-size:16px;font-weight:600;margin-bottom:18px;}
+  .footer-grid a{display:block;font-size:14px;color:var(--muted);margin-bottom:12px;}
+  .footer-grid a:hover{color:#fff;}
+  .footer-bottom{
+    max-width:1280px;margin:0 auto;padding-top:30px;border-top:1px solid var(--border);
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;
+    font-size:13px;color:var(--muted-2);
+  }
+  .footer-bottom .links{display:flex;gap:24px;}
+  .footer-bottom .links a:hover{color:#fff;}
+
+  @media(max-width:900px){
+    .nav-links{display:none;}
+    .grid{grid-template-columns:1fr 1fr;}
+    .footer-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:600px){
+    .wrap{padding:0 20px;}
+    .grid{grid-template-columns:1fr;}
+    .footer-grid{grid-template-columns:1fr;}
+    .categories{gap:20px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="wrap">
+    <div class="logo"><img src="assets/sevrii-logo.jpg" alt="Sevrii">Sevrii <span>PARA SERVICIOS</span></div>
+    <div class="nav-links">
+      <a href="#explorar">Explorar</a>
+      <a href="terminos.html">Términos y Condiciones</a>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center;">
+      <a href="ofrecerservicios.html" class="btn btn-primary">Ofrecer un Servicio</a>
+    </div>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="video-bg">
+    <iframe src="https://www.youtube.com/embed/EsrX_WSx2UM?autoplay=1&mute=1&loop=1&playlist=EsrX_WSx2UM&controls=0&showinfo=0&modestbranding=1&rel=0&disablekb=1" title="Sevrii background video" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+  <div class="video-overlay"></div>
+  <canvas class="network" id="network"></canvas>
+  <div class="horizon"></div>
+  <div class="hero-content">
+    <div class="hero-inner">
+      <h1>
+        <span class="l1">Todos los servicios</span>
+        <span class="l2">que necesitas,</span>
+        <span class="l3">en un solo lugar.</span>
+      </h1>
+      <p class="sub">Compara, contrata y listo — sin perder tiempo buscando en distintos sitios.</p>
+      <div class="search-bar">
+        <input type="text" placeholder="Ej: Mudanza residencial">
+        <button>Buscar</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="categories">
+  <div class="cat active">TODOS</div>
+  <div class="cat">💳 FINANZAS</div>
+</div>
+
+<section class="services" id="explorar">
+  <div class="grid">
+
+    <a href="matheus-credito.html" class="card">
+      <div class="img" style="background:#000 url('assets/matheus-credito-logo.jpeg') center/cover no-repeat;"></div>
+      <div class="overlay"></div>
+      <div class="verified">✓ VERIFICADO</div>
+      <div class="content">
+        <h3>Matheus Crédito - Financiamiento Rápido</h3>
+        <div class="by">por Matheus Crédito</div>
+        <div class="meta"><span>Estados Unidos</span><span class="rating">★ 4.9 (32)</span></div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+
+<footer>
+  <div class="footer-grid">
+    <div>
+      <h4>Sevrii Principal</h4>
+      <a href="index.html">Inicio</a>
+      <a href="ofrecerservicios.html">Comenzar</a>
+    </div>
+    <div>
+      <h4>Para Empresas</h4>
+      <a href="ofrecerservicios.html">Soluciones Empresariales</a>
+    </div>
+    <div>
+      <h4>Para Profesionales</h4>
+      <a href="ofrecerservicios.html">Independientes</a>
+      <a href="ofrecerservicios.html">Empleados</a>
+    </div>
+    <div>
+      <h4>Nuestro Ecosistema</h4>
+      <a href="#">Marketplace de Servicios</a>
+    </div>
+  </div>
+  <div class="footer-bottom wrap">
+    <span>© 2026 Sevrii Ecosistema. Todos los derechos reservados.</span>
+    <div class="links">
+      <a href="terminos.html">Términos</a>
+      <a href="terminos.html">Privacidad</a>
+      <a href="#">Soporte</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    const canvas = document.getElementById('network');
+    if(!canvas) return;
+    const hero = canvas.closest('.hero');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+
+    function resize(){
+      W = canvas.width = hero.clientWidth;
+      H = canvas.height = hero.clientHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const N = 80;
+    const points = [];
+    for (let i=0;i<N;i++){
+      points.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        vx: (Math.random()-0.5)*0.25,
+        vy: (Math.random()-0.5)*0.25
+      });
+    }
+
+    const mouse = {x:0, y:0, active:false};
+    hero.addEventListener('mousemove', e=>{
+      const rect = hero.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+      mouse.active = true;
+    });
+    hero.addEventListener('mouseleave', ()=>{ mouse.active = false; });
+
+    function step(){
+      ctx.clearRect(0,0,W,H);
+
+      points.forEach(p=>{
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > W) p.vx *= -1;
+        if (p.y < 0 || p.y > H) p.vy *= -1;
+        if (mouse.active){
+          const dx = p.x - mouse.x, dy = p.y - mouse.y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 130 && dist > 0){
+            const force = (130 - dist) / 130 * 0.6;
+            p.x += (dx/dist) * force;
+            p.y += (dy/dist) * force;
+          }
+        }
+      });
+
+      for (let i=0;i<points.length;i++){
+        for (let j=i+1;j<points.length;j++){
+          const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 140){
+            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/140) * 0.3})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(points[i].x, points[i].y);
+            ctx.lineTo(points[j].x, points[j].y);
+            ctx.stroke();
+          }
+        }
+        if (mouse.active){
+          const dx = points[i].x - mouse.x, dy = points[i].y - mouse.y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 180){
+            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/180) * 0.45})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(points[i].x, points[i].y);
+            ctx.lineTo(mouse.x, mouse.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      points.forEach(p=>{
+        ctx.fillStyle = 'rgba(255,255,255,.55)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+        ctx.fill();
+      });
+
+      requestAnimationFrame(step);
+    }
+    step();
+  })();
+</script>
+
+</body>
+</html>

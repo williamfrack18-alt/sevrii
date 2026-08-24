@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ofrecer Servicios | Sevrii</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<style>
+  :root{
+    --bg:#000;
+    --text:#f5f5f5;
+    --muted:#9aa0a8;
+    --muted-2:#6b7178;
+    --green:#3ddc84;
+    --green-dark:#0d2818;
+    --border:rgba(255,255,255,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 40px;}
+
+  header{
+    position:sticky;top:0;z-index:50;
+    background:rgba(0,0,0,.75);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  nav.wrap{display:flex;align-items:center;justify-content:space-between;height:78px;}
+  .logo{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px;}
+  .logo img{width:44px;height:44px;border-radius:8px;display:block;}
+  .nav-links{display:flex;gap:30px;font-size:14px;color:#d9dbde;}
+  .nav-links a:hover{color:#fff;}
+  .nav-actions{display:flex;gap:14px;align-items:center;}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;border:1px solid var(--border);cursor:pointer;}
+  .btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);}
+  .btn-outline:hover{background:rgba(255,255,255,.08);}
+  .btn-primary{background:#fff;color:#000;border:none;}
+  .btn-primary:hover{background:#e6e6e6;}
+  .btn-green{background:var(--green);color:#04150c;border:none;}
+  .btn-green:hover{background:#5ee89b;}
+
+  section{padding:120px 24px;}
+  h2.section-title{font-size:clamp(28px,4.5vw,44px);font-weight:600;text-align:center;letter-spacing:-0.5px;}
+
+  /* HERO */
+  .hero{
+    min-height:85vh;
+    display:flex;flex-direction:column;justify-content:center;
+    position:relative;overflow:hidden;
+    background:#020a06;
+  }
+  .hero .video-bg{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;}
+  .hero .video-bg iframe{
+    position:absolute;top:50%;left:50%;
+    width:100vw;height:56.25vw;
+    min-height:100%;min-width:177.78vh;
+    transform:translate(-50%,-50%);
+  }
+  .hero .video-overlay{
+    position:absolute;inset:0;z-index:1;
+    background:linear-gradient(to bottom, rgba(2,10,6,.72) 0%, rgba(2,10,6,.55) 45%, rgba(2,10,6,.85) 100%);
+  }
+  .hero .network{position:absolute;inset:0;z-index:2;pointer-events:none;}
+  .hero .horizon{
+    position:absolute;left:-10%;right:-10%;bottom:-38%;height:42%;
+    border-radius:50%;
+    background:radial-gradient(ellipse at center, #163d2c 0%, #0d2818 35%, #06130c 60%, transparent 78%);
+    box-shadow:0 -2px 50px rgba(61,220,132,.12);
+    z-index:1;
+  }
+  .hero-content{
+    position:relative;z-index:3;
+    padding:0 60px;
+  }
+  .hero-inner{max-width:600px;text-align:left;}
+  .hero h1{
+    font-size:clamp(38px,6vw,72px);font-weight:300;line-height:1.12;letter-spacing:-1.8px;
+    margin-bottom:28px;
+  }
+  .hero h1 span{display:block;}
+  .hero h1 .l1{color:#fff;}
+  .hero h1 .l2{color:rgba(255,255,255,.65);}
+  .hero h1 .l3{color:rgba(255,255,255,.4);}
+  .hero p{color:var(--muted);font-size:18px;max-width:520px;margin-bottom:40px;}
+
+  /* PARA QUIEN */
+  .para-quien{text-align:center;}
+  .para-quien .lead{color:var(--muted);font-size:17px;margin:18px auto 8px;}
+  .para-quien .lead-2{font-size:20px;font-weight:600;max-width:700px;margin:24px auto 70px;line-height:1.5;}
+  .quien-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1280px;margin:0 auto;
+  }
+  .quien-card{
+    position:relative;border-radius:16px;overflow:hidden;aspect-ratio:3/3.4;
+    border:1px solid var(--border);display:flex;flex-direction:column;justify-content:flex-end;
+  }
+  .quien-card .bg{position:absolute;inset:0;background-size:cover;background-position:center;}
+  .quien-card .shade{position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,.92) 10%, rgba(0,0,0,.35) 55%, rgba(0,0,0,.1) 100%);}
+  .quien-card .body{position:relative;padding:26px;}
+  .quien-card .pop{
+    position:absolute;top:16px;left:16px;z-index:2;background:var(--green);color:#04150c;
+    font-size:11px;font-weight:800;letter-spacing:1px;padding:6px 14px;border-radius:999px;
+  }
+  .quien-card h3{font-size:20px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:10px;text-align:left;}
+  .quien-card p{font-size:14px;color:#d3d5d8;text-align:left;line-height:1.5;}
+
+  /* SOCIO SECTION */
+  .socio{background:#000;}
+  .socio .eyebrow{text-align:center;color:var(--muted-2);font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;}
+  .socio-panel{
+    max-width:1100px;margin:60px auto 0;border-radius:24px;padding:70px 50px;
+    background:radial-gradient(ellipse at top left, #12321f 0%, #06130c 55%, #000 100%);
+    border:1px solid rgba(61,220,132,.15);
+    display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;
+  }
+  .socio-panel h3{font-size:clamp(24px,3.2vw,36px);font-weight:600;line-height:1.3;margin-bottom:18px;}
+  .socio-panel p{color:var(--muted);font-size:16px;line-height:1.6;margin-bottom:14px;}
+  .socio-panel .highlight{color:#fff;font-weight:600;}
+  .mock-ui{
+    background:#0c0f0d;border:1px solid rgba(61,220,132,.2);border-radius:16px;padding:24px;
+  }
+  .mock-ui .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;}
+  .mock-ui .row:last-child{border-bottom:none;}
+  .mock-ui .tag{font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(61,220,132,.15);color:var(--green);font-weight:600;}
+  .mock-ui .price{font-size:22px;font-weight:700;margin:16px 0 6px;}
+  .mock-ui .cta-mini{background:var(--green);color:#04150c;text-align:center;padding:12px;border-radius:10px;font-weight:700;font-size:14px;margin-top:14px;}
+
+  /* TODO LO QUE OBTIENES */
+  .obtienes{text-align:center;}
+  .obtienes .lead{color:var(--muted);font-size:17px;margin:16px 0 60px;}
+  .obtienes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1280px;margin:0 auto;text-align:left;}
+  .obtienes-card{
+    border:1px solid var(--border);border-radius:16px;overflow:hidden;background:#0a0a0a;
+  }
+  .obtienes-card .thumb{height:170px;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;}
+  .obtienes-card .thumb svg{width:64px;height:64px;}
+  .obtienes-card .info{padding:22px;}
+  .obtienes-card h4{font-size:17px;font-weight:600;margin-bottom:8px;}
+  .obtienes-card p{font-size:14px;color:var(--muted);line-height:1.5;}
+
+  /* SOCIO COMERCIAL */
+  .comercial{background:#020302;}
+  .comercial .lead{color:var(--muted);font-size:17px;max-width:640px;margin:16px auto 60px;text-align:center;}
+  .comercial-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:1280px;margin:0 auto 50px;}
+  .comercial-card{
+    border:1px solid var(--border);border-radius:16px;padding:28px 22px;background:#0a0a0a;
+  }
+  .comercial-card .icon{
+    width:100%;aspect-ratio:16/10;border-radius:10px;margin-bottom:18px;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#161f1a,#0a0a0a);
+  }
+  .comercial-card .icon svg{width:38%;height:38%;}
+  .comercial-card h4{font-size:16px;font-weight:600;margin-bottom:8px;}
+  .comercial-card p{font-size:13px;color:var(--muted);line-height:1.5;}
+  .comercial-foot{text-align:center;}
+  .comercial-foot p{color:var(--muted);font-size:16px;margin-bottom:30px;}
+
+  /* TESTIMONIOS */
+  .testimonios .lead{text-align:center;color:var(--muted);font-size:15px;letter-spacing:1px;text-transform:uppercase;margin-bottom:60px;}
+  .test-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1280px;margin:0 auto;}
+  .test-card{border:1px solid var(--border);border-radius:16px;padding:32px;background:#0a0a0a;}
+  .test-card p.quote{font-size:16px;line-height:1.6;color:#e6e6e6;margin-bottom:26px;}
+  .test-card .who{display:flex;align-items:center;gap:12px;}
+  .avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--green),#1a6b45);flex-shrink:0;}
+  .who .name{font-weight:600;font-size:14px;}
+  .who .role{color:var(--muted-2);font-size:13px;}
+
+  /* FINAL CTA */
+  .final-cta{
+    text-align:center;
+    background:radial-gradient(ellipse 70% 100% at 50% 100%, #0d2818 0%, #000 65%);
+    border-top:1px solid var(--border);
+  }
+  .final-cta p{color:var(--muted);font-size:17px;max-width:560px;margin:20px auto 44px;}
+
+  footer{padding:70px 24px 30px;border-top:1px solid var(--border);}
+  .footer-top{display:flex;justify-content:space-between;flex-wrap:wrap;gap:24px;max-width:1280px;margin:0 auto 40px;}
+  .footer-links{display:flex;gap:28px;flex-wrap:wrap;font-size:14px;color:var(--muted);}
+  .footer-links a:hover{color:#fff;}
+  .footer-bottom{
+    max-width:1280px;margin:0 auto;padding-top:30px;border-top:1px solid var(--border);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;
+    font-size:13px;color:var(--muted-2);
+  }
+  .footer-bottom .links{display:flex;gap:24px;}
+  .footer-bottom a:hover{color:#fff;}
+
+  @media(max-width:900px){
+    .nav-links{display:none;}
+    .quien-grid,.obtienes-grid{grid-template-columns:1fr;}
+    .comercial-grid{grid-template-columns:1fr 1fr;}
+    .socio-panel{grid-template-columns:1fr;padding:40px 26px;}
+    .test-grid{grid-template-columns:1fr;}
+  }
+  @media(max-width:600px){
+    .wrap{padding:0 20px;}
+    section{padding:80px 20px;}
+    .comercial-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="wrap">
+    <a href="index.html" class="logo"><img src="assets/sevrii-logo.jpg" alt="Sevrii">Sevrii</a>
+    <div class="nav-links">
+      <a href="#mision">Misión</a>
+      <a href="#quien">Plataforma</a>
+      <a href="#socios">Socios</a>
+      <a href="#servicios">Servicios</a>
+      <a href="#quien">Precios</a>
+      <a href="#testimonios">Testimonios</a>
+    </div>
+    <div class="nav-actions">
+      <a href="https://wa.me/12245083851" target="_blank" class="btn btn-primary">Comenzar</a>
+    </div>
+  </nav>
+</header>
+
+<section class="hero" id="mision">
+  <div class="video-bg">
+    <iframe src="https://www.youtube.com/embed/EsrX_WSx2UM?autoplay=1&mute=1&loop=1&playlist=EsrX_WSx2UM&controls=0&showinfo=0&modestbranding=1&rel=0&disablekb=1" title="Sevrii background video" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+  <div class="video-overlay"></div>
+  <canvas class="network" id="network"></canvas>
+  <div class="horizon"></div>
+  <div class="hero-content">
+    <div class="hero-inner">
+      <h1>
+        <span class="l1">Miles ya construyen</span>
+        <span class="l2">imperios de negocios</span>
+        <span class="l3">con Sevrii.</span>
+      </h1>
+      <p>Tú atiendes a tus clientes. Nosotros construimos el sistema que hace crecer tu negocio: video, marketing y web.</p>
+      <a href="#quien" class="btn btn-primary" style="padding:16px 32px;font-size:15px;">Construye Tu Imperio de Servicios</a>
+    </div>
+  </div>
+</section>
+
+<section class="socio" id="quien">
+  <div class="eyebrow">Sevrii — La plataforma que impulsa el comercio de servicios</div>
+  <div class="socio-panel">
+    <div>
+      <div style="color:var(--green);font-size:13px;font-weight:700;letter-spacing:1px;margin-bottom:14px;">SIN MENSUALIDADES</div>
+      <h3>Solo Pagas por los Clientes que Obtienes.</h3>
+      <p>Nosotros creamos tu página web dentro de Sevrii y producimos los videos e imágenes de tu publicidad. Tú decides cuánto invertir en anuncios — ese dinero se invierte directo en Meta, TikTok, YouTube y otras redes sociales para encontrar a los clientes que necesitas.</p>
+      <p class="highlight">Nuestra única comisión es el 30% de tu inversión en anuncios. Si no inviertes, no nos pagas.</p>
+    </div>
+    <div class="mock-ui">
+      <div class="row"><span>Tu inversión en Ads</span><span class="tag">100%</span></div>
+      <div class="row"><span>Va directo a Meta / Google</span><span class="tag">70%</span></div>
+      <div class="row"><span>Comisión Sevrii</span><span class="tag">30%</span></div>
+      <div class="price">Sin costo fijo. Sin contratos.</div>
+      <a href="https://wa.me/12245083851" target="_blank" class="cta-mini" style="display:block;text-decoration:none;">Quiero Empezar</a>
+    </div>
+  </div>
+</section>
+
+<section class="obtienes" id="servicios">
+  <h2 class="section-title">Así lo hacemos posible</h2>
+  <p class="lead">Tú nos dices qué servicio ofreces. Nosotros hacemos que te contraten.</p>
+  <div class="obtienes-grid">
+    <div class="obtienes-card">
+      <div class="thumb" style="background:linear-gradient(135deg,#222,#0a0a0a);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2.5" y="6" width="13" height="12" rx="2"/>
+          <path d="M15.5 10.5 21 7v10l-5.5-3.5z"/>
+        </svg>
+      </div>
+      <div class="info"><h4>1. Grabamos tus videos</h4><p>Nos dices tu servicio y nosotros creamos los videos que lo muestran y lo venden.</p></div>
+    </div>
+    <div class="obtienes-card">
+      <div class="thumb" style="background:linear-gradient(135deg,#1b2430,#080b10);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 20V10M9 20V4M15 20v-8M21 20V7"/>
+          <path d="M3 12l6-5 6 3 6-5"/>
+        </svg>
+      </div>
+      <div class="info"><h4>2. Lanzamos tu marketing</h4><p>Gestionamos las campañas de publicidad para que tu servicio llegue a quienes realmente lo necesitan.</p></div>
+    </div>
+    <div class="obtienes-card">
+      <div class="thumb" style="background:linear-gradient(135deg,#141e14,#050a05);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
+        </svg>
+      </div>
+      <div class="info"><h4>3. Vives en tu página web</h4><p>Tu servicio tiene su propia página dentro del ecosistema Sevrii. Tú solo esperas a que los contactos te lleguen.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="comercial" id="socios">
+  <h2 class="section-title">Conviértete en Nuestro Socio Comercial</h2>
+  <p class="lead">Combinamos IA de punta con el mejor talento humano para hacerlo todo por ti.</p>
+  <div class="comercial-grid">
+    <div class="comercial-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <h4>Confianza Verificada</h4>
+      <p>Cada proveedor pasa por una revisión antes de aparecer en Sevrii. Tus clientes lo notan.</p>
+    </div>
+    <div class="comercial-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 5h16v11H8l-4 4V5z"/>
+          <path d="M8 9h8M8 12.5h5"/>
+        </svg>
+      </div>
+      <h4>Soporte Directo</h4>
+      <p>Hablas con nosotros por WhatsApp, sin tickets ni esperas eternas.</p>
+    </div>
+    <div class="comercial-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2c2.5 2.2 4 5.4 4 9 0 3-1.2 5.6-4 8-2.8-2.4-4-5-4-8 0-3.6 1.5-6.8 4-9z"/>
+          <circle cx="12" cy="10" r="1.8"/>
+          <path d="M8.5 15.5 6 20l3-1.2M15.5 15.5 18 20l-3-1.2"/>
+        </svg>
+      </div>
+      <h4>Crece a tu Ritmo</h4>
+      <p>Ajusta tu inversión en anuncios cuando quieras. Sin contratos ni permanencia.</p>
+    </div>
+    <div class="comercial-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="3"/>
+          <circle cx="16" cy="8" r="3"/>
+          <path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M10 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/>
+        </svg>
+      </div>
+      <h4>Comunidad en Crecimiento</h4>
+      <p>Formas parte de una red cada vez más grande de proveedores verificados en Sevrii.</p>
+    </div>
+  </div>
+  <div class="comercial-foot">
+    <p>Tú te enfocas en ser extraordinario en tu servicio. Nosotros nos encargamos del resto.</p>
+    <a href="#testimonios" class="btn btn-green" style="padding:16px 32px;font-size:15px;">Comenzar Mi Transformación</a>
+  </div>
+</section>
+
+<section class="final-cta">
+  <h2 class="section-title">Deja de buscar clientes. Haz que te encuentren.</h2>
+  <p>Únete a más de 500 proveedores activos y consigue tu primer cliente esta semana.</p>
+  <a href="https://wa.me/12245083851" target="_blank" class="btn btn-primary" style="padding:16px 32px;font-size:15px;">Ofrecer mis servicios</a>
+</section>
+
+<section class="testimonios" id="testimonios">
+  <p class="lead">Lo que dicen nuestros socios</p>
+  <div class="test-grid">
+    <div class="test-card">
+      <p class="quote">"En 3 meses aumentamos nuestras ventas en un 200%. Sevri transformó nuestro negocio."</p>
+      <div class="who">
+        <div class="avatar"></div>
+        <div><div class="name">María González</div><div class="role">CEO, TechStartup</div></div>
+      </div>
+    </div>
+    <div class="test-card">
+      <p class="quote">"Dejé mi trabajo mal pagado y ahora genero 3 veces más. Sevri me dio la libertad."</p>
+      <div class="who">
+        <div class="avatar"></div>
+        <div><div class="name">Carlos Ruiz</div><div class="role">Consultor Independiente</div></div>
+      </div>
+    </div>
+    <div class="test-card">
+      <p class="quote">"Los resultados hablan por sí solos. El equipo de Sevri entiende perfectamente nuestros objetivos."</p>
+      <div class="who">
+        <div class="avatar"></div>
+        <div><div class="name">Ana López</div><div class="role">Directora de Marketing</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="final-cta">
+  <h2 class="section-title">¿Listo para la Transformación Total?</h2>
+  <p>Únete a los profesionales que ya construyen su imperio con Sevrii. Empieza hoy, sin costo inicial.</p>
+  <a href="#quien" class="btn btn-primary" style="padding:16px 32px;font-size:15px;">Elegir mi Camino</a>
+</section>
+
+<footer>
+  <div class="footer-top">
+    <a href="index.html" class="logo"><img src="assets/sevrii-logo.jpg" alt="Sevrii">Sevrii</a>
+    <div class="footer-links">
+      <a href="index.html">Marketplace de Servicios</a>
+      <a href="index.html">Sevrii para Todo</a>
+    </div>
+  </div>
+  <div class="footer-bottom wrap">
+    <span>© 2026 Sevrii. Todos los derechos reservados.</span>
+    <div class="links">
+      <a href="terminos.html">Privacidad</a>
+      <a href="terminos.html">Términos</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    const canvas = document.getElementById('network');
+    if(!canvas) return;
+    const hero = canvas.closest('.hero');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+
+    function resize(){
+      W = canvas.width = hero.clientWidth;
+      H = canvas.height = hero.clientHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const N = 80;
+    const points = [];
+    for (let i=0;i<N;i++){
+      points.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        vx: (Math.random()-0.5)*0.25,
+        vy: (Math.random()-0.5)*0.25
+      });
+    }
+
+    const mouse = {x:0, y:0, active:false};
+    hero.addEventListener('mousemove', e=>{
+      const rect = hero.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+      mouse.active = true;
+    });
+    hero.addEventListener('mouseleave', ()=>{ mouse.active = false; });
+
+    function step(){
+      ctx.clearRect(0,0,W,H);
+
+      points.forEach(p=>{
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > W) p.vx *= -1;
+        if (p.y < 0 || p.y > H) p.vy *= -1;
+        if (mouse.active){
+          const dx = p.x - mouse.x, dy = p.y - mouse.y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 130 && dist > 0){
+            const force = (130 - dist) / 130 * 0.6;
+            p.x += (dx/dist) * force;
+            p.y += (dy/dist) * force;
+          }
+        }
+      });
+
+      for (let i=0;i<points.length;i++){
+        for (let j=i+1;j<points.length;j++){
+          const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 140){
+            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/140) * 0.3})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(points[i].x, points[i].y);
+            ctx.lineTo(points[j].x, points[j].y);
+            ctx.stroke();
+          }
+        }
+        if (mouse.active){
+          const dx = points[i].x - mouse.x, dy = points[i].y - mouse.y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 180){
+            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/180) * 0.45})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(points[i].x, points[i].y);
+            ctx.lineTo(mouse.x, mouse.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      points.forEach(p=>{
+        ctx.fillStyle = 'rgba(255,255,255,.55)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+        ctx.fill();
+      });
+
+      requestAnimationFrame(step);
+    }
+    step();
+  })();
+</script>
+
+</body>
+</html>
