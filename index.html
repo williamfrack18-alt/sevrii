@@ -15,6 +15,7 @@
     --muted-2:#6b7178;
     --green:#3ddc84;
     --border:rgba(255,255,255,.1);
+    --accent-grad: radial-gradient(ellipse 70% 300% at 50% 50%, #10251a 0%, #07140d 55%, #020302 100%);
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{
@@ -30,7 +31,7 @@
   /* NAV */
   header{
     position:sticky;top:0;z-index:50;
-    background:rgba(0,0,0,.75);
+    background:var(--accent-grad);
     backdrop-filter:blur(10px);
     border-bottom:1px solid var(--border);
   }
