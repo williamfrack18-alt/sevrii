@@ -332,6 +332,46 @@
   .review-quote{font-size:14.5px; color:var(--ink);}
   .review-name{display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--ink-dim);}
   .review-name .verified-badge{font-size:10px; padding:2px 8px;}
+  .review-card{position:relative;}
+  .review-card[hidden]{display:none;}
+  .review-top{display:flex; align-items:center; gap:12px;}
+  .review-avatar{
+    width:36px; height:36px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    font-size:12.5px; font-weight:700; color:#fff; background:var(--accent-grad);
+  }
+  .review-name-line{font-size:13.5px; color:var(--ink); display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .review-name-line .verified-badge{font-size:10px; padding:2px 8px;}
+  .btn-helpful{
+    all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-dim);
+    border:1px solid var(--line); border-radius:999px; padding:6px 13px; width:fit-content; transition:border-color .15s, color .15s, background .15s;
+  }
+  .btn-helpful:hover{border-color:var(--line-strong); color:var(--ink);}
+  .btn-helpful.voted{color:var(--accent-bright); border-color:var(--accent-border); background:var(--accent-bg);}
+
+  /* reviews: interactive rating distribution + filter (real data only) */
+  .rating-dist{display:flex; flex-direction:column; gap:7px; min-width:230px; flex:1;}
+  .rating-dist button{
+    all:unset; cursor:pointer; display:grid; grid-template-columns:34px 1fr 34px; align-items:center; gap:9px;
+    font-size:12.5px; color:var(--ink-dim); padding:4px 6px; border-radius:7px;
+  }
+  .rating-dist button:hover{background:var(--surface-2); color:var(--ink);}
+  .rating-dist button.active{background:var(--accent-bg); color:var(--ink); font-weight:600;}
+  .rating-dist .bar-track{height:8px; background:var(--surface-2); border-radius:999px; overflow:hidden;}
+  .rating-dist button.active .bar-track{background:rgba(255,255,255,0.5);}
+  .rating-dist .bar-fill{height:100%; background:var(--accent-grad); border-radius:999px;}
+  .rating-dist .rd-count{text-align:right; font-variant-numeric:tabular-nums;}
+  .active-filter-chip{display:none; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-dim);}
+  .active-filter-chip.show{display:flex;}
+  .active-filter-chip button{all:unset; cursor:pointer; color:var(--accent-bright); text-decoration:underline; font-size:inherit;}
+  .demo-toolbar{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    margin:18px 0 18px; padding-top:16px; border-top:1px solid var(--line);
+  }
+  .demo-sort{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-dim);}
+  .demo-sort select{
+    border:1px solid var(--line-strong); border-radius:8px; padding:7px 10px; font-size:13px;
+    font-family:inherit; background:var(--bg); color:var(--ink); cursor:pointer;
+  }
 
   /* faq */
   .faq-list{border-top:1px solid var(--line);}
@@ -535,23 +575,70 @@
         <div class="mono" style="font-size:13px; color:var(--ink-dim);">Basado en 32 reseñas verificadas en Sevrii</div>
       </div>
     </div>
-    <div class="reviews-grid">
-      <div class="review-card">
-        <div class="review-stars">★★★★★</div>
-        <p class="review-quote">"La consulta gratis me ayudó a entender exactamente qué crédito necesitaba, sin compromiso ni presión."</p>
-        <div class="review-name">Roberto Salas <span class="verified-badge">✓ Verificado</span></div>
+
+    <div style="display:flex; gap:32px; flex-wrap:wrap; align-items:flex-start; margin-bottom:8px;">
+      <div class="rating-dist" id="ratingDist" style="max-width:340px;">
+        <button type="button" data-star="5" class="active"><span>5★</span><span class="bar-track"><span class="bar-fill" style="width:100%;"></span></span><span class="rd-count">3</span></button>
+        <button type="button" data-star="4" class="active"><span>4★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
+        <button type="button" data-star="3" class="active"><span>3★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
+        <button type="button" data-star="2" class="active"><span>2★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
+        <button type="button" data-star="1" class="active"><span>1★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
       </div>
-      <div class="review-card">
-        <div class="review-stars">★★★★★</div>
-        <p class="review-quote">"Me asesoraron paso a paso para elegir el crédito ideal para mi negocio. Atención muy personalizada."</p>
-        <div class="review-name">Daniela Torres <span class="verified-badge">✓ Verificado</span></div>
-      </div>
-      <div class="review-card">
-        <div class="review-stars">★★★★★</div>
-        <p class="review-quote">"Todo el proceso fue 100% digital y muy claro, sin sorpresas ni letras pequeñas."</p>
-        <div class="review-name">Jorge Medina <span class="verified-badge">✓ Verificado</span></div>
+      <div style="flex:1; min-width:220px; display:flex; flex-direction:column; gap:10px;">
+        <p class="mono" style="font-size:12.5px; color:var(--ink-dim); margin:0;">Mostrando las 3 reseñas con comentario escrito, de las 32 calificaciones verificadas en Sevrii.</p>
+        <a class="btn-wa ghost" style="width:fit-content; font-size:13px; padding:9px 18px;" href="https://wa.me/12145481003?text=Hola%2C%20quiero%20dejar%20mi%20opini%C3%B3n%20sobre%20el%20servicio%20de%20Matheus%20Cr%C3%A9dito" target="_blank" rel="noopener">✍️ Escribir una opinión</a>
       </div>
     </div>
+
+    <div class="demo-toolbar">
+      <div class="active-filter-chip" id="activeFilterChip">
+        Filtrado por: <strong id="activeFilterLabel"></strong> · <button type="button" id="clearFilterBtn">Limpiar filtro</button>
+      </div>
+      <div class="demo-sort">
+        <label for="reviewSort">Ordenar por:</label>
+        <select id="reviewSort">
+          <option value="default">Orden original</option>
+          <option value="helpful">Más útiles</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="reviews-grid" id="realReviewsGrid">
+      <div class="review-card" data-star="5">
+        <div class="review-top">
+          <div class="review-avatar">RS</div>
+          <div>
+            <div class="review-name-line">Roberto Salas <span class="verified-badge">✓ Compra verificada</span></div>
+            <div class="review-stars">★★★★★</div>
+          </div>
+        </div>
+        <p class="review-quote">"La consulta gratis me ayudó a entender exactamente qué crédito necesitaba, sin compromiso ni presión."</p>
+        <button class="btn-helpful" data-helpful="2">👍 Útil <span class="hc">(2)</span></button>
+      </div>
+      <div class="review-card" data-star="5">
+        <div class="review-top">
+          <div class="review-avatar">DT</div>
+          <div>
+            <div class="review-name-line">Daniela Torres <span class="verified-badge">✓ Compra verificada</span></div>
+            <div class="review-stars">★★★★★</div>
+          </div>
+        </div>
+        <p class="review-quote">"Me asesoraron paso a paso para elegir el crédito ideal para mi negocio. Atención muy personalizada."</p>
+        <button class="btn-helpful" data-helpful="1">👍 Útil <span class="hc">(1)</span></button>
+      </div>
+      <div class="review-card" data-star="5">
+        <div class="review-top">
+          <div class="review-avatar">JM</div>
+          <div>
+            <div class="review-name-line">Jorge Medina <span class="verified-badge">✓ Compra verificada</span></div>
+            <div class="review-stars">★★★★★</div>
+          </div>
+        </div>
+        <p class="review-quote">"Todo el proceso fue 100% digital y muy claro, sin sorpresas ni letras pequeñas."</p>
+        <button class="btn-helpful" data-helpful="3">👍 Útil <span class="hc">(3)</span></button>
+      </div>
+    </div>
+    <p class="mono" id="noMatchMsg" hidden style="font-size:13px; color:var(--ink-dim); margin-top:8px;">Todavía no hay reseñas verificadas con esa calificación.</p>
   </section>
 
   <section class="trust-bar-section">
@@ -724,7 +811,73 @@
       priceLabel.textContent = priceMap[label] || label;
     });
   });
-</script>
 
+  // --- Reseñas: votos "útil" (aplica a reseñas reales y de ejemplo) ---
+  document.querySelectorAll('.btn-helpful').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(btn.classList.contains('voted')) return;
+      var count = parseInt(btn.getAttribute('data-helpful'), 10) || 0;
+      count += 1;
+      btn.setAttribute('data-helpful', count);
+      btn.querySelector('.hc').textContent = '(' + count + ')';
+      btn.classList.add('voted');
+    });
+  });
+
+  // --- Reseñas: filtro por estrellas en la distribución (datos reales) ---
+  var distBtns = document.querySelectorAll('#ratingDist button');
+  var realCards = document.querySelectorAll('#realReviewsGrid .review-card');
+  var chipEl = document.getElementById('activeFilterChip');
+  var chipLabel = document.getElementById('activeFilterLabel');
+  var clearBtn = document.getElementById('clearFilterBtn');
+  var noMatchMsg = document.getElementById('noMatchMsg');
+  var activeStar = null;
+
+  function applyFilter(star){
+    activeStar = star;
+    var anyVisible = false;
+    distBtns.forEach(function(b){
+      b.classList.toggle('active', star === null || b.getAttribute('data-star') === star);
+    });
+    realCards.forEach(function(card){
+      var match = star === null || card.getAttribute('data-star') === star;
+      card.hidden = !match;
+      if(match) anyVisible = true;
+    });
+    if(star){
+      chipEl.classList.add('show');
+      chipLabel.textContent = star + ' estrella' + (star === '1' ? '' : 's');
+    } else {
+      chipEl.classList.remove('show');
+    }
+    noMatchMsg.hidden = anyVisible;
+  }
+
+  distBtns.forEach(function(b){
+    b.addEventListener('click', function(){
+      var star = b.getAttribute('data-star');
+      applyFilter(activeStar === star ? null : star);
+    });
+  });
+  clearBtn.addEventListener('click', function(){ applyFilter(null); });
+
+  // --- Reseñas: ordenar (por votos de útil, dato real y dinámico) ---
+  var reviewSort = document.getElementById('reviewSort');
+  var realGrid = document.getElementById('realReviewsGrid');
+  var originalOrder = Array.prototype.slice.call(realGrid.querySelectorAll('.review-card'));
+  reviewSort.addEventListener('change', function(){
+    if(reviewSort.value === 'helpful'){
+      var cards = Array.prototype.slice.call(realGrid.querySelectorAll('.review-card'));
+      cards.sort(function(a,b){
+        var ha = parseInt(a.querySelector('.btn-helpful').getAttribute('data-helpful'),10) || 0;
+        var hb = parseInt(b.querySelector('.btn-helpful').getAttribute('data-helpful'),10) || 0;
+        return hb - ha;
+      });
+      cards.forEach(function(c){ realGrid.appendChild(c); });
+    } else {
+      originalOrder.forEach(function(c){ realGrid.appendChild(c); });
+    }
+  });
+</script>
 </body>
 </html>
