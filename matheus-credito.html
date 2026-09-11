@@ -4,296 +4,727 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Matheus Crédito | Socio Sevrii</title>
+<meta name="description" content="Reparación de crédito y asesoría financiera — Matheus Crédito, socio verificado de Sevrii.">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <style>
   :root{
-    --ink:#111;
-    --muted-dark:#666;
-    --muted-2-dark:#999;
-    --line:#e8e8e8;
-    --muted-light:#a3a3a3;
-    --border-light:rgba(255,255,255,.12);
+    --bg:#ffffff;
+    --surface:#eff6f1;
+    --surface-2:#e4efe8;
+    --ink:#12130f;
+    --ink-dim:#5c5f56;
+    --ink-faint:#8d8f85;
+    --line:rgba(18,19,15,0.10);
+    --line-strong:rgba(18,19,15,0.18);
+    --gold:#25d366;
+    --gold-bright:#1ebe5b;
+    --verified:#12130f;
+    --verified-bg:rgba(18,19,15,0.08);
+    --danger:#b3493a;
+    --shadow: 0 20px 50px -24px rgba(18,19,15,0.25);
+
+    --accent:#3ddc84;
+    --accent-bright:#3ddc84;
+    --accent-bg:rgba(61,220,132,0.13);
+    --accent-border:rgba(61,220,132,0.4);
+    --accent-grad: radial-gradient(ellipse 70% 300% at 50% 50%, #2a5c3f 0%, #123420 55%, #070a08 100%);
+    --accent-grad-solid: #234f36;
+    --card-dark-1:#16291f;
+    --card-dark-2:#0a0f0c;
+    --card-dark-border:rgba(140,255,190,0.16);
+    --card-dark-ink:#f2f5f1;
+    --card-dark-ink-dim:#a9b3ac;
   }
-  *{box-sizing:border-box;margin:0;padding:0;}
+
+  *{box-sizing:border-box;}
   body{
-    background:#fff;color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif;
     -webkit-font-smoothing:antialiased;
+    line-height:1.55;
+    padding-inline:0;
   }
-  a{color:inherit;text-decoration:none;}
-  img{display:block;max-width:100%;}
-  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  img,svg{max-width:100%;display:block;}
+  a{color:inherit;}
+  .wrap{max-width:1180px;margin-inline:auto;padding-inline:24px;}
+  @media (max-width:640px){ .wrap{padding-inline:18px;} }
 
+  h1,h2,h3,.display{
+    font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+    font-weight:500;
+    text-wrap:balance;
+    letter-spacing:-0.01em;
+  }
+  .eyebrow{
+    font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    background:var(--accent-grad); background-clip:text; -webkit-background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+  }
+  .tabular{font-variant-numeric:tabular-nums;}
+  .mono{font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif;}
+
+  /* ---------- header ---------- */
   header{
-    position:sticky;top:0;z-index:50;
-    background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
-    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:40;
+    background:radial-gradient(ellipse 70% 300% at 50% 50%, #10251a 0%, #07140d 55%, #020302 100%);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid rgba(255,255,255,0.08);
   }
-  nav.wrap{display:flex;align-items:center;justify-content:space-between;height:74px;}
-  .logo-sevrii{font-size:18px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px;}
-  .logo-sevrii img{width:36px;height:36px;border-radius:7px;display:block;}
-  .service-name{font-size:17px;font-weight:600;color:var(--ink);}
-  .badge{
-    font-size:12px;color:var(--muted-dark);border:1px solid var(--line);
-    padding:7px 16px;border-radius:999px;letter-spacing:.5px;
+  .header-row{
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+    padding-block:14px; gap:12px;
+  }
+  .brand{display:flex; align-items:center; gap:10px; text-decoration:none;}
+  .brand-mark{
+    width:22px; height:22px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .brand-mark svg{width:22px; height:22px;}
+  .brand-name{font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-weight:700; font-size:16px; color:#f4f5f3;}
+  .header-title{
+    justify-self:center; font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-weight:600; font-size:16px;
+    white-space:nowrap; color:#f4f5f3;
+  }
+  .header-badge{
+    justify-self:end; font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:11px; letter-spacing:0.06em;
+    color:rgba(244,245,243,0.55); text-transform:uppercase; white-space:nowrap;
+  }
+  .btn-wa{
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--accent-grad); color:#ffffff;
+    font-weight:600; font-size:14px;
+    padding:10px 18px; border-radius:999px;
+    text-decoration:none; white-space:nowrap;
+    transition:filter 0.15s ease;
+  }
+  .btn-wa:hover{filter:brightness(1.15);}
+  .btn-wa.ghost{
+    background:transparent; color:var(--ink); border:1px solid var(--line-strong);
+  }
+  .btn-wa.ghost:hover{border-color:var(--accent-grad-solid); color:var(--accent-grad-solid);}
+  .btn-wa.block{width:100%; justify-content:center; padding:16px 20px; font-size:16px;}
+
+  /* ---------- breadcrumb ---------- */
+  .breadcrumb{
+    padding-top:18px; font-size:12.5px; color:var(--ink-faint);
+  }
+  .breadcrumb a{color:var(--ink-dim); text-decoration:none;}
+  .breadcrumb a:hover{text-decoration:underline;}
+  .breadcrumb .crumb-sep{margin:0 6px; color:var(--ink-faint);}
+  .breadcrumb .crumb-current{color:var(--ink);}
+
+  /* ---------- product section ---------- */
+  .product{
+    padding-block:16px 56px;
+    display:grid; grid-template-columns:1.05fr 0.95fr; gap:48px;
+  }
+  @media (max-width:900px){ .product{grid-template-columns:1fr; gap:32px;} }
+
+  .gallery{display:flex; gap:14px; align-items:flex-start;}
+  @media (max-width:640px){
+    .gallery{flex-direction:column-reverse; align-items:stretch;}
+    .gallery-stage{flex:none; width:100%;}
   }
 
-  section{padding:110px 24px;}
-  h2.section-title{font-size:clamp(30px,4.4vw,44px);font-weight:400;text-align:center;letter-spacing:-1px;}
-  .lead{color:var(--muted-dark);font-size:16px;text-align:center;max-width:600px;margin:16px auto 0;}
+  .gallery-stage{
+    flex:1; min-width:0;
+    position:relative;
+    aspect-ratio:4/3;
+    border-radius:18px;
+    overflow:hidden;
+    border:1px solid var(--line);
+    background:var(--surface);
+  }
+  .slide{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; justify-content:flex-end;
+    padding:26px;
+    opacity:0; transition:opacity 0.35s ease;
+    pointer-events:none;
+  }
+  .slide.active{opacity:1; pointer-events:auto;}
+  .slide-bg{position:absolute; inset:0; z-index:0;}
+  .slide-content{position:relative; z-index:2;}
+  .slide-kicker{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:11px; letter-spacing:0.1em;
+    text-transform:uppercase; color:#f4f1ea;
+    background:rgba(0,0,0,0.4); padding:5px 10px; border-radius:999px;
+    margin-bottom:10px; width:fit-content;
+  }
+  .slide-title{font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:26px; color:#f4f1ea; max-width:26ch;}
+  .slide-icon{
+    position:absolute; inset:0; z-index:1;
+    display:flex; align-items:center; justify-content:center;
+    padding-bottom:56px;
+  }
+  .play-dot{
+    position:absolute; top:20px; right:20px; z-index:2;
+    width:46px; height:46px; border-radius:50%;
+    background:rgba(0,0,0,0.5); border:1px solid rgba(244,241,234,0.3);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .thumbs{
+    display:flex; flex-direction:column; gap:8px; width:60px; flex-shrink:0;
+  }
+  @media (max-width:640px){
+    .thumbs{flex-direction:row; width:100%; overflow-x:auto; padding-bottom:2px;}
+  }
+  .thumb{
+    width:60px; aspect-ratio:1; border-radius:10px; border:1px solid var(--line);
+    background:var(--surface); cursor:pointer; position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    color:var(--ink-faint); font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:10px;
+  }
+  .thumb.active{border-color:var(--accent-grad-solid); box-shadow:0 0 0 1px var(--accent-grad-solid), 0 0 10px rgba(58,122,82,0.5);}
+  .thumb svg{position:absolute; inset:0; width:100%; height:100%;}
 
-  .btn{
-    display:inline-flex;align-items:center;gap:8px;
-    padding:14px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;
+  /* buybox */
+  .buybox{
+    display:flex; flex-direction:column; gap:20px;
+    border:1px solid var(--line); border-radius:18px; padding:24px;
+    background:var(--bg); height:fit-content;
   }
-  .btn-white{background:#fff;color:#000;border:none;}
-  .btn-white:hover{background:#eee;}
-  .btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);}
-  .btn-outline:hover{background:rgba(255,255,255,.1);}
-  .btn-outline-dark{background:transparent;color:var(--ink);border:1px solid #ccc;}
-  .btn-outline-dark:hover{background:#f5f5f5;}
+  .about-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+  .about-list li{position:relative; padding-left:18px; font-size:14.5px; color:var(--ink-dim); max-width:52ch;}
+  .about-list li::before{
+    content:"✓"; position:absolute; left:0; top:1px; font-size:12px; font-weight:700;
+    background:var(--accent-grad); background-clip:text; -webkit-background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+  }
+  .about-list strong{color:var(--ink); font-weight:600;}
+  .rating-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .stars{
+    font-size:15px; letter-spacing:1px;
+    background:var(--accent-grad); background-clip:text; -webkit-background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+  }
+  .rating-count{font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:13px; color:var(--ink-dim); text-decoration:underline; text-underline-offset:3px; cursor:pointer; background:none; border:none; padding:0;}
+  .verified-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--accent-grad); color:#f4f5f3;
+    font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px;
+    border:none;
+  }
+  .deal-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#cc0c39; color:#ffffff;
+    font-size:12px; font-weight:700; letter-spacing:0.02em;
+    padding:5px 12px; border-radius:4px; width:fit-content;
+  }
+  .buybox h1{font-size:clamp(30px,4vw,40px); margin:0;}
+  .buybox .lede{color:var(--ink-dim); font-size:16px; max-width:52ch;}
 
-  /* HERO */
-  .hero{
-    min-height:82vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    text-align:center;position:relative;overflow:hidden;
-    background:#000;
+  .selector{border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding-block:18px;}
+  .selector-label{font-size:13px; color:var(--ink-dim); margin-bottom:10px;}
+  .chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{
+    font-size:13px; padding:8px 14px; border-radius:999px;
+    border:1px solid var(--line-strong); background:var(--surface); color:var(--ink);
+    cursor:pointer; transition:all 0.15s ease;
   }
-  .hero-content{position:relative;z-index:1;padding:0 24px;}
-  .hero-logo{
-    width:400px;height:400px;max-width:70vw;max-height:70vw;object-fit:cover;border-radius:36px;
-    margin:0 auto 36px;display:block;
-    box-shadow:0 10px 40px rgba(0,0,0,.5);
-  }
-  .hero h1{
-    font-size:clamp(44px,7vw,80px);font-weight:400;line-height:1.05;letter-spacing:-1px;
-    color:#fff;margin-bottom:20px;
-  }
-  .hero p.sub{color:rgba(255,255,255,.85);font-size:19px;margin-bottom:36px;}
-  .hero .actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
+  .chip.active{border-color:transparent; color:#f4f5f3; background:var(--accent-grad);}
 
-  /* TODO INCLUIDO */
-  .incluido{background:#fff;}
-  .incluido-grid{
-    display:grid;grid-template-columns:repeat(3,1fr);gap:50px 40px;max-width:900px;margin:70px auto 0;
+  .price-note{
+    display:flex; align-items:baseline; justify-content:space-between;
+    font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:13px; color:var(--ink-dim);
+    border:1px dashed var(--line-strong); border-radius:10px; padding:12px 14px;
   }
-  .incluido-item{text-align:center;}
-  .incluido-item .check{
-    width:56px;height:56px;border-radius:50%;background:#111;color:#fff;
-    display:flex;align-items:center;justify-content:center;font-size:20px;margin:0 auto 18px;
-  }
-  .incluido-item h4{font-size:15px;font-weight:600;color:var(--ink);}
+  .price-note strong{color:var(--ink); font-weight:500;}
 
-  /* ASI TRABAJAMOS */
-  .trabajamos{background:#000;}
-  .trabajamos-grid{
-    max-width:700px;margin:0 auto;text-align:center;
+  .cta-block{display:flex; flex-direction:column; gap:10px;}
+  .micro-trust{
+    display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-dim);
+    justify-content:center;
   }
-  .trabajamos h2{font-size:clamp(28px,4vw,40px);font-weight:400;margin-bottom:20px;line-height:1.2;color:#fff;text-align:center;}
-  .trabajamos p{color:var(--muted-light);font-size:16px;line-height:1.6;margin:0 auto 32px;max-width:520px;}
+  .micro-trust .dot{width:6px; height:6px; border-radius:50%; background:var(--accent-grad);}
 
-  /* PLANES */
-  .planes{background:#fff;}
-  .planes-grid{
-    display:grid;grid-template-columns:repeat(4,1fr);gap:24px;max-width:1200px;margin:70px auto 0;
+  /* ---------- trust bar ---------- */
+  .trust-bar-section{
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--accent-bg), var(--surface));
   }
-  .plan-card{display:flex;flex-direction:column;}
-  .plan-card .thumb{
-    position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;margin-bottom:20px;
-    display:flex;align-items:center;justify-content:center;
+  .trust-card{background:none; border:none; border-radius:0;}
+  .trust-grid{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:24px;
+    padding-block:32px; text-align:center;
   }
-  .plan-card .thumb svg{width:46%;height:46%;}
-  .plan-card h4{font-size:17px;font-weight:600;margin-bottom:10px;color:var(--ink);}
-  .plan-card p{font-size:14px;color:var(--muted-dark);line-height:1.5;margin-bottom:18px;flex:1;}
-  .plan-card .price-pill{
-    display:inline-block;border:1px solid var(--ink);border-radius:999px;
-    padding:10px 18px;font-size:13px;font-weight:600;color:var(--ink);align-self:flex-start;
+  @media (max-width:800px){ .trust-grid{grid-template-columns:repeat(2,1fr);} }
+  .trust-item{display:flex; flex-direction:column; align-items:center; gap:10px;}
+  .trust-icon{
+    width:40px; height:40px; border-radius:50%; background:var(--accent-grad);
+    border:none; display:flex; align-items:center; justify-content:center;
+    color:#f4f5f3;
+  }
+  .trust-item span{font-size:13px; color:var(--ink-dim);}
+
+  /* ---------- generic section ---------- */
+  section.block{padding-block:64px;}
+  .section-head{max-width:56ch; margin-bottom:36px;}
+  .section-head h2{font-size:clamp(26px,3.2vw,34px); margin:8px 0 10px;}
+  .section-head p{color:var(--ink-dim); font-size:15px;}
+
+  /* process */
+  .process-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:28px;}
+  @media (max-width:800px){ .process-grid{grid-template-columns:1fr;} }
+  .process-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:26px;
+  }
+  .process-num{
+    font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-weight:700; font-size:34px; display:block; margin-bottom:12px;
+    background:var(--accent-grad); background-clip:text; -webkit-background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+  }
+  .process-card h3{font-size:19px; margin:0 0 8px;}
+  .process-card p{color:var(--ink-dim); font-size:14px; margin:0;}
+
+  /* services */
+  .services-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+  @media (max-width:900px){ .services-grid{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:600px){ .services-grid{grid-template-columns:1fr;} }
+  .service-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:22px; display:flex; flex-direction:column; gap:10px;
+    transition:border-color 0.15s ease;
+  }
+  .service-card.lead{
+    border-color:var(--accent-grad-solid);
+    background:linear-gradient(180deg, var(--accent-bg), var(--surface));
+  }
+  .service-card.lead .service-tag, .service-card.lead .service-range{
+    background:var(--accent-grad); background-clip:text; -webkit-background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent; font-weight:600;
+  }
+  .service-card:hover{border-color:var(--line-strong);}
+  .service-card h3{font-size:17px; margin:0;}
+  .service-card p{color:var(--ink-dim); font-size:13.5px; margin:0; flex-grow:1;}
+  .service-range{
+    font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:13px;
+    background:var(--accent-grad); background-clip:text; -webkit-background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+  }
+  .service-tag{
+    font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:10px; letter-spacing:0.08em; text-transform:uppercase;
+    background:var(--accent-grad); background-clip:text; -webkit-background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent; width:fit-content;
   }
 
-  /* TESTIMONIOS */
-  .testimonios{background:#fff;}
-  .testimonios h2.section-title span{display:block;}
-  .testimonios h2.section-title .l2{color:var(--muted-2-dark);}
-  .test-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;max-width:1100px;margin:70px auto 0;text-align:center;}
-  .stars{color:#111;letter-spacing:3px;margin-bottom:22px;font-size:15px;}
-  .test-card p.quote{font-size:15px;line-height:1.7;color:#333;margin-bottom:24px;}
-  .test-card .name{font-weight:600;font-size:15px;color:var(--ink);}
+  /* reviews */
+  .reviews-summary{
+    display:flex; align-items:center; gap:24px; margin-bottom:32px; flex-wrap:wrap;
+  }
+  .rating-big{font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:56px; line-height:1;}
+  .reviews-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+  @media (max-width:800px){ .reviews-grid{grid-template-columns:1fr;} }
+  .review-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px;
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .review-stars{
+    font-size:13px;
+    background:var(--accent-grad); background-clip:text; -webkit-background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+  }
+  .review-quote{font-size:14.5px; color:var(--ink);}
+  .review-name{display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--ink-dim);}
+  .review-name .verified-badge{font-size:10px; padding:2px 8px;}
 
-  /* CTA FINAL */
-  .cta-final{
-    text-align:center;background:#000;
+  /* faq */
+  .faq-list{border-top:1px solid var(--line);}
+  details{border-bottom:1px solid var(--line); padding-block:18px;}
+  summary{
+    cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center;
+    font-size:16px; font-weight:500; gap:16px;
   }
-  .cta-final h2{color:#fff;}
-  .cta-final h2.section-title span{display:block;}
-  .cta-final p{color:var(--muted-light);font-size:17px;margin:16px auto 44px;}
-  .cta-actions{display:flex;gap:24px;justify-content:center;align-items:center;flex-wrap:wrap;}
-  .phone-box{
-    background:#fff;color:#000;padding:16px 32px;border-radius:8px;font-weight:700;font-size:16px;
+  summary::-webkit-details-marker{display:none;}
+  summary .plus{
+    font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:20px; flex-shrink:0;
+    background:var(--accent-grad); background-clip:text; -webkit-background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
   }
-  .wa-note{text-align:left;font-size:13px;}
-  .wa-note .top{color:var(--muted-light);}
-  .wa-note .bottom{color:#fff;font-weight:600;}
+  details[open] summary .plus{transform:rotate(45deg);}
+  summary .plus{transition:transform 0.15s ease; display:inline-block;}
+  details p{color:var(--ink-dim); font-size:14.5px; margin:14px 0 0; max-width:64ch;}
 
-  footer{padding:40px 24px;text-align:center;color:#999;font-size:13px;border-top:1px solid var(--line);background:#fff;}
+  /* final cta */
+  .final-cta{
+    text-align:center; background:var(--surface); border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  }
+  .final-cta h2{font-size:clamp(28px,4vw,40px); max-width:20ch; margin:0 auto 14px;}
+  .final-cta p{color:var(--ink-dim); margin-bottom:26px;}
+  .final-cta .btn-wa{padding:16px 32px; font-size:16px;}
 
-  @media(max-width:900px){
-    .incluido-grid{grid-template-columns:1fr 1fr;}
-    .planes-grid{grid-template-columns:1fr 1fr;}
-    .test-grid{grid-template-columns:1fr;}
+  footer{padding-block:36px 100px;}
+  .footer-row{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap;
+    border-top:1px solid var(--line); padding-top:26px;
   }
-  @media(max-width:600px){
-    .wrap{padding:0 20px;}
-    section{padding:70px 20px;}
-    .incluido-grid{grid-template-columns:1fr;}
-    .planes-grid{grid-template-columns:1fr;}
+  .footer-legal{font-size:12px; color:var(--ink-faint); max-width:58ch; line-height:1.6;}
+  .footer-badge{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-dim);}
+
+  /* sticky mobile cta */
+  .sticky-cta{
+    display:none; position:fixed; bottom:0; left:0; right:0; z-index:50;
+    background:rgba(255,255,255,0.92); backdrop-filter:blur(10px);
+    border-top:1px solid var(--line); padding:12px 18px;
   }
+  @media (max-width:760px){ .sticky-cta{display:block;} footer{padding-bottom:90px;} }
 </style>
 </head>
 <body>
 
 <header>
-  <nav class="wrap">
-    <a href="index.html" class="logo-sevrii"><img src="assets/sevrii-logo.jpg" alt="Sevrii">Sevrii</a>
-    <div class="service-name">Matheus Crédito</div>
-    <div class="badge">Socio Sevrii</div>
-  </nav>
+  <div class="wrap header-row">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="7.1" r="1.7" fill="#f5f5f5"/>
+          <path d="M6.3 11.6A6 6 0 1 1 17.7 11.3" stroke="#f5f5f5" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M7.4 14.6C7.4 11.9 9.5 10.2 12 10.2C14.5 10.2 16.6 11.9 16.6 14.6C16.6 16.8 12 21.3 12 21.3C12 21.3 7.4 16.8 7.4 14.6Z" stroke="#f5f5f5" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="brand-name">Sevrii</span>
+    </a>
+    <div class="header-title">Matheus Crédito</div>
+    <div class="header-badge">Socio Sevrii</div>
+  </div>
 </header>
 
-<section class="hero">
-  <div class="hero-content">
-    <img src="assets/matheus-credito-logo.jpeg" alt="Matheus Crédito" class="hero-logo">
-    <h1>Servicios Financieros</h1>
-    <p class="sub">Soluciones financieras de crédito, con consulta 100% gratis</p>
-    <div class="actions">
-      <a href="https://wa.me/12145481003" target="_blank" class="btn btn-white">Consulta Gratis</a>
-      <a href="https://wa.me/12145481003" target="_blank" class="btn btn-outline">💬 Contáctame</a>
-    </div>
+<main>
+  <div class="wrap breadcrumb">
+    <a href="index.html">Sevrii</a>
+    <span class="crumb-sep">›</span>
+    <span>Matheus Crédito</span>
+    <span class="crumb-sep">›</span>
+    <span class="crumb-current">Reparación de crédito</span>
   </div>
-</section>
 
-<section class="incluido">
-  <h2 class="section-title">Todo Incluido</h2>
-  <p class="lead">Sin sorpresas, sin letras pequeñas. Esto es lo que obtienes con cada crédito.</p>
-  <div class="incluido-grid">
-    <div class="incluido-item"><div class="check">✓</div><h4>Asesoría personalizada</h4></div>
-    <div class="incluido-item"><div class="check">✓</div><h4>Proceso 100% digital</h4></div>
-    <div class="incluido-item"><div class="check">✓</div><h4>Sin penalización por pago anticipado</h4></div>
-    <div class="incluido-item"><div class="check">✓</div><h4>Consultoría</h4></div>
-    <div class="incluido-item"><div class="check">✓</div><h4>Consulta gratis</h4></div>
-  </div>
-</section>
-
-<section class="trabajamos">
-  <div class="trabajamos-grid">
-    <div>
-      <h2>Así Trabajamos</h2>
-      <p>Evaluamos tu perfil con un proceso simple y transparente. Sin letras pequeñas, sin sorpresas — solo la asesoría que necesitas para tomar la mejor decisión financiera.</p>
-      <a href="https://wa.me/12145481003" target="_blank" class="btn btn-outline">Conocer más</a>
-    </div>
-  </div>
-</section>
-
-<section class="planes" id="planes">
-  <h2 class="section-title">Elige tu Crédito</h2>
-  <p class="lead">Añade el plan que se ajuste a tu necesidad. Total transparencia y control.</p>
-  <div class="planes-grid">
-    <div class="plan-card">
-      <div class="thumb" style="background:linear-gradient(135deg,#e9e9e9,#cfcfcf);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2.5" y="6" width="19" height="13" rx="2"/>
-          <path d="M2.5 10h19"/>
-          <circle cx="17.5" cy="14.5" r="1.4" fill="#111" stroke="none"/>
-          <path d="M6 6V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/>
-        </svg>
+  <section class="product wrap">
+    <div class="gallery">
+      <div class="thumbs">
+        <div class="thumb active" data-thumb="0" onclick="showSlide(0)">01</div>
+        <div class="thumb" data-thumb="1" onclick="showSlide(1)">02</div>
+        <div class="thumb" data-thumb="2" onclick="showSlide(2)">03</div>
+        <div class="thumb" data-thumb="3" onclick="showSlide(3)">MT</div>
+        <div class="thumb" data-thumb="4" onclick="showSlide(4)">05</div>
       </div>
-      <h4>Crédito Personal</h4>
-      <p>Para gastos personales, consolidación de deudas o emergencias.</p>
-      <div class="price-pill">$550 – $8,000 USD</div>
-    </div>
-    <div class="plan-card">
-      <div class="thumb" style="background:linear-gradient(135deg,#dfe6e0,#b9c4bd);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 21V9l8-5 8 5v12"/>
-          <path d="M4 21h16"/>
-          <path d="M9 21v-6h6v6"/>
-          <path d="M9 12h.01M15 12h.01M9 8h.01M15 8h.01"/>
-        </svg>
+      <div class="gallery-stage">
+        <div class="slide active" data-slide="0">
+          <div class="slide-bg" style="background:radial-gradient(circle at 30% 20%, #232a24, #0a0c0a 70%);"></div>
+          <div class="slide-icon">
+            <svg width="108" height="108" viewBox="0 0 48 48" fill="none">
+              <path d="M8 12h32v18H21l-7 6v-6H8V12Z" stroke="#f4f1ea" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="M15 20h18M15 25h12" stroke="#7c8c7e" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="play-dot">▶</div>
+          <div class="slide-content">
+            <span class="slide-kicker">Video · Cliente</span>
+            <div class="slide-title">El anuncio que ya está funcionando</div>
+          </div>
+        </div>
+        <div class="slide" data-slide="1">
+          <div class="slide-bg" style="background:radial-gradient(circle at 70% 30%, #202620, #0a0c0a 70%);"></div>
+          <div class="slide-icon">
+            <svg width="108" height="108" viewBox="0 0 48 48" fill="none">
+              <path d="M6 22 24 8l18 14" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10 19v19h28V19" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M20 38v-10h8v10" stroke="#7c8c7e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="play-dot">▶</div>
+          <div class="slide-content">
+            <span class="slide-kicker">Video · Historia real</span>
+            <div class="slide-title">"A mis 35 años compré esta casa"</div>
+          </div>
+        </div>
+        <div class="slide" data-slide="2">
+          <div class="slide-bg" style="background:radial-gradient(circle at 50% 60%, #1e241f, #0a0c0a 70%);"></div>
+          <div class="slide-icon">
+            <svg width="108" height="108" viewBox="0 0 48 48" fill="none">
+              <path d="M6 22 24 8l18 14" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10 19v19h28V19" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="24" cy="27" r="4" stroke="#7c8c7e" stroke-width="1.6"/>
+              <path d="M35 6c-1.2 1.4-1.2 3 0 4.4-1.6-.4-3 .4-3.4 2 .6-1.8-.4-3.2-2-3.6 1.8.2 3-1 2.6-2.8.6 1.4 1.8 1.6 2.8 0Z" stroke="#7c8c7e" stroke-width="1.2" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="play-dot">▶</div>
+          <div class="slide-content">
+            <span class="slide-kicker">Video · Historia real</span>
+            <div class="slide-title">La casa embrujada</div>
+          </div>
+        </div>
+        <div class="slide" data-slide="3">
+          <div class="slide-bg" style="background:#0e120e;"></div>
+          <div class="slide-content" style="width:100%; display:flex; justify-content:center; padding-bottom:10px;">
+            <svg width="120" height="120" viewBox="0 0 48 48" fill="none">
+              <path d="M6 34V14l12 12 12-12v20" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M24 24v10" stroke="#7c8c7e" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="slide" data-slide="4">
+          <div class="slide-bg" style="background:radial-gradient(circle at 40% 40%, #1c241f, #0a0c0a 70%);"></div>
+          <div class="slide-icon">
+            <svg width="108" height="108" viewBox="0 0 48 48" fill="none">
+              <rect x="10" y="6" width="28" height="36" rx="3" stroke="#f4f1ea" stroke-width="1.6"/>
+              <path d="M16 16h16M16 22h16M16 28h10" stroke="#7c8c7e" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M15 35l3 3 6-7" stroke="#f4f1ea" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="slide-content">
+            <span class="slide-kicker">Proceso</span>
+            <div class="slide-title">Evaluamos tu reporte antes de prometer nada</div>
+          </div>
+        </div>
       </div>
-      <h4>Crédito PYME</h4>
-      <p>Impulsa tu negocio con capital de trabajo o expansión.</p>
-      <div class="price-pill">$2,500 – $50,000 USD</div>
     </div>
-    <div class="plan-card">
-      <div class="thumb" style="background:linear-gradient(135deg,#e2e2e2,#a9a9a9);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3.5 16V11l2-5h13l2 5v5"/>
-          <path d="M3.5 16a1.5 1.5 0 0 0 1.5 1.5h1a1.5 1.5 0 0 0 1.5-1.5v-1h8v1a1.5 1.5 0 0 0 1.5 1.5h1a1.5 1.5 0 0 0 1.5-1.5v-2H3.5z"/>
-          <circle cx="7.5" cy="13" r="1" fill="#111" stroke="none"/>
-          <circle cx="16.5" cy="13" r="1" fill="#111" stroke="none"/>
-        </svg>
-      </div>
-      <h4>Crédito Automotriz</h4>
-      <p>Financia tu auto nuevo o seminuevo con pagos fijos.</p>
-      <div class="price-pill">Hasta 90% del valor</div>
-    </div>
-    <div class="plan-card">
-      <div class="thumb" style="background:linear-gradient(135deg,#ece6da,#cbbfa4);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12a9 9 0 0 1-15.5 6.3L3 21"/>
-          <path d="M3 21v-4h4"/>
-          <path d="M3 12a9 9 0 0 1 15.5-6.3L21 3"/>
-          <path d="M21 3v4h-4"/>
-        </svg>
-      </div>
-      <h4>Refinanciamiento</h4>
-      <p>Consolida tus deudas en un solo pago y simplifica tus finanzas.</p>
-      <div class="price-pill">Monto según perfil</div>
-    </div>
-  </div>
-</section>
 
-<section class="testimonios">
-  <h2 class="section-title">
-    <span>Lo que dicen</span>
-    <span class="l2">nuestros clientes</span>
-  </h2>
-  <div class="test-grid">
-    <div class="test-card">
-      <div class="stars">★★★★★</div>
-      <p class="quote">"La consulta gratis me ayudó a entender exactamente qué crédito necesitaba, sin compromiso ni presión."</p>
-      <div class="name">Roberto Salas</div>
-    </div>
-    <div class="test-card">
-      <div class="stars">★★★★★</div>
-      <p class="quote">"Me asesoraron paso a paso para elegir el crédito ideal para mi negocio. Atención muy personalizada."</p>
-      <div class="name">Daniela Torres</div>
-    </div>
-    <div class="test-card">
-      <div class="stars">★★★★★</div>
-      <p class="quote">"Todo el proceso fue 100% digital y muy claro, sin sorpresas ni letras pequeñas."</p>
-      <div class="name">Jorge Medina</div>
-    </div>
-  </div>
-</section>
+    <div class="buybox">
+      <div class="rating-row">
+        <span class="stars">★★★★★</span>
+        <button class="rating-count tabular" onclick="document.getElementById('resenas').scrollIntoView({behavior:'smooth'})">4.9 · 32 reseñas</button>
+        <span class="verified-badge">✓ Verificado por Sevrii</span>
+      </div>
+      <div class="deal-badge">OFERTA · Consulta gratis por tiempo limitado</div>
+      <h1>Reparación de crédito y asesoría financiera</h1>
+      <ul class="about-list">
+        <li><strong>Evaluación gratuita:</strong> revisamos tus tres burós de crédito antes de recomendarte nada.</li>
+        <li><strong>100% digital:</strong> todo el proceso se hace por WhatsApp, sin filas ni papeleo.</li>
+        <li><strong>Asesoría completa:</strong> tarjetas de crédito, crédito personal, de negocio o hipotecario.</li>
+        <li><strong>Sin compromiso:</strong> la primera conversación no tiene costo ni obligación.</li>
+      </ul>
 
-<section class="cta-final">
-  <h2 class="section-title">
-    <span>¿Listo para tu</span>
-    <span>crédito ideal?</span>
-  </h2>
-  <p>Escríbenos ahora y resolvemos todo en una sola conversación.</p>
-  <div class="cta-actions">
-    <a href="https://wa.me/12145481003" target="_blank" class="phone-box">Escríbenos por WhatsApp</a>
-    <div class="wa-note">
-      <div class="top">WhatsApp 24/7</div>
-      <div class="bottom">Respuesta inmediata</div>
+      <div class="selector">
+        <div class="selector-label">¿Qué necesitas resolver?</div>
+        <div class="chip-row" id="chipRow">
+          <button class="chip active" data-msg="Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20reparaci%C3%B3n%20de%20cr%C3%A9dito." data-label="Reparación de crédito">Reparación de crédito</button>
+          <button class="chip" data-msg="Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20una%20tarjeta%20de%20cr%C3%A9dito." data-label="Tarjetas de crédito">Tarjetas de crédito</button>
+          <button class="chip" data-msg="Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20un%20cr%C3%A9dito%20personal." data-label="Crédito personal">Crédito personal</button>
+          <button class="chip" data-msg="Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20cr%C3%A9dito%20para%20mi%20negocio." data-label="Crédito de negocio">Crédito de negocio</button>
+          <button class="chip" data-msg="Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20un%20cr%C3%A9dito%20hipotecario." data-label="Hipotecario">Hipotecario</button>
+        </div>
+      </div>
+
+      <div class="price-note">
+        <span>Seleccionado</span>
+        <strong id="priceLabel">Reparación de crédito — consulta gratis</strong>
+      </div>
+
+      <div class="cta-block">
+        <a class="btn-wa block" id="mainCta" href="https://wa.me/12145481003?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20reparaci%C3%B3n%20de%20cr%C3%A9dito." target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+        <a class="btn-wa ghost block" href="#resenas">Ver reseñas verificadas</a>
+        <div class="micro-trust"><span class="dot"></span> WhatsApp 24/7 · Respuesta inmediata · Sin compromiso</div>
+      </div>
     </div>
+  </section>
+
+  <section class="block wrap" id="resenas">
+    <div class="section-head">
+      <span class="eyebrow">Reseñas</span>
+      <h2>Lo que dicen nuestros clientes</h2>
+    </div>
+    <div class="reviews-summary">
+      <div class="rating-big tabular">4.9</div>
+      <div>
+        <div class="stars" style="font-size:18px;">★★★★★</div>
+        <div class="mono" style="font-size:13px; color:var(--ink-dim);">Basado en 32 reseñas verificadas en Sevrii</div>
+      </div>
+    </div>
+    <div class="reviews-grid">
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-quote">"La consulta gratis me ayudó a entender exactamente qué crédito necesitaba, sin compromiso ni presión."</p>
+        <div class="review-name">Roberto Salas <span class="verified-badge">✓ Verificado</span></div>
+      </div>
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-quote">"Me asesoraron paso a paso para elegir el crédito ideal para mi negocio. Atención muy personalizada."</p>
+        <div class="review-name">Daniela Torres <span class="verified-badge">✓ Verificado</span></div>
+      </div>
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-quote">"Todo el proceso fue 100% digital y muy claro, sin sorpresas ni letras pequeñas."</p>
+        <div class="review-name">Jorge Medina <span class="verified-badge">✓ Verificado</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="trust-bar-section">
+    <div class="wrap">
+      <div class="trust-card">
+        <div class="trust-grid">
+          <div class="trust-item">
+            <div class="trust-icon">✓</div>
+            <span>Asesoría personalizada</span>
+          </div>
+          <div class="trust-item">
+            <div class="trust-icon">⚡</div>
+            <span>Proceso 100% digital</span>
+          </div>
+          <div class="trust-item">
+            <div class="trust-icon">◇</div>
+            <span>Sin penalización por pago anticipado</span>
+          </div>
+          <div class="trust-item">
+            <div class="trust-icon">i</div>
+            <span>Consultoría continua</span>
+          </div>
+          <div class="trust-item">
+            <div class="trust-icon">$</div>
+            <span>Consulta gratis</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block wrap">
+    <div class="section-head">
+      <span class="eyebrow">Cómo trabajamos</span>
+      <h2>Un proceso simple, sin letras pequeñas</h2>
+      <p>Antes de recomendarte nada, entendemos tu situación real. Así evitamos promesas que no podemos cumplir.</p>
+    </div>
+    <div class="process-grid">
+      <div class="process-card">
+        <span class="process-num">1</span>
+        <h3>Evaluamos tu reporte</h3>
+        <p>Revisamos tus tres burós de crédito y te explicamos, en español claro, qué está afectando tu puntaje.</p>
+      </div>
+      <div class="process-card">
+        <span class="process-num">2</span>
+        <h3>Armamos un plan</h3>
+        <p>Corregimos lo que se pueda corregir y te decimos con honestidad cuánto tiempo toma — sin atajos falsos.</p>
+      </div>
+      <div class="process-card">
+        <span class="process-num">3</span>
+        <h3>Te acompañamos al trámite</h3>
+        <p>Cuando tu perfil esté listo, te asesoramos en la tarjeta, el crédito personal, de negocio o la hipoteca que necesites.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block wrap">
+    <div class="section-head">
+      <span class="eyebrow">Servicios</span>
+      <h2>Elige lo que necesitas</h2>
+      <p>Todo empieza igual: una consulta gratuita para entender tu caso.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card lead">
+        <span class="service-tag">Nuestra base</span>
+        <h3>Reparación de crédito</h3>
+        <p>Corregimos errores en tu reporte y trabajamos para subir tu puntaje de forma real y documentada.</p>
+        <span class="service-range">Consulta gratis</span>
+      </div>
+      <div class="service-card">
+        <h3>Crédito personal</h3>
+        <p>Para gastos personales, consolidación de deudas o emergencias.</p>
+        <span class="service-range">$550 – $8,000 USD</span>
+      </div>
+      <div class="service-card">
+        <h3>Crédito PYME</h3>
+        <p>Impulsa tu negocio con capital de trabajo o expansión.</p>
+        <span class="service-range">$2,500 – $50,000 USD</span>
+      </div>
+      <div class="service-card">
+        <h3>Crédito automotriz</h3>
+        <p>Financia tu auto nuevo o seminuevo con pagos fijos.</p>
+        <span class="service-range">Hasta 90% del valor</span>
+      </div>
+      <div class="service-card">
+        <h3>Refinanciamiento</h3>
+        <p>Consolida tus deudas en un solo pago y simplifica tus finanzas.</p>
+        <span class="service-range">Monto según perfil</span>
+      </div>
+      <div class="service-card">
+        <h3>Hipotecario</h3>
+        <p>Preparamos tu perfil de crédito para calificar a la casa que quieres.</p>
+        <span class="service-range">Monto según perfil</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="block wrap">
+    <div class="section-head">
+      <span class="eyebrow">Preguntas frecuentes</span>
+      <h2>Antes de escribirnos</h2>
+    </div>
+    <div class="faq-list">
+      <details open>
+        <summary>¿Esto es una estafa? <span class="plus">+</span></summary>
+        <p>No. La reparación de crédito es un proceso legal, basado en tu derecho a disputar información incorrecta o desactualizada en tu reporte. No borramos deudas reales ni prometemos milagros — corregimos errores y te asesoramos para mejorar tu perfil con el tiempo.</p>
+      </details>
+      <details>
+        <summary>¿Cuánto tiempo toma ver resultados? <span class="plus">+</span></summary>
+        <p>Depende de tu caso. En la consulta gratuita te damos un estimado real basado en tu reporte, no una promesa genérica de "30 días" que no podemos garantizar.</p>
+      </details>
+      <details>
+        <summary>¿Matheus Crédito presta el dinero directamente? <span class="plus">+</span></summary>
+        <p>No somos un banco. Te asesoramos y te acompañamos en el trámite de crédito con las instituciones correspondientes, y trabajamos en mejorar tu perfil para que califiques en mejores condiciones.</p>
+      </details>
+      <details>
+        <summary>¿La consulta inicial tiene costo? <span class="plus">+</span></summary>
+        <p>No. La primera conversación por WhatsApp, donde revisamos tu situación y te explicamos tus opciones, siempre es gratuita.</p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<section class="final-cta block">
+  <div class="wrap">
+    <h2>¿Listo para saber en qué punto está tu crédito?</h2>
+    <p>Una conversación, sin compromiso, para entender tu caso real.</p>
+    <a class="btn-wa" href="https://wa.me/12145481003?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20un%20cr%C3%A9dito%20con%20Matheus%20Cr%C3%A9dito." target="_blank" rel="noopener">💬 Escríbenos por WhatsApp</a>
   </div>
 </section>
 
 <footer>
-  Matheus Crédito — Socio verificado del ecosistema Sevrii. © 2026
+  <div class="wrap">
+    <div class="footer-row">
+      <p class="footer-legal">Matheus Crédito ofrece servicios de asesoría y reparación de crédito. No somos una institución bancaria ni otorgamos préstamos directamente; acompañamos el trámite ante las instituciones correspondientes. Los resultados de reparación de crédito varían según el caso y no están garantizados.</p>
+      <div class="footer-badge">✓ Socio verificado del ecosistema Sevrii · © 2026</div>
+    </div>
+  </div>
 </footer>
+
+<div class="sticky-cta">
+  <a class="btn-wa block" href="https://wa.me/12145481003?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20un%20cr%C3%A9dito%20con%20Matheus%20Cr%C3%A9dito." target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+</div>
+
+<script>
+  function showSlide(i){
+    document.querySelectorAll('.slide').forEach(function(el){ el.classList.remove('active'); });
+    document.querySelectorAll('.thumb').forEach(function(el){ el.classList.remove('active'); });
+    document.querySelector('.slide[data-slide="'+i+'"]').classList.add('active');
+    document.querySelector('.thumb[data-thumb="'+i+'"]').classList.add('active');
+  }
+
+  var chips = document.querySelectorAll('#chipRow .chip');
+  var mainCta = document.getElementById('mainCta');
+  var priceLabel = document.getElementById('priceLabel');
+  var priceMap = {
+    'Reparación de crédito': 'Reparación de crédito — consulta gratis',
+    'Tarjetas de crédito': 'Tarjetas de crédito — según perfil',
+    'Crédito personal': 'Crédito personal — $550 a $8,000 USD',
+    'Crédito de negocio': 'Crédito PYME — $2,500 a $50,000 USD',
+    'Hipotecario': 'Hipotecario — monto según perfil'
+  };
+  chips.forEach(function(chip){
+    chip.addEventListener('click', function(){
+      chips.forEach(function(c){ c.classList.remove('active'); });
+      chip.classList.add('active');
+      var msg = chip.getAttribute('data-msg');
+      var label = chip.getAttribute('data-label');
+      mainCta.setAttribute('href', 'https://wa.me/12145481003?text=' + msg);
+      priceLabel.textContent = priceMap[label] || label;
+    });
+  });
+</script>
 
 </body>
 </html>
