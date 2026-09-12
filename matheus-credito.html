@@ -124,6 +124,11 @@
   }
   @media (max-width:900px){ .product{grid-template-columns:1fr; gap:32px;} }
 
+  .gallery-col{display:flex; flex-direction:column; gap:14px;}
+  .gallery-title{
+    font-size:22px; font-weight:700; color:var(--ink);
+    letter-spacing:0.01em; text-align:center;
+  }
   .gallery{display:flex; gap:14px; align-items:flex-start;}
   @media (max-width:640px){
     .gallery{flex-direction:column-reverse; align-items:stretch;}
@@ -444,7 +449,9 @@
   </div>
 
   <section class="product wrap">
-    <div class="gallery">
+    <div class="gallery-col">
+      <div class="gallery-title">Matheus Crédito</div>
+      <div class="gallery">
       <div class="thumbs">
         <div class="thumb active" data-thumb="0" onclick="showSlide(0)">01</div>
         <div class="thumb" data-thumb="1" onclick="showSlide(1)">02</div>
@@ -521,6 +528,7 @@
             <div class="slide-title">Evaluamos tu reporte antes de prometer nada</div>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
