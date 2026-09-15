@@ -120,24 +120,31 @@
   /* ---------- product section ---------- */
   .product{
     padding-block:16px 56px;
-    display:grid; grid-template-columns:1.05fr 0.95fr; gap:48px;
+    display:grid; grid-template-columns:1.05fr 0.95fr; gap:32px 48px;
+    grid-template-areas:
+      "gallery buybox"
+      "preview buybox";
+    align-items:start;
   }
-  @media (max-width:900px){ .product{grid-template-columns:1fr; gap:32px;} }
+  .gallery-col{grid-area:gallery;}
+  .buybox{grid-area:buybox;}
+  .reviews-preview{grid-area:preview;}
+  @media (max-width:900px){
+    .product{
+      grid-template-columns:1fr; gap:32px;
+      grid-template-areas:
+        "gallery"
+        "buybox"
+        "preview";
+    }
+  }
 
   .gallery-col{display:flex; flex-direction:column; gap:14px;}
   .gallery-title{
     font-size:22px; font-weight:700; color:var(--ink);
     letter-spacing:0.01em; text-align:center;
   }
-  .gallery-ratings{
-    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    border:1px solid var(--line); border-radius:14px; padding:14px 16px;
-    background:var(--surface); text-decoration:none; cursor:pointer;
-    transition:border-color 0.15s ease, background 0.15s ease;
-  }
-  .gallery-ratings:hover{border-color:var(--accent-grad-solid); background:var(--surface-2);}
-  .gallery-ratings .gr-score{font-family:'Arial', 'Helvetica Neue', Helvetica, sans-serif; font-size:16px; font-weight:700; color:var(--ink);}
-  .gallery-ratings .gr-count{font-size:13px; color:var(--ink-dim); text-decoration:underline; text-underline-offset:3px;}
+  .reviews-preview{display:flex; flex-direction:column; gap:0;}
   .gallery{display:flex; gap:14px; align-items:flex-start;}
   @media (max-width:640px){
     .gallery{flex-direction:column-reverse; align-items:stretch;}
@@ -539,12 +546,34 @@
         </div>
       </div>
       </div>
-      <a class="gallery-ratings" href="#resenas">
-        <span class="stars">★★★★★</span>
-        <span class="gr-score tabular">4.9</span>
-        <span class="gr-count">32 reseñas verificadas · Ver opiniones</span>
-        <span class="verified-badge">✓ Verificado por Sevrii</span>
-      </a>
+    </div>
+
+    <div class="reviews-preview">
+      <div class="section-head" style="margin-bottom:20px;">
+        <span class="eyebrow">Reseñas</span>
+        <h2>Lo que dicen nuestros clientes</h2>
+      </div>
+      <div class="reviews-summary">
+        <div class="rating-big tabular">4.9</div>
+        <div>
+          <div class="stars" style="font-size:18px;">★★★★★</div>
+          <div class="mono" style="font-size:13px; color:var(--ink-dim);">Basado en 32 reseñas verificadas en Sevrii</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:32px; flex-wrap:wrap; align-items:flex-start; margin-bottom:8px;">
+        <div class="rating-dist" id="ratingDist" style="max-width:340px;">
+          <button type="button" data-star="5" class="active"><span>5★</span><span class="bar-track"><span class="bar-fill" style="width:100%;"></span></span><span class="rd-count">3</span></button>
+          <button type="button" data-star="4" class="active"><span>4★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
+          <button type="button" data-star="3" class="active"><span>3★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
+          <button type="button" data-star="2" class="active"><span>2★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
+          <button type="button" data-star="1" class="active"><span>1★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
+        </div>
+        <div style="flex:1; min-width:220px; display:flex; flex-direction:column; gap:10px;">
+          <p class="mono" style="font-size:12.5px; color:var(--ink-dim); margin:0;">Mostrando las 3 reseñas con comentario escrito, de las 32 calificaciones verificadas en Sevrii.</p>
+          <a class="btn-wa ghost" style="width:fit-content; font-size:13px; padding:9px 18px;" href="https://wa.me/12145481003?text=Hola%2C%20quiero%20dejar%20mi%20opini%C3%B3n%20sobre%20el%20servicio%20de%20Matheus%20Cr%C3%A9dito" target="_blank" rel="noopener">✍️ Escribir una opinión</a>
+        </div>
+      </div>
+      <a class="btn-wa ghost block" href="#resenas">Ver las reseñas completas</a>
     </div>
 
     <div class="buybox">
@@ -588,33 +617,12 @@
   </section>
 
   <section class="block wrap" id="resenas">
-    <div class="section-head">
-      <span class="eyebrow">Reseñas</span>
-      <h2>Lo que dicen nuestros clientes</h2>
-    </div>
-    <div class="reviews-summary">
-      <div class="rating-big tabular">4.9</div>
-      <div>
-        <div class="stars" style="font-size:18px;">★★★★★</div>
-        <div class="mono" style="font-size:13px; color:var(--ink-dim);">Basado en 32 reseñas verificadas en Sevrii</div>
-      </div>
+    <div class="section-head" style="margin-bottom:20px;">
+      <span class="eyebrow">Opiniones</span>
+      <h2>Reseñas completas de nuestros clientes</h2>
     </div>
 
-    <div style="display:flex; gap:32px; flex-wrap:wrap; align-items:flex-start; margin-bottom:8px;">
-      <div class="rating-dist" id="ratingDist" style="max-width:340px;">
-        <button type="button" data-star="5" class="active"><span>5★</span><span class="bar-track"><span class="bar-fill" style="width:100%;"></span></span><span class="rd-count">3</span></button>
-        <button type="button" data-star="4" class="active"><span>4★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
-        <button type="button" data-star="3" class="active"><span>3★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
-        <button type="button" data-star="2" class="active"><span>2★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
-        <button type="button" data-star="1" class="active"><span>1★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
-      </div>
-      <div style="flex:1; min-width:220px; display:flex; flex-direction:column; gap:10px;">
-        <p class="mono" style="font-size:12.5px; color:var(--ink-dim); margin:0;">Mostrando las 3 reseñas con comentario escrito, de las 32 calificaciones verificadas en Sevrii.</p>
-        <a class="btn-wa ghost" style="width:fit-content; font-size:13px; padding:9px 18px;" href="https://wa.me/12145481003?text=Hola%2C%20quiero%20dejar%20mi%20opini%C3%B3n%20sobre%20el%20servicio%20de%20Matheus%20Cr%C3%A9dito" target="_blank" rel="noopener">✍️ Escribir una opinión</a>
-      </div>
-    </div>
-
-    <div class="demo-toolbar">
+    <div class="demo-toolbar" style="margin-top:0; padding-top:0; border-top:none;">
       <div class="active-filter-chip" id="activeFilterChip">
         Filtrado por: <strong id="activeFilterLabel"></strong> · <button type="button" id="clearFilterBtn">Limpiar filtro</button>
       </div>
