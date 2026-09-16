@@ -145,16 +145,24 @@ document.addEventListener('DOMContentLoaded', function(){
     padding:0 24px;
     display:flex;justify-content:center;
   }
-  .hero-inner{max-width:640px;text-align:center;}
+  .hero-inner{max-width:640px;text-align:center;position:relative;}
+  .hero-inner::before{
+    content:'';
+    position:absolute;
+    inset:-32px -48px;
+    background:radial-gradient(ellipse 65% 75% at 50% 45%, rgba(0,0,0,.45) 0%, rgba(0,0,0,.2) 45%, rgba(0,0,0,0) 75%);
+    z-index:-1;
+    pointer-events:none;
+  }
   .hero h1{
     font-size:clamp(38px,6vw,72px);font-weight:300;line-height:1.12;letter-spacing:-1.8px;
-    margin-bottom:28px;
+    margin-bottom:20px;
   }
   .hero h1 span{display:block;text-shadow:0 4px 24px rgba(0,0,0,.65);}
   .hero h1 .l1{color:#fff;}
   .hero h1 .l2{color:rgba(255,255,255,.85);}
   .hero h1 .l3{color:rgba(255,255,255,.65);}
-  .hero p.sub{color:#d9dbde;font-size:18px;max-width:520px;margin:0 auto 40px;text-shadow:0 2px 14px rgba(0,0,0,.6);}
+  .hero p.sub{color:#d9dbde;font-size:18px;max-width:520px;margin:0 auto 28px;text-shadow:0 2px 14px rgba(0,0,0,.6);}
   .search-bar{
     display:flex;align-items:center;gap:10px;
     background:rgba(255,255,255,.06);
