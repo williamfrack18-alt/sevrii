@@ -290,10 +290,29 @@ document.addEventListener('DOMContentLoaded', function(){
     border:none;
   }
   .deal-badge{
-    display:inline-flex; align-items:center; gap:6px;
-    background:#cc0c39; color:#ffffff;
-    font-size:12px; font-weight:700; letter-spacing:0.02em;
-    padding:5px 12px; border-radius:4px; width:fit-content;
+    display:inline-flex; align-items:center; gap:8px;
+    background:linear-gradient(135deg,#e0113f,#a80030); color:#ffffff;
+    font-size:12.5px; font-weight:700; letter-spacing:0.02em;
+    padding:8px 14px; border-radius:8px; width:fit-content;
+    box-shadow:0 2px 14px rgba(204,12,57,0.35);
+    animation:dealPulse 2.4s ease-in-out infinite;
+  }
+  .deal-badge-dot{
+    width:8px; height:8px; border-radius:50%; background:#fff; flex-shrink:0;
+    animation:dealBlink 1.2s ease-in-out infinite;
+  }
+  .deal-old-price{ text-decoration:line-through; opacity:0.65; font-weight:500; margin:0 1px; }
+  .deal-new-price{ color:#ffe680; font-weight:800; }
+  @keyframes dealPulse{
+    0%,100%{ box-shadow:0 2px 14px rgba(204,12,57,0.35); }
+    50%{ box-shadow:0 2px 22px rgba(204,12,57,0.65); }
+  }
+  @keyframes dealBlink{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.25; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .deal-badge, .deal-badge-dot{ animation:none; }
   }
   .buybox h1{font-size:clamp(30px,4vw,40px); margin:0;}
   .buybox .lede{color:var(--ink-dim); font-size:16px; max-width:52ch;}
@@ -640,7 +659,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <button class="rating-count tabular" onclick="document.getElementById('resenas').scrollIntoView({behavior:'smooth'})">4.9 · 32 reseñas</button>
         <span class="verified-badge">✓ Verificado por Sevrii</span>
       </div>
-      <div class="deal-badge">OFERTA · Consulta gratis — termina hoy en <span id="offerCountdown" class="tabular">00:00:00</span></div>
+      <div class="deal-badge"><span class="deal-badge-dot"></span><strong>OFERTA</strong> · <span class="deal-old-price">Antes $299</span> <span class="deal-new-price">Ahora GRATIS</span> — termina hoy en <span id="offerCountdown" class="tabular">00:00:00</span></div>
       <h1>Asesoría de crédito y financiera</h1>
       <ul class="about-list">
         <li><strong>Evaluación gratuita:</strong> revisamos tus tres burós de crédito antes de recomendarte nada.</li>
