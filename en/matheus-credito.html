@@ -263,6 +263,8 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   .thumb.active{border-color:var(--accent-grad-solid); box-shadow:0 0 0 1px var(--accent-grad-solid), 0 0 10px rgba(58,122,82,0.5);}
   .thumb svg{position:absolute; inset:0; width:100%; height:100%;}
+  .thumb-video{background-size:cover; background-position:center;}
+  .thumb-play{position:relative; z-index:1; color:#fff; font-size:13px; text-shadow:0 1px 4px rgba(0,0,0,0.7);}
 
   /* buybox */
   .buybox{
@@ -548,7 +550,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="gallery-title">Matheus Crédito</div>
       <div class="gallery">
       <div class="thumbs">
-        <div class="thumb active" data-thumb="0" onclick="showSlide(0)">01</div>
+        <div class="thumb active thumb-video" data-thumb="0" onclick="showSlide(0)" style="background-image:url('../assets/matheus-credito-video-poster.jpg');"><span class="thumb-play">▶</span></div>
         <div class="thumb" data-thumb="1" onclick="showSlide(1)">02</div>
         <div class="thumb" data-thumb="2" onclick="showSlide(2)">03</div>
         <div class="thumb" data-thumb="3" onclick="showSlide(3)">MT</div>
