@@ -247,6 +247,8 @@ document.addEventListener('DOMContentLoaded', function(){
     background:rgba(0,0,0,0.5); border:1px solid rgba(244,241,234,0.3);
     display:flex; align-items:center; justify-content:center;
   }
+  .slide-video{position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover; background:#000;}
+  .slide-kicker-float{position:absolute; top:16px; left:16px; z-index:2;}
   .thumbs{
     display:flex; flex-direction:column; gap:8px; width:60px; flex-shrink:0;
   }
@@ -554,18 +556,10 @@ document.addEventListener('DOMContentLoaded', function(){
       </div>
       <div class="gallery-stage">
         <div class="slide active" data-slide="0">
-          <div class="slide-bg" style="background:radial-gradient(circle at 30% 20%, #232a24, #0a0c0a 70%);"></div>
-          <div class="slide-icon">
-            <svg width="108" height="108" viewBox="0 0 48 48" fill="none">
-              <path d="M8 12h32v18H21l-7 6v-6H8V12Z" stroke="#f4f1ea" stroke-width="1.6" stroke-linejoin="round"/>
-              <path d="M15 20h18M15 25h12" stroke="#7c8c7e" stroke-width="1.6" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="play-dot">▶</div>
-          <div class="slide-content">
-            <span class="slide-kicker">Video · Cliente</span>
-            <div class="slide-title">El anuncio que ya está funcionando</div>
-          </div>
+          <video class="slide-video" controls preload="metadata" poster="assets/matheus-credito-video-poster.jpg" playsinline>
+            <source src="assets/matheus-credito-video.mp4" type="video/mp4">
+          </video>
+          <span class="slide-kicker slide-kicker-float">Video · Kevin, tu asesor</span>
         </div>
         <div class="slide" data-slide="1">
           <div class="slide-bg" style="background:radial-gradient(circle at 70% 30%, #202620, #0a0c0a 70%);"></div>
