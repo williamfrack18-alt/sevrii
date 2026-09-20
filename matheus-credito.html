@@ -263,8 +263,9 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   .thumb.active{border-color:var(--accent-grad-solid); box-shadow:0 0 0 1px var(--accent-grad-solid), 0 0 10px rgba(58,122,82,0.5);}
   .thumb svg{position:absolute; inset:0; width:100%; height:100%;}
-  .thumb-video{background-size:cover; background-position:center;}
+  .thumb-media{background-size:cover; background-position:center;}
   .thumb-play{position:relative; z-index:1; color:#fff; font-size:13px; text-shadow:0 1px 4px rgba(0,0,0,0.7);}
+  .slide-img{position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover;}
 
   /* buybox */
   .buybox{
@@ -294,19 +295,37 @@ document.addEventListener('DOMContentLoaded', function(){
     border:none;
   }
   .deal-badge{
-    display:inline-flex; align-items:center; gap:8px;
+    display:flex; align-items:center; gap:10px;
     background:linear-gradient(135deg,#e0113f,#a80030); color:#ffffff;
     font-size:12.5px; font-weight:700; letter-spacing:0.02em;
-    padding:8px 14px; border-radius:8px; width:fit-content;
+    padding:8px 14px; border-radius:8px; width:100%;
     box-shadow:0 2px 14px rgba(204,12,57,0.35);
     animation:dealPulse 2.4s ease-in-out infinite;
+    overflow:hidden;
   }
   .deal-badge-dot{
     width:8px; height:8px; border-radius:50%; background:#fff; flex-shrink:0;
     animation:dealBlink 1.2s ease-in-out infinite;
   }
+  .deal-marquee{flex:1; min-width:0; overflow:hidden; position:relative;}
+  .deal-marquee::before, .deal-marquee::after{
+    content:''; position:absolute; top:0; bottom:0; width:18px; z-index:1; pointer-events:none;
+  }
+  .deal-marquee::before{ left:0; background:linear-gradient(to right, #cc0c39, transparent); }
+  .deal-marquee::after{ right:0; background:linear-gradient(to left, #a80030, transparent); }
+  .deal-marquee-track{
+    display:flex; width:max-content;
+    animation:dealScroll 11s linear infinite;
+  }
+  .deal-marquee-item{
+    display:inline-flex; align-items:center; gap:6px; white-space:nowrap; padding-right:48px;
+  }
   .deal-old-price{ text-decoration:line-through; opacity:0.65; font-weight:500; margin:0 1px; }
   .deal-new-price{ color:#ffe680; font-weight:800; }
+  @keyframes dealScroll{
+    0%{ transform:translateX(0); }
+    100%{ transform:translateX(-50%); }
+  }
   @keyframes dealPulse{
     0%,100%{ box-shadow:0 2px 14px rgba(204,12,57,0.35); }
     50%{ box-shadow:0 2px 22px rgba(204,12,57,0.65); }
@@ -316,7 +335,7 @@ document.addEventListener('DOMContentLoaded', function(){
     50%{ opacity:0.25; }
   }
   @media (prefers-reduced-motion: reduce){
-    .deal-badge, .deal-badge-dot{ animation:none; }
+    .deal-badge, .deal-badge-dot, .deal-marquee-track{ animation:none; }
   }
   .buybox h1{font-size:clamp(30px,4vw,40px); margin:0;}
   .buybox .lede{color:var(--ink-dim); font-size:16px; max-width:52ch;}
@@ -550,11 +569,11 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="gallery-title">Matheus Crédito</div>
       <div class="gallery">
       <div class="thumbs">
-        <div class="thumb active thumb-video" data-thumb="0" onclick="showSlide(0)" style="background-image:url('assets/matheus-credito-video-poster.jpg');"><span class="thumb-play">▶</span></div>
-        <div class="thumb" data-thumb="1" onclick="showSlide(1)">02</div>
-        <div class="thumb" data-thumb="2" onclick="showSlide(2)">03</div>
-        <div class="thumb" data-thumb="3" onclick="showSlide(3)">MT</div>
-        <div class="thumb" data-thumb="4" onclick="showSlide(4)">05</div>
+        <div class="thumb active thumb-media" data-thumb="0" onclick="showSlide(0)" style="background-image:url('assets/matheus-credito-video-poster.jpg');"><span class="thumb-play">▶</span></div>
+        <div class="thumb thumb-media" data-thumb="1" onclick="showSlide(1)" style="background-image:url('assets/matheus-slide-personal.webp');"></div>
+        <div class="thumb thumb-media" data-thumb="2" onclick="showSlide(2)" style="background-image:url('assets/matheus-slide-tarjetas.webp');"></div>
+        <div class="thumb thumb-media" data-thumb="3" onclick="showSlide(3)" style="background-image:url('assets/matheus-slide-hipotecario.webp');"></div>
+        <div class="thumb thumb-media" data-thumb="4" onclick="showSlide(4)" style="background-image:url('assets/matheus-slide-negocio.webp');"></div>
       </div>
       <div class="gallery-stage">
         <div class="slide active" data-slide="0">
@@ -564,58 +583,16 @@ document.addEventListener('DOMContentLoaded', function(){
           <span class="slide-kicker slide-kicker-float">Video · Kevin, tu asesor</span>
         </div>
         <div class="slide" data-slide="1">
-          <div class="slide-bg" style="background:radial-gradient(circle at 70% 30%, #202620, #0a0c0a 70%);"></div>
-          <div class="slide-icon">
-            <svg width="108" height="108" viewBox="0 0 48 48" fill="none">
-              <path d="M6 22 24 8l18 14" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M10 19v19h28V19" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M20 38v-10h8v10" stroke="#7c8c7e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="play-dot">▶</div>
-          <div class="slide-content">
-            <span class="slide-kicker">Video · Historia real</span>
-            <div class="slide-title">"A mis 35 años compré esta casa"</div>
-          </div>
+          <img class="slide-img" src="assets/matheus-slide-personal.webp" alt="Asesoría en crédito personal" loading="lazy">
         </div>
         <div class="slide" data-slide="2">
-          <div class="slide-bg" style="background:radial-gradient(circle at 50% 60%, #1e241f, #0a0c0a 70%);"></div>
-          <div class="slide-icon">
-            <svg width="108" height="108" viewBox="0 0 48 48" fill="none">
-              <path d="M6 22 24 8l18 14" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M10 19v19h28V19" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="24" cy="27" r="4" stroke="#7c8c7e" stroke-width="1.6"/>
-              <path d="M35 6c-1.2 1.4-1.2 3 0 4.4-1.6-.4-3 .4-3.4 2 .6-1.8-.4-3.2-2-3.6 1.8.2 3-1 2.6-2.8.6 1.4 1.8 1.6 2.8 0Z" stroke="#7c8c7e" stroke-width="1.2" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="play-dot">▶</div>
-          <div class="slide-content">
-            <span class="slide-kicker">Video · Historia real</span>
-            <div class="slide-title">La casa embrujada</div>
-          </div>
+          <img class="slide-img" src="assets/matheus-slide-tarjetas.webp" alt="Asesoría en tarjetas de crédito" loading="lazy">
         </div>
         <div class="slide" data-slide="3">
-          <div class="slide-bg" style="background:#0e120e;"></div>
-          <div class="slide-content" style="width:100%; display:flex; justify-content:center; padding-bottom:10px;">
-            <svg width="120" height="120" viewBox="0 0 48 48" fill="none">
-              <path d="M6 34V14l12 12 12-12v20" stroke="#f4f1ea" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M24 24v10" stroke="#7c8c7e" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </div>
+          <img class="slide-img" src="assets/matheus-slide-hipotecario.webp" alt="Asesoría en crédito hipotecario" loading="lazy">
         </div>
         <div class="slide" data-slide="4">
-          <div class="slide-bg" style="background:radial-gradient(circle at 40% 40%, #1c241f, #0a0c0a 70%);"></div>
-          <div class="slide-icon">
-            <svg width="108" height="108" viewBox="0 0 48 48" fill="none">
-              <rect x="10" y="6" width="28" height="36" rx="3" stroke="#f4f1ea" stroke-width="1.6"/>
-              <path d="M16 16h16M16 22h16M16 28h10" stroke="#7c8c7e" stroke-width="1.6" stroke-linecap="round"/>
-              <path d="M15 35l3 3 6-7" stroke="#f4f1ea" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="slide-content">
-            <span class="slide-kicker">Proceso</span>
-            <div class="slide-title">Evaluamos tu reporte antes de prometer nada</div>
-          </div>
+          <img class="slide-img" src="assets/matheus-slide-negocio.webp" alt="Asesoría en crédito de negocio" loading="lazy">
         </div>
       </div>
       </div>
@@ -655,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <button class="rating-count tabular" onclick="document.getElementById('resenas').scrollIntoView({behavior:'smooth'})">4.9 · 32 reseñas</button>
         <span class="verified-badge">✓ Verificado por Sevrii</span>
       </div>
-      <div class="deal-badge"><span class="deal-badge-dot"></span><strong>OFERTA</strong> · <span class="deal-old-price">Antes $299</span> <span class="deal-new-price">Ahora GRATIS</span> — termina hoy en <span id="offerCountdown" class="tabular">00:00:00</span></div>
+      <div class="deal-badge"><span class="deal-badge-dot"></span><div class="deal-marquee"><div class="deal-marquee-track"><span class="deal-marquee-item"><strong>OFERTA</strong> · <span class="deal-old-price">Antes $299</span> <span class="deal-new-price">Ahora GRATIS</span> — termina hoy en <span class="offerCountdown tabular">00:00:00</span></span><span class="deal-marquee-item"><strong>OFERTA</strong> · <span class="deal-old-price">Antes $299</span> <span class="deal-new-price">Ahora GRATIS</span> — termina hoy en <span class="offerCountdown tabular">00:00:00</span></span></div></div></div>
       <h1>Asesoría de crédito y financiera</h1>
       <ul class="about-list">
         <li><strong>Evaluación gratuita:</strong> revisamos tus tres burós de crédito antes de recomendarte nada.</li>
@@ -903,8 +880,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // --- Oferta: cuenta regresiva dinámica hasta el final del día ---
   (function(){
-    var el = document.getElementById('offerCountdown');
-    if(!el) return;
+    var els = document.querySelectorAll('.offerCountdown');
+    if(!els.length) return;
     function pad(n){ return n < 10 ? '0' + n : '' + n; }
     function tick(){
       var now = new Date();
@@ -913,7 +890,8 @@ document.addEventListener('DOMContentLoaded', function(){
       var h = Math.floor(diff / 3600000);
       var m = Math.floor((diff % 3600000) / 60000);
       var s = Math.floor((diff % 60000) / 1000);
-      el.textContent = pad(h) + ':' + pad(m) + ':' + pad(s);
+      var txt = pad(h) + ':' + pad(m) + ':' + pad(s);
+      els.forEach(function(el){ el.textContent = txt; });
     }
     tick();
     setInterval(tick, 1000);
