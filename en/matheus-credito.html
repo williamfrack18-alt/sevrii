@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function(){
       "preview buybox";
     align-items:start;
   }
-  .gallery-col{grid-area:gallery;}
+  .gallery-col{grid-area:gallery; min-width:0;}
   .buybox{grid-area:buybox;}
   .reviews-preview{grid-area:preview;}
   @media (max-width:900px){
@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function(){
   .buybox{
     display:flex; flex-direction:column; gap:20px;
     border:1px solid var(--line); border-radius:18px; padding:24px;
-    background:var(--bg); height:fit-content;
+    background:var(--bg); height:fit-content; min-width:0;
   }
   .about-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
   .about-list li{position:relative; padding-left:18px; font-size:14.5px; color:var(--ink-dim); max-width:52ch;}
