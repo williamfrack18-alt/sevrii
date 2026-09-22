@@ -570,7 +570,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="gallery">
       <div class="thumbs">
         <div class="thumb active thumb-media" data-thumb="0" onclick="showSlide(0)" style="background-image:url('assets/matheus-credito-video-poster.jpg');"><span class="thumb-play">▶</span></div>
-        <div class="thumb thumb-media" data-thumb="1" onclick="showSlide(1)" style="background-image:url('assets/matheus-slide-personal.webp');"></div>
+        <div class="thumb thumb-media" data-thumb="1" onclick="showSlide(1)" style="background-image:url('assets/matheus-credito-video-2-poster.jpg');"><span class="thumb-play">▶</span></div>
         <div class="thumb thumb-media" data-thumb="2" onclick="showSlide(2)" style="background-image:url('assets/matheus-slide-tarjetas.webp');"></div>
         <div class="thumb thumb-media" data-thumb="3" onclick="showSlide(3)" style="background-image:url('assets/matheus-slide-hipotecario.webp');"></div>
         <div class="thumb thumb-media" data-thumb="4" onclick="showSlide(4)" style="background-image:url('assets/matheus-slide-negocio.webp');"></div>
@@ -583,7 +583,10 @@ document.addEventListener('DOMContentLoaded', function(){
           <span class="slide-kicker slide-kicker-float">Video · Kevin, tu asesor</span>
         </div>
         <div class="slide" data-slide="1">
-          <img class="slide-img" src="assets/matheus-slide-personal.webp" alt="Asesoría en crédito personal" loading="lazy">
+          <video class="slide-video" controls preload="metadata" poster="assets/matheus-credito-video-2-poster.jpg" playsinline>
+            <source src="assets/matheus-credito-video-2.mp4" type="video/mp4">
+          </video>
+          <span class="slide-kicker slide-kicker-float">Video · Kevin, tu asesor</span>
         </div>
         <div class="slide" data-slide="2">
           <img class="slide-img" src="assets/matheus-slide-tarjetas.webp" alt="Asesoría en tarjetas de crédito" loading="lazy">
