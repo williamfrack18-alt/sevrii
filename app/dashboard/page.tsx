@@ -11,9 +11,9 @@ export default async function DashboardPage() {
   if (!user.business) redirect("/start");
 
   const business = user.business;
-  const services = listServices(business.id);
-  const campaigns = listCampaigns(business.id);
-  const marketingMessages = listChatMessages(business.id, "marketing");
+  const services = await listServices(business.id);
+  const campaigns = await listCampaigns(business.id);
+  const marketingMessages = await listChatMessages(business.id, "marketing");
 
   return (
     <div className="min-h-screen bg-cream">
