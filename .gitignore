@@ -1,1 +1,9 @@
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
 .DS_Store
+.env.local
+.next
+data/
+node_modules
