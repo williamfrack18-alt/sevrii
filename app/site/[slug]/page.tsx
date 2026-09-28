@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { getBusinessBySlug, listServices, listReviews } from "@/lib/db";
 
-export default function PublicBusinessPage({ params }: { params: { slug: string } }) {
-  const business = getBusinessBySlug(params.slug);
+export default async function PublicBusinessPage({ params }: { params: { slug: string } }) {
+  const business = await getBusinessBySlug(params.slug);
   if (!business || !business.published) notFound();
 
-  const services = listServices(business.id);
-  const reviews = listReviews(business.id);
+  const services = await listServices(business.id);
+  const reviews = await listReviews(business.id);
   const waLink = business.whatsapp
     ? `https://wa.me/${business.whatsapp.replace(/[^0-9]/g, "")}`
     : null;

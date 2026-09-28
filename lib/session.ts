@@ -6,8 +6,8 @@ export async function getCurrentUser() {
   const token = cookies().get(SESSION_COOKIE)?.value;
   const session = verifySessionToken(token);
   if (!session) return null;
-  const user = getUserById(session.userId);
+  const user = await getUserById(session.userId);
   if (!user) return null;
-  const business = getBusinessByUserId(user.id) ?? null;
+  const business = (await getBusinessByUserId(user.id)) ?? null;
   return { ...user, business };
 }

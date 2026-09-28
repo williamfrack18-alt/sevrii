@@ -57,12 +57,12 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
   }
-  if (getUserByEmail(email)) {
+  if (await getUserByEmail(email)) {
     return { error: "An account with that email already exists." };
   }
 
   const { hash, salt } = hashPassword(password);
-  const user = createUser(email, hash, salt);
+  const user = await createUser(email, hash, salt);
   setSessionCookie(user.id);
   redirect("/start");
 }
@@ -71,7 +71,7 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
 
-  const user = getUserByEmail(email);
+  const user = await getUserByEmail(email);
   if (!user || !verifyPassword(password, user.passwordHash, user.salt)) {
     return { error: "Incorrect email or password." };
   }
@@ -100,7 +100,7 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
   let baseSlug = slugify(answers.name) || "business";
   let slug = baseSlug;
   let n = 1;
-  while (isSlugTaken(slug)) {
+  while (await isSlugTaken(slug)) {
     n += 1;
     slug = `${baseSlug}-${n}`;
   }
@@ -112,7 +112,7 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
     city: answers.city,
   });
 
-  const business = createBusiness({
+  const business = await createBusiness({
     userId: user!.id,
     slug,
     name: answers.name,
@@ -122,18 +122,22 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
     pitch,
   });
 
-  suggestServices(category).forEach((s, i) => addService(business.id, s.name, s.price, undefined, i));
+  const services = suggestServices(category);
+  for (let i = 0; i < services.length; i++) {
+    const s = services[i];
+    await addService(business.id, s.name, s.price, undefined, i);
+  }
 
   // Persist the onboarding conversation for continuity with the chat UI.
-  addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_name"));
-  addChatMessage(business.id, "onboarding", "user", answers.name);
-  addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_category"));
-  addChatMessage(business.id, "onboarding", "user", answers.categoryRaw);
-  addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_city"));
-  addChatMessage(business.id, "onboarding", "user", answers.city);
-  addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_description"));
-  addChatMessage(business.id, "onboarding", "user", answers.description);
-  addChatMessage(
+  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_name"));
+  await addChatMessage(business.id, "onboarding", "user", answers.name);
+  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_category"));
+  await addChatMessage(business.id, "onboarding", "user", answers.categoryRaw);
+  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_city"));
+  await addChatMessage(business.id, "onboarding", "user", answers.city);
+  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_description"));
+  await addChatMessage(business.id, "onboarding", "user", answers.description);
+  await addChatMessage(
     business.id,
     "onboarding",
     "ai",
@@ -147,7 +151,7 @@ export async function updateWhatsappAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user || !user.business) redirect("/login");
   const whatsapp = String(formData.get("whatsapp") || "").trim();
-  updateBusinessWhatsapp(user.business.id, whatsapp);
+  await updateBusinessWhatsapp(user.business.id, whatsapp);
   revalidatePath("/dashboard");
   revalidatePath(`/site/${user.business.slug}`);
 }
@@ -159,14 +163,14 @@ export async function sendMarketingMessageAction(message: string) {
   const trimmed = message.trim();
   if (!trimmed) return listChatMessages(business.id, "marketing");
 
-  addChatMessage(business.id, "marketing", "user", trimmed);
+  await addChatMessage(business.id, "marketing", "user", trimmed);
 
   const draft = draftCampaign({
     businessName: business.name,
     category: business.category,
     goal: trimmed,
   });
-  createCampaign({
+  await createCampaign({
     businessId: business.id,
     title: draft.title,
     goal: draft.goal,
@@ -175,7 +179,7 @@ export async function sendMarketingMessageAction(message: string) {
   });
 
   const aiReply = `Here's a draft campaign for "${trimmed}":\n\n"${draft.adCopyDraft}"\n\nSuggested budget: ${draft.suggestedBudget}. This is a draft — connect your Meta Ads account from Settings to actually launch it. I saved it under your campaigns.`;
-  addChatMessage(business.id, "marketing", "ai", aiReply);
+  await addChatMessage(business.id, "marketing", "ai", aiReply);
 
   revalidatePath("/dashboard");
   return listChatMessages(business.id, "marketing");
@@ -205,7 +209,7 @@ export async function completeDiscoveryAction(input: {
   let baseSlug = slugify(details.businessName) || "business";
   let slug = baseSlug;
   let n = 1;
-  while (isSlugTaken(slug)) {
+  while (await isSlugTaken(slug)) {
     n += 1;
     slug = `${baseSlug}-${n}`;
   }
@@ -217,7 +221,7 @@ export async function completeDiscoveryAction(input: {
     pricing: details.pricing,
   });
 
-  const business = createBusiness({
+  const business = await createBusiness({
     userId: user.id,
     slug,
     name: details.businessName,
@@ -228,47 +232,47 @@ export async function completeDiscoveryAction(input: {
     whatsapp: input.whatsapp?.trim() || null,
   });
 
-  addService(business.id, idea.title, details.pricing.slice(0, 120), idea.desc, 0);
+  await addService(business.id, idea.title, details.pricing.slice(0, 120), idea.desc, 0);
 
   // Persist the full two-part conversation for continuity with the chat UI.
-  addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_location"));
-  addChatMessage(business.id, "onboarding", "user", discovery.location);
-  addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_background"));
-  addChatMessage(business.id, "onboarding", "user", discovery.background);
-  addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_license"));
-  addChatMessage(business.id, "onboarding", "user", discovery.license);
-  addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_capacity"));
-  addChatMessage(business.id, "onboarding", "user", discovery.capacity);
-  addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("done"));
-  addChatMessage(
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_location"));
+  await addChatMessage(business.id, "onboarding", "user", discovery.location);
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_background"));
+  await addChatMessage(business.id, "onboarding", "user", discovery.background);
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_license"));
+  await addChatMessage(business.id, "onboarding", "user", discovery.license);
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_capacity"));
+  await addChatMessage(business.id, "onboarding", "user", discovery.capacity);
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("done"));
+  await addChatMessage(
     business.id,
     "onboarding",
     "ai",
     `Good choice — ${idea.title.toLowerCase()} fits what you told me. Let's build your page. First, what would you like to call your business?`
   );
-  addChatMessage(business.id, "onboarding", "user", details.businessName);
-  addChatMessage(
+  await addChatMessage(business.id, "onboarding", "user", details.businessName);
+  await addChatMessage(
     business.id,
     "onboarding",
     "ai",
     "Do you want to charge by project or by the hour, and what kind of price range should people expect?"
   );
-  addChatMessage(business.id, "onboarding", "user", details.pricing);
-  addChatMessage(
+  await addChatMessage(business.id, "onboarding", "user", details.pricing);
+  await addChatMessage(
     business.id,
     "onboarding",
     "ai",
     "How far are you willing to travel for jobs, and how should people reach you?"
   );
-  addChatMessage(business.id, "onboarding", "user", details.travelContact);
-  addChatMessage(
+  await addChatMessage(business.id, "onboarding", "user", details.travelContact);
+  await addChatMessage(
     business.id,
     "onboarding",
     "ai",
     "Do you have photos of past work, or should we start with placeholder examples?"
   );
-  addChatMessage(business.id, "onboarding", "user", details.photos);
-  addChatMessage(
+  await addChatMessage(business.id, "onboarding", "user", details.photos);
+  await addChatMessage(
     business.id,
     "onboarding",
     "ai",

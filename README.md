@@ -9,8 +9,9 @@ see "What's simulated vs. real" below.
 ## Stack
 
 - **Next.js 14** (App Router) + TypeScript + Tailwind CSS
-- **Database:** SQLite via Node's built-in `node:sqlite` module — no external database or native
-  binary download required. Data is stored in `data/sevri.db` (created automatically).
+- **Database:** Postgres, hosted on [Neon](https://neon.tech), connected via Vercel's Storage
+  integration. Accessed through `@neondatabase/serverless` (HTTP driver, works from serverless
+  functions). Schema is created automatically on first query — no manual migration step.
 - **Auth:** custom email/password auth. Passwords are hashed with `scrypt` (Node's `crypto`
   module); sessions are a signed, HTTP-only cookie (HMAC-SHA256, no third-party auth library).
 - No external API calls anywhere in the app — it runs fully offline once installed, aside from
@@ -30,12 +31,16 @@ npm run build
 npm start
 ```
 
-The first request creates `data/sevri.db` automatically. Delete that file (and the `data/`
-folder) any time to reset all data.
+For local development you need a `DATABASE_URL` pointing at the Neon database. Run
+`vercel env pull .env.local` (after `vercel link`) to fetch the real one from this project, or
+paste a Neon connection string into `.env` yourself. The first request creates all tables
+automatically (`CREATE TABLE IF NOT EXISTS`).
 
 ### Environment variables (`.env`)
 
-- `DATABASE_PATH` — where the SQLite file lives (default `./data/sevri.db`)
+- `DATABASE_URL` — Postgres connection string (Neon). In production this is injected
+  automatically by Vercel's Neon Storage integration; for local dev, pull it with
+  `vercel env pull .env.local` or set it by hand.
 - `SESSION_SECRET` — HMAC signing key for session cookies. **Change this before deploying
   anywhere real** — the checked-in value is a dev-only placeholder.
 
@@ -95,9 +100,6 @@ a clearly-marked next step rather than faked:
 
 ## Known limitations before a real deployment
 
-- `node:sqlite` is still an experimental Node.js API. It's solid for an MVP, but for a
-  production deployment with concurrent writers, consider moving to Postgres (the query
-  functions are all isolated in `lib/db.ts`, so this is a contained change).
 - `npm audit` will flag Next.js 14.2.x against several advisories that are only fully patched in
   Next.js 15/16. Most don't apply to this app's usage (no custom server, no Image Optimization
   remote patterns, no i18n middleware), but upgrading before a public production deploy is
@@ -119,7 +121,7 @@ app/
   dashboard/              Website / Marketing tabs, marketing chat
   site/[slug]/            the public generated business page
 lib/
-  db.ts                  SQLite schema + all data access functions
+  db.ts                  Postgres (Neon) schema + all data access functions
   auth.ts                password hashing + session token sign/verify
   session.ts             reads the current logged-in user (+ their business) from the cookie
   ai.ts                  all "Sevri AI" logic, both paths — swap for a real model here
