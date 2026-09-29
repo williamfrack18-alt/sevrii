@@ -90,9 +90,18 @@ function ensureSchema(): Promise<void> {
           status TEXT NOT NULL DEFAULT 'draft',
           "adCopy" TEXT,
           "budgetNote" TEXT,
+          audience TEXT,
+          platforms TEXT,
+          variations TEXT,
           "createdAt" TEXT NOT NULL
         )
       `;
+      // Campaigns created before the richer marketing-agent fields existed
+      // need them added in place — CREATE TABLE IF NOT EXISTS above is a
+      // no-op for a table that already exists.
+      await sql`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS audience TEXT`;
+      await sql`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS platforms TEXT`;
+      await sql`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS variations TEXT`;
       await sql`
         CREATE TABLE IF NOT EXISTS chat_messages (
           id TEXT PRIMARY KEY,
@@ -351,6 +360,9 @@ export async function listReviews(businessId: string): Promise<ReviewRow[]> {
 }
 
 // ---------- Campaigns ----------
+// `variations` stores a JSON-stringified array of {headline, body} pairs —
+// same "plain TEXT column, parse where it's displayed" approach as the rest
+// of this file, rather than a JSON column type.
 export type CampaignRow = {
   id: string;
   businessId: string;
@@ -359,6 +371,9 @@ export type CampaignRow = {
   status: string;
   adCopy: string | null;
   budgetNote: string | null;
+  audience: string | null;
+  platforms: string | null;
+  variations: string | null;
   createdAt: string;
 };
 
@@ -368,15 +383,23 @@ export async function createCampaign(input: {
   goal: string;
   adCopy?: string;
   budgetNote?: string;
+  audience?: string;
+  platforms?: string;
+  variations?: string;
 }): Promise<CampaignRow> {
   await ensureSchema();
   const id = newId();
   const createdAt = nowISO();
   const adCopy = input.adCopy ?? null;
   const budgetNote = input.budgetNote ?? null;
+  const audience = input.audience ?? null;
+  const platforms = input.platforms ?? null;
+  const variations = input.variations ?? null;
   await sql`
-    INSERT INTO campaigns (id, "businessId", title, goal, status, "adCopy", "budgetNote", "createdAt")
-    VALUES (${id}, ${input.businessId}, ${input.title}, ${input.goal}, 'draft', ${adCopy}, ${budgetNote}, ${createdAt})
+    INSERT INTO campaigns
+      (id, "businessId", title, goal, status, "adCopy", "budgetNote", audience, platforms, variations, "createdAt")
+    VALUES
+      (${id}, ${input.businessId}, ${input.title}, ${input.goal}, 'draft', ${adCopy}, ${budgetNote}, ${audience}, ${platforms}, ${variations}, ${createdAt})
   `;
   return {
     id,
@@ -386,6 +409,9 @@ export async function createCampaign(input: {
     status: "draft",
     adCopy,
     budgetNote,
+    audience,
+    platforms,
+    variations,
     createdAt,
   };
 }

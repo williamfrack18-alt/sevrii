@@ -11,7 +11,7 @@ import {
   addService,
   addChatMessage,
   updateBusinessWhatsapp,
-  createCampaign,
+  listCampaigns,
   listChatMessages,
   listServices,
   incrementWhatsappClicks,
@@ -19,13 +19,13 @@ import {
 import { hashPassword, verifyPassword, createSessionToken, SESSION_COOKIE } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/session";
 import { runPageEditorTurn } from "@/lib/aiEditor";
+import { runMarketingAgentTurn } from "@/lib/marketingAgent";
 import {
   generatePitch,
   matchCategory,
   slugify,
   suggestServices,
   nextOnboardingPrompt,
-  draftCampaign,
   nextDiscoveryPrompt,
   generateDiscoveryPitch,
   type DiscoveryAnswers,
@@ -164,28 +164,37 @@ export async function sendMarketingMessageAction(message: string) {
   if (!user || !user.business) redirect("/login");
   const business = user.business;
   const trimmed = message.trim();
-  if (!trimmed) return listChatMessages(business.id, "marketing");
+
+  if (!trimmed) {
+    return {
+      messages: await listChatMessages(business.id, "marketing"),
+      campaigns: await listCampaigns(business.id),
+    };
+  }
 
   await addChatMessage(business.id, "marketing", "user", trimmed);
 
-  const draft = draftCampaign({
-    businessName: business.name,
-    category: business.category,
-    goal: trimmed,
-  });
-  await createCampaign({
-    businessId: business.id,
-    title: draft.title,
-    goal: draft.goal,
-    adCopy: draft.adCopyDraft,
-    budgetNote: draft.suggestedBudget,
-  });
+  // Give the model the last few turns of this same conversation for context,
+  // but not the message we just stored (that's passed separately below).
+  const priorMessages = await listChatMessages(business.id, "marketing");
+  const history = priorMessages
+    .slice(0, -1)
+    .slice(-10)
+    .map((m) => ({
+      role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
+      content: m.content,
+    }));
 
-  const aiReply = `Here's a draft campaign for "${trimmed}":\n\n"${draft.adCopyDraft}"\n\nSuggested budget: ${draft.suggestedBudget}. This is a draft — connect your Meta Ads account from Settings to actually launch it. I saved it under your campaigns.`;
-  await addChatMessage(business.id, "marketing", "ai", aiReply);
+  const services = await listServices(business.id);
+  const result = await runMarketingAgentTurn(business, services, history, trimmed);
+
+  await addChatMessage(business.id, "marketing", "ai", result.reply);
 
   revalidatePath("/dashboard");
-  return listChatMessages(business.id, "marketing");
+  return {
+    messages: await listChatMessages(business.id, "marketing"),
+    campaigns: await listCampaigns(business.id),
+  };
 }
 
 // ---------- Discovery path ("I want to offer one, but I'm not sure what") ----------

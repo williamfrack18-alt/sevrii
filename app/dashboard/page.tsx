@@ -37,6 +37,9 @@ export default async function DashboardPage() {
         status: c.status,
         adCopy: c.adCopy,
         budgetNote: c.budgetNote,
+        audience: c.audience,
+        platforms: c.platforms,
+        variations: c.variations,
       }))}
       marketingMessages={marketingMessages.map((m) => ({ id: m.id, role: m.role, content: m.content }))}
       editorMessages={editorMessages.map((m) => ({ id: m.id, role: m.role, content: m.content }))}

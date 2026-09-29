@@ -27,6 +27,9 @@ export type ClientCampaign = {
   status: string;
   adCopy: string | null;
   budgetNote: string | null;
+  audience: string | null;
+  platforms: string | null;
+  variations: string | null;
 };
 export type ClientMsg = { id: string; role: string; content: string };
 
@@ -55,6 +58,7 @@ export default function DashboardTabs({
   const [view, setView] = useState<"store" | "marketing">("store");
   const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
+  const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);
 
   return (
     <div className="min-h-screen bg-cream flex">
@@ -134,7 +138,12 @@ export default function DashboardTabs({
             }}
           />
         ) : (
-          <MarketingView business={currentBusiness} campaigns={campaigns} initialMessages={marketingMessages} />
+          <MarketingView
+            business={currentBusiness}
+            campaigns={currentCampaigns}
+            initialMessages={marketingMessages}
+            onCampaignsUpdated={setCurrentCampaigns}
+          />
         )}
       </div>
     </div>

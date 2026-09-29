@@ -2,10 +2,17 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { sendMarketingMessageAction } from "@/app/actions";
+import type { ClientCampaign } from "./DashboardTabs";
 
 type Msg = { id: string; role: string; content: string };
 
-export default function MarketingChat({ initialMessages }: { initialMessages: Msg[] }) {
+export default function MarketingChat({
+  initialMessages,
+  onCampaignsUpdated,
+}: {
+  initialMessages: Msg[];
+  onCampaignsUpdated: (campaigns: ClientCampaign[]) => void;
+}) {
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -22,8 +29,21 @@ export default function MarketingChat({ initialMessages }: { initialMessages: Ms
     setMessages((m) => [...m, { id: `local-${Date.now()}`, role: "user", content: value }]);
     setInput("");
     startTransition(async () => {
-      const updated = await sendMarketingMessageAction(value);
-      setMessages(updated.map((m) => ({ id: m.id, role: m.role, content: m.content })));
+      const result = await sendMarketingMessageAction(value);
+      setMessages(result.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })));
+      onCampaignsUpdated(
+        result.campaigns.map((c) => ({
+          id: c.id,
+          title: c.title,
+          goal: c.goal,
+          status: c.status,
+          adCopy: c.adCopy,
+          budgetNote: c.budgetNote,
+          audience: c.audience,
+          platforms: c.platforms,
+          variations: c.variations,
+        }))
+      );
     });
   }
 
