@@ -9,14 +9,14 @@
     var path = window.location.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i,'');
     if (path === '') path = '/';
     var isEn = path === '/en' || path.indexOf('/en/') === 0;
-    var esTarget = (BASENAME === 'index') ? '/' : '/' + BASENAME;
     var enTarget = (BASENAME === 'index') ? '/en' : '/en/' + BASENAME;
     var stored = localStorage.getItem('sevrii_lang');
-    if (stored === 'en') {
-      if (!isEn && path !== enTarget) { window.location.href = enTarget; }
-    } else if (stored === 'es') {
-      if (isEn && path !== esTarget) { window.location.href = esTarget; }
+    if (stored) {
+      // Ya visitó antes: solo actualizamos la preferencia guardada,
+      // nunca lo sacamos de la página en la que ya está (evita el loop /en -> /).
+      localStorage.setItem('sevrii_lang', isEn ? 'en' : 'es');
     } else {
+      // Primera visita sin preferencia: detecta el idioma del navegador una sola vez.
       if (isEn) {
         localStorage.setItem('sevrii_lang', 'en');
       } else {
@@ -195,6 +195,8 @@ document.addEventListener('DOMContentLoaded', function(){
     transition:color .15s ease, background .15s ease;
   }
   .category-item:hover{color:#111;background:rgba(0,0,0,.04);}
+  .category-item.active{color:#111;background:rgba(26,159,86,.14);font-weight:600;}
+  .no-results{padding:48px 16px;text-align:center;color:var(--s-text-dim);font-size:14px;border:1px dashed var(--s-border);border-radius:16px;}
   .category-item svg{width:24px;height:24px;stroke:#1a9f56;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
 
   /* ================= SERVICES — AMAZON-STYLE REDESIGN (light zone) ================= */
@@ -326,8 +328,8 @@ document.addEventListener('DOMContentLoaded', function(){
       </h1>
       <p class="sub">Compara, contrata y listo — sin perder tiempo buscando en distintos sitios.</p>
       <div class="search-bar">
-        <input type="text" placeholder="Ej: Mudanza residencial">
-        <button>Buscar</button>
+        <input type="text" id="searchInput" placeholder="Ej: Mudanza residencial">
+        <button type="button" id="searchBtn">Buscar</button>
       </div>
     </div>
   </div>
@@ -335,20 +337,20 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <section class="category-bar">
   <div class="wrap">
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg><span>Finanzas y Crédito</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg><span>Mudanzas</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg><span>Hogar y Limpieza</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg><span>Belleza y Cuidado</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"></path></svg><span>Reparaciones</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg><span>Legal y Trámites</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>Eventos</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg><span>Tecnología</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg><span>Salud y Bienestar</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg><span>Educación</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"></path><rect x="2" y="11" width="20" height="7" rx="2"></rect><circle cx="7" cy="18" r="1.5"></circle><circle cx="17" cy="18" r="1.5"></circle></svg><span>Automotriz</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="14.5" r="3.2"></circle><circle cx="5.5" cy="8.5" r="1.7"></circle><circle cx="10" cy="5.5" r="1.7"></circle><circle cx="15" cy="5.5" r="1.7"></circle><circle cx="18.5" cy="9" r="1.7"></circle></svg><span>Mascotas</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><span>Fotografía</span></a>
-    <a href="#explorar" class="category-item"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><span>Asesoría y Negocios</span></a>
+    <a href="#explorar" class="category-item" data-category="Finanzas y Crédito"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg><span>Finanzas y Crédito</span></a>
+    <a href="#explorar" class="category-item" data-category="Mudanzas"><svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg><span>Mudanzas</span></a>
+    <a href="#explorar" class="category-item" data-category="Hogar y Limpieza"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg><span>Hogar y Limpieza</span></a>
+    <a href="#explorar" class="category-item" data-category="Belleza y Cuidado"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg><span>Belleza y Cuidado</span></a>
+    <a href="#explorar" class="category-item" data-category="Reparaciones"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"></path></svg><span>Reparaciones</span></a>
+    <a href="#explorar" class="category-item" data-category="Legal y Trámites"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg><span>Legal y Trámites</span></a>
+    <a href="#explorar" class="category-item" data-category="Eventos"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>Eventos</span></a>
+    <a href="#explorar" class="category-item" data-category="Tecnología"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg><span>Tecnología</span></a>
+    <a href="#explorar" class="category-item" data-category="Salud y Bienestar"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg><span>Salud y Bienestar</span></a>
+    <a href="#explorar" class="category-item" data-category="Educación"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg><span>Educación</span></a>
+    <a href="#explorar" class="category-item" data-category="Automotriz"><svg viewBox="0 0 24 24"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"></path><rect x="2" y="11" width="20" height="7" rx="2"></rect><circle cx="7" cy="18" r="1.5"></circle><circle cx="17" cy="18" r="1.5"></circle></svg><span>Automotriz</span></a>
+    <a href="#explorar" class="category-item" data-category="Mascotas"><svg viewBox="0 0 24 24"><circle cx="12" cy="14.5" r="3.2"></circle><circle cx="5.5" cy="8.5" r="1.7"></circle><circle cx="10" cy="5.5" r="1.7"></circle><circle cx="15" cy="5.5" r="1.7"></circle><circle cx="18.5" cy="9" r="1.7"></circle></svg><span>Mascotas</span></a>
+    <a href="#explorar" class="category-item" data-category="Fotografía"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><span>Fotografía</span></a>
+    <a href="#explorar" class="category-item" data-category="Asesoría y Negocios"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><span>Asesoría y Negocios</span></a>
   </div>
 </section>
 
@@ -357,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function(){
   <div class="wrap">
 
     <div class="toolbar">
-      <div class="result-count"><strong>1</strong> servicio encontrado</div>
+      <div class="result-count"><strong id="resultCount">1</strong> <span id="resultLabel">servicio encontrado</span></div>
       <div class="sort">
         Ordenar por
         <select>
@@ -370,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     <div class="results-grid">
 
-      <a class="result-card" href="matheus-credito.html">
+      <a class="result-card" href="matheus-credito.html" data-category="Finanzas y Crédito" data-search="matheus credito financiamiento rapido estados unidos finanzas y credito">
         <div class="result-thumb">
           <img src="assets/matheus-credito-logo.png" alt="Matheus Crédito" style="width:72%;height:72%;object-fit:contain;">
           <span class="result-badge">✓ Verificado</span>
@@ -388,7 +390,8 @@ document.addEventListener('DOMContentLoaded', function(){
       </a>
 
     </div>
-  </div>
+      <div class="no-results" id="noResults" style="display:none;">No encontramos servicios que coincidan con tu búsqueda.</div>
+      </div>
 </section>
 
 
@@ -514,6 +517,61 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     step();
   })();
+</script>
+
+<script>
+(function(){
+  var categoryLinks = document.querySelectorAll('.category-item[data-category]');
+  var cards = document.querySelectorAll('.result-card[data-category]');
+  var input = document.getElementById('searchInput');
+  var searchBtn = document.getElementById('searchBtn');
+  var countEl = document.getElementById('resultCount');
+  var labelEl = document.getElementById('resultLabel');
+  var noResultsEl = document.getElementById('noResults');
+  var grid = document.querySelector('.results-grid');
+  var activeCategory = null;
+
+  function normalize(s){
+    return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function applyFilters(){
+    var term = normalize(input ? input.value : '');
+    var visible = 0;
+    cards.forEach(function(card){
+      var matchesCategory = !activeCategory || card.getAttribute('data-category') === activeCategory;
+      var haystack = normalize(card.getAttribute('data-search') || card.textContent);
+      var matchesSearch = !term || haystack.indexOf(term) !== -1;
+      var show = matchesCategory && matchesSearch;
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    if (countEl) countEl.textContent = visible;
+    if (labelEl) labelEl.textContent = visible === 1 ? 'servicio encontrado' : 'servicios encontrados';
+    if (noResultsEl) noResultsEl.style.display = visible === 0 ? 'block' : 'none';
+    if (grid) grid.style.display = visible === 0 ? 'none' : '';
+  }
+
+  categoryLinks.forEach(function(link){
+    link.addEventListener('click', function(){
+      var cat = link.getAttribute('data-category');
+      if (activeCategory === cat) {
+        activeCategory = null;
+        link.classList.remove('active');
+      } else {
+        categoryLinks.forEach(function(l){ l.classList.remove('active'); });
+        activeCategory = cat;
+        link.classList.add('active');
+      }
+      applyFilters();
+    });
+  });
+
+  if (searchBtn) searchBtn.addEventListener('click', function(){ applyFilters(); });
+  if (input) input.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); applyFilters(); }
+  });
+})();
 </script>
 
 </body>

@@ -9,14 +9,14 @@
     var path = window.location.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i,'');
     if (path === '') path = '/';
     var isEn = path === '/en' || path.indexOf('/en/') === 0;
-    var esTarget = (BASENAME === 'index') ? '/' : '/' + BASENAME;
     var enTarget = (BASENAME === 'index') ? '/en' : '/en/' + BASENAME;
     var stored = localStorage.getItem('sevrii_lang');
-    if (stored === 'en') {
-      if (!isEn && path !== enTarget) { window.location.href = enTarget; }
-    } else if (stored === 'es') {
-      if (isEn && path !== esTarget) { window.location.href = esTarget; }
+    if (stored) {
+      // Ya visitó antes: solo actualizamos la preferencia guardada,
+      // nunca lo sacamos de la página en la que ya está (evita el loop /en -> /).
+      localStorage.setItem('sevrii_lang', isEn ? 'en' : 'es');
     } else {
+      // Primera visita sin preferencia: detecta el idioma del navegador una sola vez.
       if (isEn) {
         localStorage.setItem('sevrii_lang', 'en');
       } else {
