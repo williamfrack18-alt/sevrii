@@ -13,9 +13,12 @@ import {
   updateBusinessWhatsapp,
   createCampaign,
   listChatMessages,
+  listServices,
+  incrementWhatsappClicks,
 } from "@/lib/db";
 import { hashPassword, verifyPassword, createSessionToken, SESSION_COOKIE } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/session";
+import { runPageEditorTurn } from "@/lib/aiEditor";
 import {
   generatePitch,
   matchCategory,
@@ -280,4 +283,59 @@ export async function completeDiscoveryAction(input: {
   );
 
   redirect("/dashboard");
+}
+
+// ---------- AI page editor (Store tab chat) ----------
+
+export async function sendPageEditCommand(message: string) {
+  const user = await getCurrentUser();
+  if (!user || !user.business) redirect("/login");
+  const business = user.business;
+  const trimmed = message.trim();
+
+  if (!trimmed) {
+    return {
+      messages: await listChatMessages(business.id, "editor"),
+      business,
+      services: await listServices(business.id),
+    };
+  }
+
+  await addChatMessage(business.id, "editor", "user", trimmed);
+
+  // Give the model the last few turns of this same conversation for context,
+  // but not the message we just stored (that's passed separately as the
+  // current instruction).
+  const priorMessages = await listChatMessages(business.id, "editor");
+  const history = priorMessages
+    .slice(0, -1)
+    .slice(-10)
+    .map((m) => ({
+      role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
+      content: m.content,
+    }));
+
+  const services = await listServices(business.id);
+  const result = await runPageEditorTurn(business, services, history, trimmed);
+
+  await addChatMessage(business.id, "editor", "ai", result.reply);
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/site/${business.slug}`);
+
+  return {
+    messages: await listChatMessages(business.id, "editor"),
+    business: result.business,
+    services: result.services,
+  };
+}
+
+// ---------- Public page analytics (best-effort, no auth — called by visitors) ----------
+
+export async function trackWhatsappClickAction(businessId: string) {
+  try {
+    await incrementWhatsappClicks(businessId);
+  } catch {
+    // Never let a tracking failure affect the visitor's WhatsApp link.
+  }
 }

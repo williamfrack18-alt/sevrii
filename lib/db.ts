@@ -51,9 +51,16 @@ function ensureSchema(): Promise<void> {
           whatsapp TEXT,
           "accentColor" TEXT NOT NULL DEFAULT '#122118',
           published INTEGER NOT NULL DEFAULT 1,
+          "pageViews" INTEGER NOT NULL DEFAULT 0,
+          "whatsappClicks" INTEGER NOT NULL DEFAULT 0,
           "createdAt" TEXT NOT NULL
         )
       `;
+      // Businesses created before these two counters existed need them added
+      // in place — CREATE TABLE IF NOT EXISTS above is a no-op for a table
+      // that already exists.
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "pageViews" INTEGER NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "whatsappClicks" INTEGER NOT NULL DEFAULT 0`;
       await sql`
         CREATE TABLE IF NOT EXISTS services (
           id TEXT PRIMARY KEY,
@@ -153,6 +160,8 @@ export type BusinessRow = {
   whatsapp: string | null;
   accentColor: string;
   published: number;
+  pageViews: number;
+  whatsappClicks: number;
   createdAt: string;
 };
 
@@ -196,6 +205,8 @@ export async function createBusiness(input: {
     whatsapp,
     accentColor,
     published: 1,
+    pageViews: 0,
+    whatsappClicks: 0,
     createdAt,
   };
 }
@@ -222,6 +233,40 @@ export async function updateBusinessWhatsapp(businessId: string, whatsapp: strin
 export async function updateBusinessAccent(businessId: string, accentColor: string): Promise<void> {
   await ensureSchema();
   await sql`UPDATE businesses SET "accentColor" = ${accentColor} WHERE id = ${businessId}`;
+}
+
+// Generic partial update for the fields the AI page editor is allowed to
+// touch. Column names come only from this fixed key set (never from
+// user/model input directly), so building the SET clause this way is safe.
+export async function updateBusinessDetails(
+  businessId: string,
+  fields: Partial<{
+    name: string;
+    category: string;
+    description: string;
+    city: string | null;
+    pitch: string;
+  }>
+): Promise<void> {
+  await ensureSchema();
+  const entries = Object.entries(fields).filter(([, v]) => v !== undefined);
+  if (entries.length === 0) return;
+  const setClauses = entries.map(([key], i) => `"${key}" = $${i + 1}`);
+  const values = entries.map(([, v]) => v);
+  await sql.query(
+    `UPDATE businesses SET ${setClauses.join(", ")} WHERE id = $${entries.length + 1}`,
+    [...values, businessId]
+  );
+}
+
+export async function incrementPageViews(businessId: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET "pageViews" = "pageViews" + 1 WHERE id = ${businessId}`;
+}
+
+export async function incrementWhatsappClicks(businessId: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET "whatsappClicks" = "whatsappClicks" + 1 WHERE id = ${businessId}`;
 }
 
 // ---------- Services ----------
@@ -254,6 +299,37 @@ export async function listServices(businessId: string): Promise<ServiceRow[]> {
     SELECT * FROM services WHERE "businessId" = ${businessId} ORDER BY "sortOrder" ASC
   `) as ServiceRow[];
   return rows;
+}
+
+export async function getServiceById(serviceId: string): Promise<ServiceRow | undefined> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM services WHERE id = ${serviceId}`) as ServiceRow[];
+  return rows[0];
+}
+
+export async function updateService(
+  serviceId: string,
+  fields: Partial<{
+    name: string;
+    price: string | null;
+    description: string | null;
+    sortOrder: number;
+  }>
+): Promise<void> {
+  await ensureSchema();
+  const entries = Object.entries(fields).filter(([, v]) => v !== undefined);
+  if (entries.length === 0) return;
+  const setClauses = entries.map(([key], i) => `"${key}" = $${i + 1}`);
+  const values = entries.map(([, v]) => v);
+  await sql.query(
+    `UPDATE services SET ${setClauses.join(", ")} WHERE id = $${entries.length + 1}`,
+    [...values, serviceId]
+  );
+}
+
+export async function deleteService(serviceId: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM services WHERE id = ${serviceId}`;
 }
 
 // ---------- Reviews (never auto-generated; only real, user-submitted) ----------

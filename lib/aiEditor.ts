@@ -1,0 +1,326 @@
+import Anthropic from "@anthropic-ai/sdk";
+import type { Tool, MessageParam, ToolUseBlock, TextBlock } from "@anthropic-ai/sdk/resources/messages";
+import {
+  type BusinessRow,
+  type ServiceRow,
+  updateBusinessDetails,
+  updateBusinessWhatsapp,
+  updateBusinessAccent,
+  addService,
+  updateService,
+  deleteService,
+  listServices,
+} from "./db";
+
+// Overridable so this doesn't go stale if Anthropic's model lineup moves on;
+// "claude-sonnet-4-5" is a rolling alias that always points at a current,
+// non-deprecated Sonnet model.
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+
+// ---------- The one tool the model is allowed to call ----------
+// Every field this tool can touch maps to a real column in Postgres. The
+// model is never given a way to invent facts (photos, FAQ entries, reviews,
+// ad accounts) — those simply aren't in this schema, so it can't "edit" them.
+const EDIT_TOOL: Tool = {
+  name: "apply_page_edits",
+  description:
+    "Apply one or more real edits to this business's Sevri page. Only use this for changes covered by the fields below — never for things like uploading real photos, editing FAQ entries, managing reviews, or connecting ad accounts, since none of that exists in this schema yet.",
+  input_schema: {
+    type: "object",
+    properties: {
+      edits: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            op: {
+              type: "string",
+              enum: [
+                "update_business",
+                "update_whatsapp",
+                "update_accent_color",
+                "add_service",
+                "update_service",
+                "delete_service",
+              ],
+              description: "Which kind of edit this is.",
+            },
+            name: { type: "string", description: "New business name (update_business only)" },
+            category: { type: "string", description: "New category (update_business only)" },
+            description: {
+              type: "string",
+              description: "New short internal description of the business (update_business only)",
+            },
+            city: { type: "string", description: "New city/area served (update_business only)" },
+            pitch: {
+              type: "string",
+              description: "New one-paragraph pitch shown on the public page (update_business only)",
+            },
+            whatsapp: { type: "string", description: "New WhatsApp number, e.g. +1 555 010 1234 (update_whatsapp only)" },
+            accentColor: {
+              type: "string",
+              description: "New accent color as a 6-digit hex code like #122118 (update_accent_color only)",
+            },
+            serviceId: {
+              type: "string",
+              description: "Existing service's id, exactly as given in the current page data (update_service / delete_service only)",
+            },
+            serviceName: { type: "string", description: "Service name (add_service / update_service)" },
+            servicePrice: { type: "string", description: "Service price text, e.g. 'From $85' (add_service / update_service)" },
+            serviceDescription: { type: "string", description: "Service description (add_service / update_service)" },
+          },
+          required: ["op"],
+        },
+      },
+    },
+    required: ["edits"],
+  },
+};
+
+type EditOp = {
+  op: string;
+  name?: string;
+  category?: string;
+  description?: string;
+  city?: string;
+  pitch?: string;
+  whatsapp?: string;
+  accentColor?: string;
+  serviceId?: string;
+  serviceName?: string;
+  servicePrice?: string;
+  serviceDescription?: string;
+};
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+async function applyEdits(
+  business: BusinessRow,
+  services: ServiceRow[],
+  edits: EditOp[]
+): Promise<{ applied: string[]; skipped: string[]; business: BusinessRow; services: ServiceRow[] }> {
+  const applied: string[] = [];
+  const skipped: string[] = [];
+  let nextBusiness = { ...business };
+  let nextServices = [...services];
+
+  for (const edit of edits) {
+    try {
+      switch (edit.op) {
+        case "update_business": {
+          const fields: Partial<{
+            name: string;
+            category: string;
+            description: string;
+            city: string | null;
+            pitch: string;
+          }> = {};
+          if (edit.name !== undefined) fields.name = edit.name;
+          if (edit.category !== undefined) fields.category = edit.category;
+          if (edit.description !== undefined) fields.description = edit.description;
+          if (edit.city !== undefined) fields.city = edit.city;
+          if (edit.pitch !== undefined) fields.pitch = edit.pitch;
+          if (Object.keys(fields).length === 0) {
+            skipped.push("update_business: no fields given");
+            break;
+          }
+          await updateBusinessDetails(business.id, fields);
+          nextBusiness = { ...nextBusiness, ...fields } as BusinessRow;
+          applied.push(`updated ${Object.keys(fields).join(", ")}`);
+          break;
+        }
+        case "update_whatsapp": {
+          if (!edit.whatsapp) {
+            skipped.push("update_whatsapp: missing number");
+            break;
+          }
+          await updateBusinessWhatsapp(business.id, edit.whatsapp);
+          nextBusiness = { ...nextBusiness, whatsapp: edit.whatsapp };
+          applied.push("updated WhatsApp number");
+          break;
+        }
+        case "update_accent_color": {
+          if (!edit.accentColor || !HEX_COLOR.test(edit.accentColor)) {
+            skipped.push("update_accent_color: invalid hex color");
+            break;
+          }
+          await updateBusinessAccent(business.id, edit.accentColor);
+          nextBusiness = { ...nextBusiness, accentColor: edit.accentColor };
+          applied.push(`updated accent color to ${edit.accentColor}`);
+          break;
+        }
+        case "add_service": {
+          if (!edit.serviceName) {
+            skipped.push("add_service: missing name");
+            break;
+          }
+          await addService(business.id, edit.serviceName, edit.servicePrice, edit.serviceDescription, nextServices.length);
+          nextServices = await listServices(business.id);
+          applied.push(`added service "${edit.serviceName}"`);
+          break;
+        }
+        case "update_service": {
+          if (!edit.serviceId) {
+            skipped.push("update_service: missing serviceId");
+            break;
+          }
+          const svc = nextServices.find((s) => s.id === edit.serviceId);
+          if (!svc || svc.businessId !== business.id) {
+            skipped.push("update_service: unknown service id");
+            break;
+          }
+          const fields: Partial<{ name: string; price: string | null; description: string | null }> = {};
+          if (edit.serviceName !== undefined) fields.name = edit.serviceName;
+          if (edit.servicePrice !== undefined) fields.price = edit.servicePrice;
+          if (edit.serviceDescription !== undefined) fields.description = edit.serviceDescription;
+          if (Object.keys(fields).length === 0) {
+            skipped.push("update_service: no fields given");
+            break;
+          }
+          await updateService(edit.serviceId, fields);
+          nextServices = nextServices.map((s) => (s.id === edit.serviceId ? { ...s, ...fields } : s));
+          applied.push(`updated service "${svc.name}"`);
+          break;
+        }
+        case "delete_service": {
+          if (!edit.serviceId) {
+            skipped.push("delete_service: missing serviceId");
+            break;
+          }
+          const svc = nextServices.find((s) => s.id === edit.serviceId);
+          if (!svc || svc.businessId !== business.id) {
+            skipped.push("delete_service: unknown service id");
+            break;
+          }
+          await deleteService(edit.serviceId);
+          nextServices = nextServices.filter((s) => s.id !== edit.serviceId);
+          applied.push(`deleted service "${svc.name}"`);
+          break;
+        }
+        default:
+          skipped.push(`unknown op: ${edit.op}`);
+      }
+    } catch (err) {
+      skipped.push(`${edit.op} failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return { applied, skipped, business: nextBusiness, services: nextServices };
+}
+
+export type EditorTurnResult = {
+  reply: string;
+  business: BusinessRow;
+  services: ServiceRow[];
+};
+
+const SYSTEM_PROMPT = `You are Sevri AI, helping the owner of a real, live business edit their real Sevri page through this chat.
+
+You can ONLY change what the apply_page_edits tool supports: business name, category, internal description, public pitch text, city, WhatsApp number, accent color, and services (add/update/delete, each with name, price, description).
+
+Never invent facts about the business — only use what the owner tells you. If asked to do something outside those fields (uploading real photos, editing FAQ entries, managing reviews, connecting ad accounts, anything not listed above), say plainly and briefly that you can't do that yet. Don't pretend to.
+
+When you do make a change, call apply_page_edits, then confirm in one short, concrete sentence what changed. Keep replies short.`;
+
+export async function runPageEditorTurn(
+  business: BusinessRow,
+  services: ServiceRow[],
+  history: { role: "user" | "assistant"; content: string }[],
+  instruction: string
+): Promise<EditorTurnResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return {
+      reply:
+        "The AI page editor isn't turned on yet — add an ANTHROPIC_API_KEY in this project's Vercel Environment Variables to enable it.",
+      business,
+      services,
+    };
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  const stateBlock = JSON.stringify({
+    business: {
+      name: business.name,
+      category: business.category,
+      description: business.description,
+      city: business.city,
+      pitch: business.pitch,
+      whatsapp: business.whatsapp,
+      accentColor: business.accentColor,
+    },
+    services: services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description })),
+  });
+
+  const messages: MessageParam[] = [
+    ...history.map((h): MessageParam => ({ role: h.role, content: h.content })),
+    {
+      role: "user",
+      content: `Current page data:\n${stateBlock}\n\nInstruction: ${instruction}`,
+    },
+  ];
+
+  let currentBusiness = business;
+  let currentServices = services;
+  let finalText = "";
+
+  try {
+    const first = await client.messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      tools: [EDIT_TOOL],
+      messages,
+    });
+
+    const toolUse = first.content.find((b): b is ToolUseBlock => b.type === "tool_use");
+
+    if (toolUse && toolUse.name === "apply_page_edits") {
+      const edits = ((toolUse.input as { edits?: EditOp[] }).edits ?? []) as EditOp[];
+      const result = await applyEdits(currentBusiness, currentServices, edits);
+      currentBusiness = result.business;
+      currentServices = result.services;
+
+      const second = await client.messages.create({
+        model: MODEL,
+        max_tokens: 512,
+        system: SYSTEM_PROMPT,
+        tools: [EDIT_TOOL],
+        messages: [
+          ...messages,
+          { role: "assistant", content: first.content },
+          {
+            role: "user",
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: toolUse.id,
+                content: JSON.stringify({ applied: result.applied, skipped: result.skipped }),
+              },
+            ],
+          },
+        ],
+      });
+
+      finalText = second.content
+        .filter((b): b is TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("\n")
+        .trim();
+      if (!finalText) {
+        finalText = result.applied.length > 0 ? `Done — ${result.applied.join("; ")}.` : "I couldn't make that change.";
+      }
+    } else {
+      finalText = first.content
+        .filter((b): b is TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("\n")
+        .trim();
+    }
+  } catch (err) {
+    finalText = `Something went wrong talking to the AI editor: ${err instanceof Error ? err.message : String(err)}`;
+  }
+
+  return { reply: finalText || "Done.", business: currentBusiness, services: currentServices };
+}

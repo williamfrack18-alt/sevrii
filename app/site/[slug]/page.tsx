@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getBusinessBySlug, listServices, listReviews } from "@/lib/db";
+import { getBusinessBySlug, listServices, listReviews, incrementPageViews } from "@/lib/db";
+import WhatsappLink from "./WhatsappLink";
 
 export default async function PublicBusinessPage({ params }: { params: { slug: string } }) {
   const business = await getBusinessBySlug(params.slug);
@@ -11,6 +12,12 @@ export default async function PublicBusinessPage({ params }: { params: { slug: s
     ? `https://wa.me/${business.whatsapp.replace(/[^0-9]/g, "")}`
     : null;
 
+  try {
+    await incrementPageViews(business.id);
+  } catch {
+    // Never let analytics failures break the visitor's page.
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b border-border">
@@ -19,15 +26,14 @@ export default async function PublicBusinessPage({ params }: { params: { slug: s
             {business.name}
           </span>
           {waLink ? (
-            <a
+            <WhatsappLink
               href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
+              businessId={business.id}
               className="h-[38px] px-5 rounded-full text-white text-[13px] font-semibold flex items-center"
               style={{ background: business.accentColor }}
             >
               Message on WhatsApp
-            </a>
+            </WhatsappLink>
           ) : null}
         </div>
       </header>
@@ -40,15 +46,14 @@ export default async function PublicBusinessPage({ params }: { params: { slug: s
         <h1 className="font-serif text-4xl font-semibold leading-tight max-w-2xl">{business.name}</h1>
         <p className="text-muted text-lg max-w-xl leading-relaxed">{business.pitch}</p>
         {waLink ? (
-          <a
+          <WhatsappLink
             href={waLink}
-            target="_blank"
-            rel="noopener noreferrer"
+            businessId={business.id}
             className="inline-flex w-fit items-center gap-2 h-[48px] px-6 rounded-full text-white text-[15px] font-semibold mt-2"
             style={{ background: business.accentColor }}
           >
             Message on WhatsApp
-          </a>
+          </WhatsappLink>
         ) : (
           <p className="text-[13px] text-mutedLight mt-2">
             This business hasn&rsquo;t added a contact number yet.

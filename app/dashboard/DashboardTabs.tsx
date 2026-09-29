@@ -2,14 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { updateWhatsappAction } from "@/app/actions";
-import SubmitButton from "@/components/SubmitButton";
-import MarketingChat from "./MarketingChat";
+import { logoutAction } from "@/app/actions";
+import StoreView from "./StoreView";
+import MarketingView from "./MarketingView";
 
-type ServiceRow = { id: string; name: string; price: string | null; description: string | null };
-type CampaignRow = { id: string; title: string; goal: string; status: string; adCopy: string | null; budgetNote: string | null };
-type ChatRow = { id: string; role: string; content: string };
-type BusinessData = {
+export type ClientBusiness = {
   id: string;
   slug: string;
   name: string;
@@ -18,114 +15,128 @@ type BusinessData = {
   pitch: string;
   whatsapp: string | null;
   accentColor: string;
+  pageViews: number;
+  whatsappClicks: number;
 };
 
+export type ClientService = { id: string; name: string; price: string | null; description: string | null };
+export type ClientCampaign = {
+  id: string;
+  title: string;
+  goal: string;
+  status: string;
+  adCopy: string | null;
+  budgetNote: string | null;
+};
+export type ClientMsg = { id: string; role: string; content: string };
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 export default function DashboardTabs({
+  userEmail,
   business,
   services,
   campaigns,
   marketingMessages,
+  editorMessages,
 }: {
-  business: BusinessData;
-  services: ServiceRow[];
-  campaigns: CampaignRow[];
-  marketingMessages: ChatRow[];
+  userEmail: string;
+  business: ClientBusiness;
+  services: ClientService[];
+  campaigns: ClientCampaign[];
+  marketingMessages: ClientMsg[];
+  editorMessages: ClientMsg[];
 }) {
-  const [tab, setTab] = useState<"website" | "marketing">("website");
+  const [view, setView] = useState<"store" | "marketing">("store");
+  const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
+  const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex gap-2 border-b border-border">
-        <button
-          onClick={() => setTab("website")}
-          className={`px-4 h-11 text-[14px] font-semibold border-b-2 -mb-px ${
-            tab === "website" ? "border-ink text-ink" : "border-transparent text-muted"
-          }`}
-        >
-          Website
-        </button>
-        <button
-          onClick={() => setTab("marketing")}
-          className={`px-4 h-11 text-[14px] font-semibold border-b-2 -mb-px ${
-            tab === "marketing" ? "border-ink text-ink" : "border-transparent text-muted"
-          }`}
-        >
-          Marketing
-        </button>
+    <div className="min-h-screen bg-cream flex">
+      {/* Rail nav */}
+      <div className="w-[220px] shrink-0 min-h-screen bg-white border-r border-border p-5 flex flex-col justify-between">
+        <div>
+          <Link href="/" className="font-serif text-[19px] font-semibold text-ink block mb-[18px]">
+            Sevri
+          </Link>
+          <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-[11px] mb-5">
+            <div
+              className="w-[26px] h-[26px] rounded-[7px] text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
+              style={{ background: `linear-gradient(135deg, ${currentBusiness.accentColor} 0%, #2B4F3A 100%)` }}
+            >
+              {initials(currentBusiness.name)}
+            </div>
+            <div className="grow min-w-0">
+              <div className="text-[12px] font-semibold text-ink truncate">{currentBusiness.name}</div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => setView("store")}
+              className={`nav-item flex items-center gap-2.5 px-2.5 py-2.5 rounded-[9px] w-full text-left ${
+                view === "store" ? "bg-mint" : ""
+              }`}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={view === "store" ? "#122118" : "#6E7268"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-6 9 6v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" />
+                <path d="M9 21V12h6v9" />
+              </svg>
+              <span className={`text-[13px] ${view === "store" ? "font-semibold text-ink" : "text-muted"}`}>Store</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("marketing")}
+              className={`nav-item flex items-center gap-2.5 px-2.5 py-2.5 rounded-[9px] w-full text-left ${
+                view === "marketing" ? "bg-mint" : ""
+              }`}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={view === "marketing" ? "#122118" : "#6E7268"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 17l6-6 4 4 8-8" />
+                <path d="M15 7h6v6" />
+              </svg>
+              <span className={`text-[13px] ${view === "marketing" ? "font-semibold text-ink" : "text-muted"}`}>
+                Marketing
+              </span>
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2.5 border-t border-border pt-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-[26px] h-[26px] rounded-full bg-border text-muted flex items-center justify-center text-[10px] font-semibold shrink-0">
+              {initials(userEmail)}
+            </div>
+            <div className="grow text-[12px] text-ink truncate min-w-0">{userEmail}</div>
+          </div>
+          <form action={logoutAction}>
+            <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
+              Log out
+            </button>
+          </form>
+        </div>
       </div>
 
-      {tab === "website" ? (
-        <div className="grid md:grid-cols-[1.1fr_0.9fr] gap-6">
-          <div className="card flex flex-col gap-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
-                  {business.category}
-                  {business.city ? ` · ${business.city}` : ""}
-                </div>
-                <h2 className="font-serif text-2xl font-semibold mt-1">{business.name}</h2>
-              </div>
-              <Link href={`/site/${business.slug}`} target="_blank" className="btn-ghost">
-                View live page
-              </Link>
-            </div>
-            <p className="text-muted text-[14.5px] leading-relaxed">{business.pitch}</p>
-            <div>
-              <div className="text-[13px] font-semibold mb-2">Services</div>
-              <div className="flex flex-col gap-2">
-                {services.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between border-b border-border pb-2">
-                    <span className="text-[13.5px]">{s.name}</span>
-                    {s.price && <span className="text-[12.5px] text-muted">{s.price}</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="card flex flex-col gap-4">
-            <div className="text-[13px] font-semibold">WhatsApp contact number</div>
-            <p className="text-[13px] text-muted">
-              Every Sevri page leads to WhatsApp. Add your number so the &ldquo;Message on
-              WhatsApp&rdquo; button on your live page works.
-            </p>
-            <form action={updateWhatsappAction} className="flex flex-col gap-3">
-              <input
-                name="whatsapp"
-                defaultValue={business.whatsapp ?? ""}
-                placeholder="e.g. +1 555 010 1234"
-                className="input"
-              />
-              <SubmitButton>Save number</SubmitButton>
-            </form>
-          </div>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-[1.3fr_0.7fr] gap-6">
-          <MarketingChat initialMessages={marketingMessages} />
-          <div className="card flex flex-col gap-4">
-            <div className="text-[13px] font-semibold">Your campaigns</div>
-            {campaigns.length === 0 ? (
-              <p className="text-[13px] text-muted">
-                No campaigns yet — tell Sevri AI what you want more of, on the left.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {campaigns.map((c) => (
-                  <div key={c.id} className="border border-border rounded-xl2 p-3.5 flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-semibold">{c.title}</span>
-                      <span className="text-[11px] uppercase font-semibold text-mutedLight">{c.status}</span>
-                    </div>
-                    {c.adCopy && <p className="text-[12.5px] text-muted">{c.adCopy}</p>}
-                    {c.budgetNote && <p className="text-[11.5px] text-mutedLight">{c.budgetNote}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Main content */}
+      <div className="grow min-w-0">
+        {view === "store" ? (
+          <StoreView
+            business={currentBusiness}
+            services={currentServices}
+            initialMessages={editorMessages}
+            onUpdated={(b, s) => {
+              setCurrentBusiness(b);
+              setCurrentServices(s);
+            }}
+          />
+        ) : (
+          <MarketingView business={currentBusiness} campaigns={campaigns} initialMessages={marketingMessages} />
+        )}
+      </div>
     </div>
   );
 }
