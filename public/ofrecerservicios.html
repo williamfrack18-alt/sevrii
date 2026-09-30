@@ -84,6 +84,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
   header{
     position:sticky;top:0;z-index:50;
+    background:transparent;border-bottom:1px solid transparent;
+    transition:background .25s ease, border-color .25s ease, backdrop-filter .25s ease;
+  }
+  header.scrolled{
     background:rgba(0,0,0,.75);backdrop-filter:blur(10px);
     border-bottom:1px solid var(--border);
   }
@@ -106,7 +110,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   /* HERO */
   .hero{
-    min-height:85vh;
+    min-height:calc(85vh + 78px);
+    margin-top:-78px;padding-top:78px;
     display:flex;flex-direction:column;justify-content:center;
     position:relative;overflow:hidden;
     background:#020a06;
@@ -555,6 +560,20 @@ document.addEventListener('DOMContentLoaded', function(){
       requestAnimationFrame(step);
     }
     step();
+  })();
+</script>
+
+<script>
+  // Transparent nav over the hero video; solid once scrolled past it, so
+  // links stay readable over the lighter sections further down the page.
+  (function(){
+    var header = document.querySelector('header');
+    if (!header) return;
+    function onScroll(){
+      header.classList.toggle('scrolled', window.scrollY > 40);
+    }
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
   })();
 </script>
 
