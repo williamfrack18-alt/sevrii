@@ -195,15 +195,20 @@ document.addEventListener('DOMContentLoaded', function(){
   /* TODO LO QUE OBTIENES */
   .obtienes{text-align:center;}
   .obtienes .lead{color:var(--muted);font-size:17px;margin:16px 0 60px;}
-  .obtienes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1280px;margin:0 auto;text-align:left;}
+  .obtienes-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;max-width:1280px;margin:0 auto;text-align:left;}
   .obtienes-card{
-    border:1px solid var(--border);border-radius:16px;overflow:hidden;background:#0a0a0a;
+    position:relative;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:#0a0a0a;
   }
-  .obtienes-card .thumb{height:170px;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;}
-  .obtienes-card .thumb svg{width:64px;height:64px;}
+  .obtienes-card .thumb{height:150px;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;}
+  .obtienes-card .thumb svg{width:56px;height:56px;}
   .obtienes-card .info{padding:22px;}
-  .obtienes-card h4{font-size:17px;font-weight:600;margin-bottom:8px;}
-  .obtienes-card p{font-size:14px;color:var(--muted);line-height:1.5;}
+  .obtienes-card h4{font-size:16px;font-weight:600;margin-bottom:8px;}
+  .obtienes-card p{font-size:13.5px;color:var(--muted);line-height:1.5;}
+  .obtienes-card .soon{
+    position:absolute;top:14px;right:14px;z-index:2;background:rgba(255,255,255,.12);color:#fff;
+    font-size:10px;font-weight:800;letter-spacing:.5px;padding:5px 10px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.2);
+  }
 
   /* SOCIO COMERCIAL */
   .comercial{background:#020302;}
@@ -255,7 +260,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   @media(max-width:900px){
     .nav-links{display:none;}
-    .quien-grid,.obtienes-grid{grid-template-columns:1fr;}
+    .quien-grid{grid-template-columns:1fr;}
+    .obtienes-grid{grid-template-columns:1fr 1fr;}
     .comercial-grid{grid-template-columns:1fr 1fr;}
     .socio-panel{grid-template-columns:1fr;padding:40px 26px;}
     .test-grid{grid-template-columns:1fr;}
@@ -264,6 +270,7 @@ document.addEventListener('DOMContentLoaded', function(){
     .wrap{padding:0 20px;}
     section{padding:80px 20px;}
     .comercial-grid{grid-template-columns:1fr;}
+    .obtienes-grid{grid-template-columns:1fr;}
   }
 </style>
 </head>
@@ -277,7 +284,6 @@ document.addEventListener('DOMContentLoaded', function(){
       <a href="#quien">Platform</a>
       <a href="#socios">Partners</a>
       <a href="#servicios">Services</a>
-      <a href="#quien">Pricing</a>
       <a href="#testimonios">Testimonials</a>
       <a href="/ofrecerservicios" onclick="try{localStorage.setItem('sevrii_lang','es')}catch(e){}" style="color:var(--muted);">ES</a>
     </div>
@@ -301,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <span class="l2">service business</span>
         <span class="l3">into reality.</span>
       </h1>
-      <p>We build your page, your videos, and your marketing. You just take care of your clients.</p>
+      <p>Your store, your marketing, and getting paid — all running on AI and agents inside Sevrii. You just take care of your clients.</p>
       <a href="#quien" class="btn btn-primary" style="padding:16px 32px;font-size:15px;">Build Your Services Empire</a>
     </div>
   </div>
@@ -312,8 +318,8 @@ document.addEventListener('DOMContentLoaded', function(){
   <div class="socio-panel">
     <div>
       <div style="color:var(--green);font-size:13px;font-weight:700;letter-spacing:1px;margin-bottom:14px;">YOUR STRATEGIC PARTNER</div>
-      <h3>You Offer a Great Service.<br>We Handle the Rest.</h3>
-      <p>We build your website inside Sevrii, produce your advertising videos, and manage your campaigns on whichever networks work best for you. You just focus on taking care of your clients.</p>
+      <h3>You Offer a Great Service.<br>Your AI Agents Handle the Rest.</h3>
+      <p>Inside Sevrii, your AI agents build your page, create your marketing campaigns, and generate payment links so your clients can pay you directly. You just focus on taking care of your clients.</p>
       <p class="highlight">Message us on WhatsApp and we'll explain how it works, no strings attached.</p>
     </div>
     <div class="mock-ui">
@@ -329,16 +335,18 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <section class="obtienes" id="servicios">
   <h2 class="section-title">Here's how we make it possible</h2>
-  <p class="lead">You tell us what service you offer. We make sure you get hired.</p>
+  <p class="lead">You tell us what service you offer. Your AI agents build your store, your marketing, and your payments.</p>
   <div class="obtienes-grid">
     <div class="obtienes-card">
       <div class="thumb" style="background:linear-gradient(135deg,#222,#0a0a0a);">
         <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2.5" y="6" width="13" height="12" rx="2"/>
-          <path d="M15.5 10.5 21 7v10l-5.5-3.5z"/>
+          <path d="M4 9l1-5h14l1 5"/>
+          <path d="M4 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/>
+          <path d="M5 9v10h14V9"/>
+          <path d="M9 19v-6h6v6"/>
         </svg>
       </div>
-      <div class="info"><h4>1. We shoot your videos</h4><p>You tell us your service, and we create the videos that showcase and sell it.</p></div>
+      <div class="info"><h4>Store — your services shop</h4><p>Your AI agent builds your page inside Sevrii: name, services, pricing, and everything your clients need to see.</p></div>
     </div>
     <div class="obtienes-card">
       <div class="thumb" style="background:linear-gradient(135deg,#1b2430,#080b10);">
@@ -347,23 +355,36 @@ document.addEventListener('DOMContentLoaded', function(){
           <path d="M3 12l6-5 6 3 6-5"/>
         </svg>
       </div>
-      <div class="info"><h4>2. We launch your marketing</h4><p>We manage the ad campaigns so your service reaches the people who really need it.</p></div>
+      <div class="info"><h4>Marketing — your campaign agents</h4><p>Tell us what you want to achieve and your AI agents create your campaigns, ready to go out and find clients.</p></div>
     </div>
     <div class="obtienes-card">
+      <div class="soon">COMING SOON</div>
       <div class="thumb" style="background:linear-gradient(135deg,#141e14,#050a05);">
         <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
+          <rect x="2.5" y="6" width="19" height="13" rx="2"/>
+          <path d="M2.5 10h19"/>
+          <path d="M6 15h4"/>
         </svg>
       </div>
-      <div class="info"><h4>3. You live on your web page</h4><p>Your service gets its own page within the Sevrii ecosystem. You just wait for the leads to come in.</p></div>
+      <div class="info"><h4>Payments</h4><p>Create payment links so your clients can pay you directly — no bank or card terminal needed.</p></div>
+    </div>
+    <div class="obtienes-card">
+      <div class="soon">COMING SOON</div>
+      <div class="thumb" style="background:linear-gradient(135deg,#0d2818,#050a05);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 21V10"/>
+          <path d="M12 10c0-3.5-2.5-6-7-6 0 4.5 2.5 7 7 7"/>
+          <path d="M12 14c0-3.5 2.5-6 7-6 0 4.5-2.5 7-7 7"/>
+        </svg>
+      </div>
+      <div class="info"><h4>Capital</h4><p>If we see your business growing inside Sevrii, we invest in it and partner with you to take it further.</p></div>
     </div>
   </div>
 </section>
 
 <section class="comercial" id="socios">
   <h2 class="section-title">Become Our Business Partner</h2>
-  <p class="lead">We combine cutting-edge AI with the best human talent to do it all for you.</p>
+  <p class="lead">We combine cutting-edge AI agents to do it all for you, start to finish.</p>
   <div class="comercial-grid">
     <div class="comercial-card">
       <div class="icon">
@@ -410,7 +431,7 @@ document.addEventListener('DOMContentLoaded', function(){
   </div>
   <div class="comercial-foot">
     <p>You focus on being extraordinary at your service. We take care of the rest.</p>
-    <a href="#testimonios" class="btn btn-green" style="padding:16px 32px;font-size:15px;">Start My Transformation</a>
+    <a href="/signup" class="btn btn-green" style="padding:16px 32px;font-size:15px;">Start My Transformation</a>
   </div>
 </section>
 
