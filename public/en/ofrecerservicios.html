@@ -49,16 +49,6 @@ fbq('track', 'PageView');
 src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 /></noscript>
 <!-- End Meta Pixel Code -->
-<!-- Trackea cada clic en un boton de WhatsApp como evento "Contact" -->
-<script>
-document.addEventListener('DOMContentLoaded', function(){
-  document.querySelectorAll('a[href*="wa.me"]').forEach(function(link){
-    link.addEventListener('click', function(){
-      if (typeof fbq === 'function') { fbq('track', 'Contact'); }
-    });
-  });
-});
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Offer Services | Sevrii</title>
@@ -385,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   /* ---------- Footer ---------- */
   .s-foot{padding:80px 0 40px;border-top:1px solid var(--s-line);}
-  .s-foot-top{display:grid;grid-template-columns:1.2fr repeat(4,1fr);gap:32px;margin-bottom:64px;}
+  .s-foot-top{display:grid;grid-template-columns:1.2fr repeat(3,1fr);gap:32px;margin-bottom:64px;}
   .s-foot .logo img{height:40px;}
   .s-foot h4{font-size:16px;font-weight:450;margin-bottom:18px;}
   .s-foot ul{list-style:none;display:flex;flex-direction:column;gap:12px;}
@@ -500,7 +490,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <div class="ui ui-window ui-store">
           <div class="ui-bar"><i></i><i></i><i></i><span>sevrii.com/site/estudio-carolina</span></div>
           <div class="body">
-            <div class="top"><span class="name ui-serif">Estudio Carolina</span><span class="ui-pill" style="background:#9b3b5a">Message on WhatsApp</span></div>
+            <div class="top"><span class="name ui-serif">Estudio Carolina</span><span class="ui-pill" style="background:#9b3b5a">Book now</span></div>
             <div class="cat ui-muted">Hair salon · Medellín</div>
             <h4 class="ui-serif">Estudio Carolina</h4>
             <p class="pitch ui-muted">Cuts, color and styling by appointment, in a calm space.</p>
@@ -525,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <span class="s-chip" style="left:62%;top:14%">Audience</span>
         <span class="s-chip c3" style="left:80%;top:38%">Instagram</span>
         <span class="s-chip c4" style="left:74%;top:72%">Google</span>
-        <span class="s-chip" style="left:54%;top:84%">WhatsApp</span>
+        <span class="s-chip" style="left:54%;top:84%">TikTok</span>
         <div class="ui ui-card ui-campaign">
           <div class="hd"><span class="t">More weekend bookings</span><span class="st">Draft</span></div>
           <p><b>Goal:</b> fill Saturday and Sunday appointments</p>
@@ -588,8 +578,8 @@ document.addEventListener('DOMContentLoaded', function(){
       <h2 class="s-h2">You do your thing. Your AI agents handle the rest.</h2>
       <p class="s-lead">Tell your agent about your business and it builds your shop instantly. When you want clients, another agent preps your campaign in the same chat.</p>
       <div class="s-actions">
-        <a href="https://wa.me/12245083851" target="_blank" class="s-btn s-btn-white">Let's talk on WhatsApp</a>
-        <a href="/signup" class="s-btn s-btn-outline">Get started</a>
+        <a href="/signup" class="s-btn s-btn-white">Get started</a>
+        <a href="#quien" class="s-btn s-btn-outline">See how it works</a>
       </div>
     </div>
     <div class="s-agent-demo reveal">
@@ -602,7 +592,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <div class="inp">Type a change…</div>
       </div>
       <div class="s-preview">
-        <div class="top"><span class="name ui-serif">Plomería Díaz</span><span class="ui-pill" style="background:#1f6f4a">WhatsApp</span></div>
+        <div class="top"><span class="name ui-serif">Plomería Díaz</span><span class="ui-pill" style="background:#1f6f4a">Book</span></div>
         <div class="cat">Plumbing · Bogotá</div>
         <h4 class="ui-serif">Plomería Díaz</h4>
         <p class="pitch">24-hour plumbing emergencies, with same-day visits.</p>
@@ -629,7 +619,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <a href="/signup" class="reveal">
         <div class="ph"><img src="https://images.unsplash.com/photo-1676210134188-4c05dd172f89?auto=format&fit=crop&w=900&q=70" alt="Plumber fixing a pipe" loading="lazy"></div>
         <h3>Plumbers</h3>
-        <p>Your services, prices and WhatsApp in a shop that's ready to share.</p>
+        <p>Your services and prices in a shop that's ready to share.</p>
       </a>
       <a href="/signup" class="reveal">
         <div class="ph"><img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=900&q=70" alt="Electrician installing wiring" loading="lazy"></div>
@@ -663,7 +653,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <div>
         <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5z"/><path d="M8 9h8M8 12.5h5"/></svg>
         <h3>Direct support</h3>
-        <p>Talk to us on WhatsApp, no tickets or endless waiting.</p>
+        <p>Talk directly to our team, no tickets or endless waiting.</p>
       </div>
       <div>
         <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c2.5 2.2 4 5.4 4 9 0 3-1.2 5.6-4 8-2.8-2.4-4-5-4-8 0-3.6 1.5-6.8 4-9z"/><circle cx="12" cy="10" r="1.8"/><path d="M8.5 15.5 6 20l3-1.2M15.5 15.5 18 20l-3-1.2"/></svg>
@@ -688,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function(){
     </div>
     <div class="s-actions" style="margin-top:0">
       <a href="/signup" class="s-btn s-btn-green">Get started</a>
-      <a href="https://wa.me/12245083851" target="_blank" class="s-btn s-btn-outline">Offer my services</a>
+      <a href="#quien" class="s-btn s-btn-outline">See how it works</a>
     </div>
   </div>
 </section>
@@ -722,7 +712,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <p class="s-lead">Join the service professionals who've already handed design and marketing over to their AI agents. Sign up today and start building your store in minutes.</p>
       <div class="s-actions">
         <a href="/signup" class="s-btn s-btn-white">Get started</a>
-        <a href="https://wa.me/12245083851" target="_blank" class="s-btn s-btn-outline">Talk to us</a>
+        <a href="/login" class="s-btn s-btn-outline">Log in</a>
       </div>
     </div>
   </div>
@@ -744,10 +734,6 @@ document.addEventListener('DOMContentLoaded', function(){
       <div>
         <h4>Get started</h4>
         <ul><li><a href="/signup">Create my store</a></li><li><a href="/login">Log in</a></li></ul>
-      </div>
-      <div>
-        <h4>Help</h4>
-        <ul><li><a href="https://wa.me/12245083851" target="_blank">WhatsApp</a></li></ul>
       </div>
     </div>
     <div class="s-foot-bottom">
