@@ -158,220 +158,56 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   .hero h1 .l3{color:rgba(255,255,255,.4);}
   .hero p{color:var(--muted);font-size:18px;max-width:520px;margin-bottom:40px;}
 
-  /* ============ Everything after the hero — modeled on shopify.com's homepage ============
-     Measured from shopify.com (getComputedStyle): display headings weight 330 with
-     ~-2% tracking, card titles 18px/450, body 14px/420 in rgb(161,161,170),
-     pill buttons weight 550, feature cards radius 12px with a big media area on top
-     and short text below, horizontal carousels, full-bleed colored blocks. */
+  /* ============ Below the hero: one explainer video, then the footer ============ */
 
   .sections{
     --s-bg:#000;
-    --s-card:#0c0f0d;
     --s-line:rgba(255,255,255,.1);
-    --s-text:#fff;
     --s-muted:#a1a1aa;
     --s-green:#3ddc84;
     --s-font:'Inter',Helvetica,Arial,sans-serif;
-    background:var(--s-bg);color:var(--s-text);font-family:var(--s-font);
+    background:var(--s-bg);color:#fff;font-family:var(--s-font);
   }
   .sections section{padding:0;}
   .s-wrap{max-width:1280px;margin:0 auto;padding:0 40px;}
-  .sections .s-block{padding:120px 0;}
 
-  .s-h2{font-size:clamp(34px,4.6vw,56px);font-weight:330;letter-spacing:-0.02em;line-height:1.08;max-width:760px;}
-  .s-lead{font-size:18px;font-weight:420;line-height:1.5;color:var(--s-muted);max-width:560px;margin-top:20px;}
-  .s-eyebrow{font-size:14px;font-weight:450;color:var(--s-green);margin-bottom:18px;}
-  .s-head{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;margin-bottom:48px;}
+  .s-h2{font-size:clamp(34px,4.6vw,56px);font-weight:330;letter-spacing:-0.02em;line-height:1.08;}
+  .s-lead{font-size:18px;font-weight:420;line-height:1.5;color:var(--s-muted);max-width:560px;margin-top:16px;}
 
-  .s-btn{display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 24px;border-radius:9999px;font-size:16px;font-weight:550;border:2px solid transparent;transition:background .2s ease,color .2s ease,border-color .2s ease;white-space:nowrap;}
+  .s-btn{display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 24px;border-radius:9999px;font-size:16px;font-weight:550;border:2px solid transparent;transition:background .2s ease,color .2s ease;white-space:nowrap;}
   .s-btn-white{background:#fff;color:#000;}
   .s-btn-white:hover{background:#e6e6e6;}
   .s-btn-outline{background:transparent;color:#fff;border-color:#fff;}
   .s-btn-outline:hover{background:#fff;color:#000;}
-  .s-btn-green{background:var(--s-green);color:#04150c;}
-  .s-btn-green:hover{background:#5ee89b;}
-  .s-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:36px;}
-
-  .s-link{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.4);}
-  .s-link:hover{text-decoration-color:#fff;}
+  .s-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:40px;}
 
   .reveal{opacity:0;transform:translateY(20px);transition:opacity .7s ease,transform .7s ease;}
   .reveal.is-visible{opacity:1;transform:none;}
 
-  /* ---------- Pillars carousel ---------- */
-  .s-arrows{display:flex;gap:10px;flex-shrink:0;}
-  .s-arrow{width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,opacity .2s ease;}
-  .s-arrow:hover{background:rgba(255,255,255,.1);}
-  .s-arrow[disabled]{opacity:.3;cursor:default;}
-  .s-arrow svg{width:18px;height:18px;}
-
-  .s-rail{
-    display:flex;gap:24px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;
-    padding:0 max(40px, calc((100vw - 1280px) / 2 + 40px));scroll-padding:0 max(40px, calc((100vw - 1280px) / 2 + 40px));
-    scrollbar-width:none;
+  /* ---------- Explainer video ---------- */
+  .sections .s-video{padding:110px 0 130px;}
+  .s-video-head{margin-bottom:40px;}
+  .s-player{
+    position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;
+    background:#0b120e;border:1px solid var(--s-line);
   }
-  .s-rail::-webkit-scrollbar{display:none;}
-  .s-slide{flex:0 0 min(620px,82vw);scroll-snap-align:start;}
-  .s-media{
-    position:relative;height:460px;border-radius:12px;overflow:hidden;background:#0c1410;
-  }
-  .s-media > img.s-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
-  .s-media::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.35) 100%);pointer-events:none;}
-  .s-caption{padding:28px 4px 0;max-width:420px;}
-  .s-caption h3{font-size:18px;font-weight:450;line-height:1.35;margin-bottom:8px;}
-  .s-caption p{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);}
-  .s-soon{
-    position:absolute;top:18px;left:18px;z-index:3;
-    background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-    color:#fff;font-size:12px;font-weight:550;padding:7px 14px;border-radius:9999px;border:1px solid rgba(255,255,255,.2);
-  }
-
-  /* Light product UI floating over the media, like shopify.com's editor overlays.
-     Colors/radii mirror the real Sevrii app (tailwind: ink #122118, mint #EFF3F1,
-     border #E4E0D6, cream #F6F4EF). */
-  .ui{position:absolute;z-index:2;font-family:var(--s-font);color:#122118;}
-  .ui-window{background:#fff;border-radius:12px;box-shadow:0 30px 60px -20px rgba(0,0,0,.6);overflow:hidden;}
-  .ui-bar{height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#F6F4EF;border-bottom:1px solid #E4E0D6;}
-  .ui-bar i{width:8px;height:8px;border-radius:50%;background:#DAD6C9;display:block;}
-  .ui-bar span{margin-left:10px;font-size:10.5px;color:#9A968A;}
-  .ui-serif{font-family:Georgia,'Times New Roman',serif;}
-  .ui-muted{color:#6E7268;}
-  .ui-pill{display:inline-flex;align-items:center;height:28px;padding:0 14px;border-radius:9999px;color:#fff;font-size:11px;font-weight:600;}
-  .ui-bubble{padding:9px 12px;font-size:12px;line-height:1.4;max-width:230px;}
-  .ui-bubble.user{background:#122118;color:#fff;border-radius:12px 12px 3px 12px;margin-left:auto;}
-  .ui-bubble.ai{background:#EFF3F1;color:#122118;border-radius:12px 12px 12px 3px;}
-  .ui-card{background:#fff;border:1px solid #E4E0D6;border-radius:16px;}
-
-  /* Store slide */
-  .ui-store{left:8%;right:22%;bottom:-20px;}
-  .ui-store .body{padding:18px 20px 34px;}
-  .ui-store .top{display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid #E4E0D6;margin-bottom:14px;}
-  .ui-store .name{font-size:15px;font-weight:600;color:#9b3b5a;}
-  .ui-store .cat{font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
-  .ui-store h4{font-size:22px;font-weight:600;line-height:1.15;margin-bottom:6px;}
-  .ui-store .pitch{font-size:12px;line-height:1.45;margin-bottom:14px;}
-  .ui-store .svc{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .ui-store .svc div{border:1px solid #E4E0D6;border-radius:10px;padding:9px 10px;font-size:11.5px;font-weight:600;}
-  .ui-store .svc small{display:block;font-weight:400;color:#6E7268;margin-top:2px;}
-  .ui-store-chat{right:5%;top:40px;width:230px;display:flex;flex-direction:column;gap:8px;}
-  .ui-store-chat .ui-bubble{box-shadow:0 12px 30px -10px rgba(0,0,0,.5);}
-
-  /* Marketing slide — green radar graphic like shopify's "Controla todo" card */
-  .s-radar{position:absolute;inset:0;background:radial-gradient(circle at 70% 55%,#1c5a3d 0%,#0e2c1f 35%,#07140e 70%);}
-  .s-radar i{position:absolute;left:70%;top:55%;border:1px solid rgba(61,220,132,.22);border-radius:50%;transform:translate(-50%,-50%);display:block;}
-  .s-radar i:nth-child(1){width:180px;height:180px;}
-  .s-radar i:nth-child(2){width:360px;height:360px;}
-  .s-radar i:nth-child(3){width:560px;height:560px;}
-  .s-radar i:nth-child(4){width:780px;height:780px;}
-  .s-chip{position:absolute;z-index:2;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.22);color:#fff;font-size:13px;font-weight:450;padding:8px 16px;border-radius:9999px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
-  .ui-campaign{left:7%;top:50%;transform:translateY(-50%);width:300px;padding:16px;}
-  .ui-campaign .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;}
-  .ui-campaign .t{font-size:13px;font-weight:600;}
-  .ui-campaign .st{font-size:10px;font-weight:500;color:#6E7268;background:#EFF3F1;padding:3px 8px;border-radius:9999px;}
-  .ui-campaign p{font-size:11px;line-height:1.45;color:#6E7268;margin-bottom:3px;}
-  .ui-campaign p b{color:#122118;font-weight:600;}
-  .ui-campaign .ad{background:#EFF3F1;border-radius:10px;padding:9px 10px;margin-top:10px;}
-  .ui-campaign .ad strong{display:block;font-size:11.5px;margin-bottom:2px;}
-  .ui-campaign .ad span{font-size:10.5px;color:#6E7268;}
-
-  /* Payments slide (concept) */
-  .ui-pay{right:8%;bottom:28px;width:250px;padding:18px;}
-  .ui-pay .lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9A968A;margin-bottom:8px;}
-  .ui-pay .svc{font-size:13px;font-weight:600;margin-bottom:4px;}
-  .ui-pay .amt{font-size:26px;font-weight:600;letter-spacing:-.01em;margin-bottom:14px;}
-  .ui-pay .pay{display:flex;align-items:center;justify-content:center;height:38px;border-radius:9999px;background:#122118;color:#fff;font-size:12px;font-weight:600;}
-  .ui-pay .url{font-size:10px;color:#9A968A;text-align:center;margin-top:8px;}
-  .ui-toast{right:8%;top:28px;display:flex;align-items:center;gap:8px;background:#fff;border-radius:9999px;padding:8px 14px 8px 8px;font-size:12px;font-weight:600;box-shadow:0 14px 30px -10px rgba(0,0,0,.5);}
-  .ui-toast b{width:22px;height:22px;border-radius:50%;background:#3ddc84;color:#04150c;display:flex;align-items:center;justify-content:center;font-size:12px;}
-
-  /* Capital slide (concept) */
-  .ui-capital{left:8%;bottom:28px;width:290px;padding:18px;}
-  .ui-capital .lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9A968A;margin-bottom:4px;}
-  .ui-capital .t{font-size:14px;font-weight:600;margin-bottom:14px;}
-  .ui-bars{display:flex;align-items:flex-end;gap:8px;height:90px;padding-bottom:6px;border-bottom:1px solid #E4E0D6;}
-  .ui-bars span{flex:1;background:#EFF3F1;border-radius:5px 5px 0 0;}
-  .ui-bars span.on{background:#3ddc84;}
-  .ui-capital .offer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:11.5px;font-weight:600;}
-  .ui-capital .offer em{font-style:normal;font-size:10px;font-weight:500;color:#6E7268;background:#EFF3F1;padding:3px 8px;border-radius:9999px;}
-
-  /* ---------- Agent block (full-bleed color, like shopify's Sidekick block) ---------- */
-  .sections .s-agent{
-    background:linear-gradient(160deg,#0f4d34 0%,#0a3322 45%,#061c13 100%);
-    border-radius:40px;margin:0 12px;padding:110px 0 120px;
-  }
-  .s-agent .s-lead{color:rgba(255,255,255,.75);}
-  .s-agent-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:56px;align-items:center;}
-  .s-agent-demo{position:relative;background:#F6F4EF;border-radius:16px;padding:14px;display:grid;grid-template-columns:260px 1fr;gap:14px;box-shadow:0 40px 80px -30px rgba(0,0,0,.6);}
-  .s-chat{background:#fff;border:1px solid #E4E0D6;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:9px;}
-  .s-chat .who{display:flex;align-items:center;gap:9px;padding-bottom:10px;border-bottom:1px solid #E4E0D6;margin-bottom:2px;}
-  .s-chat .av{width:26px;height:26px;border-radius:50%;background:#122118;color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;}
-  .s-chat .who b{display:block;font-size:12px;color:#122118;}
-  .s-chat .who small{font-size:10px;color:#9A968A;}
-  .s-chat .ui-bubble{max-width:92%;font-size:11.5px;}
-  .s-chat .inp{margin-top:auto;height:34px;border:1px solid #DAD6C9;border-radius:10px;display:flex;align-items:center;padding:0 10px;font-size:11px;color:#9A968A;}
-  .s-preview{background:#fff;border:1px solid #E4E0D6;border-radius:12px;padding:16px;color:#122118;}
-  .s-preview .top{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid #E4E0D6;margin-bottom:16px;}
-  .s-preview .name{font-size:14px;font-weight:600;color:#1f6f4a;}
-  .s-preview .cat{font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6E7268;margin-bottom:6px;}
-  .s-preview h4{font-size:24px;font-weight:600;line-height:1.1;margin-bottom:8px;}
-  .s-preview .pitch{font-size:12px;line-height:1.45;color:#6E7268;margin-bottom:14px;}
-  .s-preview .svc{display:flex;flex-direction:column;gap:7px;}
-  .s-preview .svc div{display:flex;justify-content:space-between;gap:10px;border:1px solid #E4E0D6;border-radius:10px;padding:9px 11px;font-size:11.5px;font-weight:600;}
-  .s-preview .svc span{font-weight:400;color:#6E7268;white-space:nowrap;}
-  .s-preview .top{gap:10px;}
-  .s-preview .top .ui-pill{flex-shrink:0;}
-  .s-preview .svc div.new{border-color:#3ddc84;background:#f3fbf6;}
-
-  /* ---------- "For every services business" photo cards ---------- */
-  .s-trio{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
-  .s-trio .ph{aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#0c1410;}
-  .s-trio .ph img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s ease;}
-  .s-trio a:hover .ph img{transform:scale(1.03);}
-  .s-trio h3{font-size:18px;font-weight:450;margin:22px 0 8px;}
-  .s-trio p{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);max-width:340px;}
-
-  /* ---------- Trust list ---------- */
-  .s-trust{display:grid;grid-template-columns:repeat(4,1fr);gap:32px;border-top:1px solid var(--s-line);padding-top:36px;}
-  .s-trust svg{width:24px;height:24px;margin-bottom:18px;display:block;}
-  .s-trust h3{font-size:18px;font-weight:450;margin-bottom:8px;}
-  .s-trust p{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);}
-
-  /* ---------- Mid CTA band ---------- */
-  .s-band{border-top:1px solid var(--s-line);border-bottom:1px solid var(--s-line);}
-  .s-band .s-wrap{display:flex;justify-content:space-between;align-items:flex-end;gap:40px;padding-top:90px;padding-bottom:90px;}
-
-  /* ---------- Testimonials ---------- */
-  .s-quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
-  .s-quote{background:var(--s-card);border:1px solid var(--s-line);border-radius:12px;padding:32px;display:flex;flex-direction:column;justify-content:space-between;min-height:260px;}
-  .s-quote p{font-size:20px;font-weight:330;line-height:1.4;letter-spacing:-.01em;}
-  .s-quote .who{display:flex;align-items:center;gap:12px;margin-top:32px;}
-  .s-quote .av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#3ddc84,#1a6b45);flex-shrink:0;}
-  .s-quote .who b{display:block;font-size:14px;font-weight:550;}
-  .s-quote .who small{font-size:13px;font-weight:420;color:var(--s-muted);}
-
-  /* ---------- Closing (like shopify's starfield + glow section) ---------- */
-  .sections .s-close{
-    position:relative;overflow:hidden;padding:160px 0 170px;
+  .s-player iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+  .s-poster{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
     background:
-      radial-gradient(ellipse 55% 60% at 30% 75%, rgba(61,220,132,.16), transparent 70%),
-      linear-gradient(180deg,#000 0%,#06140d 100%);
+      radial-gradient(ellipse 60% 70% at 50% 45%, rgba(61,220,132,.16), transparent 70%),
+      linear-gradient(180deg,#0b120e 0%,#050806 100%);
+    border:0;width:100%;color:#fff;font-family:var(--s-font);cursor:default;
   }
-  .s-close::before{
-    content:'';position:absolute;inset:0;pointer-events:none;opacity:.7;
-    background-image:
-      radial-gradient(1.5px 1.5px at 8% 18%, #fff 50%, transparent 51%),
-      radial-gradient(1px 1px at 22% 8%, #fff 50%, transparent 51%),
-      radial-gradient(1px 1px at 35% 30%, rgba(255,255,255,.7) 50%, transparent 51%),
-      radial-gradient(1.5px 1.5px at 52% 12%, #fff 50%, transparent 51%),
-      radial-gradient(1px 1px at 64% 26%, rgba(255,255,255,.6) 50%, transparent 51%),
-      radial-gradient(1px 1px at 76% 9%, #fff 50%, transparent 51%),
-      radial-gradient(1.5px 1.5px at 88% 22%, rgba(255,255,255,.8) 50%, transparent 51%),
-      radial-gradient(1px 1px at 94% 40%, #fff 50%, transparent 51%),
-      radial-gradient(1px 1px at 14% 44%, rgba(255,255,255,.5) 50%, transparent 51%),
-      radial-gradient(1px 1px at 44% 52%, rgba(255,255,255,.5) 50%, transparent 51%);
+  .s-player.has-video .s-poster{cursor:pointer;}
+  .s-play{
+    width:88px;height:88px;border-radius:50%;background:#fff;color:#000;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 20px 50px -10px rgba(0,0,0,.6);transition:transform .25s ease;
   }
-  .s-close .s-wrap{position:relative;display:flex;justify-content:flex-end;}
-  .s-close .s-inner{max-width:560px;}
+  .s-player.has-video .s-poster:hover .s-play{transform:scale(1.06);}
+  .s-play svg{width:30px;height:30px;margin-left:5px;}
+  .s-poster-label{font-size:16px;font-weight:450;color:rgba(255,255,255,.8);}
 
   /* ---------- Footer ---------- */
   .s-foot{padding:80px 0 40px;border-top:1px solid var(--s-line);}
@@ -385,44 +221,23 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   .s-foot-bottom a:hover{color:#fff;}
   .s-foot-bottom .links{display:flex;gap:28px;}
 
-  @media(max-width:1180px){
-    .s-agent-grid{grid-template-columns:1fr;}
-    .s-agent-demo{max-width:760px;}
-  }
   @media(max-width:1000px){
-    .s-trust{grid-template-columns:1fr 1fr;row-gap:44px;}
     .s-foot-top{grid-template-columns:1fr 1fr;}
     .s-foot-top > div:first-child{grid-column:1 / -1;}
   }
   @media(max-width:900px){
     .nav-links{display:none;}
-    .s-trio,.s-quotes{grid-template-columns:1fr;}
-    .s-band .s-wrap{flex-direction:column;align-items:flex-start;}
   }
   @media(max-width:700px){
     .s-wrap{padding:0 20px;}
-    .sections .s-block{padding:80px 0;}
-    .s-rail{padding:0 20px;scroll-padding:0 20px;gap:14px;}
-    .s-slide{flex-basis:86vw;}
-    .s-media{height:380px;}
-    .s-arrows{display:none;}
-    .s-head{margin-bottom:32px;}
-    .ui-store{left:5%;right:5%;}
-    .ui-store-chat{display:none;}
-    .ui-campaign{left:5%;right:5%;width:auto;top:auto;bottom:22px;transform:none;}
-    .s-chip.c3,.s-chip.c4{display:none;}
-    .ui-pay{right:5%;left:5%;width:auto;}
-    .ui-capital{left:5%;right:5%;width:auto;}
-    .sections .s-agent{border-radius:28px;margin:0 8px;padding:80px 0;}
-    .s-agent-demo{grid-template-columns:1fr;}
-    .s-agent-demo .s-preview{display:none;}
-    .s-trust{grid-template-columns:1fr;}
-    .sections .s-close{padding:110px 0 120px;}
-    .s-close .s-wrap{justify-content:flex-start;}
+    .sections .s-video{padding:72px 0 90px;}
+    .s-video-head{margin-bottom:28px;}
+    .s-player{border-radius:12px;}
+    .s-play{width:68px;height:68px;}
+    .s-play svg{width:24px;height:24px;}
   }
   @media(prefers-reduced-motion:reduce){
     .reveal{opacity:1;transform:none;transition:none;}
-    .s-rail{scroll-behavior:auto;}
   }
 </style>
 </head>
@@ -467,258 +282,28 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 
 <div class="sections">
 
-<!-- 1. Los 4 pilares — carrusel de tarjetas grandes -->
-<section class="s-block" id="quien">
+<!-- Explainer video: paste the YouTube video ID in data-youtube-id -->
+<section class="s-video" id="quien">
+  <span id="servicios"></span><span id="socios"></span><span id="testimonios"></span>
   <div class="s-wrap">
-    <div class="s-head reveal">
-      <div>
-        <h2 class="s-h2">Así lo hacemos posible</h2>
-        <p class="s-lead">Tú nos dices qué servicio ofreces. Tus agentes de IA hacen el resto.</p>
-      </div>
-      <div class="s-arrows">
-        <button class="s-arrow" data-dir="-1" aria-label="Anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-        <button class="s-arrow" data-dir="1" aria-label="Siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
-      </div>
+    <div class="s-video-head reveal">
+      <h2 class="s-h2">Mira cómo funciona Sevrii</h2>
+      <p class="s-lead">Aquí te explicamos todo lo que Sevrii hace por tu negocio de servicios.</p>
     </div>
-  </div>
-
-  <div class="s-rail" id="pillarRail">
-    <!-- Store -->
-    <article class="s-slide">
-      <div class="s-media">
-        <img class="s-photo" src="https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=1240&q=70" alt="Estilista peinando a una clienta" loading="lazy">
-        <div class="ui ui-window ui-store">
-          <div class="ui-bar"><i></i><i></i><i></i><span>sevrii.com/site/estudio-carolina</span></div>
-          <div class="body">
-            <div class="top"><span class="name ui-serif">Estudio Carolina</span><span class="ui-pill" style="background:#9b3b5a">Reservar cita</span></div>
-            <div class="cat ui-muted">Peluquería · Medellín</div>
-            <h4 class="ui-serif">Estudio Carolina</h4>
-            <p class="pitch ui-muted">Cortes, color y peinados con cita previa, en un espacio tranquilo.</p>
-            <div class="svc"><div>Corte y peinado<small>Desde $60.000</small></div><div>Color completo<small>Desde $180.000</small></div></div>
-          </div>
-        </div>
-        <div class="ui ui-store-chat">
-          <div class="ui-bubble user">Agrega mi servicio de color completo</div>
-          <div class="ui-bubble ai">Listo, ya está en tu tienda.</div>
-        </div>
-      </div>
-      <div class="s-caption">
-        <h3>Store: una tienda de servicios hecha para convertir</h3>
-        <p>Tu agente de IA arma tu tienda en Sevrii por chat, con una plantilla diseñada para que te compren.</p>
-      </div>
-    </article>
-
-    <!-- Marketing -->
-    <article class="s-slide">
-      <div class="s-media">
-        <div class="s-radar"><i></i><i></i><i></i><i></i></div>
-        <span class="s-chip" style="left:62%;top:14%">Audiencia</span>
-        <span class="s-chip c3" style="left:80%;top:38%">Instagram</span>
-        <span class="s-chip c4" style="left:74%;top:72%">Google</span>
-        <span class="s-chip" style="left:54%;top:84%">TikTok</span>
-        <div class="ui ui-card ui-campaign">
-          <div class="hd"><span class="t">Más citas los fines de semana</span><span class="st">Borrador</span></div>
-          <p><b>Objetivo:</b> llenar la agenda de sábado y domingo</p>
-          <p><b>Audiencia:</b> mujeres de 25 a 45 años en Medellín</p>
-          <p><b>Plataformas:</b> Instagram y Facebook</p>
-          <div class="ad"><strong>¿Lista para tu cambio de look?</strong><span>Agenda tu cita de este sábado en un minuto.</span></div>
-        </div>
-      </div>
-      <div class="s-caption">
-        <h3>Marketing: el cerebro de tu estrategia</h3>
-        <p>Analiza tu negocio y crea tu estrategia de funnel. Luego tu agente prepara las campañas para ejecutarla.</p>
-      </div>
-    </article>
-
-    <!-- Payments -->
-    <article class="s-slide">
-      <div class="s-media">
-        <img class="s-photo" src="https://images.unsplash.com/photo-1687422808248-f807f4ea2a2e?auto=format&fit=crop&w=1240&q=70" alt="Dueño de un negocio revisando su teléfono" loading="lazy">
-        <span class="s-soon">Próximamente</span>
-        <div class="ui ui-toast"><b>✓</b>Pago recibido</div>
-        <div class="ui ui-card ui-pay">
-          <div class="lbl">Link de pago</div>
-          <div class="svc">Instalación de calentador</div>
-          <div class="amt">$120.000</div>
-          <div class="pay">Pagar ahora</div>
-          <div class="url">sevrii.com/pagar</div>
-        </div>
-      </div>
-      <div class="s-caption">
-        <h3>Payments: cobra desde tu teléfono</h3>
-        <p>Próximamente: crea un link de pago y cóbrale a tu cliente desde tu teléfono o desde Sevrii.</p>
-      </div>
-    </article>
-
-    <!-- Capital -->
-    <article class="s-slide">
-      <div class="s-media">
-        <img class="s-photo" src="https://images.unsplash.com/photo-1687422811062-a966b55cb217?auto=format&fit=crop&w=1240&q=70" alt="Dueño de un taller celebrando mientras mira su teléfono" loading="lazy">
-        <span class="s-soon">Próximamente</span>
-        <div class="ui ui-card ui-capital">
-          <div class="lbl">Tus ventas en Sevrii</div>
-          <div class="t">Tu negocio está creciendo</div>
-          <div class="ui-bars"><span style="height:30%"></span><span style="height:42%"></span><span style="height:38%"></span><span style="height:55%"></span><span style="height:70%"></span><span class="on" style="height:92%"></span></div>
-          <div class="offer">Capital para crecer<em>Muy pronto</em></div>
-        </div>
-      </div>
-      <div class="s-caption">
-        <h3>Capital: impulso para crecer</h3>
-        <p>Próximamente: como vemos lo que vendes en Sevrii, podemos invertir en tu negocio o prestarte para crecer.</p>
-      </div>
-    </article>
-  </div>
-</section>
-
-<!-- 2. Bloque del agente — color a sangre, como el bloque de Sidekick -->
-<section class="s-agent">
-  <div class="s-wrap s-agent-grid">
-    <div class="reveal">
-      <div class="s-eyebrow">Aliado estratégico</div>
-      <h2 class="s-h2">Tú haces lo tuyo. Tus agentes de IA arman el resto.</h2>
-      <p class="s-lead">Le cuentas a tu agente cómo es tu negocio y arma tu tienda al instante. Cuando quieras clientes, otro agente te prepara la campaña en el mismo chat.</p>
-      <div class="s-actions">
-        <a href="/signup" class="s-btn s-btn-white">Empezar ahora</a>
-        <a href="#quien" class="s-btn s-btn-outline">Ver cómo funciona</a>
-      </div>
+    <div class="s-player reveal" id="explainer" data-youtube-id="" data-label-play="Ver video">
+      <button class="s-poster" type="button" aria-label="Reproducir video">
+        <span class="s-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+        <span class="s-poster-label">Video en camino</span>
+      </button>
     </div>
-    <div class="s-agent-demo reveal">
-      <div class="s-chat">
-        <div class="who"><span class="av">S</span><div><b>Sevri AI</b><small>Pídele que edite tu página</small></div></div>
-        <div class="ui-bubble user">Soy plomero en Bogotá y atiendo urgencias 24 horas</div>
-        <div class="ui-bubble ai">Listo. Armé tu tienda con tu categoría, tu ciudad y un servicio de urgencias.</div>
-        <div class="ui-bubble user">Agrega instalación de calentadores</div>
-        <div class="ui-bubble ai">Hecho, ya aparece en tu página.</div>
-        <div class="inp">Escribe un cambio…</div>
-      </div>
-      <div class="s-preview">
-        <div class="top"><span class="name ui-serif">Plomería Díaz</span><span class="ui-pill" style="background:#1f6f4a">Reservar</span></div>
-        <div class="cat">Plomería · Bogotá</div>
-        <h4 class="ui-serif">Plomería Díaz</h4>
-        <p class="pitch">Urgencias de plomería las 24 horas, con visita el mismo día.</p>
-        <div class="svc">
-          <div>Destape de tuberías <span>Desde $80.000</span></div>
-          <div>Urgencias 24 h <span>Desde $120.000</span></div>
-          <div class="new">Instalación de calentadores <span>Desde $150.000</span></div>
-        </div>
-      </div>
+    <div class="s-actions reveal">
+      <a href="/signup" class="s-btn s-btn-white">Empezar ahora</a>
+      <a href="/login" class="s-btn s-btn-outline">Iniciar sesión</a>
     </div>
   </div>
 </section>
 
-<!-- 3. Para todo negocio de servicios -->
-<section class="s-block" id="servicios">
-  <div class="s-wrap">
-    <div class="s-head reveal">
-      <div>
-        <div class="s-eyebrow">Sevrii — La plataforma que impulsa el comercio de servicios</div>
-        <h2 class="s-h2">Para todo negocio de servicios</h2>
-      </div>
-    </div>
-    <div class="s-trio">
-      <a href="/signup" class="reveal">
-        <div class="ph"><img src="https://images.unsplash.com/photo-1676210134188-4c05dd172f89?auto=format&fit=crop&w=900&q=70" alt="Plomero reparando una tubería" loading="lazy"></div>
-        <h3>Plomeros</h3>
-        <p>Tus servicios y precios en una tienda lista para compartir.</p>
-      </a>
-      <a href="/signup" class="reveal">
-        <div class="ph"><img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=900&q=70" alt="Electricista instalando cableado" loading="lazy"></div>
-        <h3>Electricistas</h3>
-        <p>Muestra lo que haces y deja que tus agentes preparen tu próxima campaña.</p>
-      </a>
-      <a href="/signup" class="reveal">
-        <div class="ph"><img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=900&q=70" alt="Entrenadora personal con un cliente" loading="lazy"></div>
-        <h3>Entrenadores y estilistas</h3>
-        <p>Tus planes y citas en un solo lugar, para que nuevos clientes te encuentren.</p>
-      </a>
-    </div>
-  </div>
-</section>
-
-<!-- 4. Socio comercial -->
-<section class="s-block" id="socios" style="padding-top:0">
-  <div class="s-wrap">
-    <div class="s-head reveal">
-      <div>
-        <h2 class="s-h2">Conviértete en nuestro socio comercial</h2>
-        <p class="s-lead">Detrás de cada agente hay IA real trabajando de principio a fin, para que tu negocio avance mientras atiendes a tus clientes.</p>
-      </div>
-    </div>
-    <div class="s-trust reveal">
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
-        <h3>Confianza verificada</h3>
-        <p>Cada proveedor pasa por una revisión antes de aparecer en Sevrii. Tus clientes lo notan.</p>
-      </div>
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5z"/><path d="M8 9h8M8 12.5h5"/></svg>
-        <h3>Soporte directo</h3>
-        <p>Hablas directamente con nuestro equipo, sin tickets ni esperas eternas.</p>
-      </div>
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c2.5 2.2 4 5.4 4 9 0 3-1.2 5.6-4 8-2.8-2.4-4-5-4-8 0-3.6 1.5-6.8 4-9z"/><circle cx="12" cy="10" r="1.8"/><path d="M8.5 15.5 6 20l3-1.2M15.5 15.5 18 20l-3-1.2"/></svg>
-        <h3>Crece a tu ritmo</h3>
-        <p>Adaptamos tu estrategia de marketing según lo que tu negocio necesite en cada etapa.</p>
-      </div>
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M10 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
-        <h3>Comunidad en crecimiento</h3>
-        <p>Formas parte de una red cada vez más grande de proveedores verificados en Sevrii.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 5. Banda de CTA -->
-<section class="s-band">
-  <div class="s-wrap reveal">
-    <div>
-      <h2 class="s-h2">Deja de perseguir clientes. Que te encuentren a ti.</h2>
-      <p class="s-lead">Tú sigue siendo extraordinario en lo tuyo. De armar tu tienda y preparar tu marketing, se encargan tus agentes.</p>
-    </div>
-    <div class="s-actions" style="margin-top:0">
-      <a href="/signup" class="s-btn s-btn-green">Empezar ahora</a>
-      <a href="#quien" class="s-btn s-btn-outline">Ver cómo funciona</a>
-    </div>
-  </div>
-</section>
-
-<!-- 6. Testimonios -->
-<section class="s-block" id="testimonios">
-  <div class="s-wrap">
-    <div class="s-head reveal"><h2 class="s-h2">Lo que dicen nuestros socios</h2></div>
-    <div class="s-quotes">
-      <div class="s-quote reveal">
-        <p>“En 3 meses aumentamos nuestras ventas en un 200%. Sevri transformó nuestro negocio.”</p>
-        <div class="who"><span class="av"></span><div><b>María González</b><small>CEO, TechStartup</small></div></div>
-      </div>
-      <div class="s-quote reveal">
-        <p>“Dejé mi trabajo mal pagado y ahora genero 3 veces más. Sevri me dio la libertad.”</p>
-        <div class="who"><span class="av"></span><div><b>Carlos Ruiz</b><small>Consultor independiente</small></div></div>
-      </div>
-      <div class="s-quote reveal">
-        <p>“Los resultados hablan por sí solos. El equipo de Sevri entiende perfectamente nuestros objetivos.”</p>
-        <div class="who"><span class="av"></span><div><b>Ana López</b><small>Directora de marketing</small></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 7. Cierre -->
-<section class="s-close">
-  <div class="s-wrap">
-    <div class="s-inner reveal">
-      <h2 class="s-h2">¿Listo para dejar de hacerlo todo solo?</h2>
-      <p class="s-lead">Únete a los profesionales de servicios que ya dejaron el diseño y el marketing en manos de sus agentes de IA. Regístrate hoy y empieza a armar tu tienda en minutos.</p>
-      <div class="s-actions">
-        <a href="/signup" class="s-btn s-btn-white">Empezar ahora</a>
-        <a href="/login" class="s-btn s-btn-outline">Iniciar sesión</a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 8. Footer -->
+<!-- Footer -->
 <footer class="s-foot">
   <div class="s-wrap">
     <div class="s-foot-top">
@@ -853,39 +438,23 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 </script>
 
 <script>
-  // Post-hero interactions: carousel arrows + subtle fade-in on scroll.
+  // Explainer video: shows a poster until a YouTube ID is set in data-youtube-id,
+  // then loads the player on click. Plus a subtle fade-in on scroll.
   (function(){
-    var rail = document.getElementById('pillarRail');
-    var arrows = document.querySelectorAll('.s-arrow');
-    if (rail && arrows.length) {
-      var go = function(dir){
-        var slides = rail.querySelectorAll('.s-slide');
-        var pad = parseFloat(getComputedStyle(rail).scrollPaddingLeft) || 0;
-        var base = rail.getBoundingClientRect().left + pad;
-        var cur = 0, best = Infinity;
-        slides.forEach(function(sl, i){
-          var d = Math.abs(sl.getBoundingClientRect().left - base);
-          if (d < best) { best = d; cur = i; }
+    var p = document.getElementById('explainer');
+    if (p) {
+      var id = (p.getAttribute('data-youtube-id') || '').trim();
+      var poster = p.querySelector('.s-poster');
+      if (id) {
+        p.classList.add('has-video');
+        p.querySelector('.s-poster-label').textContent = p.getAttribute('data-label-play');
+        poster.addEventListener('click', function(){
+          p.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) +
+            '?autoplay=1&rel=0&modestbranding=1" title="Sevrii" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
         });
-        var next = Math.max(0, Math.min(slides.length - 1, cur + dir));
-        var target = rail.scrollLeft + slides[next].getBoundingClientRect().left - base;
-        rail.scrollTo({ left: target, behavior: 'smooth' });
-      };
-      var sync = function(){
-        var max = rail.scrollWidth - rail.clientWidth - 2;
-        arrows.forEach(function(a){
-          var dir = +a.getAttribute('data-dir');
-          a.disabled = dir < 0 ? rail.scrollLeft <= 2 : rail.scrollLeft >= max;
-        });
-      };
-      arrows.forEach(function(a){
-        a.addEventListener('click', function(){
-          go(+a.getAttribute('data-dir'));
-        });
-      });
-      rail.addEventListener('scroll', sync, { passive: true });
-      window.addEventListener('resize', sync);
-      sync();
+      } else {
+        poster.disabled = true;
+      }
     }
 
     var els = document.querySelectorAll('.reveal');
