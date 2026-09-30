@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function(){
     display:grid;grid-template-columns:repeat(4,1fr);
     grid-template-areas:
       "hero hero small1 small2"
-      "hero hero wide wide";
+      "wide wide wide wide";
     gap:16px;max-width:1280px;margin:0 auto;text-align:left;
     counter-reset:nd-pillar;
   }
@@ -323,9 +323,19 @@ document.addEventListener('DOMContentLoaded', function(){
     background:conic-gradient(from var(--nd-angle), transparent 0 62%, var(--nd-accent) 80%, var(--nd-accent-2) 90%, transparent 100%);
     animation:nd-spin 3s linear infinite;
   }
-  .obtienes-card:nth-child(2){grid-area:wide;}
+  .obtienes-card:nth-child(2){
+    grid-area:wide;flex-direction:row;align-items:center;gap:26px;padding:30px 36px;
+  }
+  .obtienes-card:nth-child(2) .obtienes-icon{margin-bottom:0;flex-shrink:0;}
+  .obtienes-card:nth-child(2) .nd-num{position:absolute;top:24px;right:30px;margin-bottom:0;}
+  .obtienes-card:nth-child(2) h4{margin-bottom:6px;}
+  .obtienes-card:nth-child(2) p{max-width:640px;}
   .obtienes-card:nth-child(3){grid-area:small1;}
   .obtienes-card:nth-child(4){grid-area:small2;}
+  @media(max-width:700px){
+    .obtienes-card:nth-child(2){flex-direction:column;align-items:flex-start;}
+    .obtienes-card:nth-child(2) .nd-num{position:static;}
+  }
   .obtienes-card .soon{
     position:absolute;top:16px;right:16px;z-index:3;
     background:var(--nd-accent-dim);color:var(--nd-accent);
@@ -555,8 +565,10 @@ document.addEventListener('DOMContentLoaded', function(){
         </svg>
       </div>
       <span class="nd-num"></span>
-      <h4>Marketing — your campaign, ready in a chat</h4>
-      <p>Tell your agent what you want to achieve and, in that same chat, it builds the full plan: who to reach, which platforms, a budget reference, and 2-3 ads already written. You review, tweak whatever you want, and go publish it wherever you prefer.</p>
+      <div class="obtienes-text">
+        <h4>Marketing — your campaign, ready in a chat</h4>
+        <p>Tell your agent what you want to achieve and, in that same chat, it builds the full plan: who to reach, which platforms, a budget reference, and 2-3 ads already written. You review, tweak whatever you want, and go publish it wherever you prefer.</p>
+      </div>
     </div>
     <div class="obtienes-card nd-card reveal" style="--i:2">
       <div class="nd-spot"></div>
