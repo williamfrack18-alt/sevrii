@@ -326,8 +326,10 @@ document.addEventListener('DOMContentLoaded', function(){
   .s-preview h4{font-size:24px;font-weight:600;line-height:1.1;margin-bottom:8px;}
   .s-preview .pitch{font-size:12px;line-height:1.45;color:#6E7268;margin-bottom:14px;}
   .s-preview .svc{display:flex;flex-direction:column;gap:7px;}
-  .s-preview .svc div{display:flex;justify-content:space-between;border:1px solid #E4E0D6;border-radius:10px;padding:9px 11px;font-size:11.5px;font-weight:600;}
-  .s-preview .svc span{font-weight:400;color:#6E7268;}
+  .s-preview .svc div{display:flex;justify-content:space-between;gap:10px;border:1px solid #E4E0D6;border-radius:10px;padding:9px 11px;font-size:11.5px;font-weight:600;}
+  .s-preview .svc span{font-weight:400;color:#6E7268;white-space:nowrap;}
+  .s-preview .top{gap:10px;}
+  .s-preview .top .ui-pill{flex-shrink:0;}
   .s-preview .svc div.new{border-color:#3ddc84;background:#f3fbf6;}
 
   /* ---------- "For every services business" photo cards ---------- */
@@ -393,8 +395,11 @@ document.addEventListener('DOMContentLoaded', function(){
   .s-foot-bottom a:hover{color:#fff;}
   .s-foot-bottom .links{display:flex;gap:28px;}
 
-  @media(max-width:1000px){
+  @media(max-width:1180px){
     .s-agent-grid{grid-template-columns:1fr;}
+    .s-agent-demo{max-width:760px;}
+  }
+  @media(max-width:1000px){
     .s-trust{grid-template-columns:1fr 1fr;row-gap:44px;}
     .s-foot-top{grid-template-columns:1fr 1fr;}
     .s-foot-top > div:first-child{grid-column:1 / -1;}
@@ -867,9 +872,18 @@ document.addEventListener('DOMContentLoaded', function(){
     var rail = document.getElementById('pillarRail');
     var arrows = document.querySelectorAll('.s-arrow');
     if (rail && arrows.length) {
-      var step = function(){
-        var slide = rail.querySelector('.s-slide');
-        return slide ? slide.getBoundingClientRect().width + 24 : 600;
+      var go = function(dir){
+        var slides = rail.querySelectorAll('.s-slide');
+        var pad = parseFloat(getComputedStyle(rail).scrollPaddingLeft) || 0;
+        var base = rail.getBoundingClientRect().left + pad;
+        var cur = 0, best = Infinity;
+        slides.forEach(function(sl, i){
+          var d = Math.abs(sl.getBoundingClientRect().left - base);
+          if (d < best) { best = d; cur = i; }
+        });
+        var next = Math.max(0, Math.min(slides.length - 1, cur + dir));
+        var target = rail.scrollLeft + slides[next].getBoundingClientRect().left - base;
+        rail.scrollTo({ left: target, behavior: 'smooth' });
       };
       var sync = function(){
         var max = rail.scrollWidth - rail.clientWidth - 2;
@@ -880,7 +894,7 @@ document.addEventListener('DOMContentLoaded', function(){
       };
       arrows.forEach(function(a){
         a.addEventListener('click', function(){
-          rail.scrollBy({ left: step() * +a.getAttribute('data-dir'), behavior: 'smooth' });
+          go(+a.getAttribute('data-dir'));
         });
       });
       rail.addEventListener('scroll', sync, { passive: true });
