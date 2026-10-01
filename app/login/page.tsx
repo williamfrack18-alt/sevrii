@@ -1,25 +1,28 @@
 import Link from "next/link";
 import LoginForm from "./LoginForm";
+import BrandMark from "@/components/BrandMark";
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream p-8">
-      <div className="w-full max-w-[420px] flex flex-col gap-7">
-        <Link href="/" className="font-serif text-2xl font-semibold self-center">
-          Sevri
-        </Link>
-        <div className="flex flex-col gap-2 text-center">
-          <h2 className="font-serif text-3xl font-semibold">Welcome back</h2>
-          <p className="text-muted text-[15px]">Log in to your Sevri account.</p>
+    <div className="theme-dark flex flex-col">
+      <header className="h-[78px] px-6 sm:px-10 flex items-center">
+        <BrandMark />
+      </header>
+      <main className="flex-1 flex items-center justify-center px-6 pb-20">
+        <div className="w-full max-w-[420px] flex flex-col gap-8">
+          <div className="flex flex-col gap-3">
+            <h1 className="font-serif text-[40px] leading-[1.08]">Welcome back</h1>
+            <p className="text-muted text-[16px]">Log in to your Sevrii account.</p>
+          </div>
+          <LoginForm />
+          <p className="text-[14px] text-muted">
+            New to Sevrii?{" "}
+            <Link href="/signup" className="text-ink font-semibold underline">
+              Create an account
+            </Link>
+          </p>
         </div>
-        <LoginForm />
-        <p className="text-center text-[14px] text-muted">
-          New to Sevri?{" "}
-          <Link href="/signup" className="text-ink font-semibold underline">
-            Create an account
-          </Link>
-        </p>
-      </div>
+      </main>
     </div>
   );
 }

@@ -40,8 +40,8 @@ export default function MarketingView({
         <div className="card">
           <h3 className="text-[15px] font-semibold mb-1">Drafts for {business.name}</h3>
           <p className="text-[13px] text-mutedLight mb-4">
-            Sevri AI builds a complete campaign plan (audience, platforms, budget, and a few ad copy options
-            to test) based on what you ask for. These are drafts to use wherever you run ads — Sevri
+            Sevrii AI builds a complete campaign plan (audience, platforms, budget, and a few ad copy options
+            to test) based on what you ask for. These are drafts to use wherever you run ads — Sevrii
             doesn&rsquo;t connect to an ad account or publish anything on your behalf yet.
           </p>
           {campaigns.length === 0 ? (

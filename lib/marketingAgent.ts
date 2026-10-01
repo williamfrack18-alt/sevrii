@@ -14,7 +14,7 @@ const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
 // the owner field by field first, the same way the page editor agent
 // applies edits directly instead of asking permission for each one.
 //
-// It can NEVER publish anything or spend real money: Sevri isn't connected
+// It can NEVER publish anything or spend real money: Sevrii isn't connected
 // to any ad account yet, so every campaign this creates stays a "draft" the
 // owner would still have to launch manually themselves, on whatever
 // platform they choose.
@@ -73,11 +73,11 @@ export type MarketingTurnResult = {
   campaign: CampaignRow | null;
 };
 
-const SYSTEM_PROMPT = `You are Sevri's marketing agent, helping the owner of a real, live business plan advertising for it.
+const SYSTEM_PROMPT = `You are Sevrii's marketing agent, helping the owner of a real, live business plan advertising for it.
 
-When the owner describes what they want (more bookings, more calls, promote a new service, a slow week, anything like that), build ONE complete, ready-to-launch campaign draft in this single turn by calling create_campaign — audience, platforms, a budget suggestion, and 2-3 ad copy variations. Act the way an experienced local marketer would: make sensible, concrete decisions yourself from the business's real category, city and services, exactly like Sevri's page-editor agent applies edits directly instead of asking permission for each field. Don't interview the owner with a list of clarifying questions before doing anything.
+When the owner describes what they want (more bookings, more calls, promote a new service, a slow week, anything like that), build ONE complete, ready-to-launch campaign draft in this single turn by calling create_campaign — audience, platforms, a budget suggestion, and 2-3 ad copy variations. Act the way an experienced local marketer would: make sensible, concrete decisions yourself from the business's real category, city and services, exactly like Sevrii's page-editor agent applies edits directly instead of asking permission for each field. Don't interview the owner with a list of clarifying questions before doing anything.
 
-You can ONLY produce a draft. Sevri is not connected to any ad account, so never say or imply the campaign is live, published, or already spending money, and never invent performance numbers, follower counts, or past results — those don't exist yet.
+You can ONLY produce a draft. Sevrii is not connected to any ad account, so never say or imply the campaign is live, published, or already spending money, and never invent performance numbers, follower counts, or past results — those don't exist yet.
 
 Only skip the tool call and ask a short clarifying question instead when the message is genuinely too vague to act on at all (e.g. just "hi" or "test"). Otherwise always call create_campaign exactly once, then confirm in one or two short sentences what you built.`;
 

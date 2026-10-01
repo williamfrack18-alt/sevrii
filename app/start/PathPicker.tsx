@@ -43,7 +43,7 @@ export default function PathPicker() {
         </button>
       </div>
 
-      <p className="text-[13px] text-mutedLight italic">The next step is put together by Sevri AI based on what you choose here.</p>
+      <p className="text-[13px] text-mutedLight italic">The next step is put together by Sevrii AI based on what you choose here.</p>
 
       <button
         type="button"

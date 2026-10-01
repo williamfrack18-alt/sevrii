@@ -57,7 +57,7 @@ export default function EditorChat({
           S
         </div>
         <div>
-          <div className="text-[13px] font-semibold">Sevri AI</div>
+          <div className="text-[13px] font-semibold">Sevrii AI</div>
           <div className="text-[11px] text-mutedLight">Ask it to edit your page</div>
         </div>
       </div>

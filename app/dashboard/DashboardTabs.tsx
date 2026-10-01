@@ -66,7 +66,7 @@ export default function DashboardTabs({
       <div className="w-[220px] shrink-0 min-h-screen bg-white border-r border-border p-5 flex flex-col justify-between">
         <div>
           <Link href="/" className="font-serif text-[19px] font-semibold text-ink block mb-[18px]">
-            Sevri
+            Sevrii
           </Link>
           <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-[11px] mb-5">
             <div

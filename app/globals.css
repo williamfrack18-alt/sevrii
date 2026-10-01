@@ -22,3 +22,81 @@ body {
 .card {
   @apply bg-white border border-border rounded-2xl p-6;
 }
+
+/* ------------------------------------------------------------------
+   Dark brand theme for the "get started" flow (login, signup, start,
+   onboarding, discover). Matches the sevrii.com landing: black
+   background, Inter, white pill buttons, green accent. Scoped to
+   .theme-dark so the dashboard and public store pages keep their look.
+   ------------------------------------------------------------------ */
+.theme-dark {
+  background: #000;
+  color: #fff;
+  font-family: "Inter", Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+}
+.theme-dark .bg-cream { background: #000; }
+.theme-dark .bg-white { background: #0e100e; }
+.theme-dark .bg-mint { background: #16231c; color: #fff; }
+.theme-dark .bg-ink { background: #fff; color: #000; }
+.theme-dark .bg-borderStrong { background: rgba(255, 255, 255, 0.14); }
+.theme-dark .bg-mutedLight { background: rgba(255, 255, 255, 0.35); }
+.theme-dark .text-ink { color: #fff; }
+.theme-dark .text-muted { color: #a1a1aa; }
+.theme-dark .text-mutedLight { color: #71717a; }
+.theme-dark .text-red-600 { color: #f87171; }
+.theme-dark .border-border { border-color: rgba(255, 255, 255, 0.1); }
+.theme-dark .border-borderStrong,
+.theme-dark .hover\:border-borderStrong:hover { border-color: rgba(255, 255, 255, 0.22); }
+.theme-dark .border-ink { border-color: #3ddc84; }
+.theme-dark svg[stroke="#122118"] { stroke: #fff; }
+
+/* Headings: light, tight display type like the landing (Inter 330) */
+.theme-dark .font-serif {
+  font-family: "Inter", Helvetica, Arial, sans-serif;
+  font-weight: 330;
+  letter-spacing: -0.02em;
+}
+
+.theme-dark .card {
+  background: #0e100e;
+  border-color: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+.theme-dark .input {
+  background: #0e100e;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-radius: 12px;
+}
+.theme-dark .input::placeholder { color: #71717a; }
+.theme-dark .input:focus { border-color: #3ddc84; }
+.theme-dark .btn-primary {
+  background: #fff;
+  color: #000;
+  border-radius: 9999px;
+  font-weight: 550;
+}
+.theme-dark .btn-primary:hover { background: #e6e6e6; opacity: 1; }
+.theme-dark .btn-primary:disabled { opacity: 0.6; }
+.theme-dark .btn-ghost {
+  background: transparent;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+}
+.theme-dark .btn-ghost:hover { background: #fff; color: #000; }
+.theme-dark button.rounded-\[10px\] { border-radius: 9999px; }
+.theme-dark a { text-underline-offset: 3px; }
+
+/* Brand mark used across the flow */
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Inter", Helvetica, Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+}
+.brand-mark img { height: 40px; width: auto; display: block; }

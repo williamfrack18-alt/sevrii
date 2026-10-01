@@ -7,5 +7,9 @@ export default async function DiscoverPage() {
   if (!user) redirect("/login");
   if (user.business) redirect("/dashboard");
 
-  return <DiscoveryFlow />;
+  return (
+    <div className="theme-dark">
+      <DiscoveryFlow />
+    </div>
+  );
 }

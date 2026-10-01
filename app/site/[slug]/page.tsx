@@ -96,7 +96,7 @@ export default async function PublicBusinessPage({ params }: { params: { slug: s
       </section>
 
       <footer className="border-t border-border py-8 text-center text-[12.5px] text-mutedLight">
-        Built with Sevri
+        Built with Sevrii
       </footer>
     </div>
   );

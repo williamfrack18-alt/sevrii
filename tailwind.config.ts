@@ -9,7 +9,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         serif: ["Fraunces", "Georgia", "serif"],
-        sans: ["IBM Plex Sans", "system-ui", "sans-serif"],
+        sans: ["Inter", "Helvetica", "Arial", "sans-serif"],
       },
       colors: {
         ink: "#122118",

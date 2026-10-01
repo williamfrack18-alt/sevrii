@@ -54,7 +54,7 @@ export default function MarketingChat({
           S
         </div>
         <div>
-          <div className="text-[13px] font-semibold">Sevri AI</div>
+          <div className="text-[13px] font-semibold">Sevrii AI</div>
           <div className="text-[11px] text-mutedLight">Your marketing agent</div>
         </div>
       </div>

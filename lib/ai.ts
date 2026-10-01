@@ -1,4 +1,4 @@
-// Simulated "Sevri AI" logic.
+// Simulated "Sevrii AI" logic.
 //
 // These functions stand in for a real LLM call. They are intentionally
 // isolated behind plain functions so that swapping in a real model later

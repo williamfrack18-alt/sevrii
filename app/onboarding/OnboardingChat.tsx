@@ -65,7 +65,7 @@ export default function OnboardingChat() {
           <div className="w-7 h-7 rounded-full bg-ink flex items-center justify-center text-white text-[12px] font-semibold">
             S
           </div>
-          <span className="text-[13px] font-semibold">Sevri AI</span>
+          <span className="text-[13px] font-semibold">Sevrii AI</span>
         </div>
         <div className="flex flex-col gap-2.5 flex-1">
           {messages.map((m, i) => (

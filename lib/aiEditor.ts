@@ -24,7 +24,7 @@ const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
 const EDIT_TOOL: Tool = {
   name: "apply_page_edits",
   description:
-    "Apply one or more real edits to this business's Sevri page. Only use this for changes covered by the fields below — never for things like uploading real photos, editing FAQ entries, managing reviews, or connecting ad accounts, since none of that exists in this schema yet.",
+    "Apply one or more real edits to this business's Sevrii page. Only use this for changes covered by the fields below — never for things like uploading real photos, editing FAQ entries, managing reviews, or connecting ad accounts, since none of that exists in this schema yet.",
   input_schema: {
     type: "object",
     properties: {
@@ -214,7 +214,7 @@ export type EditorTurnResult = {
   services: ServiceRow[];
 };
 
-const SYSTEM_PROMPT = `You are Sevri AI, helping the owner of a real, live business edit their real Sevri page through this chat.
+const SYSTEM_PROMPT = `You are Sevrii AI, helping the owner of a real, live business edit their real Sevrii page through this chat.
 
 You can ONLY change what the apply_page_edits tool supports: business name, category, internal description, public pitch text, city, WhatsApp number, accent color, and services (add/update/delete, each with name, price, description).
 
