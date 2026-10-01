@@ -33,12 +33,12 @@ export default function MarketingView({
   const t = useT();
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="h-[60px] shrink-0 px-6 flex items-center gap-2.5 border-b border-border bg-white">
-        <span className="text-[12px] font-semibold tracking-wide uppercase text-ink">{t.dashboard.marketing}</span>
+      <div className="min-h-[60px] shrink-0 px-5 md:px-6 py-3 flex flex-wrap items-center gap-2.5 border-b border-border bg-white">
+        <span className="text-[12px] font-semibold tracking-wide uppercase" style={{ color: "#3ddc84" }}>02 · {t.dashboard.marketing}</span>
         <span className="text-[14px] text-ink font-semibold">{t.dashboard.marketingHeader}</span>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 p-6">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 p-4 md:p-6">
         <div className="card">
           <h3 className="text-[15px] font-semibold mb-1">{t.dashboard.draftsFor(business.name)}</h3>
           <p className="text-[13px] text-mutedLight mb-4">{t.dashboard.draftsNote}</p>

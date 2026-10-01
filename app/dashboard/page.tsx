@@ -1,12 +1,15 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { listServices, listCampaigns, listChatMessages } from "@/lib/db";
-import DashboardTabs from "./DashboardTabs";
+import DashboardTabs, { DASHBOARD_VIEWS, type DashboardView } from "./DashboardTabs";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams?: { view?: string } }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!user.business) redirect("/start");
+
+  const requested = searchParams?.view as DashboardView | undefined;
+  const initialView: DashboardView = requested && DASHBOARD_VIEWS.includes(requested) ? requested : "home";
 
   const business = user.business;
   const services = await listServices(business.id);
@@ -16,6 +19,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardTabs
+      initialView={initialView}
       userEmail={user.email}
       business={{
         id: business.id,

@@ -128,3 +128,134 @@ body {
 .theme-dark .seg { background: rgba(255, 255, 255, 0.08); }
 .theme-dark .seg-btn { color: #a1a1aa; }
 .theme-dark .seg-btn.on { background: #fff; color: #000; }
+
+/* ---------- Dashboard: navigation and the 4 pillars ---------- */
+.dash-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #a1a1aa;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.dash-nav:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+.dash-nav.on { background: rgba(61, 220, 132, 0.1); color: #fff; font-weight: 600; }
+.dash-n { font-size: 11px; color: #71717a; }
+.dash-soon,
+.dash-active {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dash-soon { color: #d4d4d8; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14); }
+.dash-active { color: #3ddc84; background: rgba(61, 220, 132, 0.12); }
+.dash-pills { scrollbar-width: none; }
+.dash-pills::-webkit-scrollbar { display: none; }
+.dash-pill {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  color: #a1a1aa;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.dash-pill.on { background: #fff; color: #000; border-color: #fff; font-weight: 600; }
+.dash-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.dash-chip:hover { background: #fff; color: #000; }
+.pillar-card {
+  display: block;
+  padding: 24px;
+  border-radius: 16px;
+  background: #0e100e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.pillar-card:hover { border-color: rgba(61, 220, 132, 0.6); }
+.pillar-card.is-soon { background: #090a09; }
+
+/* Coming-soon preview (Payments / Capital) */
+.soon-stage {
+  position: relative;
+  min-height: 420px;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 60% 45%, #1c5a3d 0%, #0e2c1f 40%, #07140e 75%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.soon-preview-tag {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.soon-mock { position: relative; display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
+.soon-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  color: #122118;
+  border-radius: 9999px;
+  padding: 8px 14px 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.soon-toast b {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #3ddc84;
+  color: #04150c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.soon-card {
+  width: 260px;
+  background: #fff;
+  color: #122118;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+}
+.soon-card.wide { width: 300px; }
+.soon-card .lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #9a968a; margin-bottom: 8px; }
+.soon-card .svc { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.soon-card .amt { font-size: 28px; font-weight: 600; margin-bottom: 14px; }
+.soon-card .pay { height: 40px; border-radius: 9999px; background: #122118; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.soon-card .url { font-size: 10px; color: #9a968a; text-align: center; margin-top: 8px; }
+.soon-card .bars { display: flex; align-items: flex-end; gap: 8px; height: 96px; margin-top: 10px; padding-bottom: 6px; border-bottom: 1px solid #e4e0d6; }
+.soon-card .bars span { flex: 1; background: #eff3f1; border-radius: 5px 5px 0 0; }
+.soon-card .bars span.on { background: #3ddc84; }
+.soon-card .offer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 12px; font-weight: 600; }
+.soon-card .offer em { font-style: normal; font-size: 10px; font-weight: 500; color: #6e7268; background: #eff3f1; padding: 3px 8px; border-radius: 9999px; }

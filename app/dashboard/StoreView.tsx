@@ -25,9 +25,9 @@ export default function StoreView({
   return (
     <div className="flex flex-col min-h-screen">
       {/* Top bar */}
-      <div className="h-[60px] shrink-0 px-6 flex items-center justify-between border-b border-border bg-white">
-        <div className="flex items-center gap-2.5">
-          <span className="text-[12px] font-semibold tracking-wide uppercase text-ink">{t.dashboard.store}</span>
+      <div className="min-h-[60px] shrink-0 px-5 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-white">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="text-[12px] font-semibold tracking-wide uppercase" style={{ color: "#3ddc84" }}>01 · {t.dashboard.store}</span>
           <span className="text-[14px] text-ink font-semibold">{t.dashboard.pageBuilder}</span>
           <span className="live-badge inline-flex items-center gap-1.5 text-[11px] px-2.5 py-[3px] rounded-full font-medium ml-1">
             <svg width="6" height="6" viewBox="0 0 8 8">
@@ -78,8 +78,8 @@ export default function StoreView({
       </div>
 
       {/* Preview + AI chat */}
-      <div className="flex-1 flex min-h-[560px]">
-        <div className="preview-stage grow p-6 overflow-y-auto flex justify-center">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-[560px]">
+        <div className="preview-stage grow p-4 md:p-6 overflow-y-auto flex justify-center">
           <div
             className="rounded-2xl border border-border shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden transition-[width] duration-200 bg-[#ffffff]"
             style={{ width: previewMode === "desktop" ? "100%" : "390px", maxWidth: "100%", height: "fit-content" }}
@@ -93,20 +93,20 @@ export default function StoreView({
             />
           </div>
         </div>
-        <div className="w-[340px] shrink-0 border-l border-border bg-white p-4">
+        <div className="w-full lg:w-[360px] shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-white p-4 min-h-[420px]">
           <EditorChat business={business} services={services} initialMessages={initialMessages} onUpdated={onUpdated} />
         </div>
       </div>
 
       {/* Metrics footer */}
-      <div className="border-t border-border bg-white px-6 py-5 flex gap-8">
+      <div className="border-t border-border bg-white px-5 md:px-6 py-5 flex flex-wrap gap-8">
         <Metric label={t.dashboard.pageViews} value={business.pageViews} />
         <Metric label={t.dashboard.whatsappClicks} value={business.whatsappClicks} />
         <Metric label={t.dashboard.servicesListed} value={services.length} />
       </div>
 
       {/* Manual controls */}
-      <div className="px-6 pb-8 pt-2 grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="px-5 md:px-6 pb-8 pt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="card">
           <h3 className="text-[15px] font-semibold mb-3">{t.dashboard.services}</h3>
           {services.length === 0 ? (

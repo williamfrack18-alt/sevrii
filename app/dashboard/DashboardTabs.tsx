@@ -4,6 +4,8 @@ import { useState } from "react";
 import { logoutAction } from "@/app/actions";
 import StoreView from "./StoreView";
 import MarketingView from "./MarketingView";
+import HomeView from "./HomeView";
+import ComingSoonView from "./ComingSoonView";
 import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
 import { useT } from "@/components/LangProvider";
@@ -35,6 +37,9 @@ export type ClientCampaign = {
 };
 export type ClientMsg = { id: string; role: string; content: string };
 
+export type DashboardView = "home" | "store" | "marketing" | "payments" | "capital";
+export const DASHBOARD_VIEWS: DashboardView[] = ["home", "store", "marketing", "payments", "capital"];
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -42,7 +47,44 @@ function initials(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
+const ICONS: Record<DashboardView, JSX.Element> = {
+  home: (
+    <>
+      <path d="M3 10.5L12 3l9 7.5" />
+      <path d="M5 9.5V20h14V9.5" />
+    </>
+  ),
+  store: (
+    <>
+      <path d="M4 9l1-5h14l1 5" />
+      <path d="M4 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0" />
+      <path d="M5 9v11h14V9" />
+    </>
+  ),
+  marketing: (
+    <>
+      <path d="M3 17l6-6 4 4 8-8" />
+      <path d="M15 7h6v6" />
+    </>
+  ),
+  payments: (
+    <>
+      <rect x="2.5" y="6" width="19" height="13" rx="2" />
+      <path d="M2.5 10h19" />
+      <path d="M6 15h4" />
+    </>
+  ),
+  capital: (
+    <>
+      <path d="M12 21V10" />
+      <path d="M12 10c0-3.5-2.5-6-7-6 0 4.5 2.5 7 7 7" />
+      <path d="M12 14c0-3.5 2.5-6 7-6 0 4.5-2.5 7-7 7" />
+    </>
+  ),
+};
+
 export default function DashboardTabs({
+  initialView = "home",
   userEmail,
   business,
   services,
@@ -50,6 +92,7 @@ export default function DashboardTabs({
   marketingMessages,
   editorMessages,
 }: {
+  initialView?: DashboardView;
   userEmail: string;
   business: ClientBusiness;
   services: ClientService[];
@@ -58,65 +101,123 @@ export default function DashboardTabs({
   editorMessages: ClientMsg[];
 }) {
   const t = useT();
-  const [view, setView] = useState<"store" | "marketing">("store");
+  const [view, setViewState] = useState<DashboardView>(initialView);
   const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
   const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);
 
+  function setView(next: DashboardView) {
+    setViewState(next);
+    // Keep the URL in sync so a refresh or a shared link opens the same section.
+    window.history.replaceState(null, "", next === "home" ? "/dashboard" : `/dashboard?view=${next}`);
+    window.scrollTo({ top: 0 });
+  }
+
+  const items: { id: DashboardView; label: string; n?: string; soon?: boolean }[] = [
+    { id: "home", label: t.dashboard.home },
+    { id: "store", label: t.dashboard.store, n: "01" },
+    { id: "marketing", label: t.dashboard.marketing, n: "02" },
+    { id: "payments", label: "Payments", n: "03", soon: true },
+    { id: "capital", label: "Capital", n: "04", soon: true },
+  ];
+
+  function NavIcon({ id, on }: { id: DashboardView; on: boolean }) {
+    return (
+      <svg
+        width="17"
+        height="17"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={on ? "#3ddc84" : "currentColor"}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {ICONS[id]}
+      </svg>
+    );
+  }
+
   return (
-    <div className="theme-dark bg-cream flex">
-      {/* Rail nav */}
-      <div className="w-[220px] shrink-0 min-h-screen bg-white border-r border-border p-5 flex flex-col justify-between">
+    <div className="theme-dark bg-cream flex flex-col md:flex-row">
+      {/* Mobile top bar + section pills */}
+      <div className="md:hidden sticky top-0 z-30 bg-cream border-b border-border">
+        <div className="h-[64px] px-4 flex items-center justify-between">
+          <BrandMark />
+          <LangToggle />
+        </div>
+        <div className="dash-pills flex gap-2 px-4 pb-3 overflow-x-auto">
+          {items.map((it) => (
+            <button
+              key={it.id}
+              type="button"
+              onClick={() => setView(it.id)}
+              className={`dash-pill ${view === it.id ? "on" : ""}`}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop rail */}
+      <aside className="hidden md:flex w-[248px] shrink-0 min-h-screen sticky top-0 h-screen bg-white border-r border-border p-5 flex-col justify-between">
         <div>
-          <div className="flex items-center justify-between mb-[22px]">
+          <div className="flex items-center justify-between mb-6">
             <BrandMark />
             <LangToggle />
           </div>
-          <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-[11px] mb-5">
+          <a
+            href={`/site/${currentBusiness.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2.5 p-2.5 border border-border rounded-[12px] mb-6 hover:border-borderStrong transition"
+          >
             <div
-              className="w-[26px] h-[26px] rounded-[7px] text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
+              className="w-[30px] h-[30px] rounded-[8px] text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
               style={{ background: `linear-gradient(135deg, ${currentBusiness.accentColor} 0%, #2B4F3A 100%)` }}
             >
               {initials(currentBusiness.name)}
             </div>
             <div className="grow min-w-0">
-              <div className="text-[12px] font-semibold text-ink truncate">{currentBusiness.name}</div>
+              <div className="text-[13px] font-semibold text-ink truncate">{currentBusiness.name}</div>
+              <div className="text-[11px] text-mutedLight truncate">sevrii.com/site/{currentBusiness.slug}</div>
             </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={() => setView("store")}
-              className={`nav-item flex items-center gap-2.5 px-2.5 py-2.5 rounded-[9px] w-full text-left ${
-                view === "store" ? "bg-mint" : ""
-              }`}
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={view === "store" ? "#122118" : "#6E7268"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-6 9 6v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" />
-                <path d="M9 21V12h6v9" />
-              </svg>
-              <span className={`text-[13px] ${view === "store" ? "font-semibold text-ink" : "text-muted"}`}>{t.dashboard.store}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("marketing")}
-              className={`nav-item flex items-center gap-2.5 px-2.5 py-2.5 rounded-[9px] w-full text-left ${
-                view === "marketing" ? "bg-mint" : ""
-              }`}
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={view === "marketing" ? "#122118" : "#6E7268"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 17l6-6 4 4 8-8" />
-                <path d="M15 7h6v6" />
-              </svg>
-              <span className={`text-[13px] ${view === "marketing" ? "font-semibold text-ink" : "text-muted"}`}>
-                {t.dashboard.marketing}
-              </span>
-            </button>
-          </div>
+          </a>
+
+          <nav className="flex flex-col gap-1">
+            {items.slice(0, 1).map((it) => (
+              <button
+                key={it.id}
+                type="button"
+                onClick={() => setView(it.id)}
+                className={`dash-nav ${view === it.id ? "on" : ""}`}
+              >
+                <NavIcon id={it.id} on={view === it.id} />
+                <span>{it.label}</span>
+              </button>
+            ))}
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight mt-5 mb-2 px-2.5">
+              {t.dashboard.pillarsLabel}
+            </div>
+            {items.slice(1).map((it) => (
+              <button
+                key={it.id}
+                type="button"
+                onClick={() => setView(it.id)}
+                className={`dash-nav ${view === it.id ? "on" : ""}`}
+              >
+                <NavIcon id={it.id} on={view === it.id} />
+                <span className="grow text-left">{it.label}</span>
+                {it.soon ? <span className="dash-soon">{t.dashboard.soon}</span> : <span className="dash-n">{it.n}</span>}
+              </button>
+            ))}
+          </nav>
         </div>
-        <div className="flex flex-col gap-2.5 border-t border-border pt-3.5">
+
+        <div className="flex flex-col gap-2.5 border-t border-border pt-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-[26px] h-[26px] rounded-full bg-border text-muted flex items-center justify-center text-[10px] font-semibold shrink-0">
+            <div className="w-[28px] h-[28px] rounded-full bg-border text-muted flex items-center justify-center text-[10px] font-semibold shrink-0">
               {initials(userEmail)}
             </div>
             <div className="grow text-[12px] text-ink truncate min-w-0">{userEmail}</div>
@@ -127,11 +228,19 @@ export default function DashboardTabs({
             </button>
           </form>
         </div>
-      </div>
+      </aside>
 
       {/* Main content */}
-      <div className="grow min-w-0">
-        {view === "store" ? (
+      <main className="grow min-w-0">
+        {view === "home" && (
+          <HomeView
+            business={currentBusiness}
+            services={currentServices}
+            campaigns={currentCampaigns}
+            onNavigate={setView}
+          />
+        )}
+        {view === "store" && (
           <StoreView
             business={currentBusiness}
             services={currentServices}
@@ -141,7 +250,8 @@ export default function DashboardTabs({
               setCurrentServices(s);
             }}
           />
-        ) : (
+        )}
+        {view === "marketing" && (
           <MarketingView
             business={currentBusiness}
             campaigns={currentCampaigns}
@@ -149,7 +259,20 @@ export default function DashboardTabs({
             onCampaignsUpdated={setCurrentCampaigns}
           />
         )}
-      </div>
+        {(view === "payments" || view === "capital") && (
+          <ComingSoonView pillar={view} onBack={() => setView("home")} />
+        )}
+
+        {/* Log out on mobile (the rail with it is hidden there) */}
+        <div className="md:hidden px-5 py-6 border-t border-border flex items-center justify-between gap-3">
+          <span className="text-[12px] text-muted truncate">{userEmail}</span>
+          <form action={logoutAction}>
+            <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
+              {t.dashboard.logout}
+            </button>
+          </form>
+        </div>
+      </main>
     </div>
   );
 }
