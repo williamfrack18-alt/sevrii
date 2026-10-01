@@ -158,7 +158,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   .hero h1 .l3{color:rgba(255,255,255,.4);}
   .hero p{color:var(--muted);font-size:18px;max-width:520px;margin-bottom:40px;}
 
-  /* ============ Everything after the hero: explainer video + sections modeled on shopify.com's homepage ============
+  /* ============ Everything after the hero: explainer video + the 4 pillars (Store, Marketing, Payments, Capital), modeled on shopify.com's homepage ============
      Measured from shopify.com (getComputedStyle): display headings weight 330 with
      ~-2% tracking, card titles 18px/450, body 14px/420 in rgb(161,161,170),
      pill buttons weight 550, feature cards radius 12px with a big media area on top
@@ -231,28 +231,50 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
     .s-play svg{width:24px;height:24px;}
   }
 
-  /* ---------- Pillars carousel ---------- */
-  .s-arrows{display:flex;gap:10px;flex-shrink:0;}
-  .s-arrow{width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,opacity .2s ease;}
-  .s-arrow:hover{background:rgba(255,255,255,.1);}
-  .s-arrow[disabled]{opacity:.3;cursor:default;}
-  .s-arrow svg{width:18px;height:18px;}
+  /* ---------- Overview of the 4 pillars ---------- */
+  .sections .s-overview{padding:120px 0 72px;}
+  .s-ov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:56px;}
+  .s-ov{display:block;border-top:1px solid var(--s-line);padding-top:24px;transition:border-color .2s ease;}
+  .s-ov:hover{border-color:var(--s-green);}
+  .s-ov .n{font-size:14px;font-weight:450;color:var(--s-green);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+  .s-ov h3{font-size:24px;font-weight:450;letter-spacing:-.01em;margin-bottom:8px;}
+  .s-ov p{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);margin-bottom:16px;}
+  .s-ov .go{font-size:14px;font-weight:450;color:#fff;}
+  .s-tag{display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:9999px;font-size:11px;font-weight:550;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);}
 
-  .s-rail{
-    display:flex;gap:24px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;
-    padding:0 max(40px, calc((100vw - 1280px) / 2 + 40px));scroll-padding:0 max(40px, calc((100vw - 1280px) / 2 + 40px));
-    scrollbar-width:none;
-  }
-  .s-rail::-webkit-scrollbar{display:none;}
-  .s-slide{flex:0 0 min(620px,82vw);scroll-snap-align:start;}
+  /* ---------- Sticky pillar nav ---------- */
+  .s-pnav{position:sticky;top:78px;z-index:40;background:rgba(0,0,0,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--s-line);border-bottom:1px solid var(--s-line);}
+  .s-pnav .s-wrap{display:flex;gap:8px;height:64px;align-items:center;overflow-x:auto;scrollbar-width:none;}
+  .s-pnav .s-wrap::-webkit-scrollbar{display:none;}
+  .s-pnav a{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:9999px;font-size:15px;font-weight:450;color:rgba(255,255,255,.7);white-space:nowrap;transition:background .2s ease,color .2s ease;}
+  .s-pnav a span{font-size:12px;color:rgba(255,255,255,.45);}
+  .s-pnav a:hover{color:#fff;background:rgba(255,255,255,.08);}
+  .s-pnav a.on{background:#fff;color:#000;}
+  .s-pnav a.on span{color:rgba(0,0,0,.5);}
+
+  /* ---------- One section per pillar ---------- */
+  .sections .s-pillar{padding:120px 0;scroll-margin-top:142px;}
+  .s-pillar-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:72px;align-items:center;}
+  .s-pillar.flip .s-pillar-text{order:2;}
+  .s-pillar .n{font-size:15px;font-weight:450;color:var(--s-green);margin-bottom:18px;display:flex;align-items:center;gap:12px;}
+  .s-pillar .s-h2{max-width:520px;}
+  .s-points{list-style:none;margin-top:36px;border-top:1px solid var(--s-line);}
+  .s-points li{padding:18px 0;border-bottom:1px solid var(--s-line);}
+  .s-points b{display:block;font-size:16px;font-weight:450;margin-bottom:4px;}
+  .s-points span{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);}
+  .s-pillar .s-media{height:560px;border-radius:16px;}
+  .s-pillar.is-green{background:linear-gradient(160deg,#0f4d34 0%,#0a3322 45%,#061c13 100%);border-radius:40px;margin:0 12px;}
+  .s-pillar.is-green .s-lead,.s-pillar.is-green .s-points span{color:rgba(255,255,255,.72);}
+  .s-pillar.is-green .s-points,.s-pillar.is-green .s-points li{border-color:rgba(255,255,255,.16);}
+  .s-pillar.is-green .n{color:#8ff0bb;}
+  .s-pillar.is-glow{background:radial-gradient(ellipse 50% 60% at 75% 50%, rgba(61,220,132,.14), transparent 70%),#000;}
+
+  /* ---------- Pillar visuals: photo + light Sevrii UI on top ---------- */
   .s-media{
     position:relative;height:460px;border-radius:12px;overflow:hidden;background:#0c1410;
   }
   .s-media > img.s-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
   .s-media::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.35) 100%);pointer-events:none;}
-  .s-caption{padding:28px 4px 0;max-width:420px;}
-  .s-caption h3{font-size:18px;font-weight:450;line-height:1.35;margin-bottom:8px;}
-  .s-caption p{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);}
   .s-soon{
     position:absolute;top:18px;left:18px;z-index:3;
     background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
@@ -327,61 +349,6 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   .ui-capital .offer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:11.5px;font-weight:600;}
   .ui-capital .offer em{font-style:normal;font-size:10px;font-weight:500;color:#6E7268;background:#EFF3F1;padding:3px 8px;border-radius:9999px;}
 
-  /* ---------- Agent block (full-bleed color, like shopify's Sidekick block) ---------- */
-  .sections .s-agent{
-    background:linear-gradient(160deg,#0f4d34 0%,#0a3322 45%,#061c13 100%);
-    border-radius:40px;margin:0 12px;padding:110px 0 120px;
-  }
-  .s-agent .s-lead{color:rgba(255,255,255,.75);}
-  .s-agent-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:56px;align-items:center;}
-  .s-agent-demo{position:relative;background:#F6F4EF;border-radius:16px;padding:14px;display:grid;grid-template-columns:260px 1fr;gap:14px;box-shadow:0 40px 80px -30px rgba(0,0,0,.6);}
-  .s-chat{background:#fff;border:1px solid #E4E0D6;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:9px;}
-  .s-chat .who{display:flex;align-items:center;gap:9px;padding-bottom:10px;border-bottom:1px solid #E4E0D6;margin-bottom:2px;}
-  .s-chat .av{width:26px;height:26px;border-radius:50%;background:#122118;color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;}
-  .s-chat .who b{display:block;font-size:12px;color:#122118;}
-  .s-chat .who small{font-size:10px;color:#9A968A;}
-  .s-chat .ui-bubble{max-width:92%;font-size:11.5px;}
-  .s-chat .inp{margin-top:auto;height:34px;border:1px solid #DAD6C9;border-radius:10px;display:flex;align-items:center;padding:0 10px;font-size:11px;color:#9A968A;}
-  .s-preview{background:#fff;border:1px solid #E4E0D6;border-radius:12px;padding:16px;color:#122118;}
-  .s-preview .top{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid #E4E0D6;margin-bottom:16px;}
-  .s-preview .name{font-size:14px;font-weight:600;color:#1f6f4a;}
-  .s-preview .cat{font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6E7268;margin-bottom:6px;}
-  .s-preview h4{font-size:24px;font-weight:600;line-height:1.1;margin-bottom:8px;}
-  .s-preview .pitch{font-size:12px;line-height:1.45;color:#6E7268;margin-bottom:14px;}
-  .s-preview .svc{display:flex;flex-direction:column;gap:7px;}
-  .s-preview .svc div{display:flex;justify-content:space-between;gap:10px;border:1px solid #E4E0D6;border-radius:10px;padding:9px 11px;font-size:11.5px;font-weight:600;}
-  .s-preview .svc span{font-weight:400;color:#6E7268;white-space:nowrap;}
-  .s-preview .top{gap:10px;}
-  .s-preview .top .ui-pill{flex-shrink:0;}
-  .s-preview .svc div.new{border-color:#3ddc84;background:#f3fbf6;}
-
-  /* ---------- "For every services business" photo cards ---------- */
-  .s-trio{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
-  .s-trio .ph{aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#0c1410;}
-  .s-trio .ph img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s ease;}
-  .s-trio a:hover .ph img{transform:scale(1.03);}
-  .s-trio h3{font-size:18px;font-weight:450;margin:22px 0 8px;}
-  .s-trio p{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);max-width:340px;}
-
-  /* ---------- Trust list ---------- */
-  .s-trust{display:grid;grid-template-columns:repeat(4,1fr);gap:32px;border-top:1px solid var(--s-line);padding-top:36px;}
-  .s-trust svg{width:24px;height:24px;margin-bottom:18px;display:block;}
-  .s-trust h3{font-size:18px;font-weight:450;margin-bottom:8px;}
-  .s-trust p{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);}
-
-  /* ---------- Mid CTA band ---------- */
-  .s-band{border-top:1px solid var(--s-line);border-bottom:1px solid var(--s-line);}
-  .s-band .s-wrap{display:flex;justify-content:space-between;align-items:flex-end;gap:40px;padding-top:90px;padding-bottom:90px;}
-
-  /* ---------- Testimonials ---------- */
-  .s-quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
-  .s-quote{background:var(--s-card);border:1px solid var(--s-line);border-radius:12px;padding:32px;display:flex;flex-direction:column;justify-content:space-between;min-height:260px;}
-  .s-quote p{font-size:20px;font-weight:330;line-height:1.4;letter-spacing:-.01em;}
-  .s-quote .who{display:flex;align-items:center;gap:12px;margin-top:32px;}
-  .s-quote .av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#3ddc84,#1a6b45);flex-shrink:0;}
-  .s-quote .who b{display:block;font-size:14px;font-weight:550;}
-  .s-quote .who small{font-size:13px;font-weight:420;color:var(--s-muted);}
-
   /* ---------- Closing (like shopify's starfield + glow section) ---------- */
   .sections .s-close{
     position:relative;overflow:hidden;padding:160px 0 170px;
@@ -418,44 +385,38 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   .s-foot-bottom a:hover{color:#fff;}
   .s-foot-bottom .links{display:flex;gap:28px;}
 
-  @media(max-width:1180px){
-    .s-agent-grid{grid-template-columns:1fr;}
-    .s-agent-demo{max-width:760px;}
-  }
   @media(max-width:1000px){
-    .s-trust{grid-template-columns:1fr 1fr;row-gap:44px;}
+    .s-ov-grid{grid-template-columns:1fr 1fr;row-gap:40px;}
+    .s-pillar-grid{grid-template-columns:1fr;gap:44px;}
+    .s-pillar.flip .s-pillar-text{order:0;}
+    .s-pillar .s-h2{max-width:none;}
     .s-foot-top{grid-template-columns:1fr 1fr;}
     .s-foot-top > div:first-child{grid-column:1 / -1;}
   }
   @media(max-width:900px){
     .nav-links{display:none;}
-    .s-trio,.s-quotes{grid-template-columns:1fr;}
-    .s-band .s-wrap{flex-direction:column;align-items:flex-start;}
   }
   @media(max-width:700px){
     .s-wrap{padding:0 20px;}
-    .sections .s-block{padding:80px 0;}
-    .s-rail{padding:0 20px;scroll-padding:0 20px;gap:14px;}
-    .s-slide{flex-basis:86vw;}
-    .s-media{height:380px;}
-    .s-arrows{display:none;}
-    .s-head{margin-bottom:32px;}
+    .sections .s-overview{padding:80px 0 48px;}
+    .s-ov-grid{grid-template-columns:1fr;gap:28px;margin-top:36px;}
+    .s-pnav .s-wrap{height:56px;padding:0 12px;}
+    .s-pnav a{height:36px;padding:0 13px;font-size:14px;}
+    .s-pnav a span{display:none;}
+    .sections .s-pillar{padding:80px 0;scroll-margin-top:134px;}
+    .s-pillar .s-media{height:400px;border-radius:12px;}
+    .s-pillar.is-green{border-radius:28px;margin:0 8px;}
     .ui-store{left:5%;right:5%;}
     .ui-store-chat{display:none;}
     .ui-campaign{left:5%;right:5%;width:auto;top:auto;bottom:22px;transform:none;}
     .s-chip.c3,.s-chip.c4{display:none;}
     .ui-pay{right:5%;left:5%;width:auto;}
     .ui-capital{left:5%;right:5%;width:auto;}
-    .sections .s-agent{border-radius:28px;margin:0 8px;padding:80px 0;}
-    .s-agent-demo{grid-template-columns:1fr;}
-    .s-agent-demo .s-preview{display:none;}
-    .s-trust{grid-template-columns:1fr;}
     .sections .s-close{padding:110px 0 120px;}
     .s-close .s-wrap{justify-content:flex-start;}
   }
   @media(prefers-reduced-motion:reduce){
     .reveal{opacity:1;transform:none;transition:none;}
-    .s-rail{scroll-behavior:auto;}
   }
 </style>
 </head>
@@ -520,25 +481,68 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   </div>
 </section>
 
-<!-- 1. Los 4 pilares — carrusel de tarjetas grandes -->
-<section class="s-block" id="pilares">
+<!-- Overview: the 4 pillars -->
+<section class="s-overview" id="servicios">
   <div class="s-wrap">
-    <div class="s-head reveal">
-      <div>
-        <h2 class="s-h2">Así lo hacemos posible</h2>
-        <p class="s-lead">Tú nos dices qué servicio ofreces. Tus agentes de IA hacen el resto.</p>
-      </div>
-      <div class="s-arrows">
-        <button class="s-arrow" data-dir="-1" aria-label="Anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-        <button class="s-arrow" data-dir="1" aria-label="Siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
-      </div>
+    <div class="reveal">
+      <h2 class="s-h2">Todo tu negocio de servicios, en 4 pilares</h2>
+      <p class="s-lead">Cada pilar resuelve una parte de tu negocio. Tus agentes de IA hacen el trabajo; tú atiendes a tus clientes.</p>
+    </div>
+    <div class="s-ov-grid">
+      <a class="s-ov reveal" href="#store">
+        <div class="n">01</div>
+        <h3>Store</h3>
+        <p>Tu tienda de servicios, armada por tu agente de IA.</p>
+        <span class="go">Ver más &darr;</span>
+      </a>
+      <a class="s-ov reveal" href="#marketing">
+        <div class="n">02</div>
+        <h3>Marketing</h3>
+        <p>El cerebro que crea tu estrategia y la prepara para ejecutar.</p>
+        <span class="go">Ver más &darr;</span>
+      </a>
+      <a class="s-ov reveal" href="#payments">
+        <div class="n">03 <span class="s-tag">Próximamente</span></div>
+        <h3>Payments</h3>
+        <p>Links de pago para cobrarle a tus clientes.</p>
+        <span class="go">Ver más &darr;</span>
+      </a>
+      <a class="s-ov reveal" href="#capital">
+        <div class="n">04 <span class="s-tag">Próximamente</span></div>
+        <h3>Capital</h3>
+        <p>Inversión o préstamos para que tu negocio crezca.</p>
+        <span class="go">Ver más &darr;</span>
+      </a>
     </div>
   </div>
+</section>
 
-  <div class="s-rail" id="pillarRail">
-    <!-- Store -->
-    <article class="s-slide">
-      <div class="s-media">
+<!-- The 4 pillars, one section each, with a sticky pillar nav -->
+<div class="s-pillars">
+  <nav class="s-pnav" aria-label="Pilares de Sevrii">
+    <div class="s-wrap">
+      <a href="#store" data-pillar="store"><span>01</span>Store</a>
+      <a href="#marketing" data-pillar="marketing"><span>02</span>Marketing</a>
+      <a href="#payments" data-pillar="payments"><span>03</span>Payments</a>
+      <a href="#capital" data-pillar="capital"><span>04</span>Capital</a>
+    </div>
+  </nav>
+
+  <!-- 01. Store -->
+  <section class="s-pillar " id="store">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">01 · Store</div>
+        <h2 class="s-h2">Tu tienda de servicios, hecha para vender.</h2>
+        <p class="s-lead">Le cuentas a tu agente de IA cómo es tu negocio y él arma tu tienda dentro de Sevrii, con una plantilla diseñada para que te compren.</p>
+        <ul class="s-points">
+          <li><b>Se arma por chat</b><span>Dile a tu agente qué haces y tu página queda lista al instante.</span></li>
+          <li><b>Plantilla que convierte</b><span>Diseñada para que quien la visite te contrate, no solo para verse bien.</span></li>
+          <li><b>Cámbiala cuando quieras</b><span>Pide cambios en el chat: servicios, precios, textos o colores.</span></li>
+        </ul>
+        <div class="s-actions"><a href="/signup" class="s-btn s-btn-white">Crear mi tienda</a></div>
+      </div>
+      <div class="s-media reveal">
         <img class="s-photo" src="https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=1240&q=70" alt="Estilista peinando a una clienta" loading="lazy">
         <div class="ui ui-window ui-store">
           <div class="ui-bar"><i></i><i></i><i></i><span>sevrii.com/site/estudio-carolina</span></div>
@@ -555,15 +559,24 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
           <div class="ui-bubble ai">Listo, ya está en tu tienda.</div>
         </div>
       </div>
-      <div class="s-caption">
-        <h3>Store: una tienda de servicios hecha para convertir</h3>
-        <p>Tu agente de IA arma tu tienda en Sevrii por chat, con una plantilla diseñada para que te compren.</p>
-      </div>
-    </article>
+    </div>
+  </section>
 
-    <!-- Marketing -->
-    <article class="s-slide">
-      <div class="s-media">
+  <!-- 02. Marketing -->
+  <section class="s-pillar is-green flip" id="marketing">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">02 · Marketing</div>
+        <h2 class="s-h2">El cerebro detrás de tu marketing.</h2>
+        <p class="s-lead">Un agente analiza tu negocio y crea tu estrategia de funnel. Luego tu agente prepara las campañas para ejecutarla.</p>
+        <ul class="s-points">
+          <li><b>Analiza tu negocio</b><span>Entiende qué vendes, a quién le vendes y dónde están tus clientes.</span></li>
+          <li><b>Crea tu funnel</b><span>Define audiencia, plataformas y mensaje para cada etapa.</span></li>
+          <li><b>Prepara la ejecución</b><span>Te deja campañas y anuncios redactados, listos para activar.</span></li>
+        </ul>
+        <div class="s-actions"><a href="/signup" class="s-btn s-btn-white">Empezar ahora</a></div>
+      </div>
+      <div class="s-media reveal">
         <div class="s-radar"><i></i><i></i><i></i><i></i></div>
         <span class="s-chip" style="left:62%;top:14%">Audiencia</span>
         <span class="s-chip c3" style="left:80%;top:38%">Instagram</span>
@@ -577,15 +590,23 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
           <div class="ad"><strong>¿Lista para tu cambio de look?</strong><span>Agenda tu cita de este sábado en un minuto.</span></div>
         </div>
       </div>
-      <div class="s-caption">
-        <h3>Marketing: el cerebro de tu estrategia</h3>
-        <p>Analiza tu negocio y crea tu estrategia de funnel. Luego tu agente prepara las campañas para ejecutarla.</p>
-      </div>
-    </article>
+    </div>
+  </section>
 
-    <!-- Payments -->
-    <article class="s-slide">
-      <div class="s-media">
+  <!-- 03. Payments -->
+  <section class="s-pillar " id="payments">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">03 · Payments <span class="s-tag">Próximamente</span></div>
+        <h2 class="s-h2">Cobra desde tu teléfono.</h2>
+        <p class="s-lead">Crea un link de pago y cóbrale a tu cliente desde tu teléfono o desde Sevrii.</p>
+        <ul class="s-points">
+          <li><b>Links de pago</b><span>Crea un link por servicio y envíaselo a tu cliente.</span></li>
+          <li><b>Desde tu teléfono o desde Sevrii</b><span>Cobra donde estés, sin banco ni terminal de por medio.</span></li>
+          <li><b>Todo en un solo lugar</b><span>Tus cobros quedan junto a tu tienda y tus servicios.</span></li>
+        </ul>
+      </div>
+      <div class="s-media reveal">
         <img class="s-photo" src="https://images.unsplash.com/photo-1687422808248-f807f4ea2a2e?auto=format&fit=crop&w=1240&q=70" alt="Dueño de un negocio revisando su teléfono" loading="lazy">
         <span class="s-soon">Próximamente</span>
         <div class="ui ui-toast"><b>✓</b>Pago recibido</div>
@@ -597,15 +618,23 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
           <div class="url">sevrii.com/pagar</div>
         </div>
       </div>
-      <div class="s-caption">
-        <h3>Payments: cobra desde tu teléfono</h3>
-        <p>Próximamente: crea un link de pago y cóbrale a tu cliente desde tu teléfono o desde Sevrii.</p>
-      </div>
-    </article>
+    </div>
+  </section>
 
-    <!-- Capital -->
-    <article class="s-slide">
-      <div class="s-media">
+  <!-- 04. Capital -->
+  <section class="s-pillar is-glow flip" id="capital"> <span id="socios"></span>
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">04 · Capital <span class="s-tag">Próximamente</span></div>
+        <h2 class="s-h2">Capital para crecer.</h2>
+        <p class="s-lead">Como tus cobros pasan por Sevrii, vemos cómo crece tu negocio. Con eso podemos invertir en él o prestarte para crecer.</p>
+        <ul class="s-points">
+          <li><b>Basado en lo que vendes</b><span>Usamos tus ventas en Sevrii para conocer de verdad tu negocio.</span></li>
+          <li><b>Inversión o préstamo</b><span>Invertimos en tu negocio o te prestamos, según lo que necesites.</span></li>
+          <li><b>Crecemos contigo</b><span>Nos asociamos con los negocios de servicios que están creciendo.</span></li>
+        </ul>
+      </div>
+      <div class="s-media reveal">
         <img class="s-photo" src="https://images.unsplash.com/photo-1687422811062-a966b55cb217?auto=format&fit=crop&w=1240&q=70" alt="Dueño de un taller celebrando mientras mira su teléfono" loading="lazy">
         <span class="s-soon">Próximamente</span>
         <div class="ui ui-card ui-capital">
@@ -615,150 +644,12 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
           <div class="offer">Capital para crecer<em>Muy pronto</em></div>
         </div>
       </div>
-      <div class="s-caption">
-        <h3>Capital: impulso para crecer</h3>
-        <p>Próximamente: como vemos lo que vendes en Sevrii, podemos invertir en tu negocio o prestarte para crecer.</p>
-      </div>
-    </article>
-  </div>
-</section>
+    </div>
+  </section>
+</div>
 
-<!-- 2. Bloque del agente — color a sangre, como el bloque de Sidekick -->
-<section class="s-agent">
-  <div class="s-wrap s-agent-grid">
-    <div class="reveal">
-      <div class="s-eyebrow">Aliado estratégico</div>
-      <h2 class="s-h2">Tú haces lo tuyo. Tus agentes de IA arman el resto.</h2>
-      <p class="s-lead">Le cuentas a tu agente cómo es tu negocio y arma tu tienda al instante. Cuando quieras clientes, otro agente te prepara la campaña en el mismo chat.</p>
-      <div class="s-actions">
-        <a href="/signup" class="s-btn s-btn-white">Empezar ahora</a>
-        <a href="#pilares" class="s-btn s-btn-outline">Ver cómo funciona</a>
-      </div>
-    </div>
-    <div class="s-agent-demo reveal">
-      <div class="s-chat">
-        <div class="who"><span class="av">S</span><div><b>Sevri AI</b><small>Pídele que edite tu página</small></div></div>
-        <div class="ui-bubble user">Soy plomero en Bogotá y atiendo urgencias 24 horas</div>
-        <div class="ui-bubble ai">Listo. Armé tu tienda con tu categoría, tu ciudad y un servicio de urgencias.</div>
-        <div class="ui-bubble user">Agrega instalación de calentadores</div>
-        <div class="ui-bubble ai">Hecho, ya aparece en tu página.</div>
-        <div class="inp">Escribe un cambio…</div>
-      </div>
-      <div class="s-preview">
-        <div class="top"><span class="name ui-serif">Plomería Díaz</span><span class="ui-pill" style="background:#1f6f4a">Reservar</span></div>
-        <div class="cat">Plomería · Bogotá</div>
-        <h4 class="ui-serif">Plomería Díaz</h4>
-        <p class="pitch">Urgencias de plomería las 24 horas, con visita el mismo día.</p>
-        <div class="svc">
-          <div>Destape de tuberías <span>Desde $80.000</span></div>
-          <div>Urgencias 24 h <span>Desde $120.000</span></div>
-          <div class="new">Instalación de calentadores <span>Desde $150.000</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 3. Para todo negocio de servicios -->
-<section class="s-block" id="servicios">
-  <div class="s-wrap">
-    <div class="s-head reveal">
-      <div>
-        <div class="s-eyebrow">Sevrii — La plataforma que impulsa el comercio de servicios</div>
-        <h2 class="s-h2">Para todo negocio de servicios</h2>
-      </div>
-    </div>
-    <div class="s-trio">
-      <a href="/signup" class="reveal">
-        <div class="ph"><img src="https://images.unsplash.com/photo-1676210134188-4c05dd172f89?auto=format&fit=crop&w=900&q=70" alt="Plomero reparando una tubería" loading="lazy"></div>
-        <h3>Plomeros</h3>
-        <p>Tus servicios y precios en una tienda lista para compartir.</p>
-      </a>
-      <a href="/signup" class="reveal">
-        <div class="ph"><img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=900&q=70" alt="Electricista instalando cableado" loading="lazy"></div>
-        <h3>Electricistas</h3>
-        <p>Muestra lo que haces y deja que tus agentes preparen tu próxima campaña.</p>
-      </a>
-      <a href="/signup" class="reveal">
-        <div class="ph"><img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=900&q=70" alt="Entrenadora personal con un cliente" loading="lazy"></div>
-        <h3>Entrenadores y estilistas</h3>
-        <p>Tus planes y citas en un solo lugar, para que nuevos clientes te encuentren.</p>
-      </a>
-    </div>
-  </div>
-</section>
-
-<!-- 4. Socio comercial -->
-<section class="s-block" id="socios" style="padding-top:0">
-  <div class="s-wrap">
-    <div class="s-head reveal">
-      <div>
-        <h2 class="s-h2">Conviértete en nuestro socio comercial</h2>
-        <p class="s-lead">Detrás de cada agente hay IA real trabajando de principio a fin, para que tu negocio avance mientras atiendes a tus clientes.</p>
-      </div>
-    </div>
-    <div class="s-trust reveal">
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
-        <h3>Confianza verificada</h3>
-        <p>Cada proveedor pasa por una revisión antes de aparecer en Sevrii. Tus clientes lo notan.</p>
-      </div>
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5z"/><path d="M8 9h8M8 12.5h5"/></svg>
-        <h3>Soporte directo</h3>
-        <p>Hablas directamente con nuestro equipo, sin tickets ni esperas eternas.</p>
-      </div>
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c2.5 2.2 4 5.4 4 9 0 3-1.2 5.6-4 8-2.8-2.4-4-5-4-8 0-3.6 1.5-6.8 4-9z"/><circle cx="12" cy="10" r="1.8"/><path d="M8.5 15.5 6 20l3-1.2M15.5 15.5 18 20l-3-1.2"/></svg>
-        <h3>Crece a tu ritmo</h3>
-        <p>Adaptamos tu estrategia de marketing según lo que tu negocio necesite en cada etapa.</p>
-      </div>
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M10 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
-        <h3>Comunidad en crecimiento</h3>
-        <p>Formas parte de una red cada vez más grande de proveedores verificados en Sevrii.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 5. Banda de CTA -->
-<section class="s-band">
-  <div class="s-wrap reveal">
-    <div>
-      <h2 class="s-h2">Deja de perseguir clientes. Que te encuentren a ti.</h2>
-      <p class="s-lead">Tú sigue siendo extraordinario en lo tuyo. De armar tu tienda y preparar tu marketing, se encargan tus agentes.</p>
-    </div>
-    <div class="s-actions" style="margin-top:0">
-      <a href="/signup" class="s-btn s-btn-green">Empezar ahora</a>
-      <a href="#pilares" class="s-btn s-btn-outline">Ver cómo funciona</a>
-    </div>
-  </div>
-</section>
-
-<!-- 6. Testimonios -->
-<section class="s-block" id="testimonios">
-  <div class="s-wrap">
-    <div class="s-head reveal"><h2 class="s-h2">Lo que dicen nuestros socios</h2></div>
-    <div class="s-quotes">
-      <div class="s-quote reveal">
-        <p>“En 3 meses aumentamos nuestras ventas en un 200%. Sevri transformó nuestro negocio.”</p>
-        <div class="who"><span class="av"></span><div><b>María González</b><small>CEO, TechStartup</small></div></div>
-      </div>
-      <div class="s-quote reveal">
-        <p>“Dejé mi trabajo mal pagado y ahora genero 3 veces más. Sevri me dio la libertad.”</p>
-        <div class="who"><span class="av"></span><div><b>Carlos Ruiz</b><small>Consultor independiente</small></div></div>
-      </div>
-      <div class="s-quote reveal">
-        <p>“Los resultados hablan por sí solos. El equipo de Sevri entiende perfectamente nuestros objetivos.”</p>
-        <div class="who"><span class="av"></span><div><b>Ana López</b><small>Directora de marketing</small></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 7. Cierre -->
-<section class="s-close">
+<!-- Cierre -->
+<section class="s-close" id="testimonios">
   <div class="s-wrap">
     <div class="s-inner reveal">
       <h2 class="s-h2">¿Listo para dejar de hacerlo todo solo?</h2>
@@ -771,7 +662,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   </div>
 </section>
 
-<!-- 8. Footer -->
+<!-- Footer -->
 <footer class="s-foot">
   <div class="s-wrap">
     <div class="s-foot-top">
@@ -782,7 +673,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
       </div>
       <div>
         <h4>Plataforma</h4>
-        <ul><li><a href="#pilares">Store</a></li><li><a href="#pilares">Marketing</a></li><li><a href="#pilares">Payments</a></li><li><a href="#pilares">Capital</a></li></ul>
+        <ul><li><a href="#store">Store</a></li><li><a href="#marketing">Marketing</a></li><li><a href="#payments">Payments</a></li><li><a href="#capital">Capital</a></li></ul>
       </div>
       <div>
         <h4>Empieza</h4>
@@ -906,7 +797,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 </script>
 
 <script>
-  // Post-hero interactions: explainer video, carousel arrows, subtle fade-in on scroll.
+  // Post-hero interactions: explainer video, sticky pillar nav, subtle fade-in on scroll.
   (function(){
     var p = document.getElementById('explainer');
     if (p) {
@@ -924,37 +815,24 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
       }
     }
 
-    var rail = document.getElementById('pillarRail');
-    var arrows = document.querySelectorAll('.s-arrow');
-    if (rail && arrows.length) {
-      var go = function(dir){
-        var slides = rail.querySelectorAll('.s-slide');
-        var pad = parseFloat(getComputedStyle(rail).scrollPaddingLeft) || 0;
-        var base = rail.getBoundingClientRect().left + pad;
-        var cur = 0, best = Infinity;
-        slides.forEach(function(sl, i){
-          var d = Math.abs(sl.getBoundingClientRect().left - base);
-          if (d < best) { best = d; cur = i; }
-        });
-        var next = Math.max(0, Math.min(slides.length - 1, cur + dir));
-        var target = rail.scrollLeft + slides[next].getBoundingClientRect().left - base;
-        rail.scrollTo({ left: target, behavior: 'smooth' });
+    // Sticky pillar nav: highlight the pillar currently on screen.
+    var links = document.querySelectorAll('.s-pnav a[data-pillar]');
+    if (links.length && 'IntersectionObserver' in window) {
+      var setOn = function(id){
+        links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('data-pillar') === id); });
+        var on = document.querySelector('.s-pnav a.on');
+        if (on && on.scrollIntoView && window.innerWidth < 700) {
+          var bar = on.parentElement;
+          bar.scrollTo({ left: on.offsetLeft - 12, behavior: 'smooth' });
+        }
       };
-      var sync = function(){
-        var max = rail.scrollWidth - rail.clientWidth - 2;
-        arrows.forEach(function(a){
-          var dir = +a.getAttribute('data-dir');
-          a.disabled = dir < 0 ? rail.scrollLeft <= 2 : rail.scrollLeft >= max;
-        });
-      };
-      arrows.forEach(function(a){
-        a.addEventListener('click', function(){
-          go(+a.getAttribute('data-dir'));
-        });
+      var spy = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){ if (e.isIntersecting) setOn(e.target.id); });
+      }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
+      links.forEach(function(a){
+        var sec = document.getElementById(a.getAttribute('data-pillar'));
+        if (sec) spy.observe(sec);
       });
-      rail.addEventListener('scroll', sync, { passive: true });
-      window.addEventListener('resize', sync);
-      sync();
     }
 
     var els = document.querySelectorAll('.reveal');
