@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { logoutAction } from "@/app/actions";
 import StoreView from "./StoreView";
 import MarketingView from "./MarketingView";
+import BrandMark from "@/components/BrandMark";
+import LangToggle from "@/components/LangToggle";
+import { useT } from "@/components/LangProvider";
 
 export type ClientBusiness = {
   id: string;
@@ -55,19 +57,21 @@ export default function DashboardTabs({
   marketingMessages: ClientMsg[];
   editorMessages: ClientMsg[];
 }) {
+  const t = useT();
   const [view, setView] = useState<"store" | "marketing">("store");
   const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
   const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);
 
   return (
-    <div className="min-h-screen bg-cream flex">
+    <div className="theme-dark bg-cream flex">
       {/* Rail nav */}
       <div className="w-[220px] shrink-0 min-h-screen bg-white border-r border-border p-5 flex flex-col justify-between">
         <div>
-          <Link href="/" className="font-serif text-[19px] font-semibold text-ink block mb-[18px]">
-            Sevrii
-          </Link>
+          <div className="flex items-center justify-between mb-[22px]">
+            <BrandMark />
+            <LangToggle />
+          </div>
           <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-[11px] mb-5">
             <div
               className="w-[26px] h-[26px] rounded-[7px] text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
@@ -91,7 +95,7 @@ export default function DashboardTabs({
                 <path d="M3 9l9-6 9 6v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" />
                 <path d="M9 21V12h6v9" />
               </svg>
-              <span className={`text-[13px] ${view === "store" ? "font-semibold text-ink" : "text-muted"}`}>Store</span>
+              <span className={`text-[13px] ${view === "store" ? "font-semibold text-ink" : "text-muted"}`}>{t.dashboard.store}</span>
             </button>
             <button
               type="button"
@@ -105,7 +109,7 @@ export default function DashboardTabs({
                 <path d="M15 7h6v6" />
               </svg>
               <span className={`text-[13px] ${view === "marketing" ? "font-semibold text-ink" : "text-muted"}`}>
-                Marketing
+                {t.dashboard.marketing}
               </span>
             </button>
           </div>
@@ -119,7 +123,7 @@ export default function DashboardTabs({
           </div>
           <form action={logoutAction}>
             <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
-              Log out
+              {t.dashboard.logout}
             </button>
           </form>
         </div>

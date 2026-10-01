@@ -1,8 +1,12 @@
 import Link from "next/link";
 import SignupForm from "./SignupForm";
 import BrandMark from "@/components/BrandMark";
+import LangToggle from "@/components/LangToggle";
+import { getLang } from "@/lib/lang";
+import { getDict } from "@/lib/i18n";
 
 export default function SignupPage() {
+  const t = getDict(getLang());
   return (
     <div className="theme-dark flex">
       <div
@@ -14,11 +18,9 @@ export default function SignupPage() {
       >
         <BrandMark />
         <div className="flex flex-col gap-6">
-          <h1 className="font-serif text-[48px] leading-[1.06]">
-            Turn what you&rsquo;re good at into a real business
-          </h1>
+          <h1 className="font-serif text-[48px] leading-[1.06]">{t.auth.signupPanelTitle}</h1>
           <p className="text-[17px] leading-relaxed max-w-sm" style={{ color: "rgba(255,255,255,.75)" }}>
-            Sevrii helps you define your service, build your page, and land your first customers with AI.
+            {t.auth.signupPanelText}
           </p>
         </div>
         <div className="text-[13px]" style={{ color: "rgba(255,255,255,.55)" }}>
@@ -26,25 +28,26 @@ export default function SignupPage() {
         </div>
       </div>
       <div className="flex-1 flex flex-col">
-        <header className="h-[78px] px-6 sm:px-10 flex items-center md:hidden">
-          <BrandMark />
+        <header className="h-[78px] px-6 sm:px-10 flex items-center justify-between md:justify-end">
+          <div className="md:hidden">
+            <BrandMark />
+          </div>
+          <LangToggle />
         </header>
-        <main className="flex-1 flex items-center justify-center px-6 py-12">
+        <main className="flex-1 flex items-center justify-center px-6 pb-16">
           <div className="w-full max-w-[420px] flex flex-col gap-8">
             <div className="flex flex-col gap-3">
               <span className="text-[14px] font-medium" style={{ color: "#3ddc84" }}>
-                Create your account
+                {t.auth.signupEyebrow}
               </span>
-              <h2 className="font-serif text-[40px] leading-[1.08]">Let&rsquo;s get started</h2>
-              <p className="text-muted text-[16px]">
-                You&rsquo;re creating your account as a service provider on Sevrii.
-              </p>
+              <h2 className="font-serif text-[40px] leading-[1.08]">{t.auth.signupTitle}</h2>
+              <p className="text-muted text-[16px]">{t.auth.signupSubtitle}</p>
             </div>
             <SignupForm />
             <p className="text-[14px] text-muted">
-              Already have an account?{" "}
+              {t.auth.haveAccount}{" "}
               <Link href="/login" className="text-ink font-semibold underline">
-                Log in
+                {t.auth.loginLink}
               </Link>
             </p>
           </div>

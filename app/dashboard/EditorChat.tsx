@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from "react";
 import { sendPageEditCommand } from "@/app/actions";
 import type { ClientBusiness, ClientService } from "./DashboardTabs";
+import { useT } from "@/components/LangProvider";
 
 type Msg = { id: string; role: string; content: string };
 
@@ -17,6 +18,7 @@ export default function EditorChat({
   initialMessages: Msg[];
   onUpdated: (business: ClientBusiness, services: ClientService[]) => void;
 }) {
+  const t = useT();
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -57,16 +59,13 @@ export default function EditorChat({
           S
         </div>
         <div>
-          <div className="text-[13px] font-semibold">Sevrii AI</div>
-          <div className="text-[11px] text-mutedLight">Ask it to edit your page</div>
+          <div className="text-[13px] font-semibold">{t.common.aiName}</div>
+          <div className="text-[11px] text-mutedLight">{t.dashboard.editorSubtitle}</div>
         </div>
       </div>
       <div className="flex flex-col gap-2.5 flex-1 overflow-y-auto">
         {messages.length === 0 && (
-          <p className="text-[13.5px] text-muted">
-            Tell me what to change — your name, pitch, services, WhatsApp number, or accent color — and I&rsquo;ll
-            update your real page.
-          </p>
+          <p className="text-[13.5px] text-muted">{t.dashboard.editorEmpty}</p>
         )}
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -84,7 +83,7 @@ export default function EditorChat({
         {isPending && (
           <div className="flex justify-start">
             <div className="max-w-[90%] bg-mint text-muted rounded-[12px_12px_12px_3px] px-3.5 py-2.5 text-[13.5px]">
-              Thinking…
+              {t.common.thinking}
             </div>
           </div>
         )}
@@ -93,13 +92,13 @@ export default function EditorChat({
       <form onSubmit={handleSubmit} className="flex gap-2 pt-2 border-t border-border">
         <input
           className="input flex-1"
-          placeholder="e.g. Change my pitch to sound friendlier"
+          placeholder={t.dashboard.editorPlaceholder}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={isPending}
         />
         <button type="submit" className="btn-primary px-4" disabled={isPending}>
-          Send
+          {t.common.send}
         </button>
       </form>
     </div>

@@ -20,6 +20,8 @@ import { hashPassword, verifyPassword, createSessionToken, SESSION_COOKIE } from
 import { getCurrentUser } from "@/lib/session";
 import { runPageEditorTurn } from "@/lib/aiEditor";
 import { runMarketingAgentTurn } from "@/lib/marketingAgent";
+import { getLang } from "@/lib/lang";
+import { getDict } from "@/lib/i18n";
 import {
   generatePitch,
   matchCategory,
@@ -47,21 +49,28 @@ function setSessionCookie(userId: string) {
 
 export type FormState = { error?: string } | null;
 
+function pageLiveMessage(lang: "es" | "en", slug: string) {
+  return lang === "es"
+    ? `Listo, ya estoy armando tu página. Tu página está publicada en /site/${slug}.`
+    : `Got it — building your page now. Your page is live at /site/${slug}.`;
+}
+
 export async function signupAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
+  const t = getDict(getLang());
 
   if (!email || !password) {
-    return { error: "Please fill in every field." };
+    return { error: t.auth.errFill };
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { error: "That email doesn't look right." };
+    return { error: t.auth.errEmail };
   }
   if (password.length < 8) {
-    return { error: "Password must be at least 8 characters." };
+    return { error: t.auth.errPassword };
   }
   if (await getUserByEmail(email)) {
-    return { error: "An account with that email already exists." };
+    return { error: t.auth.errExists };
   }
 
   const { hash, salt } = hashPassword(password);
@@ -76,7 +85,7 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
 
   const user = await getUserByEmail(email);
   if (!user || !verifyPassword(password, user.passwordHash, user.salt)) {
-    return { error: "Incorrect email or password." };
+    return { error: getDict(getLang()).auth.errWrong };
   }
   setSessionCookie(user.id);
   redirect("/dashboard");
@@ -99,7 +108,8 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
   if (!user) redirect("/login");
   if (user.business) redirect("/dashboard");
 
-  const category = matchCategory(answers.categoryRaw);
+  const lang = getLang();
+  const category = matchCategory(answers.categoryRaw, lang);
   let baseSlug = slugify(answers.name) || "business";
   let slug = baseSlug;
   let n = 1;
@@ -113,6 +123,7 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
     category,
     description: answers.description,
     city: answers.city,
+    lang,
   });
 
   const business = await createBusiness({
@@ -125,27 +136,22 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
     pitch,
   });
 
-  const services = suggestServices(category);
+  const services = suggestServices(category, lang);
   for (let i = 0; i < services.length; i++) {
     const s = services[i];
     await addService(business.id, s.name, s.price, undefined, i);
   }
 
   // Persist the onboarding conversation for continuity with the chat UI.
-  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_name"));
+  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_name", lang));
   await addChatMessage(business.id, "onboarding", "user", answers.name);
-  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_category"));
+  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_category", lang));
   await addChatMessage(business.id, "onboarding", "user", answers.categoryRaw);
-  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_city"));
+  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_city", lang));
   await addChatMessage(business.id, "onboarding", "user", answers.city);
-  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_description"));
+  await addChatMessage(business.id, "onboarding", "ai", nextOnboardingPrompt("ask_description", lang));
   await addChatMessage(business.id, "onboarding", "user", answers.description);
-  await addChatMessage(
-    business.id,
-    "onboarding",
-    "ai",
-    `Got it — building your page now. Your page is live at /site/${business.slug}.`
-  );
+  await addChatMessage(business.id, "onboarding", "ai", pageLiveMessage(lang, business.slug));
 
   redirect("/dashboard");
 }
@@ -186,7 +192,7 @@ export async function sendMarketingMessageAction(message: string) {
     }));
 
   const services = await listServices(business.id);
-  const result = await runMarketingAgentTurn(business, services, history, trimmed);
+  const result = await runMarketingAgentTurn(business, services, history, trimmed, getLang());
 
   await addChatMessage(business.id, "marketing", "ai", result.reply);
 
@@ -217,6 +223,8 @@ export async function completeDiscoveryAction(input: {
   if (user.business) redirect("/dashboard");
 
   const { discovery, idea, details } = input;
+  const lang = getLang();
+  const t = getDict(lang);
 
   let baseSlug = slugify(details.businessName) || "business";
   let slug = baseSlug;
@@ -231,6 +239,7 @@ export async function completeDiscoveryAction(input: {
     idea,
     location: discovery.location,
     pricing: details.pricing,
+    lang,
   });
 
   const business = await createBusiness({
@@ -247,49 +256,25 @@ export async function completeDiscoveryAction(input: {
   await addService(business.id, idea.title, details.pricing.slice(0, 120), idea.desc, 0);
 
   // Persist the full two-part conversation for continuity with the chat UI.
-  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_location"));
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_location", lang));
   await addChatMessage(business.id, "onboarding", "user", discovery.location);
-  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_background"));
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_background", lang));
   await addChatMessage(business.id, "onboarding", "user", discovery.background);
-  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_license"));
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_license", lang));
   await addChatMessage(business.id, "onboarding", "user", discovery.license);
-  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_capacity"));
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_capacity", lang));
   await addChatMessage(business.id, "onboarding", "user", discovery.capacity);
-  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("done"));
-  await addChatMessage(
-    business.id,
-    "onboarding",
-    "ai",
-    `Good choice — ${idea.title.toLowerCase()} fits what you told me. Let's build your page. First, what would you like to call your business?`
-  );
+  await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("done", lang));
+  const prompts = t.discover.detailPrompts;
+  await addChatMessage(business.id, "onboarding", "ai", `${t.discover.goodChoice(idea.title)} ${prompts[0]}`);
   await addChatMessage(business.id, "onboarding", "user", details.businessName);
-  await addChatMessage(
-    business.id,
-    "onboarding",
-    "ai",
-    "Do you want to charge by project or by the hour, and what kind of price range should people expect?"
-  );
+  await addChatMessage(business.id, "onboarding", "ai", prompts[1]);
   await addChatMessage(business.id, "onboarding", "user", details.pricing);
-  await addChatMessage(
-    business.id,
-    "onboarding",
-    "ai",
-    "How far are you willing to travel for jobs, and how should people reach you?"
-  );
+  await addChatMessage(business.id, "onboarding", "ai", prompts[2]);
   await addChatMessage(business.id, "onboarding", "user", details.travelContact);
-  await addChatMessage(
-    business.id,
-    "onboarding",
-    "ai",
-    "Do you have photos of past work, or should we start with placeholder examples?"
-  );
+  await addChatMessage(business.id, "onboarding", "ai", prompts[3]);
   await addChatMessage(business.id, "onboarding", "user", details.photos);
-  await addChatMessage(
-    business.id,
-    "onboarding",
-    "ai",
-    `Got it — building your page now. Your page is live at /site/${business.slug}.`
-  );
+  await addChatMessage(business.id, "onboarding", "ai", pageLiveMessage(lang, business.slug));
 
   redirect("/dashboard");
 }
@@ -325,7 +310,7 @@ export async function sendPageEditCommand(message: string) {
     }));
 
   const services = await listServices(business.id);
-  const result = await runPageEditorTurn(business, services, history, trimmed);
+  const result = await runPageEditorTurn(business, services, history, trimmed, getLang());
 
   await addChatMessage(business.id, "editor", "ai", result.reply);
 

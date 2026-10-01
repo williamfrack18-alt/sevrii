@@ -29,6 +29,8 @@
         }
       }
     }
+    // Share the choice with the app (login, signup, dashboard) via a cookie.
+    document.cookie = 'sevrii_lang=' + localStorage.getItem('sevrii_lang') + '; path=/; max-age=31536000; samesite=lax';
   } catch(e) {}
 })();
 </script>

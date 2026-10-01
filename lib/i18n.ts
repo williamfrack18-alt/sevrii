@@ -1,0 +1,303 @@
+// Language support for the app (Spanish / English).
+//
+// The language is picked once per request (see lib/lang.ts on the server and
+// components/LangProvider.tsx on the client) from:
+//   1. the `sevrii_lang` cookie — set by the sevrii.com landing pages and by
+//      the ES/EN switch inside the app, so the app follows the language the
+//      person was already reading in;
+//   2. otherwise the browser's Accept-Language header: English browsers get
+//      English, everything else gets Spanish (same rule as the landing).
+
+export type Lang = "es" | "en";
+export const LANG_COOKIE = "sevrii_lang";
+
+export function pickLang(cookieValue?: string | null, acceptLanguage?: string | null): Lang {
+  if (cookieValue === "es" || cookieValue === "en") return cookieValue;
+  const first = (acceptLanguage || "").split(",")[0]?.trim().toLowerCase() || "";
+  return first.startsWith("en") ? "en" : "es";
+}
+
+const es = {
+  meta: {
+    title: "Sevrii — Tu tienda y tu marketing con IA para negocios de servicios",
+    description:
+      "Cuéntale a Sevrii qué haces. La IA escribe tu presentación, arma tu página y prepara tu marketing.",
+  },
+  common: {
+    wait: "Espera un momento…",
+    send: "Enviar",
+    continue: "Continuar",
+    typeAnswer: "Escribe tu respuesta…",
+    aiName: "Sevrii AI",
+    buildError: "Algo salió mal al armar tu página. Inténtalo de nuevo.",
+    buildingPage: "Armando tu página…",
+    thinking: "Pensando…",
+    drafting: "Preparando…",
+  },
+  auth: {
+    email: "Correo electrónico",
+    emailPlaceholder: "tu@correo.com",
+    password: "Contraseña",
+    passwordPlaceholder: "Mínimo 8 caracteres",
+    loginTitle: "Hola de nuevo",
+    loginSubtitle: "Inicia sesión en tu cuenta de Sevrii.",
+    loginButton: "Iniciar sesión",
+    newHere: "¿Eres nuevo en Sevrii?",
+    createAccountLink: "Crea una cuenta",
+    signupPanelTitle: "Convierte lo que sabes hacer en un negocio real",
+    signupPanelText:
+      "Sevrii te ayuda a definir tu servicio, armar tu página y conseguir tus primeros clientes con IA.",
+    signupEyebrow: "Crea tu cuenta",
+    signupTitle: "Empecemos",
+    signupSubtitle: "Estás creando tu cuenta como proveedor de servicios en Sevrii.",
+    signupButton: "Crear cuenta",
+    haveAccount: "¿Ya tienes una cuenta?",
+    loginLink: "Inicia sesión",
+    errFill: "Completa todos los campos.",
+    errEmail: "Ese correo no parece correcto.",
+    errPassword: "La contraseña debe tener al menos 8 caracteres.",
+    errExists: "Ya existe una cuenta con ese correo.",
+    errWrong: "Correo o contraseña incorrectos.",
+  },
+  start: {
+    back: "Volver al registro",
+    title: "¿Cómo quieres empezar?",
+    subtitle:
+      "Elige la opción que mejor describe tu situación. Así personalizamos los siguientes pasos con IA.",
+    existingTitle: "Ya ofrezco un servicio",
+    existingText: "Tengo un negocio activo y quiero presentarlo mejor para conseguir más clientes.",
+    newTitle: "Quiero ofrecer uno, pero no sé cuál",
+    newText: "Ayúdame a descubrir, según mi experiencia, un servicio bueno y rentable para ofrecer.",
+    note: "Sevrii AI arma el siguiente paso según lo que elijas aquí.",
+  },
+  onboarding: {
+    title: "Armemos tu página",
+    subtitle: "Unas pocas preguntas y Sevrii AI se encarga del resto.",
+  },
+  discover: {
+    chat1Subtitle: "Buscando el servicio indicado para ti",
+    analysisEyebrow: "Análisis de rentabilidad de Sevrii AI",
+    analysisTitle: "Esto es lo que de verdad vale la pena",
+    analysisText:
+      "No solo lo que es posible: lo que vale la pena intentar según tus propias respuestas. Este es el razonamiento detrás de las ideas de la siguiente pantalla.",
+    localDemand: "Demanda local",
+    yourFit: "Tu perfil",
+    startupCost: "Costo para empezar",
+    ruledOut: "Lo que descartamos",
+    seeIdeas: "Ver mis ideas sugeridas",
+    ideasEyebrow: "Ideas generadas por Sevrii AI",
+    moreIdeasEyebrow: "Más ideas generadas por Sevrii AI",
+    ideasTitle: "Esto podría funcionarte",
+    ideasText: "Según lo que sabes hacer y dónde vives. Elige la que más te guste para continuar.",
+    backToFirst: "Volver a mis primeras ideas",
+    showOther: "¿No te convencen? Muéstrame otras ideas",
+    useIdea: "Usar esta idea para mi página",
+    chat2Subtitle: (title: string) => `Armando tu página de ${title}`,
+    goodChoice: (title: string) => `Buena elección: ${title.toLowerCase()} encaja con lo que me contaste.`,
+    detailPrompts: [
+      "Armemos tu página. Primero, ¿cómo quieres que se llame tu negocio?",
+      "¿Quieres cobrar por proyecto o por hora, y en qué rango de precios deberían pensar tus clientes?",
+      "¿Hasta dónde estás dispuesto a moverte por un trabajo, y cómo deberían contactarte?",
+      "¿Tienes fotos de trabajos anteriores, o empezamos con ejemplos de muestra?",
+    ],
+    enough: "Con eso tengo suficiente. Dame un segundo para armar tu página.",
+    proposalEyebrow: "Propuesta de Sevrii AI",
+    serving: (place: string) => `Atendiendo en ${place}`,
+    whatsappLabel:
+      "Número de WhatsApp (opcional: activa el botón de contacto por WhatsApp en tu página publicada)",
+    whatsappPlaceholder: "ej. +57 300 123 4567",
+    continueToPage: "Continuar a mi página",
+  },
+  dashboard: {
+    store: "Store",
+    marketing: "Marketing",
+    logout: "Cerrar sesión",
+    pageBuilder: "· Editor de página",
+    liveBadge: "En vivo: los cambios se guardan al instante",
+    desktopPreview: "Vista de escritorio",
+    phonePreview: "Vista de celular",
+    openLive: "Abrir página publicada",
+    livePageTitle: "Tu página publicada",
+    pageViews: "Visitas a la página",
+    whatsappClicks: "Clics en WhatsApp",
+    servicesListed: "Servicios publicados",
+    services: "Servicios",
+    noServices:
+      "Todavía no hay servicios. Pídele al asistente que agregue uno, por ejemplo: “agrega un servicio llamado Reparación de lavamanos por $75”.",
+    whatsappNumber: "Número de WhatsApp",
+    whatsappPlaceholder: "+57 300 123 4567",
+    saveNumber: "Guardar número",
+    editorSubtitle: "Pídele que edite tu página",
+    editorEmpty:
+      "Dime qué quieres cambiar: tu nombre, tu presentación, tus servicios, tu número de WhatsApp o tu color, y actualizo tu página real.",
+    editorPlaceholder: "ej. Haz que mi presentación suene más cercana",
+    marketingHeader: "· Borradores de campaña",
+    draftsFor: (name: string) => `Borradores para ${name}`,
+    draftsNote:
+      "Sevrii AI arma un plan de campaña completo (audiencia, plataformas, presupuesto y algunas opciones de anuncio para probar) según lo que le pidas. Son borradores para usar donde publiques tus anuncios: Sevrii todavía no se conecta a ninguna cuenta de anuncios ni publica nada por ti.",
+    noDrafts:
+      "Todavía no hay borradores. Cuéntale al asistente qué quieres conseguir (más reservas, llamadas o visitas) y te arma una campaña completa.",
+    goal: "Objetivo",
+    audience: "Audiencia",
+    platforms: "Plataformas",
+    budget: "Presupuesto",
+    marketingSubtitle: "Tu agente de marketing",
+    marketingEmpty:
+      "Cuéntame qué quieres conseguir este mes (reservas, llamadas, visitas) y te preparo una campaña.",
+    marketingPlaceholder: "ej. Conseguir más reservas el fin de semana",
+    status: { draft: "Borrador" } as Record<string, string>,
+  },
+  site: {
+    message: "Escribir por WhatsApp",
+    noContact: "Este negocio todavía no agregó un número de contacto.",
+    services: "Servicios",
+    reviews: "Reseñas",
+    noReviews: "Todavía no hay reseñas.",
+    builtWith: "Hecho con Sevrii",
+  },
+  toggle: { label: "Idioma", other: "EN", otherName: "English" },
+};
+
+type Dict = typeof es;
+
+const en: Dict = {
+  meta: {
+    title: "Sevrii — AI website & marketing for service businesses",
+    description: "Tell Sevrii what you do. The AI writes your pitch, builds your page, and preps your marketing.",
+  },
+  common: {
+    wait: "Please wait…",
+    send: "Send",
+    continue: "Continue",
+    typeAnswer: "Type your answer…",
+    aiName: "Sevrii AI",
+    buildError: "Something went wrong building your page. Please try again.",
+    buildingPage: "Building your page…",
+    thinking: "Thinking…",
+    drafting: "Drafting…",
+  },
+  auth: {
+    email: "Email address",
+    emailPlaceholder: "you@example.com",
+    password: "Password",
+    passwordPlaceholder: "At least 8 characters",
+    loginTitle: "Welcome back",
+    loginSubtitle: "Log in to your Sevrii account.",
+    loginButton: "Log in",
+    newHere: "New to Sevrii?",
+    createAccountLink: "Create an account",
+    signupPanelTitle: "Turn what you’re good at into a real business",
+    signupPanelText: "Sevrii helps you define your service, build your page, and land your first customers with AI.",
+    signupEyebrow: "Create your account",
+    signupTitle: "Let’s get started",
+    signupSubtitle: "You’re creating your account as a service provider on Sevrii.",
+    signupButton: "Create account",
+    haveAccount: "Already have an account?",
+    loginLink: "Log in",
+    errFill: "Please fill in every field.",
+    errEmail: "That email doesn't look right.",
+    errPassword: "Password must be at least 8 characters.",
+    errExists: "An account with that email already exists.",
+    errWrong: "Incorrect email or password.",
+  },
+  start: {
+    back: "Back to sign up",
+    title: "How do you want to start?",
+    subtitle: "Pick the option that best describes your situation. This helps us personalize the next AI-powered steps.",
+    existingTitle: "I already offer a service",
+    existingText: "I have an active business and want to present it better to get more customers.",
+    newTitle: "I want to offer one, but I’m not sure what",
+    newText: "Help me figure out, based on my background, a good and profitable service to offer.",
+    note: "The next step is put together by Sevrii AI based on what you choose here.",
+  },
+  onboarding: {
+    title: "Let’s build your page",
+    subtitle: "A few quick questions and Sevrii AI takes it from there.",
+  },
+  discover: {
+    chat1Subtitle: "Figuring out the right service for you",
+    analysisEyebrow: "Profitability analysis by Sevrii AI",
+    analysisTitle: "Here’s what’s actually worth pursuing",
+    analysisText:
+      "Not just what’s possible — what’s worth trying based on your own answers. This is the reasoning behind the ideas on the next screen.",
+    localDemand: "Local demand",
+    yourFit: "Your fit",
+    startupCost: "Startup cost",
+    ruledOut: "What we ruled out",
+    seeIdeas: "See my suggested ideas",
+    ideasEyebrow: "Ideas generated by Sevrii AI",
+    moreIdeasEyebrow: "More ideas generated by Sevrii AI",
+    ideasTitle: "This could work for you",
+    ideasText: "Based on what you’re good at and where you live. Pick the one that speaks to you to continue.",
+    backToFirst: "Back to my first set of ideas",
+    showOther: "Not loving these? Show me other ideas",
+    useIdea: "Use this idea for my page",
+    chat2Subtitle: (title: string) => `Setting up your ${title} page`,
+    goodChoice: (title: string) => `Good choice — ${title.toLowerCase()} fits what you told me.`,
+    detailPrompts: [
+      "Let's build your page. First, what would you like to call your business?",
+      "Do you want to charge by project or by the hour, and what kind of price range should people expect?",
+      "How far are you willing to travel for jobs, and how should people reach you?",
+      "Do you have photos of past work, or should we start with placeholder examples?",
+    ],
+    enough: "That's enough to work with. Give me a second to put together your page.",
+    proposalEyebrow: "Proposal by Sevrii AI",
+    serving: (place: string) => `Serving ${place}`,
+    whatsappLabel: "WhatsApp number (optional — powers the WhatsApp contact button on your live page)",
+    whatsappPlaceholder: "e.g. +1 555 010 1234",
+    continueToPage: "Continue to my page",
+  },
+  dashboard: {
+    store: "Store",
+    marketing: "Marketing",
+    logout: "Log out",
+    pageBuilder: "· Page builder",
+    liveBadge: "Live — edits save instantly",
+    desktopPreview: "Desktop preview",
+    phonePreview: "Phone preview",
+    openLive: "Open live page",
+    livePageTitle: "Your live page",
+    pageViews: "Page views",
+    whatsappClicks: "WhatsApp clicks",
+    servicesListed: "Services listed",
+    services: "Services",
+    noServices: "No services yet — ask the assistant to add one, e.g. “add a service called Sink repair for $75”.",
+    whatsappNumber: "WhatsApp number",
+    whatsappPlaceholder: "+1 555 010 1234",
+    saveNumber: "Save number",
+    editorSubtitle: "Ask it to edit your page",
+    editorEmpty:
+      "Tell me what to change — your name, pitch, services, WhatsApp number, or accent color — and I’ll update your real page.",
+    editorPlaceholder: "e.g. Change my pitch to sound friendlier",
+    marketingHeader: "· Campaign drafts",
+    draftsFor: (name: string) => `Drafts for ${name}`,
+    draftsNote:
+      "Sevrii AI builds a complete campaign plan (audience, platforms, budget, and a few ad copy options to test) based on what you ask for. These are drafts to use wherever you run ads — Sevrii doesn’t connect to an ad account or publish anything on your behalf yet.",
+    noDrafts:
+      "No drafts yet — tell the assistant what you want more of (bookings, calls, visits) and it will build a full campaign for you.",
+    goal: "Goal",
+    audience: "Audience",
+    platforms: "Platforms",
+    budget: "Budget",
+    marketingSubtitle: "Your marketing agent",
+    marketingEmpty: "Tell me what you want more of this month — bookings, calls, visits — and I’ll draft a campaign.",
+    marketingPlaceholder: "e.g. Get more weekend bookings",
+    status: { draft: "Draft" } as Record<string, string>,
+  },
+  site: {
+    message: "Message on WhatsApp",
+    noContact: "This business hasn’t added a contact number yet.",
+    services: "Services",
+    reviews: "Reviews",
+    noReviews: "No reviews yet.",
+    builtWith: "Built with Sevrii",
+  },
+  toggle: { label: "Language", other: "ES", otherName: "Español" },
+};
+
+export const dictionaries: Record<Lang, Dict> = { es, en };
+export type { Dict };
+
+export function getDict(lang: Lang): Dict {
+  return dictionaries[lang];
+}

@@ -11,17 +11,11 @@ import {
   type Cluster,
 } from "@/lib/ai";
 import { completeDiscoveryAction, type DiscoveryDetailAnswers } from "@/app/actions";
+import { useLang, useT } from "@/components/LangProvider";
 
 type Msg = { role: "ai" | "user"; text: string };
 
 const DISCOVERY_STEPS: DiscoveryStep[] = ["ask_location", "ask_background", "ask_license", "ask_capacity", "done"];
-
-const DETAIL_PROMPTS = [
-  "Let's build your page. First, what would you like to call your business?",
-  "Do you want to charge by project or by the hour, and what kind of price range should people expect?",
-  "How far are you willing to travel for jobs, and how should people reach you — phone, text, or WhatsApp?",
-  "Do you have photos of past work, or should we start with placeholder examples?",
-];
 
 type Phase = "chat1" | "analysis" | "ideas" | "chat2" | "proposal";
 
@@ -43,6 +37,7 @@ function ChatCard({
   disabled: boolean;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const t = useT();
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -54,7 +49,7 @@ function ChatCard({
           S
         </div>
         <div>
-          <div className="text-[15px] font-semibold">Sevrii AI</div>
+          <div className="text-[15px] font-semibold">{title}</div>
           <div className="text-[12px] text-mutedLight">{subtitle}</div>
         </div>
       </div>
@@ -78,13 +73,13 @@ function ChatCard({
         <form onSubmit={onSubmit} className="flex gap-2.5">
           <input
             className="input flex-1"
-            placeholder="Type your answer…"
+            placeholder={t.common.typeAnswer}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             autoFocus
           />
           <button type="submit" className="btn-primary">
-            Send
+            {t.common.send}
           </button>
         </form>
       )}
@@ -93,13 +88,16 @@ function ChatCard({
 }
 
 export default function DiscoveryFlow() {
+  const lang = useLang();
+  const t = useT();
+  const DETAIL_PROMPTS = t.discover.detailPrompts;
   const [phase, setPhase] = useState<Phase>("chat1");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   // --- Phase 1: discovery chat ---
   const [step1, setStep1] = useState(0);
-  const [messages1, setMessages1] = useState<Msg[]>([{ role: "ai", text: nextDiscoveryPrompt("ask_location") }]);
+  const [messages1, setMessages1] = useState<Msg[]>([{ role: "ai", text: nextDiscoveryPrompt("ask_location", lang) }]);
   const [input1, setInput1] = useState("");
   const [discovery, setDiscovery] = useState<DiscoveryAnswers>({
     location: "",
@@ -120,21 +118,21 @@ export default function DiscoveryFlow() {
 
     const next = DISCOVERY_STEPS[step1 + 1];
     if (next === "done") {
-      setMessages1((m) => [...m, { role: "ai", text: nextDiscoveryPrompt("done") }]);
+      setMessages1((m) => [...m, { role: "ai", text: nextDiscoveryPrompt("done", lang) }]);
       setTimeout(() => setPhase("analysis"), 500);
     } else {
-      setMessages1((m) => [...m, { role: "ai", text: nextDiscoveryPrompt(next) }]);
+      setMessages1((m) => [...m, { role: "ai", text: nextDiscoveryPrompt(next, lang) }]);
       setStep1(step1 + 1);
     }
   }
 
   // --- Phase 2: analysis (derived) ---
-  const analysis = phase !== "chat1" ? generateAnalysis(discovery) : null;
+  const analysis = phase !== "chat1" ? generateAnalysis(discovery, lang) : null;
 
   // --- Phase 3: ideas ---
   const [altSet, setAltSet] = useState(false);
   const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
-  const ideas = analysis ? generateIdeas(analysis.cluster as Cluster, altSet, analysis.hasLicense) : [];
+  const ideas = analysis ? generateIdeas(analysis.cluster as Cluster, altSet, analysis.hasLicense, lang) : [];
 
   // --- Phase 4: detail chat ---
   const [step2, setStep2] = useState(0);
@@ -149,7 +147,7 @@ export default function DiscoveryFlow() {
 
   function enterChat2(idea: Idea) {
     setSelectedIdea(idea);
-    setMessages2([{ role: "ai", text: `Good choice — ${idea.title.toLowerCase()} fits what you told me. ${DETAIL_PROMPTS[0]}` }]);
+    setMessages2([{ role: "ai", text: `${t.discover.goodChoice(idea.title)} ${DETAIL_PROMPTS[0]}` }]);
     setStep2(0);
     setPhase("chat2");
   }
@@ -167,7 +165,7 @@ export default function DiscoveryFlow() {
     if (step2 + 1 >= DETAIL_PROMPTS.length) {
       setMessages2((m) => [
         ...m,
-        { role: "ai", text: "That's enough to work with. Give me a second to put together your page." },
+        { role: "ai", text: t.discover.enough },
       ]);
       setTimeout(() => setPhase("proposal"), 500);
     } else {
@@ -187,7 +185,7 @@ export default function DiscoveryFlow() {
         await completeDiscoveryAction({ discovery, idea: selectedIdea, details, whatsapp });
       } catch (err: any) {
         if (err?.digest?.startsWith?.("NEXT_REDIRECT")) throw err;
-        setError("Something went wrong building your page. Please try again.");
+        setError(t.common.buildError);
       }
     });
   }
@@ -204,8 +202,8 @@ export default function DiscoveryFlow() {
 
       {phase === "chat1" && (
         <ChatCard
-          title="Sevrii AI"
-          subtitle="Figuring out the right service for you"
+          title={t.common.aiName}
+          subtitle={t.discover.chat1Subtitle}
           messages={messages1}
           input={input1}
           setInput={setInput1}
@@ -218,31 +216,28 @@ export default function DiscoveryFlow() {
         <div className="w-full max-w-[960px] flex flex-col items-center gap-7">
           <div className="flex flex-col items-center gap-2.5 text-center max-w-[640px]">
             <span className="text-[12px] font-semibold uppercase tracking-wide text-ink flex items-center gap-2">
-              Profitability analysis by Sevrii AI
+              {t.discover.analysisEyebrow}
             </span>
-            <h1 className="font-serif text-3xl font-semibold">Here&rsquo;s what&rsquo;s actually worth pursuing</h1>
-            <p className="text-muted text-[15px] leading-relaxed">
-              Not just what&rsquo;s possible — what&rsquo;s worth trying based on your own answers. This is the
-              reasoning behind the ideas on the next screen.
-            </p>
+            <h1 className="font-serif text-[40px] leading-[1.08]">{t.discover.analysisTitle}</h1>
+            <p className="text-muted text-[15px] leading-relaxed">{t.discover.analysisText}</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-5 w-full">
             <div className="card flex flex-col gap-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight">Local demand</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight">{t.discover.localDemand}</div>
               <p className="text-[13.5px] leading-relaxed">{analysis.localDemand}</p>
             </div>
             <div className="card flex flex-col gap-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight">Your fit</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight">{t.discover.yourFit}</div>
               <p className="text-[13.5px] leading-relaxed">{analysis.yourFit}</p>
             </div>
             <div className="card flex flex-col gap-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight">Startup cost</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight">{t.discover.startupCost}</div>
               <p className="text-[13.5px] leading-relaxed">{analysis.startupCost}</p>
             </div>
           </div>
           {analysis.ruledOut.length > 0 && (
             <div className="card w-full flex flex-col gap-2.5">
-              <div className="text-[13px] font-semibold">What we ruled out</div>
+              <div className="text-[13px] font-semibold">{t.discover.ruledOut}</div>
               {analysis.ruledOut.map((r) => (
                 <div key={r.title} className="flex gap-2.5 items-start">
                   <span className="w-[5px] h-[5px] rounded-full bg-mutedLight mt-2 flex-shrink-0" />
@@ -254,7 +249,7 @@ export default function DiscoveryFlow() {
             </div>
           )}
           <button type="button" className="btn-primary w-[280px] h-[48px]" onClick={() => setPhase("ideas")}>
-            See my suggested ideas
+            {t.discover.seeIdeas}
           </button>
         </div>
       )}
@@ -263,12 +258,10 @@ export default function DiscoveryFlow() {
         <div className="w-full max-w-[960px] flex flex-col items-center gap-6">
           <div className="flex flex-col items-center gap-2.5 text-center max-w-[600px]">
             <span className="text-[12px] font-semibold uppercase tracking-wide text-ink">
-              {altSet ? "More ideas generated by Sevrii AI" : "Ideas generated by Sevrii AI"}
+              {altSet ? t.discover.moreIdeasEyebrow : t.discover.ideasEyebrow}
             </span>
-            <h1 className="font-serif text-3xl font-semibold">This could work for you</h1>
-            <p className="text-muted text-[15px]">
-              Based on what you&rsquo;re good at and where you live. Pick the one that speaks to you to continue.
-            </p>
+            <h1 className="font-serif text-[40px] leading-[1.08]">{t.discover.ideasTitle}</h1>
+            <p className="text-muted text-[15px]">{t.discover.ideasText}</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-5 w-full">
             {ideas.map((idea) => (
@@ -298,7 +291,7 @@ export default function DiscoveryFlow() {
               <path d="M21 2v6h-6M3 22v-6h6" />
               <path d="M3.5 14A9 9 0 0 0 20 17.5M20.5 10A9 9 0 0 0 4 6.5" />
             </svg>
-            {altSet ? "Back to my first set of ideas" : "Not loving these? Show me other ideas"}
+            {altSet ? t.discover.backToFirst : t.discover.showOther}
           </button>
           <button
             type="button"
@@ -308,15 +301,15 @@ export default function DiscoveryFlow() {
               selectedIdea ? "btn-primary" : "bg-borderStrong text-mutedLight cursor-not-allowed"
             }`}
           >
-            Use this idea for my page
+            {t.discover.useIdea}
           </button>
         </div>
       )}
 
       {phase === "chat2" && selectedIdea && (
         <ChatCard
-          title="Sevrii AI"
-          subtitle={`Setting up your ${selectedIdea.title} page`}
+          title={t.common.aiName}
+          subtitle={t.discover.chat2Subtitle(selectedIdea.title)}
           messages={messages2}
           input={input2}
           setInput={setInput2}
@@ -328,7 +321,7 @@ export default function DiscoveryFlow() {
       {phase === "proposal" && selectedIdea && (
         <div className="w-full max-w-[640px] flex flex-col items-center gap-7">
           <div className="card w-full flex flex-col gap-5">
-            <span className="text-[12px] font-semibold uppercase tracking-wide text-ink">Proposal by Sevrii AI</span>
+            <span className="text-[12px] font-semibold uppercase tracking-wide text-ink">{t.discover.proposalEyebrow}</span>
             <div className="flex flex-col gap-1.5">
               <h1 className="font-serif text-3xl font-semibold">{details.businessName}</h1>
               <p className="text-ink font-medium text-[16px]">{selectedIdea.tagline}</p>
@@ -359,17 +352,17 @@ export default function DiscoveryFlow() {
             </div>
             {discovery.location.trim() && (
               <span className="self-start px-3.5 py-1.5 rounded-full bg-mint text-[13px] font-medium">
-                Serving {discovery.location}
+                {t.discover.serving(discovery.location)}
               </span>
             )}
             <div className="flex flex-col gap-1.5 pt-2 border-t border-border">
               <label htmlFor="whatsapp" className="text-[13px] font-medium">
-                WhatsApp number (optional — powers the &ldquo;Message on WhatsApp&rdquo; button on your live page)
+                {t.discover.whatsappLabel}
               </label>
               <input
                 id="whatsapp"
                 className="input"
-                placeholder="e.g. +1 555 010 1234"
+                placeholder={t.discover.whatsappPlaceholder}
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
               />
@@ -377,7 +370,7 @@ export default function DiscoveryFlow() {
           </div>
           {error && <p className="text-[13px] text-red-600">{error}</p>}
           <button type="button" className="btn-primary w-[280px] h-[48px]" onClick={submitProposal} disabled={isPending}>
-            {isPending ? "Building your page…" : "Continue to my page"}
+            {isPending ? t.common.buildingPage : t.discover.continueToPage}
           </button>
         </div>
       )}

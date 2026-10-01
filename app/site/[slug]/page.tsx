@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import { getBusinessBySlug, listServices, listReviews, incrementPageViews } from "@/lib/db";
 import WhatsappLink from "./WhatsappLink";
+import { getLang } from "@/lib/lang";
+import { getDict } from "@/lib/i18n";
 
 export default async function PublicBusinessPage({ params }: { params: { slug: string } }) {
   const business = await getBusinessBySlug(params.slug);
   if (!business || !business.published) notFound();
 
+  const t = getDict(getLang());
   const services = await listServices(business.id);
   const reviews = await listReviews(business.id);
   const waLink = business.whatsapp
@@ -32,7 +35,7 @@ export default async function PublicBusinessPage({ params }: { params: { slug: s
               className="h-[38px] px-5 rounded-full text-white text-[13px] font-semibold flex items-center"
               style={{ background: business.accentColor }}
             >
-              Message on WhatsApp
+              {t.site.message}
             </WhatsappLink>
           ) : null}
         </div>
@@ -52,18 +55,18 @@ export default async function PublicBusinessPage({ params }: { params: { slug: s
             className="inline-flex w-fit items-center gap-2 h-[48px] px-6 rounded-full text-white text-[15px] font-semibold mt-2"
             style={{ background: business.accentColor }}
           >
-            Message on WhatsApp
+            {t.site.message}
           </WhatsappLink>
         ) : (
           <p className="text-[13px] text-mutedLight mt-2">
-            This business hasn&rsquo;t added a contact number yet.
+            {t.site.noContact}
           </p>
         )}
       </section>
 
       {services.length > 0 && (
         <section className="max-w-[900px] mx-auto px-6 py-12 border-t border-border">
-          <h2 className="font-serif text-2xl font-semibold mb-6">Services</h2>
+          <h2 className="font-serif text-2xl font-semibold mb-6">{t.site.services}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {services.map((s) => (
               <div key={s.id} className="card">
@@ -77,9 +80,9 @@ export default async function PublicBusinessPage({ params }: { params: { slug: s
       )}
 
       <section className="max-w-[900px] mx-auto px-6 py-12 border-t border-border">
-        <h2 className="font-serif text-2xl font-semibold mb-6">Reviews</h2>
+        <h2 className="font-serif text-2xl font-semibold mb-6">{t.site.reviews}</h2>
         {reviews.length === 0 ? (
-          <p className="text-muted text-[14px]">No reviews yet.</p>
+          <p className="text-muted text-[14px]">{t.site.noReviews}</p>
         ) : (
           <div className="flex flex-col gap-4">
             {reviews.map((r) => (
@@ -96,7 +99,7 @@ export default async function PublicBusinessPage({ params }: { params: { slug: s
       </section>
 
       <footer className="border-t border-border py-8 text-center text-[12.5px] text-mutedLight">
-        Built with Sevrii
+        {t.site.builtWith}
       </footer>
     </div>
   );

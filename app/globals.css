@@ -100,3 +100,31 @@ body {
   color: #fff;
 }
 .brand-mark img { height: 40px; width: auto; display: block; }
+
+/* ES / EN switch */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 44px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-family: "Inter", Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.lang-toggle:hover { background: #fff; color: #000; }
+
+/* Dashboard pieces in the dark theme */
+.theme-dark .bg-border { background: rgba(255, 255, 255, 0.12); }
+.theme-dark .hover\:text-ink:hover { color: #fff; }
+.theme-dark .preview-stage { background: #070907; }
+.theme-dark .live-badge { color: #3ddc84; background: rgba(61, 220, 132, 0.12); }
+.theme-dark .seg { background: rgba(255, 255, 255, 0.08); }
+.theme-dark .seg-btn { color: #a1a1aa; }
+.theme-dark .seg-btn.on { background: #fff; color: #000; }

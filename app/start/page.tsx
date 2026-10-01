@@ -3,11 +3,15 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import PathPicker from "./PathPicker";
 import BrandMark from "@/components/BrandMark";
+import LangToggle from "@/components/LangToggle";
+import { getLang } from "@/lib/lang";
+import { getDict } from "@/lib/i18n";
 
 export default async function StartPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.business) redirect("/dashboard");
+  const t = getDict(getLang());
 
   return (
     <div className="theme-dark bg-cream flex flex-col items-center py-14 px-6">
@@ -16,9 +20,12 @@ export default async function StartPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
-          Back to sign up
+          {t.start.back}
         </Link>
-        <BrandMark />
+        <div className="flex items-center gap-4">
+          <LangToggle />
+          <BrandMark />
+        </div>
       </div>
 
       <div className="flex items-center gap-2.5 mb-10">
@@ -29,11 +36,8 @@ export default async function StartPage() {
       </div>
 
       <div className="max-w-[700px] flex flex-col items-center gap-3 text-center mb-11">
-        <h1 className="font-serif text-[40px] leading-[1.08]">How do you want to start?</h1>
-        <p className="text-muted text-[15.5px] leading-relaxed max-w-md">
-          Pick the option that best describes your situation. This helps us personalize the next
-          AI-powered steps.
-        </p>
+        <h1 className="font-serif text-[40px] leading-[1.08]">{t.start.title}</h1>
+        <p className="text-muted text-[15.5px] leading-relaxed max-w-md">{t.start.subtitle}</p>
       </div>
 
       <PathPicker />

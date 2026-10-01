@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from "react";
 import { sendMarketingMessageAction } from "@/app/actions";
 import type { ClientCampaign } from "./DashboardTabs";
+import { useT } from "@/components/LangProvider";
 
 type Msg = { id: string; role: string; content: string };
 
@@ -13,6 +14,7 @@ export default function MarketingChat({
   initialMessages: Msg[];
   onCampaignsUpdated: (campaigns: ClientCampaign[]) => void;
 }) {
+  const t = useT();
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -54,16 +56,13 @@ export default function MarketingChat({
           S
         </div>
         <div>
-          <div className="text-[13px] font-semibold">Sevrii AI</div>
-          <div className="text-[11px] text-mutedLight">Your marketing agent</div>
+          <div className="text-[13px] font-semibold">{t.common.aiName}</div>
+          <div className="text-[11px] text-mutedLight">{t.dashboard.marketingSubtitle}</div>
         </div>
       </div>
       <div className="flex flex-col gap-2.5 flex-1">
         {messages.length === 0 && (
-          <p className="text-[13.5px] text-muted">
-            Tell me what you want more of this month — bookings, calls, visits — and I&rsquo;ll draft a
-            campaign.
-          </p>
+          <p className="text-[13.5px] text-muted">{t.dashboard.marketingEmpty}</p>
         )}
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -81,7 +80,7 @@ export default function MarketingChat({
         {isPending && (
           <div className="flex justify-start">
             <div className="max-w-[85%] bg-mint text-muted rounded-[12px_12px_12px_3px] px-3.5 py-2.5 text-[13.5px]">
-              Drafting…
+              {t.common.drafting}
             </div>
           </div>
         )}
@@ -90,13 +89,13 @@ export default function MarketingChat({
       <form onSubmit={handleSubmit} className="flex gap-2.5 pt-2 border-t border-border">
         <input
           className="input flex-1"
-          placeholder="e.g. Get more weekend bookings"
+          placeholder={t.dashboard.marketingPlaceholder}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={isPending}
         />
         <button type="submit" className="btn-primary" disabled={isPending}>
-          Send
+          {t.common.send}
         </button>
       </form>
     </div>

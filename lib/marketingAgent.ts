@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { Lang } from "./i18n";
 import type { Tool, MessageParam, ToolUseBlock, TextBlock } from "@anthropic-ai/sdk/resources/messages";
 import { type BusinessRow, type ServiceRow, type CampaignRow, createCampaign } from "./db";
 
@@ -81,17 +82,27 @@ You can ONLY produce a draft. Sevrii is not connected to any ad account, so neve
 
 Only skip the tool call and ask a short clarifying question instead when the message is genuinely too vague to act on at all (e.g. just "hi" or "test"). Otherwise always call create_campaign exactly once, then confirm in one or two short sentences what you built.`;
 
+function languageRule(lang: Lang): string {
+  return lang === "es"
+    ? "\n\nAlways write your replies in Spanish (neutral Latin American, using \"tú\"). Any text you save for the owner's page or campaign (names, pitch, service descriptions, ad copy, audience, budget notes) must also be in Spanish, unless the owner explicitly asks for another language."
+    : "\n\nAlways write your replies in English. Any text you save for the owner's page or campaign must also be in English, unless the owner explicitly asks for another language.";
+}
+
 export async function runMarketingAgentTurn(
   business: BusinessRow,
   services: ServiceRow[],
   history: { role: "user" | "assistant"; content: string }[],
-  instruction: string
+  instruction: string,
+  lang: Lang = "en"
 ): Promise<MarketingTurnResult> {
+  const es = lang === "es";
+  const system = SYSTEM_PROMPT + languageRule(lang);
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return {
-      reply:
-        "The AI marketing agent isn't turned on yet — add an ANTHROPIC_API_KEY in this project's Vercel Environment Variables to enable it.",
+      reply: es
+        ? "El agente de marketing con IA todavía no está activado: agrega una ANTHROPIC_API_KEY en las variables de entorno de Vercel de este proyecto para encenderlo."
+        : "The AI marketing agent isn't turned on yet — add an ANTHROPIC_API_KEY in this project's Vercel Environment Variables to enable it.",
       campaign: null,
     };
   }
@@ -123,7 +134,7 @@ export async function runMarketingAgentTurn(
     const first = await client.messages.create({
       model: MODEL,
       max_tokens: 1536,
-      system: SYSTEM_PROMPT,
+      system,
       tools: [CAMPAIGN_TOOL],
       messages,
     });
@@ -146,7 +157,7 @@ export async function runMarketingAgentTurn(
       const second = await client.messages.create({
         model: MODEL,
         max_tokens: 512,
-        system: SYSTEM_PROMPT,
+        system,
         tools: [CAMPAIGN_TOOL],
         messages: [
           ...messages,
@@ -170,7 +181,9 @@ export async function runMarketingAgentTurn(
         .join("\n")
         .trim();
       if (!finalText) {
-        finalText = `Done — I put together "${campaign.title}" as a draft campaign. Take a look below.`;
+        finalText = es
+          ? `Listo: armé "${campaign.title}" como borrador de campaña. Míralo abajo.`
+          : `Done — I put together "${campaign.title}" as a draft campaign. Take a look below.`;
       }
     } else {
       finalText = first.content
@@ -180,8 +193,11 @@ export async function runMarketingAgentTurn(
         .trim();
     }
   } catch (err) {
-    finalText = `Something went wrong talking to the marketing agent: ${err instanceof Error ? err.message : String(err)}`;
+    const msg = err instanceof Error ? err.message : String(err);
+    finalText = es
+      ? `Algo salió mal al hablar con el agente de marketing: ${msg}`
+      : `Something went wrong talking to the marketing agent: ${msg}`;
   }
 
-  return { reply: finalText || "Done.", campaign };
+  return { reply: finalText || (es ? "Listo." : "Done."), campaign };
 }

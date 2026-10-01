@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { Lang } from "./i18n";
 import type { Tool, MessageParam, ToolUseBlock, TextBlock } from "@anthropic-ai/sdk/resources/messages";
 import {
   type BusinessRow,
@@ -222,17 +223,27 @@ Never invent facts about the business — only use what the owner tells you. If 
 
 When you do make a change, call apply_page_edits, then confirm in one short, concrete sentence what changed. Keep replies short.`;
 
+function languageRule(lang: Lang): string {
+  return lang === "es"
+    ? "\n\nAlways write your replies in Spanish (neutral Latin American, using \"tú\"). Any text you save for the owner's page or campaign (names, pitch, service descriptions, ad copy, audience, budget notes) must also be in Spanish, unless the owner explicitly asks for another language."
+    : "\n\nAlways write your replies in English. Any text you save for the owner's page or campaign must also be in English, unless the owner explicitly asks for another language.";
+}
+
 export async function runPageEditorTurn(
   business: BusinessRow,
   services: ServiceRow[],
   history: { role: "user" | "assistant"; content: string }[],
-  instruction: string
+  instruction: string,
+  lang: Lang = "en"
 ): Promise<EditorTurnResult> {
+  const es = lang === "es";
+  const system = SYSTEM_PROMPT + languageRule(lang);
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return {
-      reply:
-        "The AI page editor isn't turned on yet — add an ANTHROPIC_API_KEY in this project's Vercel Environment Variables to enable it.",
+      reply: es
+        ? "El editor de páginas con IA todavía no está activado: agrega una ANTHROPIC_API_KEY en las variables de entorno de Vercel de este proyecto para encenderlo."
+        : "The AI page editor isn't turned on yet — add an ANTHROPIC_API_KEY in this project's Vercel Environment Variables to enable it.",
       business,
       services,
     };
@@ -269,7 +280,7 @@ export async function runPageEditorTurn(
     const first = await client.messages.create({
       model: MODEL,
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system,
       tools: [EDIT_TOOL],
       messages,
     });
@@ -285,7 +296,7 @@ export async function runPageEditorTurn(
       const second = await client.messages.create({
         model: MODEL,
         max_tokens: 512,
-        system: SYSTEM_PROMPT,
+        system,
         tools: [EDIT_TOOL],
         messages: [
           ...messages,
@@ -309,7 +320,12 @@ export async function runPageEditorTurn(
         .join("\n")
         .trim();
       if (!finalText) {
-        finalText = result.applied.length > 0 ? `Done — ${result.applied.join("; ")}.` : "I couldn't make that change.";
+        finalText =
+          result.applied.length > 0
+            ? `${es ? "Listo" : "Done"} — ${result.applied.join("; ")}.`
+            : es
+              ? "No pude hacer ese cambio."
+              : "I couldn't make that change.";
       }
     } else {
       finalText = first.content
@@ -319,8 +335,9 @@ export async function runPageEditorTurn(
         .trim();
     }
   } catch (err) {
-    finalText = `Something went wrong talking to the AI editor: ${err instanceof Error ? err.message : String(err)}`;
+    const msg = err instanceof Error ? err.message : String(err);
+    finalText = es ? `Algo salió mal al hablar con el editor de IA: ${msg}` : `Something went wrong talking to the AI editor: ${msg}`;
   }
 
-  return { reply: finalText || "Done.", business: currentBusiness, services: currentServices };
+  return { reply: finalText || (es ? "Listo." : "Done."), business: currentBusiness, services: currentServices };
 }
