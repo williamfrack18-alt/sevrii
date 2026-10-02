@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { MODEL, getClaude, CHAT_SETTINGS, logAiError } from "./claude";
 import type { Lang } from "./i18n";
 import type { Tool, MessageParam, ToolUseBlock, TextBlock } from "@anthropic-ai/sdk/resources/messages";
 import {
@@ -13,10 +13,6 @@ import {
   listServices,
 } from "./db";
 
-// Overridable so this doesn't go stale if Anthropic's model lineup moves on;
-// "claude-sonnet-4-5" is a rolling alias that always points at a current,
-// non-deprecated Sonnet model.
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
 
 // ---------- The one tool the model is allowed to call ----------
 // Every field this tool can touch maps to a real column in Postgres. The
@@ -202,7 +198,8 @@ async function applyEdits(
           skipped.push(`unknown op: ${edit.op}`);
       }
     } catch (err) {
-      skipped.push(`${edit.op} failed: ${err instanceof Error ? err.message : String(err)}`);
+      console.error("[ai:editor] edit failed", edit.op, err);
+      skipped.push(`${edit.op} failed`);
     }
   }
 
@@ -238,18 +235,18 @@ export async function runPageEditorTurn(
 ): Promise<EditorTurnResult> {
   const es = lang === "es";
   const system = SYSTEM_PROMPT + languageRule(lang);
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  const client = getClaude();
+  if (!client) {
+    console.error("[ai:editor] ANTHROPIC_API_KEY is not set");
     return {
       reply: es
-        ? "El editor de páginas con IA todavía no está activado: agrega una ANTHROPIC_API_KEY en las variables de entorno de Vercel de este proyecto para encenderlo."
-        : "The AI page editor isn't turned on yet — add an ANTHROPIC_API_KEY in this project's Vercel Environment Variables to enable it.",
+        ? "El editor con IA no está disponible en este momento. Inténtalo de nuevo en unos minutos."
+        : "The AI editor isn't available right now. Please try again in a few minutes.",
       business,
       services,
     };
   }
 
-  const client = new Anthropic({ apiKey });
 
   const stateBlock = JSON.stringify({
     business: {
@@ -279,7 +276,8 @@ export async function runPageEditorTurn(
   try {
     const first = await client.messages.create({
       model: MODEL,
-      max_tokens: 1024,
+      ...CHAT_SETTINGS,
+      max_tokens: 2048,
       system,
       tools: [EDIT_TOOL],
       messages,
@@ -295,7 +293,8 @@ export async function runPageEditorTurn(
 
       const second = await client.messages.create({
         model: MODEL,
-        max_tokens: 512,
+      ...CHAT_SETTINGS,
+        max_tokens: 1024,
         system,
         tools: [EDIT_TOOL],
         messages: [
@@ -335,8 +334,10 @@ export async function runPageEditorTurn(
         .trim();
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    finalText = es ? `Algo salió mal al hablar con el editor de IA: ${msg}` : `Something went wrong talking to the AI editor: ${msg}`;
+    logAiError("editor", err);
+    finalText = es
+      ? "El editor con IA no está disponible en este momento. Inténtalo de nuevo en unos minutos."
+      : "The AI editor isn't available right now. Please try again in a few minutes.";
   }
 
   return { reply: finalText || (es ? "Listo." : "Done."), business: currentBusiness, services: currentServices };

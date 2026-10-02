@@ -1,12 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { MODEL, getClaude, CHAT_SETTINGS, logAiError } from "./claude";
 import type { Lang } from "./i18n";
 import type { Tool, MessageParam, ToolUseBlock, TextBlock } from "@anthropic-ai/sdk/resources/messages";
 import { type BusinessRow, type ServiceRow, type CampaignRow, createCampaign } from "./db";
 
-// Overridable so this doesn't go stale if Anthropic's model lineup moves on;
-// "claude-sonnet-4-5" is a rolling alias that always points at a current,
-// non-deprecated Sonnet model.
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
 
 // ---------- The one tool the model is allowed to call ----------
 // This always produces a complete, ready-to-use campaign draft in a single
@@ -97,17 +93,17 @@ export async function runMarketingAgentTurn(
 ): Promise<MarketingTurnResult> {
   const es = lang === "es";
   const system = SYSTEM_PROMPT + languageRule(lang);
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  const client = getClaude();
+  if (!client) {
+    console.error("[ai:marketing] ANTHROPIC_API_KEY is not set");
     return {
       reply: es
-        ? "El agente de marketing con IA todavía no está activado: agrega una ANTHROPIC_API_KEY en las variables de entorno de Vercel de este proyecto para encenderlo."
-        : "The AI marketing agent isn't turned on yet — add an ANTHROPIC_API_KEY in this project's Vercel Environment Variables to enable it.",
+        ? "El agente de marketing no está disponible en este momento. Inténtalo de nuevo en unos minutos."
+        : "The marketing agent isn't available right now. Please try again in a few minutes.",
       campaign: null,
     };
   }
 
-  const client = new Anthropic({ apiKey });
 
   const stateBlock = JSON.stringify({
     business: {
@@ -133,7 +129,8 @@ export async function runMarketingAgentTurn(
   try {
     const first = await client.messages.create({
       model: MODEL,
-      max_tokens: 1536,
+      ...CHAT_SETTINGS,
+      max_tokens: 3072,
       system,
       tools: [CAMPAIGN_TOOL],
       messages,
@@ -156,7 +153,8 @@ export async function runMarketingAgentTurn(
 
       const second = await client.messages.create({
         model: MODEL,
-        max_tokens: 512,
+      ...CHAT_SETTINGS,
+        max_tokens: 1024,
         system,
         tools: [CAMPAIGN_TOOL],
         messages: [
@@ -193,10 +191,10 @@ export async function runMarketingAgentTurn(
         .trim();
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    logAiError("marketing", err);
     finalText = es
-      ? `Algo salió mal al hablar con el agente de marketing: ${msg}`
-      : `Something went wrong talking to the marketing agent: ${msg}`;
+      ? "El agente de marketing no está disponible en este momento. Inténtalo de nuevo en unos minutos."
+      : "The marketing agent isn't available right now. Please try again in a few minutes.";
   }
 
   return { reply: finalText || (es ? "Listo." : "Done."), campaign };

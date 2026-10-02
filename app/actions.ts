@@ -16,7 +16,18 @@ import {
   listServices,
   incrementWhatsappClicks,
 } from "@/lib/db";
-import { hashPassword, verifyPassword, createSessionToken, SESSION_COOKIE } from "@/lib/auth";
+import {
+  hashPassword,
+  verifyPassword,
+  burnPasswordCheck,
+  newSessionToken,
+  hashSessionToken,
+  SESSION_COOKIE,
+  LEGACY_SESSION_COOKIE,
+  SESSION_MAX_AGE,
+} from "@/lib/auth";
+import { createSessionRow, deleteSessionRow } from "@/lib/db";
+import { allow, clear, clientIp, LIMITS } from "@/lib/guard";
 import { getCurrentUser } from "@/lib/session";
 import { runPageEditorTurn } from "@/lib/aiEditor";
 import { runMarketingAgentTurn } from "@/lib/marketingAgent";
@@ -34,10 +45,10 @@ import {
   type Idea,
 } from "@/lib/ai";
 
-const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-
-function setSessionCookie(userId: string) {
-  const token = createSessionToken({ userId });
+async function startSession(userId: string) {
+  const token = newSessionToken();
+  await createSessionRow(hashSessionToken(token), userId, SESSION_MAX_AGE);
+  cookies().delete(LEGACY_SESSION_COOKIE);
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -69,31 +80,68 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
   if (password.length < 8) {
     return { error: t.auth.errPassword };
   }
+  if (password.length > 128) {
+    return { error: t.auth.errPasswordLong };
+  }
+  if (!(await allow(`signup:ip:${clientIp()}`, LIMITS.signupPerIp.limit, LIMITS.signupPerIp.window))) {
+    return { error: t.auth.errTooMany };
+  }
   if (await getUserByEmail(email)) {
     return { error: t.auth.errExists };
   }
 
   const { hash, salt } = hashPassword(password);
   const user = await createUser(email, hash, salt);
-  setSessionCookie(user.id);
+  await startSession(user.id);
   redirect("/start");
 }
 
 export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get("email") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "");
+  const password = String(formData.get("password") || "").slice(0, 128);
+  const t = getDict(getLang());
+
+  const emailKey = `login:email:${email}`;
+  const ipOk = await allow(`login:ip:${clientIp()}`, LIMITS.loginPerIp.limit, LIMITS.loginPerIp.window);
+  const emailOk = await allow(emailKey, LIMITS.loginPerEmail.limit, LIMITS.loginPerEmail.window);
+  if (!ipOk || !emailOk) {
+    return { error: t.auth.errTooMany };
+  }
 
   const user = await getUserByEmail(email);
-  if (!user || !verifyPassword(password, user.passwordHash, user.salt)) {
-    return { error: getDict(getLang()).auth.errWrong };
+  if (!user) {
+    burnPasswordCheck(password);
+    return { error: t.auth.errWrong };
   }
-  setSessionCookie(user.id);
+  if (!verifyPassword(password, user.passwordHash, user.salt)) {
+    return { error: t.auth.errWrong };
+  }
+  await clear(emailKey);
+  await startSession(user.id);
   redirect("/dashboard");
 }
 
 export async function logoutAction() {
+  const token = cookies().get(SESSION_COOKIE)?.value;
+  if (token) {
+    try {
+      await deleteSessionRow(hashSessionToken(token));
+    } catch (err) {
+      console.error("[auth] could not delete session", err);
+    }
+  }
   cookies().delete(SESSION_COOKIE);
+  cookies().delete(LEGACY_SESSION_COOKIE);
   redirect("/");
+}
+
+// Shared gate for both AI chats: length, per-minute and per-day limits.
+async function aiGate(businessId: string, text: string): Promise<string | null> {
+  const t = getDict(getLang()).dashboard;
+  if (text.length > LIMITS.aiMaxChars) return t.aiTooLong;
+  if (!(await allow(`ai:min:${businessId}`, LIMITS.aiPerMinute.limit, LIMITS.aiPerMinute.window))) return t.aiSlowDown;
+  if (!(await allow(`ai:day:${businessId}`, LIMITS.aiPerDay.limit, LIMITS.aiPerDay.window))) return t.aiDailyLimit;
+  return null;
 }
 
 export type OnboardingAnswers = {
@@ -178,6 +226,15 @@ export async function sendMarketingMessageAction(message: string) {
     };
   }
 
+  const blocked = await aiGate(business.id, trimmed);
+  if (blocked) {
+    await addChatMessage(business.id, "marketing", "ai", blocked);
+    return {
+      messages: await listChatMessages(business.id, "marketing"),
+      campaigns: await listCampaigns(business.id),
+    };
+  }
+
   await addChatMessage(business.id, "marketing", "user", trimmed);
 
   // Give the model the last few turns of this same conversation for context,
@@ -188,7 +245,7 @@ export async function sendMarketingMessageAction(message: string) {
     .slice(-10)
     .map((m) => ({
       role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
-      content: m.content,
+      content: m.content.slice(0, LIMITS.aiMaxChars),
     }));
 
   const services = await listServices(business.id);
@@ -295,6 +352,16 @@ export async function sendPageEditCommand(message: string) {
     };
   }
 
+  const blocked = await aiGate(business.id, trimmed);
+  if (blocked) {
+    await addChatMessage(business.id, "editor", "ai", blocked);
+    return {
+      messages: await listChatMessages(business.id, "editor"),
+      business,
+      services: await listServices(business.id),
+    };
+  }
+
   await addChatMessage(business.id, "editor", "user", trimmed);
 
   // Give the model the last few turns of this same conversation for context,
@@ -306,7 +373,7 @@ export async function sendPageEditCommand(message: string) {
     .slice(-10)
     .map((m) => ({
       role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
-      content: m.content,
+      content: m.content.slice(0, LIMITS.aiMaxChars),
     }));
 
   const services = await listServices(business.id);
@@ -328,6 +395,9 @@ export async function sendPageEditCommand(message: string) {
 
 export async function trackWhatsappClickAction(businessId: string) {
   try {
+    if (typeof businessId !== "string" || businessId.length > 64) return;
+    // Count at most 3 clicks per visitor (IP) per business per hour.
+    if (!(await allow(`wa:${clientIp()}:${businessId}`, 3, 60 * 60))) return;
     await incrementWhatsappClicks(businessId);
   } catch {
     // Never let a tracking failure affect the visitor's WhatsApp link.

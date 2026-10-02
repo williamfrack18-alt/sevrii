@@ -1,6 +1,5 @@
-import { randomBytes, scryptSync, timingSafeEqual, createHmac } from "crypto";
+import { randomBytes, scryptSync, timingSafeEqual, createHash } from "crypto";
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "dev-only-insecure-secret";
 const KEY_LEN = 64;
 
 export function hashPassword(password: string): { hash: string; salt: string } {
@@ -9,39 +8,37 @@ export function hashPassword(password: string): { hash: string; salt: string } {
   return { hash, salt };
 }
 
-export function verifyPassword(password: string, hash: string, salt: string): boolean {
+export function verifyPassword(password: string, hash: string | null, salt: string | null): boolean {
+  if (!hash || !salt) {
+    // Still spend the same work so a missing hash isn't distinguishable by timing.
+    scryptSync(password, "0".repeat(32), KEY_LEN);
+    return false;
+  }
   const candidate = scryptSync(password, salt, KEY_LEN);
   const stored = Buffer.from(hash, "hex");
   if (candidate.length !== stored.length) return false;
   return timingSafeEqual(candidate, stored);
 }
 
-function base64url(input: Buffer | string): string {
-  const buf = typeof input === "string" ? Buffer.from(input) : input;
-  return buf.toString("base64url");
+// Same cost as a real check, for logins with an unknown email — so response
+// time doesn't reveal which emails have an account.
+export function burnPasswordCheck(password: string): void {
+  scryptSync(password, "0".repeat(32), KEY_LEN);
 }
 
-export function createSessionToken(payload: { userId: string }): string {
-  const body = base64url(JSON.stringify({ ...payload, iat: Date.now() }));
-  const sig = base64url(createHmac("sha256", SESSION_SECRET).update(body).digest());
-  return `${body}.${sig}`;
+// Sessions are random opaque tokens. The cookie holds the token; the
+// database stores only its SHA-256 (see lib/db.ts sessions), so a database
+// leak doesn't hand out live sessions and no signing secret is involved.
+export function newSessionToken(): string {
+  return randomBytes(32).toString("base64url");
 }
 
-export function verifySessionToken(token: string | undefined | null): { userId: string } | null {
-  if (!token) return null;
-  const [body, sig] = token.split(".");
-  if (!body || !sig) return null;
-  const expectedSig = base64url(createHmac("sha256", SESSION_SECRET).update(body).digest());
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expectedSig);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
-    if (!payload.userId) return null;
-    return { userId: payload.userId };
-  } catch {
-    return null;
-  }
+export function hashSessionToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
-export const SESSION_COOKIE = "sevri_session";
+// New cookie name: sessions signed with the old HMAC scheme are retired, so
+// everyone logs in once after this change.
+export const SESSION_COOKIE = "sevrii_sid";
+export const LEGACY_SESSION_COOKIE = "sevri_session";
+export const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days

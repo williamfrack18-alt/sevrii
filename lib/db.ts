@@ -112,9 +112,81 @@ function ensureSchema(): Promise<void> {
           "createdAt" TEXT NOT NULL
         )
       `;
-    })();
+      // Server-side sessions: the cookie holds a random token, the database
+      // holds only its SHA-256. Logging out deletes the row, so a stolen
+      // cookie stops working, and nothing depends on a signing secret.
+      await sql`
+        CREATE TABLE IF NOT EXISTS sessions (
+          "tokenHash" TEXT PRIMARY KEY,
+          "userId" TEXT NOT NULL REFERENCES users(id),
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "expiresAt" TIMESTAMPTZ NOT NULL
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions ("userId")`;
+      // Fixed-window counters for login/signup attempts and AI usage.
+      await sql`
+        CREATE TABLE IF NOT EXISTS rate_counters (
+          key TEXT PRIMARY KEY,
+          count INTEGER NOT NULL DEFAULT 0,
+          "windowEndsAt" TIMESTAMPTZ NOT NULL
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS services_business_idx ON services ("businessId")`;
+      await sql`CREATE INDEX IF NOT EXISTS campaigns_business_idx ON campaigns ("businessId")`;
+      await sql`CREATE INDEX IF NOT EXISTS chat_messages_business_idx ON chat_messages ("businessId", channel)`;
+    })().catch((err) => {
+      // Don't cache a failed setup forever — let the next request retry.
+      schemaReady = null;
+      throw err;
+    });
   }
   return schemaReady;
+}
+
+// ---------- Sessions ----------
+export async function createSessionRow(tokenHash: string, userId: string, maxAgeSeconds: number): Promise<void> {
+  await ensureSchema();
+  const expiresAt = new Date(Date.now() + maxAgeSeconds * 1000).toISOString();
+  await sql`INSERT INTO sessions ("tokenHash", "userId", "expiresAt") VALUES (${tokenHash}, ${userId}, ${expiresAt})`;
+}
+
+export async function getSessionUserId(tokenHash: string): Promise<string | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT "userId" FROM sessions WHERE "tokenHash" = ${tokenHash} AND "expiresAt" > now()
+  `) as { userId: string }[];
+  return rows[0]?.userId ?? null;
+}
+
+export async function deleteSessionRow(tokenHash: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM sessions WHERE "tokenHash" = ${tokenHash}`;
+}
+
+export async function deleteSessionsForUser(userId: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM sessions WHERE "userId" = ${userId}`;
+}
+
+// ---------- Rate limits ----------
+// Atomically bumps a fixed-window counter and returns the new count.
+export async function hitRateCounter(key: string, windowSeconds: number): Promise<number> {
+  await ensureSchema();
+  const windowEndsAt = new Date(Date.now() + windowSeconds * 1000).toISOString();
+  const rows = (await sql`
+    INSERT INTO rate_counters (key, count, "windowEndsAt") VALUES (${key}, 1, ${windowEndsAt})
+    ON CONFLICT (key) DO UPDATE SET
+      count = CASE WHEN rate_counters."windowEndsAt" <= now() THEN 1 ELSE rate_counters.count + 1 END,
+      "windowEndsAt" = CASE WHEN rate_counters."windowEndsAt" <= now() THEN EXCLUDED."windowEndsAt" ELSE rate_counters."windowEndsAt" END
+    RETURNING count
+  `) as { count: number }[];
+  return rows[0]?.count ?? 1;
+}
+
+export async function resetRateCounter(key: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM rate_counters WHERE key = ${key}`;
 }
 
 // ---------- Users ----------
@@ -450,7 +522,10 @@ export async function addChatMessage(
 export async function listChatMessages(businessId: string, channel: string): Promise<ChatMessageRow[]> {
   await ensureSchema();
   const rows = (await sql`
-    SELECT * FROM chat_messages WHERE "businessId" = ${businessId} AND channel = ${channel} ORDER BY "createdAt" ASC
+    SELECT * FROM (
+      SELECT * FROM chat_messages WHERE "businessId" = ${businessId} AND channel = ${channel}
+      ORDER BY "createdAt" DESC LIMIT 200
+    ) recent ORDER BY "createdAt" ASC
   `) as ChatMessageRow[];
   return rows;
 }
