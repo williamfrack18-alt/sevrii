@@ -19,7 +19,11 @@ import {
   type ServiceRow,
 } from "@/lib/db";
 import { LIMITS, normalizePhone, parseSite, publishGaps, type PublishGap, type SiteData } from "@/lib/site";
-import { allow } from "@/lib/guard";
+import { allow, LIMITS as RATE } from "@/lib/guard";
+import { addChatMessage, listChatMessages } from "@/lib/db";
+import { runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
+import { getLang } from "@/lib/lang";
+import { getDict } from "@/lib/i18n";
 
 async function requireBusiness(): Promise<BusinessRow> {
   const user = await getCurrentUser();
@@ -213,4 +217,59 @@ export async function removeStoreImageAction(kind: "logo" | "cover" | "gallery",
   const fresh = (await getBusinessByUserId(business.userId))!;
   refresh(fresh.slug);
   return fresh;
+}
+
+// ---------- Store chat (the whole Store tab is this conversation) ----------
+
+export type StoreChatResponse = {
+  messages: { id: string; role: string; content: string }[];
+  business: BusinessRow;
+  services: ServiceRow[];
+};
+
+export async function sendStoreChatAction(message: string): Promise<StoreChatResponse> {
+  const business = await requireBusiness();
+  const lang = await getLang();
+  const t = getDict(lang).dashboard;
+  const text = String(message || "").trim();
+  let history = await listChatMessages(business.id, "store");
+
+  const respond = async (b: BusinessRow) => ({
+    messages: (await listChatMessages(business.id, "store")).map((m) => ({ id: m.id, role: m.role, content: m.content })),
+    business: b,
+    services: await listServices(business.id),
+  });
+
+  if (!text) return respond(business);
+
+  if (history.length === 0) {
+    await addChatMessage(business.id, "store", "ai", storeGreeting(lang, business, (await listServices(business.id)).length));
+    history = await listChatMessages(business.id, "store");
+  }
+
+  let blocked: string | null = null;
+  if (text.length > RATE.aiMaxChars) blocked = t.aiTooLong;
+  else if (!(await allow(`ai:min:${business.id}`, 10, 60))) blocked = t.aiSlowDown;
+  else if (!(await allow(`ai:day:${business.id}`, 150, 24 * 60 * 60))) blocked = t.aiDailyLimit;
+  if (blocked) {
+    await addChatMessage(business.id, "store", "ai", blocked);
+    return respond(business);
+  }
+
+  await addChatMessage(business.id, "store", "user", text);
+  const result = await runStoreChatTurn({
+    business,
+    reload: async () => (await getBusinessByUserId(business.userId))!,
+    history: history.slice(-16).map((m) => ({
+      role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
+      content: m.content.slice(0, RATE.aiMaxChars),
+    })),
+    message: text.startsWith("📷 ")
+      ? `${lang === "es" ? "Subí una foto" : "I uploaded a photo"}: ${text.slice(3).trim()}`
+      : text,
+    lang,
+  });
+  await addChatMessage(business.id, "store", "ai", result.reply);
+  refresh(result.business.slug);
+  return respond(result.business);
 }

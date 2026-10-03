@@ -146,6 +146,8 @@ function ensureSchema(): Promise<void> {
           "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
         )
       `;
+      await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS tag TEXT`;
       await sql`CREATE INDEX IF NOT EXISTS services_business_idx ON services ("businessId")`;
       await sql`CREATE INDEX IF NOT EXISTS campaigns_business_idx ON campaigns ("businessId")`;
       await sql`CREATE INDEX IF NOT EXISTS chat_messages_business_idx ON chat_messages ("businessId", channel)`;
@@ -413,6 +415,8 @@ export type ServiceRow = {
   price: string | null;
   description: string | null;
   sortOrder: number;
+  featured?: boolean;
+  tag?: string | null;
 };
 
 export async function addService(
@@ -450,6 +454,8 @@ export async function updateService(
     price: string | null;
     description: string | null;
     sortOrder: number;
+    featured: boolean;
+    tag: string | null;
   }>
 ): Promise<void> {
   await ensureSchema();

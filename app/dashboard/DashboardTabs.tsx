@@ -65,6 +65,7 @@ export default function DashboardTabs({
   campaigns,
   marketingMessages,
   editorMessages,
+  storeGreeting,
 }: {
   initialView?: DashboardView;
   userEmail: string;
@@ -73,12 +74,14 @@ export default function DashboardTabs({
   campaigns: ClientCampaign[];
   marketingMessages: ClientMsg[];
   editorMessages: ClientMsg[];
+  storeGreeting: string;
 }) {
   const t = useT();
   const [view, setViewState] = useState<DashboardView>(initialView);
   const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
   const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);
+  const [storeMessages, setStoreMessages] = useState<ClientMsg[]>(editorMessages);
 
   function setView(next: DashboardView) {
     setViewState(next);
@@ -218,7 +221,9 @@ export default function DashboardTabs({
           <StoreView
             business={currentBusiness}
             services={currentServices}
-            initialMessages={editorMessages}
+            initialMessages={storeMessages}
+            greeting={storeGreeting}
+            onMessages={setStoreMessages}
             onUpdated={(b, s) => {
               setCurrentBusiness(b);
               setCurrentServices(s);

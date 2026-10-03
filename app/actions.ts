@@ -215,7 +215,7 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
   await addChatMessage(business.id, "onboarding", "user", answers.description);
   await addChatMessage(business.id, "onboarding", "ai", pageLiveMessage(lang, business.slug));
 
-  redirect("/dashboard");
+  redirect("/dashboard?view=store");
 }
 
 export async function updateWhatsappAction(formData: FormData) {
@@ -360,7 +360,7 @@ export async function completeDiscoveryAction(input: {
   await addChatMessage(business.id, "onboarding", "user", details.photos);
   await addChatMessage(business.id, "onboarding", "ai", pageLiveMessage(lang, business.slug));
 
-  redirect("/dashboard");
+  redirect("/dashboard?view=store");
 }
 
 // ---------- AI page editor (Store tab chat) ----------

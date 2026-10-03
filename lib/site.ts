@@ -3,6 +3,8 @@
 // parseSite() so bad or old data can never break a page.
 
 export type FaqItem = { q: string; a: string };
+export type Point = { title: string; text: string };
+export type Offer = { label: string; oldPrice: string; newPrice: string; endsAt: string };
 
 export type SiteData = {
   headline: string;
@@ -18,6 +20,14 @@ export type SiteData = {
   yearsInBusiness: number | null;
   googleReviewsUrl: string;
   highlights: string[];
+  keyPoints: Point[]; // the checklist in the buy box
+  offer: Offer | null; // a REAL promotion given by the owner
+  steps: Point[]; // "how we work"
+  features: string[]; // trust bar
+  ctaTitle: string;
+  ctaText: string;
+  ctaNote: string; // micro line under the buttons
+  disclaimer: string;
   faq: FaqItem[];
   logoUrl: string;
   coverUrl: string;
@@ -39,6 +49,14 @@ export const EMPTY_SITE: SiteData = {
   yearsInBusiness: null,
   googleReviewsUrl: "",
   highlights: [],
+  keyPoints: [],
+  offer: null,
+  steps: [],
+  features: [],
+  ctaTitle: "",
+  ctaText: "",
+  ctaNote: "",
+  disclaimer: "",
   faq: [],
   logoUrl: "",
   coverUrl: "",
@@ -56,6 +74,18 @@ export const LIMITS = {
   url: 500,
   highlight: 80,
   highlights: 4,
+  pointTitle: 50,
+  pointText: 180,
+  keyPoints: 5,
+  steps: 4,
+  feature: 40,
+  features: 5,
+  offerLabel: 80,
+  offerPrice: 30,
+  ctaTitle: 90,
+  ctaText: 180,
+  ctaNote: 90,
+  disclaimer: 500,
   faqQ: 140,
   faqA: 500,
   faq: 8,
@@ -110,6 +140,17 @@ export function parseSite(raw: unknown): SiteData {
       .map((h) => str(h, LIMITS.highlight))
       .filter(Boolean)
       .slice(0, LIMITS.highlights),
+    keyPoints: parsePoints(obj.keyPoints, LIMITS.keyPoints),
+    offer: parseOffer(obj.offer),
+    steps: parsePoints(obj.steps, LIMITS.steps),
+    features: (Array.isArray(obj.features) ? obj.features : [])
+      .map((h) => str(h, LIMITS.feature))
+      .filter(Boolean)
+      .slice(0, LIMITS.features),
+    ctaTitle: str(obj.ctaTitle, LIMITS.ctaTitle),
+    ctaText: str(obj.ctaText, LIMITS.ctaText),
+    ctaNote: str(obj.ctaNote, LIMITS.ctaNote),
+    disclaimer: str(obj.disclaimer, LIMITS.disclaimer),
     faq: (Array.isArray(obj.faq) ? obj.faq : [])
       .map((f) => {
         const o = (f ?? {}) as Record<string, unknown>;
@@ -125,6 +166,58 @@ export function parseSite(raw: unknown): SiteData {
       .slice(0, LIMITS.gallery),
     lang: obj.lang === "en" ? "en" : "es",
   };
+}
+
+function parsePoints(raw: unknown, max: number): Point[] {
+  return (Array.isArray(raw) ? raw : [])
+    .map((p) => {
+      if (typeof p === "string") return { title: "", text: str(p, LIMITS.pointText) };
+      const o = (p ?? {}) as Record<string, unknown>;
+      return { title: str(o.title, LIMITS.pointTitle), text: str(o.text, LIMITS.pointText) };
+    })
+    .filter((p) => p.title || p.text)
+    .slice(0, max);
+}
+
+function parseOffer(raw: unknown): Offer | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const label = str(o.label, LIMITS.offerLabel);
+  if (!label) return null;
+  const ends = str(o.endsAt, 40);
+  const endsAt = ends && !Number.isNaN(Date.parse(ends)) ? new Date(ends).toISOString() : "";
+  return { label, oldPrice: str(o.oldPrice, LIMITS.offerPrice), newPrice: str(o.newPrice, LIMITS.offerPrice), endsAt };
+}
+
+// An offer is shown only while it's real: no end date, or an end date still ahead.
+export function activeOffer(site: SiteData, now = Date.now()): Offer | null {
+  if (!site.offer) return null;
+  if (site.offer.endsAt && Date.parse(site.offer.endsAt) <= now) return null;
+  return site.offer;
+}
+
+// What the page still lacks to really sell — the chat asks for these, in order.
+export function missingForSales(opts: {
+  category: string;
+  whatsapp: string | null;
+  site: SiteData;
+  serviceCount: number;
+  pricedServices: number;
+}): string[] {
+  const s = opts.site;
+  const m: string[] = [];
+  if (opts.serviceCount === 0) m.push("services");
+  else if (opts.pricedServices === 0) m.push("prices");
+  if (!s.phone && !normalizePhone(opts.whatsapp)) m.push("contact");
+  if (s.gallery.length === 0 && !s.coverUrl) m.push("photos");
+  if (s.keyPoints.length === 0) m.push("keyPoints");
+  if (!s.offer) m.push("offer (ask; it's fine to have none)");
+  if (isLicensedTrade(opts.category) && !s.licenseNumber && !s.noLicenseNeeded) m.push("license");
+  if (!s.serviceArea) m.push("serviceArea");
+  if (!s.hours) m.push("hours");
+  if (s.steps.length === 0) m.push("steps (how they work)");
+  if (s.faq.length === 0) m.push("faq");
+  return m;
 }
 
 // ---------- Phones ----------
@@ -202,4 +295,35 @@ export function publishGaps(opts: {
   if (opts.serviceCount === 0) gaps.push("services");
   if (isLicensedTrade(opts.category) && !opts.site.licenseNumber && !opts.site.noLicenseNeeded) gaps.push("license");
   return gaps;
+}
+
+// ---------- Theme from the business color ----------
+// The store template (same look as the Matheus Crédito page) derives its
+// gradient and tints from one accent color.
+type RGB = [number, number, number];
+function hexToRgb(hex: string): RGB {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  const n = m ? parseInt(m[1], 16) : 0x234f36;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function mixRgb(c: RGB, target: RGB, t: number): RGB {
+  return [0, 1, 2].map((i) => Math.round(c[i] + (target[i] - c[i]) * t)) as RGB;
+}
+const css = (c: RGB) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+
+export function storeTheme(accent: string): Record<string, string> {
+  const hex = /^#[0-9a-f]{6}$/i.test(accent) && accent.toLowerCase() !== "#122118" ? accent : "#234f36";
+  const base = hexToRgb(hex);
+  const W: RGB = [255, 255, 255];
+  const K: RGB = [0, 0, 0];
+  const light = mixRgb(base, W, 0.35);
+  return {
+    "--accent-grad": `radial-gradient(ellipse 70% 300% at 50% 50%, ${css(mixRgb(base, W, 0.1))} 0%, ${css(mixRgb(base, K, 0.45))} 55%, ${css(mixRgb(base, K, 0.85))} 100%)`,
+    "--accent-grad-solid": css(base),
+    "--header-grad": `radial-gradient(ellipse 70% 300% at 50% 50%, ${css(mixRgb(base, K, 0.55))} 0%, ${css(mixRgb(base, K, 0.75))} 55%, ${css(mixRgb(base, K, 0.95))} 100%)`,
+    "--accent-bg": `rgba(${light[0]}, ${light[1]}, ${light[2]}, 0.13)`,
+    "--accent-border": `rgba(${light[0]}, ${light[1]}, ${light[2]}, 0.4)`,
+    "--surface": css(mixRgb(base, W, 0.94)),
+    "--surface-2": css(mixRgb(base, W, 0.89)),
+  };
 }
