@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getLang } from "@/lib/lang";
 import { storeGreeting } from "@/lib/storeAgent";
+import { marketingGreeting } from "@/lib/marketingBrain";
 import { getCurrentUser } from "@/lib/session";
 import { listServices, listCampaigns, listChatMessages } from "@/lib/db";
 import DashboardTabs from "./DashboardTabs";
@@ -17,7 +18,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const business = user.business;
   const services = await listServices(business.id);
   const campaigns = await listCampaigns(business.id);
-  const marketingMessages = await listChatMessages(business.id, "marketing");
+  const marketingMessages = await listChatMessages(business.id, "brain");
   const editorMessages = await listChatMessages(business.id, "store");
   const lang = await getLang();
   const storeGreetingText = storeGreeting(lang, business, services.length);
@@ -38,10 +39,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         audience: c.audience,
         platforms: c.platforms,
         variations: c.variations,
+        spec: c.spec ?? null,
       }))}
       marketingMessages={marketingMessages.map((m) => ({ id: m.id, role: m.role, content: m.content }))}
       editorMessages={editorMessages.map((m) => ({ id: m.id, role: m.role, content: m.content }))}
       storeGreeting={storeGreetingText}
+      marketingGreeting={marketingGreeting(lang, business)}
     />
   );
 }

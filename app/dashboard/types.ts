@@ -1,4 +1,5 @@
 import type { SiteData } from "@/lib/site";
+import type { MarketingData, CampaignSpec } from "@/lib/marketing";
 import type { BusinessRow } from "@/lib/db";
 
 // Shared by the server page and the client components (no "use client" here,
@@ -18,6 +19,7 @@ export type ClientBusiness = {
   textClicks: number;
   published: boolean;
   site: SiteData;
+  marketing: MarketingData;
 };
 
 export function toClientBusiness(b: BusinessRow): ClientBusiness {
@@ -36,6 +38,7 @@ export function toClientBusiness(b: BusinessRow): ClientBusiness {
     textClicks: b.textClicks,
     published: Boolean(b.published),
     site: b.site,
+    marketing: b.marketing,
   };
 }
 
@@ -50,6 +53,7 @@ export type ClientCampaign = {
   audience: string | null;
   platforms: string | null;
   variations: string | null;
+  spec?: CampaignSpec | null;
 };
 export type ClientMsg = { id: string; role: string; content: string };
 

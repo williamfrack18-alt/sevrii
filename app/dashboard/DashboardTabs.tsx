@@ -66,6 +66,7 @@ export default function DashboardTabs({
   marketingMessages,
   editorMessages,
   storeGreeting,
+  marketingGreeting,
 }: {
   initialView?: DashboardView;
   userEmail: string;
@@ -75,6 +76,7 @@ export default function DashboardTabs({
   marketingMessages: ClientMsg[];
   editorMessages: ClientMsg[];
   storeGreeting: string;
+  marketingGreeting: string;
 }) {
   const t = useT();
   const [view, setViewState] = useState<DashboardView>(initialView);
@@ -82,6 +84,7 @@ export default function DashboardTabs({
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
   const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);
   const [storeMessages, setStoreMessages] = useState<ClientMsg[]>(editorMessages);
+  const [brainMessages, setBrainMessages] = useState<ClientMsg[]>(marketingMessages);
   // Side rail: collapsed (icons only) by default; the choice is remembered on this device.
   const [railOpen, setRailOpen] = useState(false);
   useEffect(() => {
@@ -286,8 +289,13 @@ export default function DashboardTabs({
           <MarketingView
             business={currentBusiness}
             campaigns={currentCampaigns}
-            initialMessages={marketingMessages}
-            onCampaignsUpdated={setCurrentCampaigns}
+            initialMessages={brainMessages}
+            greeting={marketingGreeting}
+            onMessages={setBrainMessages}
+            onUpdated={(b, c) => {
+              setCurrentBusiness(b);
+              setCurrentCampaigns(c);
+            }}
           />
         )}
         {(view === "payments" || view === "capital") && (

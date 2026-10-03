@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
 import { parseSite, type SiteData } from "./site";
+import { parseMarketing, parseCampaignSpec, type MarketingData, type CampaignSpec } from "./marketing";
 
 // The Neon Vercel integration injects several connection-string env vars;
 // POSTGRES_URL / DATABASE_URL are the pooled connection, which is what a
@@ -146,6 +147,8 @@ function ensureSchema(): Promise<void> {
           "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
         )
       `;
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS marketing JSONB NOT NULL DEFAULT '{}'::jsonb`;
+      await sql`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS spec JSONB`;
       await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false`;
       await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS tag TEXT`;
       await sql`CREATE INDEX IF NOT EXISTS services_business_idx ON services ("businessId")`;
@@ -262,6 +265,7 @@ export type BusinessRow = {
   callClicks: number;
   textClicks: number;
   site: SiteData;
+  marketing: MarketingData;
   createdAt: string;
 };
 
@@ -272,6 +276,7 @@ function toBusiness(row: Record<string, unknown> | undefined): BusinessRow | und
     callClicks: Number(row.callClicks ?? 0),
     textClicks: Number(row.textClicks ?? 0),
     site: parseSite(row.site),
+    marketing: parseMarketing(row.marketing),
   };
 }
 
@@ -323,6 +328,7 @@ export async function createBusiness(input: {
     callClicks: 0,
     textClicks: 0,
     site,
+    marketing: parseMarketing({}),
     createdAt,
   };
 }
@@ -507,6 +513,7 @@ export type CampaignRow = {
   audience: string | null;
   platforms: string | null;
   variations: string | null;
+  spec?: CampaignSpec | null;
   createdAt: string;
 };
 
@@ -554,7 +561,35 @@ export async function listCampaigns(businessId: string): Promise<CampaignRow[]> 
   const rows = (await sql`
     SELECT * FROM campaigns WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC
   `) as CampaignRow[];
-  return rows;
+  return rows.map((r) => ({ ...r, spec: parseCampaignSpec(r.spec) }));
+}
+
+export async function updateBusinessMarketing(businessId: string, data: MarketingData): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET marketing = ${JSON.stringify(parseMarketing(data))}::jsonb WHERE id = ${businessId}`;
+}
+
+export async function createCampaignSpec(businessId: string, title: string, goal: string, spec: CampaignSpec): Promise<string> {
+  await ensureSchema();
+  const id = newId();
+  await sql`
+    INSERT INTO campaigns (id, "businessId", title, goal, status, spec, "createdAt")
+    VALUES (${id}, ${businessId}, ${title}, ${goal}, 'draft', ${JSON.stringify(spec)}::jsonb, ${nowISO()})
+  `;
+  return id;
+}
+
+export async function updateCampaignSpec(campaignId: string, businessId: string, title: string, goal: string, spec: CampaignSpec): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE campaigns SET title = ${title}, goal = ${goal}, spec = ${JSON.stringify(spec)}::jsonb
+    WHERE id = ${campaignId} AND "businessId" = ${businessId}
+  `;
+}
+
+export async function deleteCampaign(campaignId: string, businessId: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM campaigns WHERE id = ${campaignId} AND "businessId" = ${businessId}`;
 }
 
 // ---------- Chat messages ----------
