@@ -107,7 +107,7 @@ const es = {
     serving: (place: string) => `Atendiendo en ${place}`,
     whatsappLabel:
       "Número de WhatsApp (opcional: activa el botón de contacto por WhatsApp en tu página publicada)",
-    whatsappPlaceholder: "ej. +57 300 123 4567",
+    whatsappPlaceholder: "ej. +1 (305) 555-0123",
     continueToPage: "Continuar a mi página",
   },
   dashboard: {
@@ -116,7 +116,7 @@ const es = {
     logout: "Cerrar sesión",
     aiDailyLimit: "Llegaste al límite de mensajes a la IA por hoy. Vuelve a intentarlo mañana.",
     aiSlowDown: "Vas muy rápido. Espera un minuto y vuelve a escribir.",
-    aiTooLong: "Tu mensaje es muy largo. Escríbelo en menos de 2.000 caracteres.",
+    aiTooLong: "Tu mensaje es muy largo. Escríbelo en menos de 2,000 caracteres.",
     pageBuilder: "· Editor de página",
     liveBadge: "En vivo: los cambios se guardan al instante",
     desktopPreview: "Vista de escritorio",
@@ -130,7 +130,7 @@ const es = {
     noServices:
       "Todavía no hay servicios. Pídele al asistente que agregue uno, por ejemplo: “agrega un servicio llamado Reparación de lavamanos por $75”.",
     whatsappNumber: "Número de WhatsApp",
-    whatsappPlaceholder: "+57 300 123 4567",
+    whatsappPlaceholder: "+1 (305) 555-0123",
     saveNumber: "Guardar número",
     editorSubtitle: "Pídele que edite tu página",
     editorEmpty:
@@ -167,7 +167,7 @@ const es = {
     storeDesc: "Tu tienda de servicios, armada y editada por tu agente de IA.",
     marketingDesc: "El cerebro que crea tu estrategia y prepara tus campañas.",
     paymentsDesc: "Links de pago para cobrarle a tus clientes desde tu teléfono o desde Sevrii.",
-    capitalDesc: "Inversión o préstamos para crecer, según lo que vendes en Sevrii.",
+    capitalDesc: "Financiamiento para negocios que cobran con Sevrii, junto a un socio financiero.",
     storeMetric: (n: number) => (n === 1 ? "1 servicio publicado" : `${n} servicios publicados`),
     marketingMetric: (n: number) =>
       n === 0 ? "Todavía sin campañas" : n === 1 ? "1 borrador de campaña" : `${n} borradores de campaña`,
@@ -198,16 +198,16 @@ const es = {
       mockReceived: "Pago recibido",
     },
     capital: {
-      title: "Capital para crecer.",
-      lead: "Como tus cobros van a pasar por Sevrii, vamos a ver cómo crece tu negocio. Con eso podremos invertir en él o prestarte para crecer.",
+      title: "Financiamiento para crecer.",
+      lead: "Estamos preparando opciones de financiamiento con un socio financiero para los negocios que cobran con Sevrii. Sevrii no presta dinero y esto no es una oferta de crédito.",
       points: [
-        ["Basado en lo que vendes", "Usamos tus ventas en Sevrii para conocer de verdad tu negocio."],
-        ["Inversión o préstamo", "Invertimos en tu negocio o te prestamos, según lo que necesites."],
-        ["Crecemos contigo", "Nos asociamos con los negocios de servicios que están creciendo."],
+        ["Basado en tus cobros", "Cuando cobres con Sevrii Payments durante al menos 3 meses, podrás empezar el proceso para ver si calificas."],
+        ["Lo decide el socio", "La aprobación, el monto y las condiciones los define el socio financiero, no Sevrii."],
+        ["Te avisamos", "Cuando esté disponible para tu negocio, te avisamos."],
       ] as [string, string][],
-      mockLabel: "Tus ventas en Sevrii",
-      mockTitle: "Tu negocio está creciendo",
-      mockOffer: "Capital para crecer",
+      mockLabel: "Ejemplo ilustrativo",
+      mockTitle: "Tus cobros en Sevrii",
+      mockOffer: "Financiamiento",
     },
   },
   site: {
@@ -367,7 +367,7 @@ const en: Dict = {
     storeDesc: "Your services shop, built and edited by your AI agent.",
     marketingDesc: "The brain that builds your strategy and preps your campaigns.",
     paymentsDesc: "Payment links to charge your clients from your phone or from inside Sevrii.",
-    capitalDesc: "Investment or loans to grow, based on what you sell on Sevrii.",
+    capitalDesc: "Financing for businesses that get paid through Sevrii, with a financial partner.",
     storeMetric: (n: number) => (n === 1 ? "1 service listed" : `${n} services listed`),
     marketingMetric: (n: number) =>
       n === 0 ? "No campaigns yet" : n === 1 ? "1 campaign draft" : `${n} campaign drafts`,
@@ -398,16 +398,16 @@ const en: Dict = {
       mockReceived: "Payment received",
     },
     capital: {
-      title: "Capital to grow.",
-      lead: "Because your payments will run through Sevrii, we'll see how your business grows. With that, we'll be able to invest in it or lend you capital to grow.",
+      title: "Financing to grow.",
+      lead: "We're preparing financing options with a financial partner for businesses that get paid through Sevrii. Sevrii does not lend money, and this is not an offer of credit.",
       points: [
-        ["Based on what you sell", "We use your sales on Sevrii to really understand your business."],
-        ["Investment or loan", "We invest in your business or lend to you, depending on what you need."],
-        ["We grow with you", "We partner with the services businesses that are growing."],
+        ["Based on your payments", "Once you've been getting paid with Sevrii Payments for at least 3 months, you'll be able to start the process to see if you qualify."],
+        ["The partner decides", "Approval, amount and terms are set by the financial partner, not by Sevrii."],
+        ["We'll let you know", "When it's available for your business, we'll let you know."],
       ] as [string, string][],
-      mockLabel: "Your sales on Sevrii",
-      mockTitle: "Your business is growing",
-      mockOffer: "Capital to grow",
+      mockLabel: "Illustrative example",
+      mockTitle: "Your payments on Sevrii",
+      mockOffer: "Financing",
     },
   },
   site: {

@@ -56,7 +56,7 @@ export default function ComingSoonView({
               <div className="soon-card">
                 <div className="lbl">{d.payments.mockLabel}</div>
                 <div className="svc">{d.payments.mockService}</div>
-                <div className="amt">$120.000</div>
+                <div className="amt">$120.00</div>
                 <div className="pay">{d.payments.mockPay}</div>
                 <div className="url">sevrii.com/pay</div>
               </div>
