@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { listServices, listCampaigns, listChatMessages } from "@/lib/db";
-import DashboardTabs, { DASHBOARD_VIEWS, type DashboardView } from "./DashboardTabs";
+import DashboardTabs from "./DashboardTabs";
+import { DASHBOARD_VIEWS, toClientBusiness, type DashboardView } from "./types";
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const user = await getCurrentUser();
@@ -21,18 +22,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <DashboardTabs
       initialView={initialView}
       userEmail={user.email}
-      business={{
-        id: business.id,
-        slug: business.slug,
-        name: business.name,
-        category: business.category,
-        city: business.city,
-        pitch: business.pitch,
-        whatsapp: business.whatsapp,
-        accentColor: business.accentColor,
-        pageViews: business.pageViews,
-        whatsappClicks: business.whatsappClicks,
-      }}
+      business={toClientBusiness(business)}
       services={services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description }))}
       campaigns={campaigns.map((c) => ({
         id: c.id,

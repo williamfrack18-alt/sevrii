@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { sendPageEditCommand } from "@/app/actions";
-import type { ClientBusiness, ClientService } from "./DashboardTabs";
+import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
 import { useT } from "@/components/LangProvider";
 
 type Msg = { id: string; role: string; content: string };
@@ -38,15 +38,7 @@ export default function EditorChat({
       const result = await sendPageEditCommand(value);
       setMessages(result.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })));
       onUpdated(
-        {
-          ...business,
-          name: result.business.name,
-          category: result.business.category,
-          city: result.business.city,
-          pitch: result.business.pitch,
-          whatsapp: result.business.whatsapp,
-          accentColor: result.business.accentColor,
-        },
+        toClientBusiness(result.business),
         result.services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description }))
       );
     });

@@ -14,7 +14,9 @@ import {
   listCampaigns,
   listChatMessages,
   listServices,
-  incrementWhatsappClicks,
+  incrementContactClick,
+  getBusinessBySlug,
+  createPageReport,
 } from "@/lib/db";
 import {
   hashPassword,
@@ -28,6 +30,8 @@ import {
 } from "@/lib/auth";
 import { createSessionRow, deleteSessionRow } from "@/lib/db";
 import { allow, clear, clientIp, LIMITS } from "@/lib/guard";
+import { generateSiteDraft } from "@/lib/siteAI";
+import { EMPTY_SITE, normalizePhone } from "@/lib/site";
 import { getCurrentUser } from "@/lib/session";
 import { runPageEditorTurn } from "@/lib/aiEditor";
 import { runMarketingAgentTurn } from "@/lib/marketingAgent";
@@ -60,10 +64,10 @@ async function startSession(userId: string) {
 
 export type FormState = { error?: string } | null;
 
-function pageLiveMessage(lang: "es" | "en", slug: string) {
+function pageLiveMessage(lang: "es" | "en", _slug: string) {
   return lang === "es"
-    ? `Listo, ya estoy armando tu página. Tu página está publicada en /site/${slug}.`
-    : `Got it — building your page now. Your page is live at /site/${slug}.`;
+    ? "Listo, tu página quedó como borrador. Revisa los textos y precios, agrega tu teléfono y publícala desde la pestaña Store."
+    : "Done — your page is saved as a draft. Review the text and prices, add your phone, and publish it from the Store tab.";
 }
 
 export async function signupAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -166,28 +170,38 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
     slug = `${baseSlug}-${n}`;
   }
 
-  const pitch = generatePitch({
-    name: answers.name,
-    category,
-    description: answers.description,
-    city: answers.city,
-    lang,
-  });
+  const name = String(answers.name || "").trim().slice(0, 80) || "Mi negocio";
+  const city = String(answers.city || "").trim().slice(0, 80);
+  const description = String(answers.description || "").trim().slice(0, 1500);
+  const categoryRaw = String(answers.categoryRaw || "").trim().slice(0, 60);
+  // Show the owner's own words for the category when ours is just "Other".
+  const shownCategory = /^(other|otro)$/i.test(category) && categoryRaw ? categoryRaw : category;
+
+  const draft = await generateSiteDraft({ name, category: shownCategory, city, description, lang });
+  const pitch =
+    draft?.pitch ||
+    generatePitch({ name, category: shownCategory, description, city, lang });
 
   const business = await createBusiness({
     userId: user!.id,
     slug,
-    name: answers.name,
-    category,
-    description: answers.description,
-    city: answers.city,
+    name,
+    category: shownCategory,
+    description,
+    city,
     pitch,
+    site: { ...EMPTY_SITE, lang, headline: draft?.headline ?? "", highlights: draft?.highlights ?? [], serviceArea: city },
   });
 
-  const services = suggestServices(category, lang);
-  for (let i = 0; i < services.length; i++) {
-    const s = services[i];
-    await addService(business.id, s.name, s.price, undefined, i);
+  if (draft) {
+    for (let i = 0; i < draft.services.length; i++) {
+      await addService(business.id, draft.services[i].name, undefined, draft.services[i].description || undefined, i);
+    }
+  } else {
+    const services = suggestServices(category, lang);
+    for (let i = 0; i < services.length; i++) {
+      await addService(business.id, services[i].name, undefined, undefined, i);
+    }
   }
 
   // Persist the onboarding conversation for continuity with the chat UI.
@@ -207,7 +221,7 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
 export async function updateWhatsappAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user || !user.business) redirect("/login");
-  const whatsapp = String(formData.get("whatsapp") || "").trim();
+  const whatsapp = normalizePhone(String(formData.get("whatsapp") || "").trim()) ?? "";
   await updateBusinessWhatsapp(user.business.id, whatsapp);
   revalidatePath("/dashboard");
   revalidatePath(`/site/${user.business.slug}`);
@@ -291,26 +305,39 @@ export async function completeDiscoveryAction(input: {
     slug = `${baseSlug}-${n}`;
   }
 
-  const pitch = generateDiscoveryPitch({
-    name: details.businessName,
-    idea,
-    location: discovery.location,
-    pricing: details.pricing,
+  const name = String(details.businessName || "").trim().slice(0, 80) || idea.title;
+  const city = String(discovery.location || "").trim().slice(0, 80);
+  const draft = await generateSiteDraft({
+    name,
+    category: idea.title,
+    city,
+    description: `${idea.title}. ${idea.desc} ${String(discovery.background || "").slice(0, 600)}`,
     lang,
   });
+  const pitch =
+    draft?.pitch ||
+    generateDiscoveryPitch({ name, idea, location: city, pricing: details.pricing, lang });
+  const wa = normalizePhone(input.whatsapp);
 
   const business = await createBusiness({
     userId: user.id,
     slug,
-    name: details.businessName,
+    name,
     category: idea.title,
     description: idea.desc,
-    city: discovery.location,
+    city,
     pitch,
-    whatsapp: input.whatsapp?.trim() || null,
+    whatsapp: wa,
+    site: { ...EMPTY_SITE, lang, headline: draft?.headline ?? "", highlights: draft?.highlights ?? [], serviceArea: city },
   });
 
-  await addService(business.id, idea.title, details.pricing.slice(0, 120), idea.desc, 0);
+  if (draft) {
+    for (let i = 0; i < draft.services.length; i++) {
+      await addService(business.id, draft.services[i].name, undefined, draft.services[i].description || undefined, i);
+    }
+  } else {
+    await addService(business.id, idea.title, String(details.pricing || "").slice(0, 40) || undefined, idea.desc, 0);
+  }
 
   // Persist the full two-part conversation for continuity with the chat UI.
   await addChatMessage(business.id, "onboarding", "ai", nextDiscoveryPrompt("ask_location", lang));
@@ -393,13 +420,36 @@ export async function sendPageEditCommand(message: string) {
 
 // ---------- Public page analytics (best-effort, no auth — called by visitors) ----------
 
-export async function trackWhatsappClickAction(businessId: string) {
+export async function trackContactClickAction(businessId: string, channel: "call" | "text" | "whatsapp") {
   try {
     if (typeof businessId !== "string" || businessId.length > 64) return;
-    // Count at most 3 clicks per visitor (IP) per business per hour.
-    if (!(await allow(`wa:${(await clientIp())}:${businessId}`, 3, 60 * 60))) return;
-    await incrementWhatsappClicks(businessId);
+    if (channel !== "call" && channel !== "text" && channel !== "whatsapp") return;
+    // Count at most 3 clicks per visitor (IP) per business and channel per hour.
+    if (!(await allow(`click:${channel}:${await clientIp()}:${businessId}`, 3, 60 * 60))) return;
+    await incrementContactClick(businessId, channel);
   } catch {
-    // Never let a tracking failure affect the visitor's WhatsApp link.
+    // Never let a tracking failure affect the visitor's link.
   }
+}
+
+// Kept for pages still loaded in a visitor's browser from before the update.
+export async function trackWhatsappClickAction(businessId: string) {
+  return trackContactClickAction(businessId, "whatsapp");
+}
+
+// ---------- "Report this page" (public, no auth) ----------
+const REPORT_REASONS = ["fraud", "fake", "impersonation", "illegal", "other"] as const;
+
+export async function reportPageAction(
+  slug: string,
+  reason: string,
+  details: string
+): Promise<{ ok: boolean; error?: "rate" | "invalid" }> {
+  if (!(REPORT_REASONS as readonly string[]).includes(reason)) return { ok: false, error: "invalid" };
+  if (!(await allow(`report:${await clientIp()}`, 5, 60 * 60))) return { ok: false, error: "rate" };
+  const business = await getBusinessBySlug(String(slug || "").slice(0, 120));
+  if (!business) return { ok: false, error: "invalid" };
+  await createPageReport(business.id, reason, String(details || "").trim().slice(0, 2000) || null);
+  console.warn("[report] page reported", business.slug, reason);
+  return { ok: true };
 }

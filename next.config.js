@@ -12,6 +12,8 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Store photo uploads go through a server action (max 4 MB per photo).
+  experimental: { serverActions: { bodySizeLimit: "4.5mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

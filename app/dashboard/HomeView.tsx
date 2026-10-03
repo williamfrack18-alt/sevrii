@@ -33,7 +33,7 @@ export default function HomeView({
 
   const stats = [
     { label: d.pageViews, value: business.pageViews },
-    { label: d.whatsappClicks, value: business.whatsappClicks },
+    { label: d.contacts, value: business.callClicks + business.textClicks + business.whatsappClicks },
     { label: d.services, value: services.length },
     { label: d.campaignDrafts, value: campaigns.length },
   ];
@@ -62,7 +62,8 @@ export default function HomeView({
 
   // Only real, still-pending things — nothing here is invented.
   const steps: { label: string; go: DashboardView }[] = [];
-  if (!business.whatsapp) steps.push({ label: d.stepWhatsapp, go: "store" });
+  if (!business.site.phone && !business.whatsapp) steps.push({ label: d.stepWhatsapp, go: "store" });
+  if (!business.published) steps.push({ label: d.stepPublish, go: "store" });
   if (services.length === 0) steps.push({ label: d.stepService, go: "store" });
   if (campaigns.length === 0) steps.push({ label: d.stepCampaign, go: "marketing" });
 
@@ -76,7 +77,7 @@ export default function HomeView({
         <h1 className="font-serif text-[36px] md:text-[48px] leading-[1.05]">{business.name}</h1>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[14px] text-muted">
           <span>
-            {d.livePage}{" "}
+            {business.published ? d.livePage : d.draftPage}{" "}
             <a href={livePath} target="_blank" rel="noopener noreferrer" className="text-ink underline">
               sevrii.com{livePath}
             </a>

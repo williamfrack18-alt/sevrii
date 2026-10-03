@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
+import { parseSite, type SiteData } from "./site";
 
 // The Neon Vercel integration injects several connection-string env vars;
 // POSTGRES_URL / DATABASE_URL are the pooled connection, which is what a
@@ -132,6 +133,19 @@ function ensureSchema(): Promise<void> {
           "windowEndsAt" TIMESTAMPTZ NOT NULL
         )
       `;
+      // Store v2: everything the public page shows beyond the basic row.
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS site JSONB NOT NULL DEFAULT '{}'::jsonb`;
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "callClicks" INTEGER NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "textClicks" INTEGER NOT NULL DEFAULT 0`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS page_reports (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL REFERENCES businesses(id),
+          reason TEXT NOT NULL,
+          details TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
       await sql`CREATE INDEX IF NOT EXISTS services_business_idx ON services ("businessId")`;
       await sql`CREATE INDEX IF NOT EXISTS campaigns_business_idx ON campaigns ("businessId")`;
       await sql`CREATE INDEX IF NOT EXISTS chat_messages_business_idx ON chat_messages ("businessId", channel)`;
@@ -243,8 +257,21 @@ export type BusinessRow = {
   published: number;
   pageViews: number;
   whatsappClicks: number;
+  callClicks: number;
+  textClicks: number;
+  site: SiteData;
   createdAt: string;
 };
+
+function toBusiness(row: Record<string, unknown> | undefined): BusinessRow | undefined {
+  if (!row) return undefined;
+  return {
+    ...(row as unknown as BusinessRow),
+    callClicks: Number(row.callClicks ?? 0),
+    textClicks: Number(row.textClicks ?? 0),
+    site: parseSite(row.site),
+  };
+}
 
 export async function isSlugTaken(slug: string): Promise<boolean> {
   await ensureSchema();
@@ -261,6 +288,7 @@ export async function createBusiness(input: {
   city?: string | null;
   pitch: string;
   whatsapp?: string | null;
+  site?: SiteData;
 }): Promise<BusinessRow> {
   await ensureSchema();
   const id = newId();
@@ -268,11 +296,13 @@ export async function createBusiness(input: {
   const accentColor = "#122118";
   const city = input.city ?? null;
   const whatsapp = input.whatsapp ?? null;
+  const site = parseSite(input.site ?? {});
+  // New pages start as drafts: the owner reviews prices and claims before publishing.
   await sql`
     INSERT INTO businesses
-      (id, "userId", slug, name, category, description, city, pitch, whatsapp, "accentColor", published, "createdAt")
+      (id, "userId", slug, name, category, description, city, pitch, whatsapp, "accentColor", published, site, "createdAt")
     VALUES
-      (${id}, ${input.userId}, ${input.slug}, ${input.name}, ${input.category}, ${input.description}, ${city}, ${input.pitch}, ${whatsapp}, ${accentColor}, 1, ${createdAt})
+      (${id}, ${input.userId}, ${input.slug}, ${input.name}, ${input.category}, ${input.description}, ${city}, ${input.pitch}, ${whatsapp}, ${accentColor}, 0, ${JSON.stringify(site)}::jsonb, ${createdAt})
   `;
   return {
     id,
@@ -285,9 +315,12 @@ export async function createBusiness(input: {
     pitch: input.pitch,
     whatsapp,
     accentColor,
-    published: 1,
+    published: 0,
     pageViews: 0,
     whatsappClicks: 0,
+    callClicks: 0,
+    textClicks: 0,
+    site,
     createdAt,
   };
 }
@@ -296,14 +329,14 @@ export async function getBusinessByUserId(userId: string): Promise<BusinessRow |
   await ensureSchema();
   const rows = (await sql`
     SELECT * FROM businesses WHERE "userId" = ${userId}
-  `) as BusinessRow[];
-  return rows[0];
+  `) as Record<string, unknown>[];
+  return toBusiness(rows[0]);
 }
 
 export async function getBusinessBySlug(slug: string): Promise<BusinessRow | undefined> {
   await ensureSchema();
-  const rows = (await sql`SELECT * FROM businesses WHERE slug = ${slug}`) as BusinessRow[];
-  return rows[0];
+  const rows = (await sql`SELECT * FROM businesses WHERE slug = ${slug}`) as Record<string, unknown>[];
+  return toBusiness(rows[0]);
 }
 
 export async function updateBusinessWhatsapp(businessId: string, whatsapp: string): Promise<void> {
@@ -338,6 +371,28 @@ export async function updateBusinessDetails(
     `UPDATE businesses SET ${setClauses.join(", ")} WHERE id = $${entries.length + 1}`,
     [...values, businessId]
   );
+}
+
+export async function updateBusinessSite(businessId: string, site: SiteData): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET site = ${JSON.stringify(parseSite(site))}::jsonb WHERE id = ${businessId}`;
+}
+
+export async function setBusinessPublished(businessId: string, published: boolean): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET published = ${published ? 1 : 0} WHERE id = ${businessId}`;
+}
+
+export async function incrementContactClick(businessId: string, channel: "call" | "text" | "whatsapp"): Promise<void> {
+  await ensureSchema();
+  if (channel === "call") await sql`UPDATE businesses SET "callClicks" = "callClicks" + 1 WHERE id = ${businessId}`;
+  else if (channel === "text") await sql`UPDATE businesses SET "textClicks" = "textClicks" + 1 WHERE id = ${businessId}`;
+  else await sql`UPDATE businesses SET "whatsappClicks" = "whatsappClicks" + 1 WHERE id = ${businessId}`;
+}
+
+export async function createPageReport(businessId: string, reason: string, details: string | null): Promise<void> {
+  await ensureSchema();
+  await sql`INSERT INTO page_reports (id, "businessId", reason, details) VALUES (${newId()}, ${businessId}, ${reason}, ${details})`;
 }
 
 export async function incrementPageViews(businessId: string): Promise<void> {

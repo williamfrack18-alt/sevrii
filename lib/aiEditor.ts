@@ -11,7 +11,9 @@ import {
   updateService,
   deleteService,
   listServices,
+  updateBusinessSite,
 } from "./db";
+import { normalizePhone, parseSite } from "./site";
 
 
 // ---------- The one tool the model is allowed to call ----------
@@ -21,7 +23,7 @@ import {
 const EDIT_TOOL: Tool = {
   name: "apply_page_edits",
   description:
-    "Apply one or more real edits to this business's Sevrii page. Only use this for changes covered by the fields below — never for things like uploading real photos, editing FAQ entries, managing reviews, or connecting ad accounts, since none of that exists in this schema yet.",
+    "Apply one or more real edits to this business's Sevrii page. Use only for the fields below. Photos are uploaded by the owner, reviews come only from real customers, and ad accounts are connected elsewhere — none of those can be edited here.",
   input_schema: {
     type: "object",
     properties: {
@@ -39,6 +41,9 @@ const EDIT_TOOL: Tool = {
                 "add_service",
                 "update_service",
                 "delete_service",
+                "update_site",
+                "set_highlights",
+                "set_faq",
               ],
               description: "Which kind of edit this is.",
             },
@@ -57,6 +62,27 @@ const EDIT_TOOL: Tool = {
             accentColor: {
               type: "string",
               description: "New accent color as a 6-digit hex code like #122118 (update_accent_color only)",
+            },
+            headline: { type: "string", description: "Page headline, max 90 characters (update_site)" },
+            phone: { type: "string", description: "Phone for calls, e.g. (305) 555-0123 (update_site)" },
+            textEnabled: { type: "boolean", description: "Whether the phone accepts text messages (update_site)" },
+            serviceArea: { type: "string", description: "Service area, e.g. 'Miami-Dade and Broward' (update_site)" },
+            hours: { type: "string", description: "Opening hours, e.g. 'Mon–Sat 8am–6pm' (update_site)" },
+            licenseNumber: { type: "string", description: "License number — ONLY if the owner typed it (update_site)" },
+            licenseState: { type: "string", description: "License state (update_site)" },
+            insured: { type: "boolean", description: "ONLY if the owner said they are insured (update_site)" },
+            spanish: { type: "boolean", description: "Owner serves customers in Spanish (update_site)" },
+            yearsInBusiness: { type: "number", description: "ONLY if the owner said it (update_site)" },
+            googleReviewsUrl: { type: "string", description: "https link to the owner's Google reviews (update_site)" },
+            highlights: {
+              type: "array",
+              items: { type: "string" },
+              description: "Full new list (max 4) of short reasons to choose the business (set_highlights)",
+            },
+            faq: {
+              type: "array",
+              items: { type: "object", properties: { q: { type: "string" }, a: { type: "string" } }, required: ["q", "a"] },
+              description: "Full new FAQ list (max 8), answers only with facts the owner gave (set_faq)",
             },
             serviceId: {
               type: "string",
@@ -87,6 +113,19 @@ type EditOp = {
   serviceName?: string;
   servicePrice?: string;
   serviceDescription?: string;
+  headline?: string;
+  phone?: string;
+  textEnabled?: boolean;
+  serviceArea?: string;
+  hours?: string;
+  licenseNumber?: string;
+  licenseState?: string;
+  insured?: boolean;
+  spanish?: boolean;
+  yearsInBusiness?: number;
+  googleReviewsUrl?: string;
+  highlights?: string[];
+  faq?: { q: string; a: string }[];
 };
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
@@ -194,6 +233,48 @@ async function applyEdits(
           applied.push(`deleted service "${svc.name}"`);
           break;
         }
+        case "update_site":
+        case "set_highlights":
+        case "set_faq": {
+          const patch: Record<string, unknown> = {};
+          if (edit.op === "update_site") {
+            for (const k of [
+              "headline",
+              "textEnabled",
+              "serviceArea",
+              "hours",
+              "licenseNumber",
+              "licenseState",
+              "insured",
+              "spanish",
+              "yearsInBusiness",
+              "googleReviewsUrl",
+            ] as const) {
+              if (edit[k] !== undefined) patch[k] = edit[k];
+            }
+            if (edit.phone !== undefined) {
+              const p = normalizePhone(edit.phone);
+              if (edit.phone && !p) {
+                skipped.push("update_site: invalid phone");
+              } else {
+                patch.phone = p ?? "";
+              }
+            }
+          } else if (edit.op === "set_highlights") {
+            patch.highlights = edit.highlights ?? [];
+          } else {
+            patch.faq = edit.faq ?? [];
+          }
+          if (Object.keys(patch).length === 0) {
+            skipped.push(`${edit.op}: no fields given`);
+            break;
+          }
+          const site = parseSite({ ...nextBusiness.site, ...patch });
+          await updateBusinessSite(business.id, site);
+          nextBusiness = { ...nextBusiness, site };
+          applied.push(`updated ${Object.keys(patch).join(", ")}`);
+          break;
+        }
         default:
           skipped.push(`unknown op: ${edit.op}`);
       }
@@ -214,7 +295,9 @@ export type EditorTurnResult = {
 
 const SYSTEM_PROMPT = `You are Sevrii AI, helping the owner of a real, live business edit their real Sevrii page through this chat.
 
-You can ONLY change what the apply_page_edits tool supports: business name, category, internal description, public pitch text, city, WhatsApp number, accent color, and services (add/update/delete, each with name, price, description).
+You can ONLY change what the apply_page_edits tool supports: business name, category, internal description, public pitch text, city, WhatsApp number, accent color, services (add/update/delete, each with name, price, description), and the page details: headline, phone for calls/texts, service area, hours, license number and state, insured, Spanish spoken, years in business, Google reviews link, "why choose us" highlights and FAQ.
+
+The owner is legally responsible for every claim on the page (US law). Never set a license number, "insured", years in business, prices, guarantees or reviews unless the owner explicitly gave you that fact in this conversation. Never invent FAQ answers: only use facts the owner stated. If something is missing, ask for it instead of guessing. Photos are uploaded by the owner in the "Fotos/Photos" section below the chat.
 
 Never invent facts about the business — only use what the owner tells you. If asked to do something outside those fields (uploading real photos, editing FAQ entries, managing reviews, connecting ad accounts, anything not listed above), say plainly and briefly that you can't do that yet. Don't pretend to.
 
@@ -258,6 +341,7 @@ export async function runPageEditorTurn(
       whatsapp: business.whatsapp,
       accentColor: business.accentColor,
     },
+    page: business.site,
     services: services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description })),
   });
 

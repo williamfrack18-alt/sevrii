@@ -9,36 +9,10 @@ import ComingSoonView from "./ComingSoonView";
 import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
 import { useT } from "@/components/LangProvider";
+import type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, DashboardView } from "./types";
 
-export type ClientBusiness = {
-  id: string;
-  slug: string;
-  name: string;
-  category: string;
-  city: string | null;
-  pitch: string;
-  whatsapp: string | null;
-  accentColor: string;
-  pageViews: number;
-  whatsappClicks: number;
-};
-
-export type ClientService = { id: string; name: string; price: string | null; description: string | null };
-export type ClientCampaign = {
-  id: string;
-  title: string;
-  goal: string;
-  status: string;
-  adCopy: string | null;
-  budgetNote: string | null;
-  audience: string | null;
-  platforms: string | null;
-  variations: string | null;
-};
-export type ClientMsg = { id: string; role: string; content: string };
-
-export type DashboardView = "home" | "store" | "marketing" | "payments" | "capital";
-export const DASHBOARD_VIEWS: DashboardView[] = ["home", "store", "marketing", "payments", "capital"];
+export type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, DashboardView } from "./types";
+import { DASHBOARD_VIEWS } from "./types";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
