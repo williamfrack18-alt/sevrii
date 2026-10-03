@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { logoutAction } from "@/app/actions";
 import StoreView from "./StoreView";
 import MarketingView from "./MarketingView";
@@ -82,6 +82,21 @@ export default function DashboardTabs({
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
   const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);
   const [storeMessages, setStoreMessages] = useState<ClientMsg[]>(editorMessages);
+  // Side rail: collapsed (icons only) by default; the choice is remembered on this device.
+  const [railOpen, setRailOpen] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("sevrii_rail") === "open") setRailOpen(true);
+    } catch {}
+  }, []);
+  function toggleRail() {
+    setRailOpen((open) => {
+      try {
+        localStorage.setItem("sevrii_rail", open ? "closed" : "open");
+      } catch {}
+      return !open;
+    });
+  }
 
   function setView(next: DashboardView) {
     setViewState(next);
@@ -137,73 +152,109 @@ export default function DashboardTabs({
         </div>
       </div>
 
-      {/* Desktop rail */}
-      <aside className="hidden md:flex w-[248px] shrink-0 min-h-screen sticky top-0 h-screen bg-white border-r border-border p-5 flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <BrandMark />
-            <LangToggle />
-          </div>
-          <a
-            href={`/site/${currentBusiness.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2.5 p-2.5 border border-border rounded-[12px] mb-6 hover:border-borderStrong transition"
-          >
-            <div
-              className="w-[30px] h-[30px] rounded-[8px] text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
-              style={{ background: `linear-gradient(135deg, ${currentBusiness.accentColor} 0%, #2B4F3A 100%)` }}
+      {/* Desktop rail: collapsed to icons by default, expands with the toggle */}
+      <aside
+        className={`hidden md:flex ${railOpen ? "w-[248px] p-5" : "w-[68px] px-2.5 py-5"} shrink-0 sticky top-0 h-screen bg-white border-r border-border flex-col justify-between transition-[width] duration-200`}
+      >
+        <div className="min-w-0">
+          <div className={`flex items-center ${railOpen ? "justify-between" : "flex-col gap-4"} mb-6`}>
+            {railOpen ? (
+              <BrandMark />
+            ) : (
+              <a href="/dashboard" aria-label="Sevrii" className="flex justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/sevrii-logo.png" alt="Sevrii" className="h-7 w-7 object-contain" />
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={toggleRail}
+              aria-label={railOpen ? t.dashboard.collapse : t.dashboard.expand}
+              title={railOpen ? t.dashboard.collapse : t.dashboard.expand}
+              className="h-8 w-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-mint"
             >
-              {initials(currentBusiness.name)}
-            </div>
-            <div className="grow min-w-0">
-              <div className="text-[13px] font-semibold text-ink truncate">{currentBusiness.name}</div>
-              <div className="text-[11px] text-mutedLight truncate">sevrii.com/site/{currentBusiness.slug}</div>
-            </div>
-          </a>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2.5" />
+                <path d="M9 4v16" />
+                {railOpen ? <path d="M15.5 10l-2 2 2 2" /> : <path d="M13.5 10l2 2-2 2" />}
+              </svg>
+            </button>
+          </div>
+
+          {railOpen && (
+            <a
+              href={`/site/${currentBusiness.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 p-2.5 border border-border rounded-[12px] mb-6 hover:border-borderStrong transition"
+            >
+              <div
+                className="w-[30px] h-[30px] rounded-[8px] text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
+                style={{ background: `linear-gradient(135deg, ${currentBusiness.accentColor} 0%, #2B4F3A 100%)` }}
+              >
+                {initials(currentBusiness.name)}
+              </div>
+              <div className="grow min-w-0">
+                <div className="text-[13px] font-semibold text-ink truncate">{currentBusiness.name}</div>
+                <div className="text-[11px] text-mutedLight truncate">sevrii.com/site/{currentBusiness.slug}</div>
+              </div>
+            </a>
+          )}
 
           <nav className="flex flex-col gap-1">
-            {items.slice(0, 1).map((it) => (
-              <button
-                key={it.id}
-                type="button"
-                onClick={() => setView(it.id)}
-                className={`dash-nav ${view === it.id ? "on" : ""}`}
-              >
-                <NavIcon id={it.id} on={view === it.id} />
-                <span>{it.label}</span>
-              </button>
-            ))}
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight mt-5 mb-2 px-2.5">
-              {t.dashboard.pillarsLabel}
-            </div>
-            {items.slice(1).map((it) => (
-              <button
-                key={it.id}
-                type="button"
-                onClick={() => setView(it.id)}
-                className={`dash-nav ${view === it.id ? "on" : ""}`}
-              >
-                <NavIcon id={it.id} on={view === it.id} />
-                <span className="grow text-left">{it.label}</span>
-                {it.soon ? <span className="dash-soon">{t.dashboard.soon}</span> : <span className="dash-n">{it.n}</span>}
-              </button>
+            {items.map((it, i) => (
+              <div key={it.id}>
+                {railOpen && i === 1 && (
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight mt-5 mb-2 px-2.5">
+                    {t.dashboard.pillarsLabel}
+                  </div>
+                )}
+                {!railOpen && i === 1 && <div className="h-px bg-border my-2 mx-2" />}
+                <button
+                  type="button"
+                  onClick={() => setView(it.id)}
+                  title={railOpen ? undefined : it.label}
+                  aria-label={it.label}
+                  className={`dash-nav w-full ${railOpen ? "" : "!justify-center !px-0 relative"} ${view === it.id ? "on" : ""}`}
+                >
+                  <NavIcon id={it.id} on={view === it.id} />
+                  {railOpen && <span className="grow text-left">{it.label}</span>}
+                  {railOpen && i > 0 && (it.soon ? <span className="dash-soon">{t.dashboard.soon}</span> : <span className="dash-n">{it.n}</span>)}
+                  {!railOpen && it.soon && <span className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-[#ffc400]" />}
+                </button>
+              </div>
             ))}
           </nav>
         </div>
 
-        <div className="flex flex-col gap-2.5 border-t border-border pt-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-[28px] h-[28px] rounded-full bg-border text-muted flex items-center justify-center text-[10px] font-semibold shrink-0">
+        <div className={`flex flex-col gap-2.5 border-t border-border pt-4 ${railOpen ? "" : "items-center"}`}>
+          {railOpen ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-[28px] h-[28px] rounded-full bg-border text-muted flex items-center justify-center text-[10px] font-semibold shrink-0">
+                    {initials(userEmail)}
+                  </div>
+                  <div className="text-[12px] text-ink truncate min-w-0">{userEmail}</div>
+                </div>
+                <LangToggle />
+              </div>
+              <form action={logoutAction}>
+                <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
+                  {t.dashboard.logout}
+                </button>
+              </form>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={toggleRail}
+              title={userEmail}
+              className="w-[30px] h-[30px] rounded-full bg-border text-muted flex items-center justify-center text-[10px] font-semibold"
+            >
               {initials(userEmail)}
-            </div>
-            <div className="grow text-[12px] text-ink truncate min-w-0">{userEmail}</div>
-          </div>
-          <form action={logoutAction}>
-            <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
-              {t.dashboard.logout}
             </button>
-          </form>
+          )}
         </div>
       </aside>
 
