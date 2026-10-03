@@ -9,11 +9,20 @@ type Msg = { role: "ai" | "user"; text: string };
 
 const STEP_ORDER: OnboardingStep[] = ["ask_name", "ask_category", "ask_city", "ask_description", "done"];
 
-export default function OnboardingChat() {
+export default function OnboardingChat({ newProject = false }: { newProject?: boolean }) {
   const lang = useLang();
   const t = useT();
   const [step, setStep] = useState<OnboardingStep>("ask_name");
-  const [messages, setMessages] = useState<Msg[]>([{ role: "ai", text: nextOnboardingPrompt("ask_name", lang) }]);
+  const [messages, setMessages] = useState<Msg[]>([
+    {
+      role: "ai",
+      text: newProject
+        ? lang === "es"
+          ? "¿Cómo se llama este proyecto? Usa el nombre con el que vas a vender este servicio, por ejemplo “Pérez Electric”."
+          : "What's this project called? Use the name you'll sell this service under, for example “Perez Electric”."
+        : nextOnboardingPrompt("ask_name", lang),
+    },
+  ]);
   const [answers, setAnswers] = useState<Partial<OnboardingAnswers>>({});
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -48,7 +57,7 @@ export default function OnboardingChat() {
       setStep("done");
       startTransition(async () => {
         try {
-          await completeOnboardingAction(updatedAnswers as OnboardingAnswers);
+          await completeOnboardingAction(updatedAnswers as OnboardingAnswers, newProject);
         } catch (err: any) {
           if (err?.digest?.startsWith?.("NEXT_REDIRECT")) throw err;
           setError(t.common.buildError);

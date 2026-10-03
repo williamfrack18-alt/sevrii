@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { logoutAction } from "@/app/actions";
 import StoreView from "./StoreView";
 import MarketingView from "./MarketingView";
-import HomeView from "./HomeView";
+import ProjectsView from "./ProjectsView";
+import PlanView from "./PlanView";
 import ComingSoonView from "./ComingSoonView";
 import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
-import { useT } from "@/components/LangProvider";
-import type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, DashboardView } from "./types";
+import { useT, useLang } from "@/components/LangProvider";
+import { PLAN_TEXT } from "@/lib/planI18n";
+import type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, ClientProject, DashboardView } from "./types";
 
 export type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, DashboardView } from "./types";
 import { DASHBOARD_VIEWS } from "./types";
@@ -22,10 +24,17 @@ function initials(name: string): string {
 }
 
 const ICONS: Record<DashboardView, React.JSX.Element> = {
-  home: (
+  projects: (
     <>
-      <path d="M3 10.5L12 3l9 7.5" />
-      <path d="M5 9.5V20h14V9.5" />
+      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" />
+    </>
+  ),
+  plan: (
+    <>
+      <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
+      <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
+      <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
+      <path d="M12 5v13" />
     </>
   ),
   store: (
@@ -58,33 +67,41 @@ const ICONS: Record<DashboardView, React.JSX.Element> = {
 };
 
 export default function DashboardTabs({
-  initialView = "home",
+  initialView = "projects",
   userEmail,
   business,
+  projects,
   services,
   campaigns,
+  planMessages,
   marketingMessages,
   editorMessages,
+  planGreeting,
   storeGreeting,
   marketingGreeting,
 }: {
   initialView?: DashboardView;
   userEmail: string;
   business: ClientBusiness;
+  projects: ClientProject[];
   services: ClientService[];
   campaigns: ClientCampaign[];
+  planMessages: ClientMsg[];
   marketingMessages: ClientMsg[];
   editorMessages: ClientMsg[];
+  planGreeting: string;
   storeGreeting: string;
   marketingGreeting: string;
 }) {
   const t = useT();
+  const pt = PLAN_TEXT[useLang()];
   const [view, setViewState] = useState<DashboardView>(initialView);
   const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
   const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);
   const [storeMessages, setStoreMessages] = useState<ClientMsg[]>(editorMessages);
   const [brainMessages, setBrainMessages] = useState<ClientMsg[]>(marketingMessages);
+  const [planMsgs, setPlanMsgs] = useState<ClientMsg[]>(planMessages);
   // Side rail: collapsed (icons only) by default; the choice is remembered on this device.
   const [railOpen, setRailOpen] = useState(false);
   useEffect(() => {
@@ -104,16 +121,17 @@ export default function DashboardTabs({
   function setView(next: DashboardView) {
     setViewState(next);
     // Keep the URL in sync so a refresh or a shared link opens the same section.
-    window.history.replaceState(null, "", next === "home" ? "/dashboard" : `/dashboard?view=${next}`);
+    window.history.replaceState(null, "", next === "projects" ? "/dashboard" : `/dashboard?view=${next}`);
     window.scrollTo({ top: 0 });
   }
 
   const items: { id: DashboardView; label: string; n?: string; soon?: boolean }[] = [
-    { id: "home", label: t.dashboard.home },
-    { id: "store", label: t.dashboard.store, n: "01" },
-    { id: "marketing", label: t.dashboard.marketing, n: "02" },
-    { id: "payments", label: "Payments", n: "03", soon: true },
-    { id: "capital", label: "Capital", n: "04", soon: true },
+    { id: "projects", label: pt.nav.projects },
+    { id: "plan", label: pt.nav.plan, n: "01" },
+    { id: "store", label: t.dashboard.store, n: "02" },
+    { id: "marketing", label: t.dashboard.marketing, n: "03" },
+    { id: "payments", label: "Payments", n: "04", soon: true },
+    { id: "capital", label: "Capital", n: "05", soon: true },
   ];
 
   function NavIcon({ id, on }: { id: DashboardView; on: boolean }) {
@@ -186,11 +204,11 @@ export default function DashboardTabs({
           </div>
 
           {railOpen && (
-            <a
-              href={`/site/${currentBusiness.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2.5 p-2.5 rounded-[12px] mb-5 hover:bg-white/5 transition"
+            <button
+              type="button"
+              onClick={() => setView("projects")}
+              title={pt.nav.projects}
+              className="w-full text-left flex items-center gap-2.5 p-2.5 rounded-[12px] mb-5 hover:bg-white/5 transition"
             >
               <div
                 className="w-[30px] h-[30px] rounded-[8px] text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
@@ -200,9 +218,14 @@ export default function DashboardTabs({
               </div>
               <div className="grow min-w-0">
                 <div className="text-[13px] font-semibold text-ink truncate">{currentBusiness.name}</div>
-                <div className="text-[11px] text-mutedLight truncate">sevrii.com/site/{currentBusiness.slug}</div>
+                <div className="text-[11px] text-mutedLight truncate">
+                  {projects.length > 1 ? `${pt.nav.projects} · ${projects.length}` : `sevrii.com/site/${currentBusiness.slug}`}
+                </div>
               </div>
-            </a>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-mutedLight shrink-0">
+                <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
+              </svg>
+            </button>
           )}
 
           <nav className="flex flex-col gap-1">
@@ -264,12 +287,18 @@ export default function DashboardTabs({
 
       {/* Main content */}
       <main className="grow min-w-0">
-        {view === "home" && (
-          <HomeView
+        {view === "projects" && <ProjectsView projects={projects} activeId={currentBusiness.id} onNavigate={setView} />}
+        {view === "plan" && (
+          <PlanView
             business={currentBusiness}
-            services={currentServices}
-            campaigns={currentCampaigns}
+            initialMessages={planMsgs}
+            greeting={planGreeting}
+            onMessages={setPlanMsgs}
             onNavigate={setView}
+            onUpdated={(b, s) => {
+              setCurrentBusiness(b);
+              setCurrentServices(s);
+            }}
           />
         )}
         {view === "store" && (
@@ -299,7 +328,7 @@ export default function DashboardTabs({
           />
         )}
         {(view === "payments" || view === "capital") && (
-          <ComingSoonView pillar={view} onBack={() => setView("home")} />
+          <ComingSoonView pillar={view} onBack={() => setView("projects")} />
         )}
 
         {/* Log out on mobile (the rail with it is hidden there) */}

@@ -3,21 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { addChatMessage, getBusinessById, listCampaigns, listChatMessages, type BusinessRow, type CampaignRow } from "@/lib/db";
+import { addChatMessage, getBusinessById, listChatMessages, listServices, type BusinessRow, type ServiceRow } from "@/lib/db";
 import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
-import { marketingGreeting, runMarketingChatTurn } from "@/lib/marketingBrain";
+import { planGreeting, runPlanChatTurn } from "@/lib/planBrain";
 
-const CHANNEL = "brain";
+const CHANNEL = "plan";
 
-export type MarketingChatResponse = {
+export type PlanChatResponse = {
   messages: { id: string; role: string; content: string }[];
   business: BusinessRow;
-  campaigns: CampaignRow[];
+  services: ServiceRow[];
 };
 
-export async function sendMarketingChatAction(message: string): Promise<MarketingChatResponse> {
+export async function sendPlanChatAction(message: string): Promise<PlanChatResponse> {
   const user = await getCurrentUser();
   if (!user || !user.business) redirect("/login");
   const business = user.business;
@@ -28,13 +28,13 @@ export async function sendMarketingChatAction(message: string): Promise<Marketin
   const respond = async (b: BusinessRow) => ({
     messages: (await listChatMessages(business.id, CHANNEL)).map((m) => ({ id: m.id, role: m.role, content: m.content })),
     business: b,
-    campaigns: await listCampaigns(business.id),
+    services: await listServices(business.id),
   });
   if (!text) return respond(business);
 
   let history = await listChatMessages(business.id, CHANNEL);
   if (history.length === 0) {
-    await addChatMessage(business.id, CHANNEL, "ai", marketingGreeting(lang, business));
+    await addChatMessage(business.id, CHANNEL, "ai", planGreeting(lang, business));
     history = await listChatMessages(business.id, CHANNEL);
   }
 
@@ -48,7 +48,7 @@ export async function sendMarketingChatAction(message: string): Promise<Marketin
   }
 
   await addChatMessage(business.id, CHANNEL, "user", text);
-  const result = await runMarketingChatTurn({
+  const result = await runPlanChatTurn({
     business,
     reload: async () => (await getBusinessById(business.id))!,
     history: history.slice(-16).map((m) => ({
@@ -60,5 +60,6 @@ export async function sendMarketingChatAction(message: string): Promise<Marketin
   });
   await addChatMessage(business.id, CHANNEL, "ai", result.reply);
   revalidatePath("/dashboard");
+  revalidatePath(`/site/${business.slug}`);
   return respond(result.business);
 }

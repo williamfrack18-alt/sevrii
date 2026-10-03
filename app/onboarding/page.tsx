@@ -6,10 +6,11 @@ import LangToggle from "@/components/LangToggle";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.business) redirect("/dashboard");
+  const isNew = Boolean(user.business) && (await searchParams)?.new === "1";
+  if (user.business && !isNew) redirect("/dashboard");
   const t = getDict(await getLang());
 
   return (
@@ -22,7 +23,7 @@ export default async function OnboardingPage() {
         <h1 className="font-serif text-[40px] leading-[1.08]">{t.onboarding.title}</h1>
         <p className="text-muted text-[15px]">{t.onboarding.subtitle}</p>
       </div>
-      <OnboardingChat />
+      <OnboardingChat newProject={isNew} />
     </div>
   );
 }

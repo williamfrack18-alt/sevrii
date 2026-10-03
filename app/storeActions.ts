@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/session";
 import {
   addService,
   deleteService,
-  getBusinessByUserId,
+  getBusinessById,
   listServices,
   setBusinessPublished,
   updateBusinessAccent,
@@ -112,7 +112,7 @@ export async function saveStoreAction(input: StoreFormInput): Promise<StoreSaveR
   if (/^#[0-9a-fA-F]{6}$/.test(input.accentColor)) await updateBusinessAccent(business.id, input.accentColor);
   await updateBusinessSite(business.id, site);
 
-  const fresh = (await getBusinessByUserId(business.userId))!;
+  const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return { ok: true, business: fresh, services: await listServices(business.id) };
 }
@@ -162,7 +162,7 @@ export async function setPublishedAction(
   });
   if (publish && gaps.length > 0) return { ok: false, gaps, business };
   await setBusinessPublished(business.id, publish);
-  const fresh = (await getBusinessByUserId(business.userId))!;
+  const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return { ok: true, gaps: [], business: fresh };
 }
@@ -202,7 +202,7 @@ export async function uploadStoreImageAction(formData: FormData): Promise<Upload
     console.error("[store] upload failed", err);
     return { ok: false, error: "failed" };
   }
-  const fresh = (await getBusinessByUserId(business.userId))!;
+  const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return { ok: true, business: fresh };
 }
@@ -214,7 +214,7 @@ export async function removeStoreImageAction(kind: "logo" | "cover" | "gallery",
   else if (kind === "cover") site.coverUrl = "";
   else site.gallery = site.gallery.filter((g) => g !== url);
   await updateBusinessSite(business.id, site);
-  const fresh = (await getBusinessByUserId(business.userId))!;
+  const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return fresh;
 }
@@ -249,8 +249,8 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
 
   let blocked: string | null = null;
   if (text.length > RATE.aiMaxChars) blocked = t.aiTooLong;
-  else if (!(await allow(`ai:min:${business.id}`, 10, 60))) blocked = t.aiSlowDown;
-  else if (!(await allow(`ai:day:${business.id}`, 150, 24 * 60 * 60))) blocked = t.aiDailyLimit;
+  else if (!(await allow(`ai:min:u:${business.userId}`, 10, 60))) blocked = t.aiSlowDown;
+  else if (!(await allow(`ai:day:u:${business.userId}`, 200, 24 * 60 * 60))) blocked = t.aiDailyLimit;
   if (blocked) {
     await addChatMessage(business.id, "store", "ai", blocked);
     return respond(business);
@@ -259,7 +259,7 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
   await addChatMessage(business.id, "store", "user", text);
   const result = await runStoreChatTurn({
     business,
-    reload: async () => (await getBusinessByUserId(business.userId))!,
+    reload: async () => (await getBusinessById(business.id))!,
     history: history.slice(-16).map((m) => ({
       role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
       content: m.content.slice(0, RATE.aiMaxChars),

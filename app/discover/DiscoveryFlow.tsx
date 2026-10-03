@@ -87,7 +87,7 @@ function ChatCard({
   );
 }
 
-export default function DiscoveryFlow() {
+export default function DiscoveryFlow({ newProject = false }: { newProject?: boolean }) {
   const lang = useLang();
   const t = useT();
   const DETAIL_PROMPTS = t.discover.detailPrompts;
@@ -182,7 +182,7 @@ export default function DiscoveryFlow() {
     setError(null);
     startTransition(async () => {
       try {
-        await completeDiscoveryAction({ discovery, idea: selectedIdea, details, whatsapp });
+        await completeDiscoveryAction({ discovery, idea: selectedIdea, details, whatsapp, newProject });
       } catch (err: any) {
         if (err?.digest?.startsWith?.("NEXT_REDIRECT")) throw err;
         setError(t.common.buildError);

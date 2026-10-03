@@ -1,6 +1,7 @@
 import type { SiteData } from "@/lib/site";
 import type { MarketingData, CampaignSpec } from "@/lib/marketing";
-import type { BusinessRow } from "@/lib/db";
+import type { BusinessRow, ProjectSummary } from "@/lib/db";
+import type { BusinessPlan } from "@/lib/plan";
 
 // Shared by the server page and the client components (no "use client" here,
 // so the server can call these functions).
@@ -20,6 +21,7 @@ export type ClientBusiness = {
   published: boolean;
   site: SiteData;
   marketing: MarketingData;
+  plan: BusinessPlan;
 };
 
 export function toClientBusiness(b: BusinessRow): ClientBusiness {
@@ -39,6 +41,7 @@ export function toClientBusiness(b: BusinessRow): ClientBusiness {
     published: Boolean(b.published),
     site: b.site,
     marketing: b.marketing,
+    plan: b.plan,
   };
 }
 
@@ -57,6 +60,8 @@ export type ClientCampaign = {
 };
 export type ClientMsg = { id: string; role: string; content: string };
 
-export type DashboardView = "home" | "store" | "marketing" | "payments" | "capital";
-export const DASHBOARD_VIEWS: DashboardView[] = ["home", "store", "marketing", "payments", "capital"];
+export type ClientProject = ProjectSummary;
+
+export type DashboardView = "projects" | "plan" | "store" | "marketing" | "payments" | "capital";
+export const DASHBOARD_VIEWS: DashboardView[] = ["projects", "plan", "store", "marketing", "payments", "capital"];
 

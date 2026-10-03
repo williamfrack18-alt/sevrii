@@ -130,6 +130,7 @@ How to work:
 - NEVER invent facts, prices, guarantees, licenses, reviews, or results. NEVER promise leads, calls, costs per lead or ROI — say results depend on the market and are measured after launch.
 - Sevrii does not publish or spend anything yet: campaigns are drafts the owner launches in Meta Ads Manager / Google Ads (automatic publishing is "coming soon"). Meta charges the owner's card directly and may spend up to 1.75× the daily budget on a given day (never more than 7× per week); state taxes may apply.
 - If they don't have a Facebook page or ad account, tell them in one line what they need before launching.
+- "brainPlan" is the business strategy the owner already made with Sevrii's Brain (service, customer, promise, packages, offer, recommended campaign type and channels). Start from it: don't re-ask what it already answers, and build the first campaign of the type it recommends unless the owner wants otherwise.
 - Keep replies under 80 words. No markdown headings.`;
 
 export type MarketingChatResult = { reply: string; business: BusinessRow; campaigns: CampaignRow[] };
@@ -146,6 +147,7 @@ async function state(b: BusinessRow, campaigns: CampaignRow[]) {
       serviceArea: b.site.serviceArea,
       pageUrl: `https://sevrii.com/site/${b.slug}`,
     },
+    brainPlan: b.plan.service ? { service: b.plan.service, customer: b.plan.customer, promise: b.plan.promise, packages: b.plan.packages, offer: b.plan.offer, campaignType: b.plan.campaignType, channels: b.plan.channels } : null,
     marketing: b.marketing,
     campaigns: campaigns.map((c) => ({ id: c.id, title: c.title, goal: c.goal, spec: c.spec })),
     missing: missingForMarketing(b.marketing, campaigns.length),
@@ -276,6 +278,11 @@ export async function runMarketingChatTurn(opts: {
 }
 
 export function marketingGreeting(lang: Lang, b: BusinessRow): string {
+  if (b.plan.service && b.plan.campaignType) {
+    return lang === "es"
+      ? `¡Hola! Ya tengo tu estrategia del Cerebro para "${b.plan.service}" y el tipo de campaña: ${b.plan.campaignType}. Para dejarla lista me faltan pocas cosas. Primero: ¿cuánto quieres invertir en anuncios al mes?`
+      : `Hi! I have your Brain strategy for "${b.plan.service}" and the campaign type: ${b.plan.campaignType}. I only need a few things to get it ready. First: how much do you want to spend on ads per month?`;
+  }
   return lang === "es"
     ? `¡Hola! Soy el cerebro de marketing de Sevrii. Voy a entender tu negocio, armar tu estrategia y dejarte las campañas listas para ${b.name}. Para empezar: ¿qué quieres lograr con tus anuncios? Por ejemplo, más llamadas, más mensajes o más citas.`
     : `Hi! I'm Sevrii's marketing brain. I'll understand your business, build your strategy and leave ${b.name}'s campaigns ready. To start: what do you want your ads to achieve? For example more calls, more messages or more bookings.`;

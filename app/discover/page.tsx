@@ -4,10 +4,11 @@ import DiscoveryFlow from "./DiscoveryFlow";
 import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
 
-export default async function DiscoverPage() {
+export default async function DiscoverPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.business) redirect("/dashboard");
+  const isNew = Boolean(user.business) && (await searchParams)?.new === "1";
+  if (user.business && !isNew) redirect("/dashboard");
 
   return (
     <div className="theme-dark">
@@ -15,7 +16,7 @@ export default async function DiscoverPage() {
         <BrandMark />
         <LangToggle />
       </header>
-      <DiscoveryFlow />
+      <DiscoveryFlow newProject={isNew} />
     </div>
   );
 }

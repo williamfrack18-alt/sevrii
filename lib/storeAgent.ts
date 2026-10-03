@@ -126,6 +126,7 @@ How to work:
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
 - When the essentials are done (services with prices, contact, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
 - If the owner asks for something the page can't do, say so briefly.
+- "brainPlan" is the strategy the owner already made with Sevrii's Brain (service, customer, promise, differentiators, packages with prices, offer). Use it: propose the headline from the promise, key points from the differentiators and services from the packages, and confirm with the owner instead of asking from scratch. A plan offer has no end date: ask for a real end date before adding it to the page.
 - Keep every reply under 70 words. No markdown headings, no bullet lists longer than 4 items.`;
 
 export type StoreChatResult = { reply: string; business: BusinessRow; services: ServiceRow[] };
@@ -134,6 +135,7 @@ function pageState(b: BusinessRow, services: ServiceRow[]) {
   const priced = services.filter((s) => (s.price ?? "").trim()).length;
   return {
     business: { name: b.name, category: b.category, city: b.city, pitch: b.pitch, whatsapp: b.whatsapp, accentColor: b.accentColor, published: Boolean(b.published) },
+    brainPlan: b.plan.service ? { service: b.plan.service, customer: b.plan.customer, problem: b.plan.problem, promise: b.plan.promise, differentiators: b.plan.differentiators, packages: b.plan.packages, offer: b.plan.offer } : null,
     page: b.site,
     services: services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description, featured: Boolean(s.featured), tag: s.tag ?? null })),
     missing: missingForSales({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length, pricedServices: priced }),
@@ -323,6 +325,11 @@ export async function runStoreChatTurn(opts: {
 // First message when the chat is empty — no AI call needed.
 export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number): string {
   const es = lang === "es";
+  if (b.plan.service && b.plan.packages.length > 0) {
+    return es
+      ? `¡Hola! Ya tengo la estrategia que armaste en el Cerebro para "${b.plan.service}". Con eso armo la página de ${b.name}: título, puntos clave y tus paquetes con precio. ¿La armo así y luego la revisamos juntos?`
+      : `Hi! I have the strategy you built in the Brain for "${b.plan.service}". I'll use it for ${b.name}'s page: headline, key points and your priced packages. Shall I build it that way and then we review it together?`;
+  }
   if (serviceCount > 0) {
     return es
       ? `¡Hola! Soy tu asistente de Sevrii y voy a armar contigo la página de ${b.name} para que te llamen y te escriban más. Ya tengo un borrador. Empecemos por lo que más vende: ¿cuáles son tus servicios y cuánto cobras por cada uno?`

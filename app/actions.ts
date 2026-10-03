@@ -17,6 +17,9 @@ import {
   incrementContactClick,
   getBusinessBySlug,
   createPageReport,
+  countProjects,
+  getBusinessForUser,
+  type BusinessRow,
 } from "@/lib/db";
 import {
   hashPassword,
@@ -31,8 +34,9 @@ import {
 import { createSessionRow, deleteSessionRow } from "@/lib/db";
 import { allow, clear, clientIp, LIMITS } from "@/lib/guard";
 import { generateSiteDraft } from "@/lib/siteAI";
-import { EMPTY_SITE, normalizePhone } from "@/lib/site";
-import { getCurrentUser } from "@/lib/session";
+import { EMPTY_PLAN } from "@/lib/plan";
+import { EMPTY_SITE, normalizePhone, type SiteData } from "@/lib/site";
+import { getCurrentUser, setActiveProject, PROJECT_COOKIE } from "@/lib/session";
 import { runPageEditorTurn } from "@/lib/aiEditor";
 import { runMarketingAgentTurn } from "@/lib/marketingAgent";
 import { getLang } from "@/lib/lang";
@@ -66,8 +70,8 @@ export type FormState = { error?: string } | null;
 
 function pageLiveMessage(lang: "es" | "en", _slug: string) {
   return lang === "es"
-    ? "Listo, tu página quedó como borrador. Revisa los textos y precios, agrega tu teléfono y publícala desde la pestaña Store."
-    : "Done — your page is saved as a draft. Review the text and prices, add your phone, and publish it from the Store tab.";
+    ? "Listo, tu proyecto quedó creado con un borrador de página. Ahora el Cerebro arma contigo la estrategia: qué vender, a quién y a qué precio."
+    : "Done — your project is created with a draft page. Now the Brain builds the strategy with you: what to sell, to whom and at what price.";
 }
 
 export async function signupAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -136,6 +140,7 @@ export async function logoutAction() {
   }
   (await cookies()).delete(SESSION_COOKIE);
   (await cookies()).delete(LEGACY_SESSION_COOKIE);
+  (await cookies()).delete(PROJECT_COOKIE);
   redirect("/");
 }
 
@@ -148,6 +153,54 @@ async function aiGate(businessId: string, text: string): Promise<string | null> 
   return null;
 }
 
+
+// ---------- Projects ----------
+// One account can run several projects (one per service it sells). Each new
+// project goes through the same start flow as the first one.
+const MAX_PROJECTS = 10;
+
+type NewProjectCheck = { userId: string; previous: BusinessRow | null };
+
+async function checkNewProject(newProject: boolean | undefined): Promise<NewProjectCheck> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (user.business && !newProject) redirect("/dashboard");
+  if (user.business) {
+    if ((await countProjects(user.id)) >= MAX_PROJECTS) redirect("/dashboard?view=projects");
+    if (!(await allow(`project:new:${user.id}`, 8, 24 * 60 * 60))) redirect("/dashboard?view=projects");
+  }
+  return { userId: user.id, previous: user.business };
+}
+
+// Contact and trust details are the same business across projects: reuse them
+// so the owner doesn't type them again.
+function carriedSite(prev: BusinessRow | null): Partial<SiteData> {
+  if (!prev) return {};
+  const s = prev.site;
+  return {
+    phone: s.phone,
+    textEnabled: s.textEnabled,
+    hours: s.hours,
+    licenseNumber: s.licenseNumber,
+    licenseState: s.licenseState,
+    insured: s.insured,
+    spanish: s.spanish,
+    yearsInBusiness: s.yearsInBusiness,
+    googleReviewsUrl: s.googleReviewsUrl,
+    logoUrl: s.logoUrl,
+  };
+}
+
+export async function switchProjectAction(projectId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (typeof projectId === "string" && projectId.length <= 64 && (await getBusinessForUser(user.id, projectId))) {
+    await setActiveProject(projectId);
+  }
+  revalidatePath("/dashboard");
+  redirect("/dashboard?view=plan");
+}
+
 export type OnboardingAnswers = {
   name: string;
   categoryRaw: string;
@@ -155,10 +208,8 @@ export type OnboardingAnswers = {
   description: string;
 };
 
-export async function completeOnboardingAction(answers: OnboardingAnswers) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (user.business) redirect("/dashboard");
+export async function completeOnboardingAction(answers: OnboardingAnswers, newProject?: boolean) {
+  const { userId, previous } = await checkNewProject(newProject);
 
   const lang = await getLang();
   const category = matchCategory(answers.categoryRaw, lang);
@@ -183,14 +234,16 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
     generatePitch({ name, category: shownCategory, description, city, lang });
 
   const business = await createBusiness({
-    userId: user!.id,
+    userId,
     slug,
     name,
     category: shownCategory,
     description,
     city,
     pitch,
-    site: { ...EMPTY_SITE, lang, headline: draft?.headline ?? "", highlights: draft?.highlights ?? [], serviceArea: city },
+    whatsapp: previous?.whatsapp ?? null,
+    site: { ...EMPTY_SITE, ...carriedSite(previous), lang, headline: draft?.headline ?? "", highlights: draft?.highlights ?? [], serviceArea: city },
+    plan: { ...EMPTY_PLAN, mode: "existing" },
   });
 
   if (draft) {
@@ -215,7 +268,8 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
   await addChatMessage(business.id, "onboarding", "user", answers.description);
   await addChatMessage(business.id, "onboarding", "ai", pageLiveMessage(lang, business.slug));
 
-  redirect("/dashboard?view=store");
+  await setActiveProject(business.id);
+  redirect("/dashboard?view=plan");
 }
 
 export async function updateWhatsappAction(formData: FormData) {
@@ -288,10 +342,9 @@ export async function completeDiscoveryAction(input: {
   idea: Idea;
   details: DiscoveryDetailAnswers;
   whatsapp?: string;
+  newProject?: boolean;
 }) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (user.business) redirect("/dashboard");
+  const { userId, previous } = await checkNewProject(input.newProject);
 
   const { discovery, idea, details } = input;
   const lang = await getLang();
@@ -317,10 +370,10 @@ export async function completeDiscoveryAction(input: {
   const pitch =
     draft?.pitch ||
     generateDiscoveryPitch({ name, idea, location: city, pricing: details.pricing, lang });
-  const wa = normalizePhone(input.whatsapp);
+  const wa = normalizePhone(input.whatsapp) ?? previous?.whatsapp ?? null;
 
   const business = await createBusiness({
-    userId: user.id,
+    userId,
     slug,
     name,
     category: idea.title,
@@ -328,7 +381,8 @@ export async function completeDiscoveryAction(input: {
     city,
     pitch,
     whatsapp: wa,
-    site: { ...EMPTY_SITE, lang, headline: draft?.headline ?? "", highlights: draft?.highlights ?? [], serviceArea: city },
+    site: { ...EMPTY_SITE, ...carriedSite(previous), lang, headline: draft?.headline ?? "", highlights: draft?.highlights ?? [], serviceArea: city },
+    plan: { ...EMPTY_PLAN, mode: "new", service: idea.title },
   });
 
   if (draft) {
@@ -360,7 +414,8 @@ export async function completeDiscoveryAction(input: {
   await addChatMessage(business.id, "onboarding", "user", details.photos);
   await addChatMessage(business.id, "onboarding", "ai", pageLiveMessage(lang, business.slug));
 
-  redirect("/dashboard?view=store");
+  await setActiveProject(business.id);
+  redirect("/dashboard?view=plan");
 }
 
 // ---------- AI page editor (Store tab chat) ----------

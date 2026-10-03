@@ -2,6 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
 import { parseSite, type SiteData } from "./site";
 import { parseMarketing, parseCampaignSpec, type MarketingData, type CampaignSpec } from "./marketing";
+import { parsePlan, type BusinessPlan } from "./plan";
 
 // The Neon Vercel integration injects several connection-string env vars;
 // POSTGRES_URL / DATABASE_URL are the pooled connection, which is what a
@@ -43,7 +44,7 @@ function ensureSchema(): Promise<void> {
       await sql`
         CREATE TABLE IF NOT EXISTS businesses (
           id TEXT PRIMARY KEY,
-          "userId" TEXT UNIQUE NOT NULL REFERENCES users(id),
+          "userId" TEXT NOT NULL REFERENCES users(id),
           slug TEXT UNIQUE NOT NULL,
           name TEXT NOT NULL,
           category TEXT NOT NULL,
@@ -154,6 +155,24 @@ function ensureSchema(): Promise<void> {
       await sql`CREATE INDEX IF NOT EXISTS services_business_idx ON services ("businessId")`;
       await sql`CREATE INDEX IF NOT EXISTS campaigns_business_idx ON campaigns ("businessId")`;
       await sql`CREATE INDEX IF NOT EXISTS chat_messages_business_idx ON chat_messages ("businessId", channel)`;
+      // Projects: one account can have several businesses (one per service it
+      // sells). Older databases have a UNIQUE constraint on "userId"; drop it.
+      await sql`
+        DO $$
+        DECLARE c text;
+        BEGIN
+          FOR c IN
+            SELECT con.conname FROM pg_constraint con
+            JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY (con.conkey)
+            WHERE con.conrelid = 'businesses'::regclass AND con.contype = 'u'
+              AND a.attname = 'userId' AND array_length(con.conkey, 1) = 1
+          LOOP
+            EXECUTE format('ALTER TABLE businesses DROP CONSTRAINT %I', c);
+          END LOOP;
+        END $$
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS businesses_user_idx ON businesses ("userId")`;
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS plan JSONB NOT NULL DEFAULT '{}'::jsonb`;
     })().catch((err) => {
       // Don't cache a failed setup forever — let the next request retry.
       schemaReady = null;
@@ -266,6 +285,7 @@ export type BusinessRow = {
   textClicks: number;
   site: SiteData;
   marketing: MarketingData;
+  plan: BusinessPlan;
   createdAt: string;
 };
 
@@ -277,6 +297,7 @@ function toBusiness(row: Record<string, unknown> | undefined): BusinessRow | und
     textClicks: Number(row.textClicks ?? 0),
     site: parseSite(row.site),
     marketing: parseMarketing(row.marketing),
+    plan: parsePlan(row.plan),
   };
 }
 
@@ -296,6 +317,7 @@ export async function createBusiness(input: {
   pitch: string;
   whatsapp?: string | null;
   site?: SiteData;
+  plan?: BusinessPlan;
 }): Promise<BusinessRow> {
   await ensureSchema();
   const id = newId();
@@ -304,12 +326,13 @@ export async function createBusiness(input: {
   const city = input.city ?? null;
   const whatsapp = input.whatsapp ?? null;
   const site = parseSite(input.site ?? {});
+  const plan = parsePlan(input.plan ?? {});
   // New pages start as drafts: the owner reviews prices and claims before publishing.
   await sql`
     INSERT INTO businesses
-      (id, "userId", slug, name, category, description, city, pitch, whatsapp, "accentColor", published, site, "createdAt")
+      (id, "userId", slug, name, category, description, city, pitch, whatsapp, "accentColor", published, site, plan, "createdAt")
     VALUES
-      (${id}, ${input.userId}, ${input.slug}, ${input.name}, ${input.category}, ${input.description}, ${city}, ${input.pitch}, ${whatsapp}, ${accentColor}, 0, ${JSON.stringify(site)}::jsonb, ${createdAt})
+      (${id}, ${input.userId}, ${input.slug}, ${input.name}, ${input.category}, ${input.description}, ${city}, ${input.pitch}, ${whatsapp}, ${accentColor}, 0, ${JSON.stringify(site)}::jsonb, ${JSON.stringify(plan)}::jsonb, ${createdAt})
   `;
   return {
     id,
@@ -329,16 +352,92 @@ export async function createBusiness(input: {
     textClicks: 0,
     site,
     marketing: parseMarketing({}),
+    plan,
     createdAt,
   };
 }
 
+// The most recent project of an account (used when no project is selected).
 export async function getBusinessByUserId(userId: string): Promise<BusinessRow | undefined> {
   await ensureSchema();
   const rows = (await sql`
-    SELECT * FROM businesses WHERE "userId" = ${userId}
+    SELECT * FROM businesses WHERE "userId" = ${userId} ORDER BY "createdAt" DESC LIMIT 1
   `) as Record<string, unknown>[];
   return toBusiness(rows[0]);
+}
+
+export async function getBusinessById(id: string): Promise<BusinessRow | undefined> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM businesses WHERE id = ${id}`) as Record<string, unknown>[];
+  return toBusiness(rows[0]);
+}
+
+// A project only if it belongs to this account.
+export async function getBusinessForUser(userId: string, id: string): Promise<BusinessRow | undefined> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM businesses WHERE id = ${id} AND "userId" = ${userId}
+  `) as Record<string, unknown>[];
+  return toBusiness(rows[0]);
+}
+
+export type ProjectSummary = {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  city: string | null;
+  accentColor: string;
+  published: boolean;
+  pageViews: number;
+  contacts: number;
+  services: number;
+  campaigns: number;
+  planService: string;
+  planReady: boolean;
+  createdAt: string;
+};
+
+export async function listProjects(userId: string): Promise<ProjectSummary[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT b.id, b.slug, b.name, b.category, b.city, b."accentColor", b.published, b."pageViews",
+           b."callClicks", b."textClicks", b."whatsappClicks", b.plan, b."createdAt",
+           (SELECT count(*) FROM services s WHERE s."businessId" = b.id) AS services,
+           (SELECT count(*) FROM campaigns c WHERE c."businessId" = b.id AND c.spec IS NOT NULL) AS campaigns
+    FROM businesses b WHERE b."userId" = ${userId}
+    ORDER BY b."createdAt" ASC
+  `) as Record<string, unknown>[];
+  return rows.map((r) => {
+    const plan = parsePlan(r.plan);
+    return {
+      id: String(r.id),
+      slug: String(r.slug),
+      name: String(r.name),
+      category: String(r.category),
+      city: (r.city as string | null) ?? null,
+      accentColor: String(r.accentColor),
+      published: Boolean(r.published),
+      pageViews: Number(r.pageViews ?? 0),
+      contacts: Number(r.callClicks ?? 0) + Number(r.textClicks ?? 0) + Number(r.whatsappClicks ?? 0),
+      services: Number(r.services ?? 0),
+      campaigns: Number(r.campaigns ?? 0),
+      planService: plan.service,
+      planReady: plan.ready,
+      createdAt: String(r.createdAt),
+    };
+  });
+}
+
+export async function countProjects(userId: string): Promise<number> {
+  await ensureSchema();
+  const rows = (await sql`SELECT count(*) AS n FROM businesses WHERE "userId" = ${userId}`) as { n: string | number }[];
+  return Number(rows[0]?.n ?? 0);
+}
+
+export async function updateBusinessPlan(businessId: string, plan: BusinessPlan): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET plan = ${JSON.stringify(plan)}::jsonb WHERE id = ${businessId}`;
 }
 
 export async function getBusinessBySlug(slug: string): Promise<BusinessRow | undefined> {

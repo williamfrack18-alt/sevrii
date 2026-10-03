@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/components/LangProvider";
 
-export default function PathPicker() {
+export default function PathPicker({ newProject = false }: { newProject?: boolean }) {
   const [selected, setSelected] = useState<"existing" | "new" | null>(null);
   const router = useRouter();
   const t = useT();
@@ -25,8 +25,8 @@ export default function PathPicker() {
             <path d="M3 12h18" />
           </svg>
           <div className="flex flex-col gap-1.5">
-            <h3 className="text-[18px] font-semibold">{t.start.existingTitle}</h3>
-            <p className="text-[14px] text-muted leading-relaxed">{t.start.existingText}</p>
+            <h3 className="text-[18px] font-semibold">{newProject ? t.start.newProjectExistingTitle : t.start.existingTitle}</h3>
+            <p className="text-[14px] text-muted leading-relaxed">{newProject ? t.start.newProjectExistingText : t.start.existingText}</p>
           </div>
         </button>
         <button type="button" onClick={() => setSelected("new")} className={cardStyle(selected === "new")}>
@@ -35,8 +35,8 @@ export default function PathPicker() {
             <path d="M12 3a6 6 0 0 0-4 10.4c.6.55 1 1.36 1 2.2v.4h6v-.4c0-.84.4-1.65 1-2.2A6 6 0 0 0 12 3z" />
           </svg>
           <div className="flex flex-col gap-1.5">
-            <h3 className="text-[18px] font-semibold">{t.start.newTitle}</h3>
-            <p className="text-[14px] text-muted leading-relaxed">{t.start.newText}</p>
+            <h3 className="text-[18px] font-semibold">{newProject ? t.start.newProjectNewTitle : t.start.newTitle}</h3>
+            <p className="text-[14px] text-muted leading-relaxed">{newProject ? t.start.newProjectNewText : t.start.newText}</p>
           </div>
         </button>
       </div>
@@ -46,7 +46,7 @@ export default function PathPicker() {
       <button
         type="button"
         disabled={!selected}
-        onClick={() => router.push(selected === "existing" ? "/onboarding" : "/discover")}
+        onClick={() => router.push((selected === "existing" ? "/onboarding" : "/discover") + (newProject ? "?new=1" : ""))}
         className={`w-[220px] h-[48px] rounded-[10px] text-[15px] font-semibold ${
           selected ? "btn-primary" : "bg-borderStrong text-mutedLight cursor-not-allowed"
         }`}
