@@ -5,8 +5,8 @@ import LangToggle from "@/components/LangToggle";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 
-export default function SignupPage() {
-  const t = getDict(getLang());
+export default async function SignupPage() {
+  const t = getDict(await getLang());
   return (
     <div className="theme-dark flex">
       <div

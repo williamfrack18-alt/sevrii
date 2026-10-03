@@ -11,7 +11,7 @@ export default async function StartPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.business) redirect("/dashboard");
-  const t = getDict(getLang());
+  const t = getDict(await getLang());
 
   return (
     <div className="theme-dark bg-cream flex flex-col items-center py-14 px-6">

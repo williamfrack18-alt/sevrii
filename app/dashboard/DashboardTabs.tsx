@@ -47,7 +47,7 @@ function initials(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-const ICONS: Record<DashboardView, JSX.Element> = {
+const ICONS: Record<DashboardView, React.JSX.Element> = {
   home: (
     <>
       <path d="M3 10.5L12 3l9 7.5" />

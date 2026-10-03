@@ -10,7 +10,7 @@ export default async function OnboardingPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.business) redirect("/dashboard");
-  const t = getDict(getLang());
+  const t = getDict(await getLang());
 
   return (
     <div className="theme-dark relative bg-cream flex flex-col items-center justify-center gap-8 px-8 pt-24 pb-12">

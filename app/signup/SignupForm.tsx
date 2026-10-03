@@ -1,12 +1,12 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { signupAction, type FormState } from "@/app/actions";
 import SubmitButton from "@/components/SubmitButton";
 import { useT } from "@/components/LangProvider";
 
 export default function SignupForm() {
-  const [state, formAction] = useFormState<FormState, FormData>(signupAction, null);
+  const [state, formAction] = useActionState<FormState, FormData>(signupAction, null);
   const t = useT();
 
   return (

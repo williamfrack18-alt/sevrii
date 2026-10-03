@@ -5,8 +5,8 @@ import LangToggle from "@/components/LangToggle";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 
-export default function LoginPage() {
-  const t = getDict(getLang());
+export default async function LoginPage() {
+  const t = getDict(await getLang());
   return (
     <div className="theme-dark flex flex-col">
       <header className="h-[78px] px-6 sm:px-10 flex items-center justify-between">

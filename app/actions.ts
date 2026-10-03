@@ -48,8 +48,8 @@ import {
 async function startSession(userId: string) {
   const token = newSessionToken();
   await createSessionRow(hashSessionToken(token), userId, SESSION_MAX_AGE);
-  cookies().delete(LEGACY_SESSION_COOKIE);
-  cookies().set(SESSION_COOKIE, token, {
+  (await cookies()).delete(LEGACY_SESSION_COOKIE);
+  (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -69,7 +69,7 @@ function pageLiveMessage(lang: "es" | "en", slug: string) {
 export async function signupAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
-  const t = getDict(getLang());
+  const t = getDict(await getLang());
 
   if (!email || !password) {
     return { error: t.auth.errFill };
@@ -83,7 +83,7 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
   if (password.length > 128) {
     return { error: t.auth.errPasswordLong };
   }
-  if (!(await allow(`signup:ip:${clientIp()}`, LIMITS.signupPerIp.limit, LIMITS.signupPerIp.window))) {
+  if (!(await allow(`signup:ip:${(await clientIp())}`, LIMITS.signupPerIp.limit, LIMITS.signupPerIp.window))) {
     return { error: t.auth.errTooMany };
   }
   if (await getUserByEmail(email)) {
@@ -99,10 +99,10 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
 export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "").slice(0, 128);
-  const t = getDict(getLang());
+  const t = getDict(await getLang());
 
   const emailKey = `login:email:${email}`;
-  const ipOk = await allow(`login:ip:${clientIp()}`, LIMITS.loginPerIp.limit, LIMITS.loginPerIp.window);
+  const ipOk = await allow(`login:ip:${(await clientIp())}`, LIMITS.loginPerIp.limit, LIMITS.loginPerIp.window);
   const emailOk = await allow(emailKey, LIMITS.loginPerEmail.limit, LIMITS.loginPerEmail.window);
   if (!ipOk || !emailOk) {
     return { error: t.auth.errTooMany };
@@ -122,7 +122,7 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
 }
 
 export async function logoutAction() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (token) {
     try {
       await deleteSessionRow(hashSessionToken(token));
@@ -130,14 +130,14 @@ export async function logoutAction() {
       console.error("[auth] could not delete session", err);
     }
   }
-  cookies().delete(SESSION_COOKIE);
-  cookies().delete(LEGACY_SESSION_COOKIE);
+  (await cookies()).delete(SESSION_COOKIE);
+  (await cookies()).delete(LEGACY_SESSION_COOKIE);
   redirect("/");
 }
 
 // Shared gate for both AI chats: length, per-minute and per-day limits.
 async function aiGate(businessId: string, text: string): Promise<string | null> {
-  const t = getDict(getLang()).dashboard;
+  const t = getDict(await getLang()).dashboard;
   if (text.length > LIMITS.aiMaxChars) return t.aiTooLong;
   if (!(await allow(`ai:min:${businessId}`, LIMITS.aiPerMinute.limit, LIMITS.aiPerMinute.window))) return t.aiSlowDown;
   if (!(await allow(`ai:day:${businessId}`, LIMITS.aiPerDay.limit, LIMITS.aiPerDay.window))) return t.aiDailyLimit;
@@ -156,7 +156,7 @@ export async function completeOnboardingAction(answers: OnboardingAnswers) {
   if (!user) redirect("/login");
   if (user.business) redirect("/dashboard");
 
-  const lang = getLang();
+  const lang = await getLang();
   const category = matchCategory(answers.categoryRaw, lang);
   let baseSlug = slugify(answers.name) || "business";
   let slug = baseSlug;
@@ -249,7 +249,7 @@ export async function sendMarketingMessageAction(message: string) {
     }));
 
   const services = await listServices(business.id);
-  const result = await runMarketingAgentTurn(business, services, history, trimmed, getLang());
+  const result = await runMarketingAgentTurn(business, services, history, trimmed, await getLang());
 
   await addChatMessage(business.id, "marketing", "ai", result.reply);
 
@@ -280,7 +280,7 @@ export async function completeDiscoveryAction(input: {
   if (user.business) redirect("/dashboard");
 
   const { discovery, idea, details } = input;
-  const lang = getLang();
+  const lang = await getLang();
   const t = getDict(lang);
 
   let baseSlug = slugify(details.businessName) || "business";
@@ -377,7 +377,7 @@ export async function sendPageEditCommand(message: string) {
     }));
 
   const services = await listServices(business.id);
-  const result = await runPageEditorTurn(business, services, history, trimmed, getLang());
+  const result = await runPageEditorTurn(business, services, history, trimmed, await getLang());
 
   await addChatMessage(business.id, "editor", "ai", result.reply);
 
@@ -397,7 +397,7 @@ export async function trackWhatsappClickAction(businessId: string) {
   try {
     if (typeof businessId !== "string" || businessId.length > 64) return;
     // Count at most 3 clicks per visitor (IP) per business per hour.
-    if (!(await allow(`wa:${clientIp()}:${businessId}`, 3, 60 * 60))) return;
+    if (!(await allow(`wa:${(await clientIp())}:${businessId}`, 3, 60 * 60))) return;
     await incrementWhatsappClicks(businessId);
   } catch {
     // Never let a tracking failure affect the visitor's WhatsApp link.

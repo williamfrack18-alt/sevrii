@@ -3,8 +3,8 @@ import { hitRateCounter, resetRateCounter } from "./db";
 
 // Best-effort client IP on Vercel. IPv6 addresses are grouped by /64, since
 // one device or home usually owns a whole /64.
-export function clientIp(): string {
-  const h = headers();
+export async function clientIp(): Promise<string> {
+  const h = await headers();
   const raw = (h.get("x-real-ip") || h.get("x-forwarded-for")?.split(",")[0] || "unknown").trim();
   if (raw.includes(":")) return raw.split(":").slice(0, 4).join(":") + "::/64";
   return raw;

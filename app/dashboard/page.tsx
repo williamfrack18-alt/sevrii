@@ -3,12 +3,12 @@ import { getCurrentUser } from "@/lib/session";
 import { listServices, listCampaigns, listChatMessages } from "@/lib/db";
 import DashboardTabs, { DASHBOARD_VIEWS, type DashboardView } from "./DashboardTabs";
 
-export default async function DashboardPage({ searchParams }: { searchParams?: { view?: string } }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!user.business) redirect("/start");
 
-  const requested = searchParams?.view as DashboardView | undefined;
+  const requested = (await searchParams)?.view as DashboardView | undefined;
   const initialView: DashboardView = requested && DASHBOARD_VIEWS.includes(requested) ? requested : "home";
 
   const business = user.business;

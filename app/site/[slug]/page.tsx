@@ -4,11 +4,12 @@ import WhatsappLink from "./WhatsappLink";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 
-export default async function PublicBusinessPage({ params }: { params: { slug: string } }) {
-  const business = await getBusinessBySlug(params.slug);
+export default async function PublicBusinessPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const business = await getBusinessBySlug(slug);
   if (!business || !business.published) notFound();
 
-  const t = getDict(getLang());
+  const t = getDict(await getLang());
   const services = await listServices(business.id);
   const reviews = await listReviews(business.id);
   const waLink = business.whatsapp

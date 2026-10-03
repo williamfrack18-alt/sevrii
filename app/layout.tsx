@@ -4,13 +4,13 @@ import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import LangProvider from "@/components/LangProvider";
 
-export function generateMetadata(): Metadata {
-  const t = getDict(getLang());
+export async function generateMetadata(): Promise<Metadata> {
+  const t = getDict(await getLang());
   return { title: t.meta.title, description: t.meta.description };
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const lang = getLang();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const lang = await getLang();
   return (
     <html lang={lang}>
       <head>

@@ -3,7 +3,7 @@ import { getUserById, getBusinessByUserId, getSessionUserId } from "./db";
 import { SESSION_COOKIE, hashSessionToken } from "./auth";
 
 export async function getCurrentUser() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token || token.length > 200) return null;
   const userId = await getSessionUserId(hashSessionToken(token));
   if (!userId) return null;

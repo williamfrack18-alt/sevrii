@@ -19,6 +19,9 @@ const nextConfig = {
     return [
       { source: "/", destination: "/index.html" },
       { source: "/en", destination: "/en/index.html" },
+      // Static marketing pages in public/ (don't rely only on Vercel's cleanUrls).
+      { source: "/:page(ofrecerservicios|terminos|matheus-credito)", destination: "/:page.html" },
+      { source: "/en/:page(ofrecerservicios|terminos|matheus-credito)", destination: "/en/:page.html" },
     ];
   },
 };

@@ -1,12 +1,12 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { loginAction, type FormState } from "@/app/actions";
 import SubmitButton from "@/components/SubmitButton";
 import { useT } from "@/components/LangProvider";
 
 export default function LoginForm() {
-  const [state, formAction] = useFormState<FormState, FormData>(loginAction, null);
+  const [state, formAction] = useActionState<FormState, FormData>(loginAction, null);
   const t = useT();
 
   return (
