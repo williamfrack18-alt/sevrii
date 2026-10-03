@@ -137,12 +137,12 @@ body {
   width: 100%;
   padding: 10px;
   border-radius: 10px;
-  font-size: 14px;
-  color: #a1a1aa;
+  font-size: 14.5px;
+  color: #d4d4d8;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.dash-nav:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
-.dash-nav.on { background: rgba(61, 220, 132, 0.1); color: #fff; font-weight: 600; }
+.dash-nav:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.dash-nav.on { background: rgba(255, 255, 255, 0.09); color: #fff; font-weight: 500; }
 .dash-n { font-size: 11px; color: #71717a; }
 .dash-soon,
 .dash-active {

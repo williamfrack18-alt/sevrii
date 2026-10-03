@@ -154,7 +154,8 @@ export default function DashboardTabs({
 
       {/* Desktop rail: collapsed to icons by default, expands with the toggle */}
       <aside
-        className={`hidden md:flex ${railOpen ? "w-[248px] p-5" : "w-[68px] px-2.5 py-5"} shrink-0 sticky top-0 h-screen bg-white border-r border-border flex-col justify-between transition-[width] duration-200`}
+        className={`hidden md:flex ${railOpen ? "w-[248px] p-5" : "w-[68px] px-2.5 py-5"} shrink-0 sticky top-0 h-screen border-r border-border flex-col justify-between transition-[width] duration-200`}
+        style={{ background: "#0a0a0a" }}
       >
         <div className="min-w-0">
           <div className={`flex items-center ${railOpen ? "justify-between" : "flex-col gap-4"} mb-6`}>
@@ -186,7 +187,7 @@ export default function DashboardTabs({
               href={`/site/${currentBusiness.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2.5 p-2.5 border border-border rounded-[12px] mb-6 hover:border-borderStrong transition"
+              className="flex items-center gap-2.5 p-2.5 rounded-[12px] mb-5 hover:bg-white/5 transition"
             >
               <div
                 className="w-[30px] h-[30px] rounded-[8px] text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
