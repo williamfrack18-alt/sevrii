@@ -134,6 +134,40 @@ export default function PlanView({
                 </div>
               )}
 
+              {plan.marketResearch && (
+                <div className="rounded-2xl p-5 md:p-6 flex flex-col gap-3" style={CARD}>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <span className="flex items-center gap-2">
+                      <Globe />
+                      <Label>{t.research}</Label>
+                    </span>
+                    {plan.researchedAt && <span className="text-[12px] text-[#8e8e8e]">{t.researchedOn(plan.researchedAt)}</span>}
+                  </div>
+                  <p className="text-[14.5px] text-[#ececec] leading-relaxed max-w-[860px]">{plan.marketResearch}</p>
+                  {plan.researchSources.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[12px] text-[#8e8e8e]">{t.sources}</span>
+                      <div className="flex flex-wrap gap-2">
+                        {plan.researchSources.map((src) => (
+                          <a
+                            key={src.url}
+                            href={src.url}
+                            target="_blank"
+                            rel="noopener noreferrer nofollow"
+                            className="text-[12.5px] px-3 py-1.5 rounded-full text-[#d4d4d4] hover:text-white max-w-full truncate"
+                            style={{ background: "rgba(255,255,255,0.06)" }}
+                            title={src.url}
+                          >
+                            {hostOf(src.url)} · {src.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[12px] text-[#8e8e8e]">{t.researchNote}</p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {plan.differentiators.length > 0 && (
                   <div className="rounded-2xl p-5 flex flex-col gap-3" style={CARD}>
@@ -233,6 +267,23 @@ export default function PlanView({
 
 function Label({ children }: { children: React.ReactNode }) {
   return <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8e8e8e]">{children}</span>;
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function Globe() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" />
+    </svg>
+  );
 }
 
 function Check() {

@@ -57,6 +57,8 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
     })),
     message: text,
     lang,
+    // Web searches cost money: at most 40 Brain turns with search per account per day.
+    allowWebSearch: await allow(`ai:web:u:${business.userId}`, 40, 24 * 60 * 60),
   });
   await addChatMessage(business.id, CHANNEL, "ai", result.reply);
   revalidatePath("/dashboard");

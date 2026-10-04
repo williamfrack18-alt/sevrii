@@ -4,6 +4,7 @@
 
 export type PlanPackage = { name: string; price: string; includes: string; note: string };
 export type PlanChannel = { channel: string; why: string };
+export type PlanSource = { title: string; url: string };
 
 export type BusinessPlan = {
   mode: "existing" | "new" | "";
@@ -14,6 +15,9 @@ export type BusinessPlan = {
   differentiators: string[];
   packages: PlanPackage[];
   pricingNote: string; // how the prices were set (costs, margin, local range)
+  marketResearch: string; // what the Brain found on the web about local prices / competitors
+  researchSources: PlanSource[]; // pages it read (from search citations, filled by code)
+  researchedAt: string; // YYYY-MM-DD
   offer: { label: string; detail: string } | null; // a real launch offer, never fake urgency
   campaignType: string; // the recommended kind of campaign, in one line
   channels: PlanChannel[];
@@ -31,6 +35,9 @@ export const EMPTY_PLAN: BusinessPlan = {
   differentiators: [],
   packages: [],
   pricingNote: "",
+  marketResearch: "",
+  researchSources: [],
+  researchedAt: "",
   offer: null,
   campaignType: "",
   channels: [],
@@ -65,6 +72,16 @@ export function parsePlan(raw: unknown): BusinessPlan {
       .filter((p) => p.name)
       .slice(0, 4),
     pricingNote: str(o.pricingNote, 400),
+    marketResearch: str(o.marketResearch, 600),
+    researchSources: (Array.isArray(o.researchSources) ? o.researchSources : [])
+      .map((x) => {
+        const r = (x ?? {}) as Record<string, unknown>;
+        const url = str(r.url, 500);
+        return { title: str(r.title, 120) || url, url };
+      })
+      .filter((r) => /^https?:\/\//i.test(r.url))
+      .slice(0, 6),
+    researchedAt: /^\d{4}-\d{2}-\d{2}$/.test(String(o.researchedAt ?? "")) ? String(o.researchedAt) : "",
     offer: offerLabel ? { label: offerLabel, detail: str(offer!.detail, 200) } : null,
     campaignType: str(o.campaignType, 200),
     channels: (Array.isArray(o.channels) ? o.channels : [])
