@@ -6,6 +6,7 @@ import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import type { ClientBusiness, ClientService } from "./types";
+import { ACCENT } from "@/lib/brand";
 
 // Store = one clean chat (like ChatGPT). The live page sits right below it.
 export default function StoreView({
@@ -47,7 +48,7 @@ export default function StoreView({
               type="button"
               onClick={onPlans}
               className="text-[12px] px-3 py-1 rounded-full font-semibold"
-              style={{ background: "rgba(61,220,132,.14)", color: "#3ddc84" }}
+              style={{ background: "rgba(46,122,85,0.31)", color: ACCENT }}
             >
               {lk.publishChip} →
             </button>
@@ -55,7 +56,7 @@ export default function StoreView({
           <a
             href="#store-page"
             className="text-[12px] px-3 py-1 rounded-full font-medium"
-            style={business.published ? { background: "rgba(61,220,132,.14)", color: "#3ddc84" } : { background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}
+            style={business.published ? { background: "rgba(46,122,85,0.31)", color: ACCENT } : { background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}
           >
             {business.published ? st.live : st.draft}
           </a>

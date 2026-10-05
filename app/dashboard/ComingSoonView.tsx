@@ -2,6 +2,7 @@
 
 import { useT, useLang } from "@/components/LangProvider";
 import { PLANS_TEXT } from "@/lib/plansI18n";
+import { ACCENT } from "@/lib/brand";
 
 // Payments and Capital don't exist yet. This screen explains what each one
 // will do and shows an illustrative preview — it never pretends to work.
@@ -26,7 +27,7 @@ export default function ComingSoonView({
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center">
         <div>
           <div className="flex items-center gap-3 mb-5">
-            <span className="text-[15px] font-medium" style={{ color: "#3ddc84" }}>
+            <span className="text-[15px] font-medium" style={{ color: ACCENT }}>
               {n} · {name}
             </span>
             <span className="dash-soon">{d.soon}</span>
@@ -48,7 +49,7 @@ export default function ComingSoonView({
             <span className="text-[13px] text-mutedLight">{d.notReady}</span>
           </div>
           {pillar === "payments" && onPlans && (
-            <button type="button" onClick={onPlans} className="mt-5 text-[13.5px] underline underline-offset-4" style={{ color: "#3ddc84" }}>
+            <button type="button" onClick={onPlans} className="mt-5 text-[13.5px] underline underline-offset-4" style={{ color: ACCENT }}>
               {lk.paymentsPro} {lk.seePlans} →
             </button>
           )}

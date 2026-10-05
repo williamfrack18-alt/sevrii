@@ -48,7 +48,7 @@ body {
 .theme-dark .border-border { border-color: rgba(255, 255, 255, 0.1); }
 .theme-dark .border-borderStrong,
 .theme-dark .hover\:border-borderStrong:hover { border-color: rgba(255, 255, 255, 0.22); }
-.theme-dark .border-ink { border-color: #3ddc84; }
+.theme-dark .border-ink { border-color: #3c8a64; }
 .theme-dark svg[stroke="#122118"] { stroke: #fff; }
 
 /* Headings: light, tight display type like the landing (Inter 330) */
@@ -70,7 +70,7 @@ body {
   border-radius: 12px;
 }
 .theme-dark .input::placeholder { color: #71717a; }
-.theme-dark .input:focus { border-color: #3ddc84; }
+.theme-dark .input:focus { border-color: #3c8a64; }
 .theme-dark .btn-primary {
   background: #fff;
   color: #000;
@@ -124,7 +124,7 @@ body {
 .theme-dark .bg-border { background: rgba(255, 255, 255, 0.12); }
 .theme-dark .hover\:text-ink:hover { color: #fff; }
 .theme-dark .preview-stage { background: #070907; }
-.theme-dark .live-badge { color: #3ddc84; background: rgba(61, 220, 132, 0.12); }
+.theme-dark .live-badge { color: #7dbf9c; background: rgba(46, 122, 85, 0.28); }
 .theme-dark .seg { background: rgba(255, 255, 255, 0.08); }
 .theme-dark .seg-btn { color: #a1a1aa; }
 .theme-dark .seg-btn.on { background: #fff; color: #000; }
@@ -156,7 +156,7 @@ body {
   white-space: nowrap;
 }
 .dash-soon { color: #d4d4d8; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14); }
-.dash-active { color: #3ddc84; background: rgba(61, 220, 132, 0.12); }
+.dash-active { color: #7dbf9c; background: rgba(46, 122, 85, 0.28); }
 .dash-pills { scrollbar-width: none; }
 .dash-pills::-webkit-scrollbar { display: none; }
 .dash-pill {
@@ -191,7 +191,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
-.pillar-card:hover { border-color: rgba(61, 220, 132, 0.6); }
+.pillar-card:hover { border-color: rgba(60, 138, 100, 0.7); }
 .pillar-card.is-soon { background: #090a09; }
 
 /* Coming-soon preview (Payments / Capital) */
@@ -234,8 +234,8 @@ body {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #3ddc84;
-  color: #04150c;
+  background: #1f6644;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -256,7 +256,7 @@ body {
 .soon-card .url { font-size: 10px; color: #9a968a; text-align: center; margin-top: 8px; }
 .soon-card .bars { display: flex; align-items: flex-end; gap: 8px; height: 96px; margin-top: 10px; padding-bottom: 6px; border-bottom: 1px solid #e4e0d6; }
 .soon-card .bars span { flex: 1; background: #eff3f1; border-radius: 5px 5px 0 0; }
-.soon-card .bars span.on { background: #3ddc84; }
+.soon-card .bars span.on { background: #2e7a55; }
 .soon-card .offer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 12px; font-weight: 600; }
 .soon-card .offer em { font-style: normal; font-size: 10px; font-weight: 500; color: #6e7268; background: #eff3f1; padding: 3px 8px; border-radius: 9999px; }
 

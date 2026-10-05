@@ -5,8 +5,9 @@ import { useLang } from "@/components/LangProvider";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { PLANS, PLAN_ORDER, type ClientPlan, type PlanId } from "@/lib/plans";
 import { joinWaitlistAction, openPortalAction, startCheckoutAction } from "@/app/billingActions";
+import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
 
-const GREEN = "#3ddc84";
+const GREEN = ACCENT;
 const AMBER = "#ffc400";
 
 // Plans: start free, then pick the plan that includes the next step.
@@ -107,7 +108,7 @@ export default function PlansView({
                 className="rounded-2xl p-5 flex flex-col gap-4"
                 style={{
                   background: "#111",
-                  boxShadow: isCurrent ? `0 0 0 1.5px ${GREEN}` : recommended ? "0 0 0 1px rgba(255,255,255,0.35)" : "0 0 0 1px rgba(255,255,255,0.08)",
+                  boxShadow: isCurrent ? `0 0 0 1.5px ${RING}` : recommended ? "0 0 0 1px rgba(255,255,255,0.35)" : "0 0 0 1px rgba(255,255,255,0.08)",
                 }}
               >
                 <div className="flex items-center justify-between gap-2 min-h-[24px]">
@@ -153,7 +154,7 @@ export default function PlansView({
                       disabled={pending || waitlist.includes(id)}
                       onClick={() => notify(id)}
                       className="w-full h-11 rounded-full text-[14px] font-medium"
-                      style={waitlist.includes(id) ? { background: "rgba(61,220,132,.12)", color: GREEN } : { background: "rgba(255,255,255,0.08)", color: "#fff" }}
+                      style={waitlist.includes(id) ? { background: "rgba(46,122,85,0.26)", color: GREEN } : { background: "rgba(255,255,255,0.08)", color: "#fff" }}
                     >
                       {waitlist.includes(id) ? `✓ ${t.notified}` : t.notify}
                     </button>
@@ -165,7 +166,7 @@ export default function PlansView({
                       disabled={pending || plan.id !== "free"}
                       onClick={checkout}
                       className="w-full h-11 rounded-full text-[14px] font-semibold disabled:opacity-40"
-                      style={{ background: GREEN, color: "#000" }}
+                      style={BRAND_BTN}
                     >
                       {t.choose(p.name)}
                     </button>
@@ -223,7 +224,7 @@ function GroupRows({ title, rows, current }: { title: string; rows: { label: str
           {PLAN_ORDER.map((id) => {
             const v = r.values[id];
             return (
-              <td key={id} className="text-center px-3 py-2.5" style={{ background: current === id ? "rgba(61,220,132,0.05)" : undefined }}>
+              <td key={id} className="text-center px-3 py-2.5" style={{ background: current === id ? "rgba(46,122,85,0.11)" : undefined }}>
                 {v === true ? (
                   <span className="inline-flex justify-center">
                     <Check />

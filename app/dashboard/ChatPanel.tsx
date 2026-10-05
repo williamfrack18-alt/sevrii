@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { ACCENT, BRAND_BTN } from "@/lib/brand";
 export type Msg = { id: string; role: string; content: string };
 
 export type ChatTexts = {
@@ -16,7 +17,7 @@ export type ChatTexts = {
 };
 
 const PHOTO = /^📷\s+(https:\/\/\S+)$/;
-const GREEN = "#3ddc84";
+const GREEN = ACCENT;
 
 // Clean, ChatGPT-style chat in Sevrii's colors: black canvas, assistant text
 // without bubbles, the owner's messages in a soft gray bubble, one rounded
@@ -121,7 +122,7 @@ export default function ChatPanel({
         className="flex items-start gap-3 rounded-[24px] px-5 py-4 text-[15px] text-[#d4d4d4]"
         style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}
       >
-        <span className="h-2.5 w-2.5 mt-[7px] rounded-full animate-pulse shrink-0" style={{ background: GREEN }} />
+        <span className="h-2.5 w-2.5 mt-[7px] rounded-full animate-pulse shrink-0" style={{ background: ACCENT }} />
         {locked}
       </div>
     </div>
@@ -179,7 +180,7 @@ export default function ChatPanel({
           type="submit"
           aria-label="Enviar"
           className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition"
-          style={canSend ? { background: GREEN, color: "#000" } : { background: "#3a3a3a", color: "#8e8e8e" }}
+          style={canSend ? BRAND_BTN : { background: "#3a3a3a", color: "#8e8e8e" }}
           disabled={!canSend}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -241,7 +242,7 @@ export default function ChatPanel({
           })}
           {pending && (
             <div className="flex items-center gap-1.5 h-6" aria-label={texts.thinking}>
-              <span className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: GREEN }} />
+              <span className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: ACCENT }} />
             </div>
           )}
         </div>

@@ -6,8 +6,9 @@ import { PLAN_TEXT, PROJECTS_TEXT } from "@/lib/planI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { switchProjectAction } from "@/app/actions";
 import type { ClientProject, DashboardView } from "./types";
+import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
 
-const GREEN = "#3ddc84";
+const GREEN = ACCENT;
 const MAX_PROJECTS = 10;
 
 function initials(name: string): string {
@@ -70,7 +71,7 @@ export default function ProjectsView({
                 className="text-left rounded-2xl p-5 flex flex-col gap-4 transition hover:-translate-y-0.5"
                 style={{
                   background: "#111",
-                  boxShadow: active ? `0 0 0 1.5px ${GREEN}` : "0 0 0 1px rgba(255,255,255,0.08)",
+                  boxShadow: active ? `0 0 0 1.5px ${RING}` : "0 0 0 1px rgba(255,255,255,0.08)",
                 }}
               >
                 <div className="flex items-start gap-3">
@@ -88,7 +89,7 @@ export default function ProjectsView({
                     </div>
                   </div>
                   {active ? (
-                    <span className="text-[11.5px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "rgba(61,220,132,.14)", color: GREEN }}>
+                    <span className="text-[11.5px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "rgba(46,122,85,0.31)", color: GREEN }}>
                       {t.current}
                     </span>
                   ) : (
@@ -132,7 +133,7 @@ export default function ProjectsView({
               </svg>
               <span className="text-[15px] font-semibold text-white">{lk.projectsLocked(projectLimit)}</span>
               <span className="text-[13px] text-[#8e8e8e]">{lk.projectsLockedSub}</span>
-              <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full mt-1" style={{ background: GREEN, color: "#000" }}>
+              <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full mt-1" style={BRAND_BTN}>
                 {lk.seePlans}
               </span>
             </button>
@@ -142,7 +143,7 @@ export default function ProjectsView({
               className="rounded-2xl p-5 min-h-[188px] flex flex-col items-center justify-center gap-3 text-center transition hover:bg-white/[0.03]"
               style={{ border: "1.5px dashed rgba(255,255,255,0.18)" }}
             >
-              <span className="w-11 h-11 rounded-full flex items-center justify-center text-[24px] leading-none" style={{ background: GREEN, color: "#000" }}>
+              <span className="w-11 h-11 rounded-full flex items-center justify-center text-[24px] leading-none" style={BRAND_BTN}>
                 +
               </span>
               <span className="text-[15.5px] font-semibold text-white">{t.newProject}</span>
@@ -159,7 +160,7 @@ function Chip({ on, children }: { on: boolean; children: React.ReactNode }) {
   return (
     <span
       className="text-[11.5px] font-medium px-2.5 py-1 rounded-full"
-      style={on ? { background: "rgba(61,220,132,.12)", color: GREEN } : { background: "rgba(255,255,255,.07)", color: "#a1a1aa" }}
+      style={on ? { background: "rgba(46,122,85,0.26)", color: GREEN } : { background: "rgba(255,255,255,.07)", color: "#a1a1aa" }}
     >
       {children}
     </span>

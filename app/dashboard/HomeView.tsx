@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useT } from "@/components/LangProvider";
 import type { ClientBusiness, ClientCampaign, ClientService, DashboardView } from "./DashboardTabs";
+import { ACCENT } from "@/lib/brand";
 
 export default function HomeView({
   business,
@@ -71,7 +72,7 @@ export default function HomeView({
     <div className="px-5 md:px-10 py-8 md:py-12 max-w-[1180px]">
       {/* Header */}
       <div className="flex flex-col gap-3 mb-8">
-        <span className="text-[14px] font-medium" style={{ color: "#3ddc84" }}>
+        <span className="text-[14px] font-medium" style={{ color: ACCENT }}>
           {d.homeEyebrow}
         </span>
         <h1 className="font-serif text-[36px] md:text-[48px] leading-[1.05]">{business.name}</h1>
@@ -117,7 +118,7 @@ export default function HomeView({
             className={`pillar-card text-left ${p.soon ? "is-soon" : ""}`}
           >
             <div className="flex items-center justify-between gap-3 mb-5">
-              <span className="text-[14px] font-medium" style={{ color: "#3ddc84" }}>
+              <span className="text-[14px] font-medium" style={{ color: ACCENT }}>
                 {p.n}
               </span>
               <span className={p.soon ? "dash-soon" : "dash-active"}>{p.soon ? d.soon : d.active}</span>

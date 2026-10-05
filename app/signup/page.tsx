@@ -4,6 +4,7 @@ import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
+import { ACCENT } from "@/lib/brand";
 
 export default async function SignupPage() {
   const t = getDict(await getLang());
@@ -13,7 +14,7 @@ export default async function SignupPage() {
         className="hidden md:flex w-[44%] p-14 flex-col justify-between"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(61,220,132,.22), transparent 70%), linear-gradient(160deg,#0f4d34 0%,#0a3322 45%,#061c13 100%)",
+            "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(46,122,85,0.48), transparent 70%), linear-gradient(160deg,#0f4d34 0%,#0a3322 45%,#061c13 100%)",
         }}
       >
         <BrandMark />
@@ -37,7 +38,7 @@ export default async function SignupPage() {
         <main className="flex-1 flex items-center justify-center px-6 pb-16">
           <div className="w-full max-w-[420px] flex flex-col gap-8">
             <div className="flex flex-col gap-3">
-              <span className="text-[14px] font-medium" style={{ color: "#3ddc84" }}>
+              <span className="text-[14px] font-medium" style={{ color: ACCENT }}>
                 {t.auth.signupEyebrow}
               </span>
               <h2 className="font-serif text-[40px] leading-[1.08]">{t.auth.signupTitle}</h2>

@@ -18,6 +18,7 @@ import type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, ClientPr
 
 export type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, DashboardView } from "./types";
 import { DASHBOARD_VIEWS } from "./types";
+import { ACCENT, BRAND_BTN } from "@/lib/brand";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -156,7 +157,7 @@ export default function DashboardTabs({
         height="17"
         viewBox="0 0 24 24"
         fill="none"
-        stroke={on ? "#3ddc84" : "currentColor"}
+        stroke={on ? ACCENT : "currentColor"}
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -284,7 +285,7 @@ export default function DashboardTabs({
                 <span className="text-[13px] font-semibold text-ink truncate">{bt.plans[plan.id].name}</span>
               </span>
               {plan.id === "free" ? (
-                <span className="text-[11.5px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "#3ddc84", color: "#000" }}>
+                <span className="text-[11.5px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={BRAND_BTN}>
                   {bt.lock.upgrade}
                 </span>
               ) : (
@@ -300,7 +301,7 @@ export default function DashboardTabs({
               className={`dash-nav w-full !justify-center !px-0 relative ${view === "plans" ? "on" : ""}`}
             >
               <NavIcon id="plans" on={view === "plans"} />
-              {plan.id === "free" && <span className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full" style={{ background: "#3ddc84" }} />}
+              {plan.id === "free" && <span className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full" style={{ background: ACCENT }} />}
             </button>
           )}
           {railOpen ? (

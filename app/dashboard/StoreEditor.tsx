@@ -13,6 +13,7 @@ import {
   type StoreFormInput,
 } from "@/app/storeActions";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
+import { ACCENT } from "@/lib/brand";
 
 type Props = {
   business: ClientBusiness;
@@ -199,7 +200,7 @@ export default function StoreEditor({ business, services, onUpdated }: Props) {
         <button type="button" className="btn-primary" onClick={save} disabled={saving}>
           {saving ? t.saving : t.save}
         </button>
-        {status === "saved" && <span className="text-[13px]" style={{ color: "#3ddc84" }}>✓ {t.saved}</span>}
+        {status === "saved" && <span className="text-[13px]" style={{ color: ACCENT }}>✓ {t.saved}</span>}
         {status === "error" && <span className="text-[13px] text-[#ff6b6b]">{error}</span>}
       </div>
 

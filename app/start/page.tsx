@@ -8,6 +8,7 @@ import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
+import { ACCENT } from "@/lib/brand";
 
 export default async function StartPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
   const user = await getCurrentUser();
@@ -41,7 +42,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
 
       <div className="max-w-[700px] flex flex-col items-center gap-3 text-center mb-11">
         {isNew && (
-          <span className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "#3ddc84" }}>
+          <span className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
             {t.start.newProjectEyebrow}
           </span>
         )}

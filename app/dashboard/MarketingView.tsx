@@ -8,6 +8,7 @@ import { maxDailySpend, type CampaignSpec } from "@/lib/marketing";
 import { sendMarketingChatAction } from "@/app/marketingActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
 import { toClientBusiness, type ClientBusiness, type ClientCampaign } from "./types";
+import { ACCENT, BRAND_BTN } from "@/lib/brand";
 
 const usd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 
@@ -40,13 +41,13 @@ export default function MarketingView({
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#000" }}>
         <div className="max-w-[520px] w-full rounded-2xl p-7 flex flex-col items-center text-center gap-4" style={{ background: "#111", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="5" y="11" width="14" height="9" rx="2" />
             <path d="M8 11V8a4 4 0 0 1 8 0v3" />
           </svg>
           <h2 className="text-[22px] font-semibold text-white">{lk.marketingTitle}</h2>
           <p className="text-[14.5px] text-[#a1a1aa] leading-relaxed">{lk.marketingSub}</p>
-          <button type="button" onClick={onPlans} className="h-11 px-6 rounded-full text-[14.5px] font-semibold" style={{ background: "#3ddc84", color: "#000" }}>
+          <button type="button" onClick={onPlans} className="h-11 px-6 rounded-full text-[14.5px] font-semibold" style={BRAND_BTN}>
             {lk.seePlans} →
           </button>
         </div>
@@ -108,7 +109,7 @@ export default function MarketingView({
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {strategy.stages.map((s, i) => (
                       <div key={i} className="rounded-2xl p-5 flex flex-col gap-2" style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.07)" }}>
-                        <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#3ddc84" }}>
+                        <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
                           {i + 1} · {t.stages[s.stage]}
                         </span>
                         <span className="text-[15.5px] font-semibold text-white">{s.title}</span>

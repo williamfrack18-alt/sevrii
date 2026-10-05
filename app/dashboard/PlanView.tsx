@@ -7,8 +7,9 @@ import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage,
 import { approveBlockAction, chooseIdeaAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
 import { toClientBusiness, type ClientBusiness, type ClientService, type DashboardView } from "./types";
+import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
 
-const GREEN = "#3ddc84";
+const GREEN = ACCENT;
 const AMBER = "#ffc400";
 const RED = "#ff6b6b";
 const CARD = { background: "#111", boxShadow: "0 0 0 1px rgba(255,255,255,0.07)" } as const;
@@ -133,7 +134,7 @@ export default function PlanView({
               <span className="text-[#52525b] font-normal hidden sm:inline"> · {business.name}</span>
             </span>
             {plan.stage === "approved" && (
-              <span className="text-[12px] px-3 py-1 rounded-full font-medium shrink-0" style={{ background: "rgba(61,220,132,.14)", color: GREEN }}>
+              <span className="text-[12px] px-3 py-1 rounded-full font-medium shrink-0" style={{ background: "rgba(46,122,85,0.31)", color: GREEN }}>
                 {stages[current]}
               </span>
             )}
@@ -183,7 +184,7 @@ export default function PlanView({
                 {pipeErr === "limit" ? t.limit : t.failed}
               </span>
               {pipeErr === "failed" && (
-                <button type="button" onClick={() => setRetryKey((k) => k + 1)} className="h-10 px-5 rounded-full text-[14px] font-semibold" style={{ background: GREEN, color: "#000" }}>
+                <button type="button" onClick={() => setRetryKey((k) => k + 1)} className="h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
                   {t.retry}
                 </button>
               )}
@@ -200,10 +201,10 @@ export default function PlanView({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {plan.ideas.map((idea, i) => (
-                  <div key={i} className="rounded-2xl p-5 flex flex-col gap-3" style={i === 0 ? { ...CARD, boxShadow: `0 0 0 1.5px ${GREEN}` } : CARD}>
+                  <div key={i} className="rounded-2xl p-5 flex flex-col gap-3" style={i === 0 ? { ...CARD, boxShadow: `0 0 0 1.5px ${RING}` } : CARD}>
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-[17px] font-semibold text-white leading-snug">{idea.title}</span>
-                      <span className="text-[12px] px-2 py-0.5 rounded-full shrink-0" style={{ background: "rgba(61,220,132,.12)", color: GREEN }}>
+                      <span className="text-[12px] px-2 py-0.5 rounded-full shrink-0" style={{ background: "rgba(46,122,85,0.26)", color: GREEN }}>
                         {t.fit(idea.score)}
                       </span>
                     </div>
@@ -224,7 +225,7 @@ export default function PlanView({
                       disabled={busy}
                       onClick={() => act(() => chooseIdeaAction(i))}
                       className="mt-auto h-10 rounded-full text-[14px] font-semibold"
-                      style={i === 0 ? { background: GREEN, color: "#000" } : { background: "rgba(255,255,255,0.08)", color: "#fff" }}
+                      style={i === 0 ? BRAND_BTN : { background: "rgba(255,255,255,0.08)", color: "#fff" }}
                     >
                       {t.choose}
                     </button>
@@ -287,7 +288,7 @@ export default function PlanView({
               <Block id="packages" plan={plan} busy={busy} onApprove={(b) => act(() => approveBlockAction(b, true))} onChange={change}>
                 <div className={`grid grid-cols-1 gap-3 ${plan.packages.length >= 3 ? "md:grid-cols-3" : plan.packages.length === 2 ? "md:grid-cols-2" : ""}`}>
                   {plan.packages.map((p, i) => (
-                    <div key={i} className="rounded-xl p-4 flex flex-col gap-1.5" style={{ background: "#181818", boxShadow: i === 1 ? `0 0 0 1px ${GREEN}55` : "none" }}>
+                    <div key={i} className="rounded-xl p-4 flex flex-col gap-1.5" style={{ background: "#181818", boxShadow: i === 1 ? `0 0 0 1px ${RING}` : "none" }}>
                       <span className="text-[14.5px] font-semibold text-white">{p.name}</span>
                       <span className="text-[26px] font-semibold tracking-tight" style={{ color: GREEN }}>
                         {p.price || "—"}
@@ -361,7 +362,7 @@ export default function PlanView({
 
               {plan.stage === "approved" && (
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <button type="button" onClick={() => onNavigate("store")} className="h-11 px-5 rounded-full text-[14.5px] font-semibold" style={{ background: GREEN, color: "#000" }}>
+                  <button type="button" onClick={() => onNavigate("store")} className="h-11 px-5 rounded-full text-[14.5px] font-semibold" style={BRAND_BTN}>
                     {t.goStore} →
                   </button>
                   <button type="button" onClick={() => onNavigate("marketing")} className="h-11 px-5 rounded-full text-[14.5px] font-medium text-white" style={{ background: "rgba(255,255,255,0.08)" }}>
@@ -388,7 +389,7 @@ function StageBar({ labels, current }: { labels: string[]; current: number }) {
             className="text-[11.5px] px-2 py-0.5 rounded-full"
             style={
               i === current
-                ? { background: "rgba(61,220,132,.14)", color: GREEN, fontWeight: 600 }
+                ? { background: "rgba(46,122,85,0.31)", color: GREEN, fontWeight: 600 }
                 : i < current
                   ? { color: "#a1a1aa" }
                   : { color: "#52525b" }
@@ -420,7 +421,7 @@ function Progress({ jobs, plan, compact = false }: { jobs: Job[]; plan: Business
     ) : j.status === "failed" ? (
       <span style={{ color: AMBER }}>!</span>
     ) : j.status === "running" ? (
-      <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: GREEN }} />
+      <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
     ) : (
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#3a3a3a" }} />
     );
@@ -449,7 +450,7 @@ function Progress({ jobs, plan, compact = false }: { jobs: Job[]; plan: Business
               ) : j.status === "failed" ? (
                 <span style={{ color: AMBER }}>!</span>
               ) : j.status === "running" ? (
-                <span className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: GREEN }} />
+                <span className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: ACCENT }} />
               ) : (
                 <span className="h-2 w-2 rounded-full" style={{ background: "#3a3a3a" }} />
               )}
@@ -572,7 +573,7 @@ function Block({
   const t = PLAN_TEXT[useLang()];
   const ok = plan.approvals[id] === true;
   return (
-    <div className="rounded-2xl p-5 flex flex-col gap-3" style={ok ? { ...CARD, boxShadow: `0 0 0 1px ${GREEN}66` } : CARD}>
+    <div className="rounded-2xl p-5 flex flex-col gap-3" style={ok ? { ...CARD, boxShadow: `0 0 0 1px ${RING}` } : CARD}>
       <div className="flex items-center justify-between gap-3">
         <Label>{t.blocks[id]}</Label>
         {ok && (
@@ -589,7 +590,7 @@ function Block({
             disabled={busy || !canApprove}
             onClick={() => onApprove(id)}
             className="h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-40"
-            style={{ background: GREEN, color: "#000" }}
+            style={BRAND_BTN}
           >
             {t.approve}
           </button>
