@@ -297,7 +297,7 @@ export default function DashboardTabs({
             onNavigate={setView}
             onUpdated={(b, s) => {
               setCurrentBusiness(b);
-              setCurrentServices(s);
+              if (s) setCurrentServices(s);
             }}
           />
         )}

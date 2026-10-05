@@ -173,6 +173,21 @@ function ensureSchema(): Promise<void> {
       `;
       await sql`CREATE INDEX IF NOT EXISTS businesses_user_idx ON businesses ("userId")`;
       await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS plan JSONB NOT NULL DEFAULT '{}'::jsonb`;
+      // Brain research runs: one row per task, so the screen can show progress.
+      await sql`
+        CREATE TABLE IF NOT EXISTS research_jobs (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL REFERENCES businesses(id),
+          "runId" TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'queued',
+          result JSONB,
+          error TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS research_jobs_business_idx ON research_jobs ("businessId", "createdAt")`;
     })().catch((err) => {
       // Don't cache a failed setup forever — let the next request retry.
       schemaReady = null;
@@ -723,4 +738,80 @@ export async function listChatMessages(businessId: string, channel: string): Pro
     ) recent ORDER BY "createdAt" ASC
   `) as ChatMessageRow[];
   return rows;
+}
+
+export async function updateBusinessSlug(businessId: string, slug: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET slug = ${slug} WHERE id = ${businessId}`;
+}
+
+// ---------- Brain research runs ----------
+export type ResearchJobRow = {
+  id: string;
+  businessId: string;
+  runId: string;
+  kind: string;
+  status: "queued" | "running" | "done" | "failed";
+  result: unknown;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function createResearchRun(businessId: string, kinds: string[]): Promise<string> {
+  await ensureSchema();
+  const runId = newId();
+  for (const kind of kinds) {
+    await sql`INSERT INTO research_jobs (id, "businessId", "runId", kind) VALUES (${newId()}, ${businessId}, ${runId}, ${kind})`;
+  }
+  return runId;
+}
+
+export async function setResearchJob(runId: string, kind: string, status: ResearchJobRow["status"], result?: unknown, error?: string): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE research_jobs
+    SET status = ${status},
+        result = COALESCE(${result === undefined ? null : JSON.stringify(result)}::jsonb, result),
+        error = ${error ?? null},
+        "updatedAt" = now()
+    WHERE "runId" = ${runId} AND kind = ${kind}
+  `;
+}
+
+export async function latestResearchRun(businessId: string): Promise<ResearchJobRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM research_jobs WHERE "runId" = (
+      SELECT "runId" FROM research_jobs WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT 1
+    ) ORDER BY "createdAt" ASC
+  `) as Record<string, unknown>[];
+  return rows.map((r) => ({
+    id: String(r.id),
+    businessId: String(r.businessId),
+    runId: String(r.runId),
+    kind: String(r.kind),
+    status: String(r.status) as ResearchJobRow["status"],
+    result: r.result ?? null,
+    error: (r.error as string | null) ?? null,
+    createdAt: new Date(r.createdAt as string).toISOString(),
+    updatedAt: new Date(r.updatedAt as string).toISOString(),
+  }));
+}
+
+// Take a job only if nobody else is running it (or the last runner died).
+export async function claimResearchJob(runId: string, kind: string, staleSeconds = 200): Promise<boolean> {
+  await ensureSchema();
+  const rows = await sql`
+    UPDATE research_jobs SET status = 'running', error = NULL, "updatedAt" = now()
+    WHERE "runId" = ${runId} AND kind = ${kind}
+      AND (status = 'queued' OR (status = 'running' AND "updatedAt" < now() - (${staleSeconds}::int * interval '1 second')))
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+export async function requeueFailedJobs(runId: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE research_jobs SET status = 'queued', error = NULL, "updatedAt" = now() WHERE "runId" = ${runId} AND status = 'failed'`;
 }

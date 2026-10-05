@@ -28,6 +28,9 @@ export default function ChatPanel({
   texts,
   onSend,
   onUpload,
+  locked,
+  sync,
+  prefill,
 }: {
   greeting: string;
   initialMessages: Msg[];
@@ -35,6 +38,12 @@ export default function ChatPanel({
   onSend: (text: string) => Promise<Msg[]>;
   // Uploads a photo and returns the text to send for it, or an error message.
   onUpload?: (file: File) => Promise<{ send: string } | { error: string }>;
+  // When set, the composer is replaced by this note (e.g. while researching).
+  locked?: React.ReactNode;
+  // Replace the messages from outside (new key = new messages).
+  sync?: { key: number; messages: Msg[] };
+  // Put text in the composer from outside (e.g. a "Change" button).
+  prefill?: { key: number; text: string };
 }) {
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -43,6 +52,25 @@ export default function ChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const empty = messages.length === 0;
+
+  useEffect(() => {
+    if (sync) setMessages(sync.messages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sync?.key]);
+
+  useEffect(() => {
+    if (!prefill) return;
+    setInput(prefill.text);
+    const el = inputRef.current;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(() => {
+        el.focus();
+        el.setSelectionRange(prefill.text.length, prefill.text.length);
+      }, 300);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill?.key]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -87,7 +115,17 @@ export default function ChatPanel({
 
   const canSend = !pending && input.trim().length > 0;
 
-  const composer = (
+  const composer = locked ? (
+    <div className="w-full">
+      <div
+        className="flex items-start gap-3 rounded-[24px] px-5 py-4 text-[15px] text-[#d4d4d4]"
+        style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}
+      >
+        <span className="h-2.5 w-2.5 mt-[7px] rounded-full animate-pulse shrink-0" style={{ background: GREEN }} />
+        {locked}
+      </div>
+    </div>
+  ) : (
     <div className="w-full">
       {error && <p className="text-[13px] text-[#ff6b6b] mb-2 px-4">{error}</p>}
       <form

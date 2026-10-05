@@ -259,3 +259,7 @@ body {
 .soon-card .bars span.on { background: #3ddc84; }
 .soon-card .offer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 12px; font-weight: 600; }
 .soon-card .offer em { font-style: normal; font-size: 10px; font-weight: 500; color: #6e7268; background: #eff3f1; padding: 3px 8px; border-radius: 9999px; }
+
+/* Horizontal rows (stage bar) without a visible scrollbar */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

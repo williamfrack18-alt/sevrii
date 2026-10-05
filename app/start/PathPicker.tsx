@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { useT } from "@/components/LangProvider";
+import { startProjectAction } from "@/app/actions";
 
 export default function PathPicker({ newProject = false }: { newProject?: boolean }) {
   const [selected, setSelected] = useState<"existing" | "new" | null>(null);
-  const router = useRouter();
+  const [pending, start] = useTransition();
   const t = useT();
 
   function cardStyle(active: boolean) {
@@ -45,13 +45,13 @@ export default function PathPicker({ newProject = false }: { newProject?: boolea
 
       <button
         type="button"
-        disabled={!selected}
-        onClick={() => router.push((selected === "existing" ? "/onboarding" : "/discover") + (newProject ? "?new=1" : ""))}
+        disabled={!selected || pending}
+        onClick={() => selected && start(() => startProjectAction(selected, newProject))}
         className={`w-[220px] h-[48px] rounded-[10px] text-[15px] font-semibold ${
-          selected ? "btn-primary" : "bg-borderStrong text-mutedLight cursor-not-allowed"
+          selected && !pending ? "btn-primary" : "bg-borderStrong text-mutedLight cursor-not-allowed"
         }`}
       >
-        {t.common.continue}
+        {pending ? "…" : t.common.continue}
       </button>
     </div>
   );

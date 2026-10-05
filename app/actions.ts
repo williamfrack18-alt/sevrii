@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
@@ -181,14 +182,43 @@ function carriedSite(prev: BusinessRow | null): Partial<SiteData> {
     phone: s.phone,
     textEnabled: s.textEnabled,
     hours: s.hours,
-    licenseNumber: s.licenseNumber,
-    licenseState: s.licenseState,
-    insured: s.insured,
+    // License numbers are per trade: never carried to another service.
     spanish: s.spanish,
     yearsInBusiness: s.yearsInBusiness,
     googleReviewsUrl: s.googleReviewsUrl,
     logoUrl: s.logoUrl,
   };
+}
+
+// Start a project from the two buttons on /start. The Brain does the rest:
+// no fixed questions here any more.
+export async function startProjectAction(mode: "existing" | "new", newProject?: boolean) {
+  const { userId, previous } = await checkNewProject(newProject);
+  const lang = await getLang();
+  const m = mode === "new" ? "new" : "existing";
+  let slug = "";
+  for (let i = 0; i < 5 && (!slug || (await isSlugTaken(slug))); i++) slug = `proyecto-${randomBytes(4).toString("hex")}`;
+  const prev = previous?.plan.profile;
+  const business = await createBusiness({
+    userId,
+    slug,
+    name: lang === "es" ? "Proyecto nuevo" : "New project",
+    category: "",
+    description: "",
+    city: prev?.city || null,
+    pitch: "",
+    whatsapp: previous?.whatsapp ?? null,
+    site: { ...EMPTY_SITE, ...carriedSite(previous), lang },
+    plan: {
+      ...EMPTY_PLAN,
+      mode: m,
+      stage: "interview",
+      // Same person: where they work and the languages they speak carry over.
+      profile: { ...EMPTY_PLAN.profile, city: prev?.city ?? "", state: prev?.state ?? "", languages: prev?.languages ?? "" },
+    },
+  });
+  await setActiveProject(business.id);
+  redirect("/dashboard?view=plan");
 }
 
 export async function switchProjectAction(projectId: string) {

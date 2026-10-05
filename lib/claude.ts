@@ -5,10 +5,19 @@ import Anthropic from "@anthropic-ai/sdk";
 // override it from Vercel.
 export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
 
-export function getClaude(): Anthropic | null {
+// Brain roles use the model that fits each job (see the Fase 1 design doc).
+// Each can be overridden from Vercel without a deploy.
+export const MODELS = {
+  chat: process.env.SEVRII_MODEL_CHAT || MODEL, // Interviewer: fast, natural Spanish
+  research: process.env.SEVRII_MODEL_RESEARCH || MODEL, // Researcher: web search + read
+  strategy: process.env.SEVRII_MODEL_STRATEGY || "claude-opus-5-5", // Strategist: prices and ideas
+  guard: process.env.SEVRII_MODEL_GUARD || "claude-haiku-4-5", // Guardian: rule checks
+};
+
+export function getClaude(timeoutMs = 45_000): Anthropic | null {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  return new Anthropic({ apiKey, maxRetries: 2, timeout: 45_000 });
+  return new Anthropic({ apiKey, maxRetries: 2, timeout: timeoutMs });
 }
 
 // Sonnet 5.5 thinks by default and counts thinking inside max_tokens. These
