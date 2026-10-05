@@ -22,6 +22,7 @@ import { LIMITS, normalizePhone, parseSite, publishGaps, type PublishGap, type S
 import { allow, LIMITS as RATE } from "@/lib/guard";
 import { addChatMessage, listChatMessages } from "@/lib/db";
 import { runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
+import { limitsFor, limitsForUserId } from "@/lib/billing";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 
@@ -151,8 +152,10 @@ export async function deleteServiceAction(id: string): Promise<ServiceRow[]> {
 
 export async function setPublishedAction(
   publish: boolean
-): Promise<{ ok: boolean; gaps: PublishGap[]; business: BusinessRow }> {
+): Promise<{ ok: boolean; gaps: PublishGap[]; business: BusinessRow; upgrade?: "starter" }> {
   const business = await requireBusiness();
+  const user = await getCurrentUser();
+  if (publish && user && !limitsFor(user).canPublish) return { ok: false, gaps: [], business, upgrade: "starter" };
   const services = await listServices(business.id);
   const gaps = publishGaps({
     category: business.category,
@@ -250,7 +253,7 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
   let blocked: string | null = null;
   if (text.length > RATE.aiMaxChars) blocked = t.aiTooLong;
   else if (!(await allow(`ai:min:u:${business.userId}`, 10, 60))) blocked = t.aiSlowDown;
-  else if (!(await allow(`ai:day:u:${business.userId}`, 200, 24 * 60 * 60))) blocked = t.aiDailyLimit;
+  else if (!(await allow(`ai:day:u:${business.userId}`, (await limitsForUserId(business.userId)).aiPerDay, 24 * 60 * 60))) blocked = t.aiDailyLimit;
   if (blocked) {
     await addChatMessage(business.id, "store", "ai", blocked);
     return respond(business);
@@ -259,6 +262,7 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
   await addChatMessage(business.id, "store", "user", text);
   const result = await runStoreChatTurn({
     business,
+    canPublish: (await limitsForUserId(business.userId)).canPublish,
     reload: async () => (await getBusinessById(business.id))!,
     history: history.slice(-16).map((m) => ({
       role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",

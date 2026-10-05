@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
+import { limitsForUserId } from "@/lib/billing";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
 import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
@@ -52,7 +53,7 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
   let blocked: string | null = null;
   if (text.length > LIMITS.aiMaxChars) blocked = t.aiTooLong;
   else if (!(await allow(`ai:min:u:${business.userId}`, 10, 60))) blocked = t.aiSlowDown;
-  else if (!(await allow(`ai:day:u:${business.userId}`, 200, 24 * 60 * 60))) blocked = t.aiDailyLimit;
+  else if (!(await allow(`ai:day:u:${business.userId}`, (await limitsForUserId(business.userId)).aiPerDay, 24 * 60 * 60))) blocked = t.aiDailyLimit;
   if (blocked) {
     await addChatMessage(business.id, CHANNEL, "ai", blocked);
     return respond(business);

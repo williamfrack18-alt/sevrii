@@ -4,6 +4,7 @@ import { useState } from "react";
 import StoreChat from "./StoreChat";
 import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
+import { PLANS_TEXT } from "@/lib/plansI18n";
 import type { ClientBusiness, ClientService } from "./types";
 
 // Store = one clean chat (like ChatGPT). The live page sits right below it.
@@ -13,7 +14,11 @@ export default function StoreView({
   greeting,
   onUpdated,
   onMessages,
+  canPublish = true,
+  onPlans,
 }: {
+  canPublish?: boolean;
+  onPlans?: () => void;
   business: ClientBusiness;
   services: ClientService[];
   initialMessages: { id: string; role: string; content: string }[];
@@ -22,7 +27,9 @@ export default function StoreView({
   onMessages?: (m: { id: string; role: string; content: string }[]) => void;
 }) {
   const t = useT();
-  const st = STORE_TEXT[useLang()].editor;
+  const lang = useLang();
+  const st = STORE_TEXT[lang].editor;
+  const lk = PLANS_TEXT[lang].lock;
   const [previewKey, setPreviewKey] = useState(0);
   const liveUrl = `/site/${business.slug}`;
 
@@ -34,6 +41,17 @@ export default function StoreView({
           <span className="text-[17px] font-semibold text-white">
             Sevrii <span className="text-[#8e8e8e] font-normal">· Store</span>
           </span>
+          <div className="flex items-center gap-2">
+          {!canPublish && !business.published && (
+            <button
+              type="button"
+              onClick={onPlans}
+              className="text-[12px] px-3 py-1 rounded-full font-semibold"
+              style={{ background: "rgba(61,220,132,.14)", color: "#3ddc84" }}
+            >
+              {lk.publishChip} →
+            </button>
+          )}
           <a
             href="#store-page"
             className="text-[12px] px-3 py-1 rounded-full font-medium"
@@ -41,6 +59,7 @@ export default function StoreView({
           >
             {business.published ? st.live : st.draft}
           </a>
+          </div>
         </div>
         <StoreChat
           greeting={greeting}

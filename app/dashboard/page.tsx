@@ -5,15 +5,23 @@ import { marketingGreeting } from "@/lib/marketingBrain";
 import { planGreeting } from "@/lib/planBrain";
 import { getCurrentUser } from "@/lib/session";
 import { listServices, listCampaigns, listChatMessages, listProjects } from "@/lib/db";
+import { clientPlan } from "@/lib/billing";
 import DashboardTabs from "./DashboardTabs";
 import { DASHBOARD_VIEWS, toClientBusiness, type DashboardView } from "./types";
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; checkout?: string; need?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!user.business) redirect("/start");
 
-  const raw = (await searchParams)?.view;
+  const sp = (await searchParams) ?? {};
+  const raw = sp.view;
+  const planNotice =
+    sp.checkout === "success" ? "success" : sp.checkout === "cancel" ? "cancel" : sp.need === "projects" ? "projects" : sp.need === "publish" ? "publish" : null;
   // Old links used "home"; Projects replaced it.
   const requested = (raw === "home" ? "projects" : raw) as DashboardView | undefined;
   const initialView: DashboardView = requested && DASHBOARD_VIEWS.includes(requested) ? requested : "projects";
@@ -26,6 +34,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const marketingMessages = await listChatMessages(business.id, "brain");
   const editorMessages = await listChatMessages(business.id, "store");
   const lang = await getLang();
+  const plan = await clientPlan(user);
   const storeGreetingText = storeGreeting(lang, business, services.length);
 
   return (
@@ -35,6 +44,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       userEmail={user.email}
       business={toClientBusiness(business)}
       projects={projects}
+      plan={plan}
+      planNotice={planNotice}
       services={services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description }))}
       campaigns={campaigns.map((c) => ({
         id: c.id,

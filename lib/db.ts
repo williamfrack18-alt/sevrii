@@ -188,6 +188,22 @@ function ensureSchema(): Promise<void> {
         )
       `;
       await sql`CREATE INDEX IF NOT EXISTS research_jobs_business_idx ON research_jobs ("businessId", "createdAt")`;
+      // Plans and billing (Stripe). The plan belongs to the account, not to a project.
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free'`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "planStatus" TEXT NOT NULL DEFAULT 'none'`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "planRenewsAt" TIMESTAMPTZ`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "stripeSubscriptionId" TEXT`;
+      await sql`CREATE INDEX IF NOT EXISTS users_stripe_customer_idx ON users ("stripeCustomerId")`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS plan_waitlist (
+          "userId" TEXT NOT NULL REFERENCES users(id),
+          plan TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          PRIMARY KEY ("userId", plan)
+        )
+      `;
     })().catch((err) => {
       // Don't cache a failed setup forever — let the next request retry.
       schemaReady = null;
@@ -249,6 +265,12 @@ export type UserRow = {
   passwordHash: string;
   salt: string;
   createdAt: string;
+  plan?: string;
+  planStatus?: string;
+  planRenewsAt?: string | null;
+  cancelAtPeriodEnd?: boolean;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
 };
 
 export async function createUser(
@@ -814,4 +836,39 @@ export async function claimResearchJob(runId: string, kind: string, staleSeconds
 export async function requeueFailedJobs(runId: string): Promise<void> {
   await ensureSchema();
   await sql`UPDATE research_jobs SET status = 'queued', error = NULL, "updatedAt" = now() WHERE "runId" = ${runId} AND status = 'failed'`;
+}
+
+// ---------- Plans and billing ----------
+export async function setUserStripeCustomer(userId: string, customerId: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE users SET "stripeCustomerId" = ${customerId} WHERE id = ${userId}`;
+}
+
+export async function getUserByStripeCustomer(customerId: string): Promise<UserRow | undefined> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM users WHERE "stripeCustomerId" = ${customerId}`) as UserRow[];
+  return rows[0];
+}
+
+export async function updateUserPlan(
+  userId: string,
+  fields: { plan: string; planStatus: string; planRenewsAt: string | null; cancelAtPeriodEnd: boolean; stripeSubscriptionId: string | null }
+): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE users SET plan = ${fields.plan}, "planStatus" = ${fields.planStatus}, "planRenewsAt" = ${fields.planRenewsAt},
+      "cancelAtPeriodEnd" = ${fields.cancelAtPeriodEnd}, "stripeSubscriptionId" = ${fields.stripeSubscriptionId}
+    WHERE id = ${userId}
+  `;
+}
+
+export async function joinPlanWaitlist(userId: string, plan: string): Promise<void> {
+  await ensureSchema();
+  await sql`INSERT INTO plan_waitlist ("userId", plan) VALUES (${userId}, ${plan}) ON CONFLICT DO NOTHING`;
+}
+
+export async function listUserWaitlists(userId: string): Promise<string[]> {
+  await ensureSchema();
+  const rows = (await sql`SELECT plan FROM plan_waitlist WHERE "userId" = ${userId}`) as { plan: string }[];
+  return rows.map((r) => r.plan);
 }

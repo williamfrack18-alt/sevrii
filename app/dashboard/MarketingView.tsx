@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLang } from "@/components/LangProvider";
 import { MK_TEXT } from "@/lib/marketingI18n";
+import { PLANS_TEXT } from "@/lib/plansI18n";
 import { maxDailySpend, type CampaignSpec } from "@/lib/marketing";
 import { sendMarketingChatAction } from "@/app/marketingActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
@@ -19,7 +20,11 @@ export default function MarketingView({
   greeting,
   onUpdated,
   onMessages,
+  locked = false,
+  onPlans,
 }: {
+  locked?: boolean;
+  onPlans?: () => void;
   business: ClientBusiness;
   campaigns: ClientCampaign[];
   initialMessages: Msg[];
@@ -29,7 +34,25 @@ export default function MarketingView({
 }) {
   const lang = useLang();
   const t = MK_TEXT[lang];
+  const lk = PLANS_TEXT[lang].lock;
   const strategy = business.marketing.strategy;
+  if (locked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#000" }}>
+        <div className="max-w-[520px] w-full rounded-2xl p-7 flex flex-col items-center text-center gap-4" style={{ background: "#111", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+          <h2 className="text-[22px] font-semibold text-white">{lk.marketingTitle}</h2>
+          <p className="text-[14.5px] text-[#a1a1aa] leading-relaxed">{lk.marketingSub}</p>
+          <button type="button" onClick={onPlans} className="h-11 px-6 rounded-full text-[14.5px] font-semibold" style={{ background: "#3ddc84", color: "#000" }}>
+            {lk.seePlans} →
+          </button>
+        </div>
+      </div>
+    );
+  }
   const withSpec = campaigns.filter((c) => c.spec);
 
   return (
@@ -162,7 +185,7 @@ function CampaignCard({ campaign, spec, business }: { campaign: ClientCampaign; 
             {t.draft}
           </span>
           <span className="text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: "rgba(255,196,0,0.12)", color: "#ffc400" }}>
-            {t.autoSoon}
+            {PLANS_TEXT[useLang()].lock.autoPro}
           </span>
         </div>
       </div>

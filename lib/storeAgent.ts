@@ -150,7 +150,7 @@ function clip(v: unknown, max: number): string {
 async function runTool(
   name: string,
   input: Record<string, unknown>,
-  ctx: { business: BusinessRow; services: ServiceRow[] }
+  ctx: { business: BusinessRow; services: ServiceRow[]; canPublish: boolean }
 ): Promise<string> {
   const b = ctx.business;
   switch (name) {
@@ -232,6 +232,9 @@ async function runTool(
       return "saved";
     }
     case "publish_page": {
+      if (input.publish && !ctx.canPublish) {
+        return "not published: the owner is on the Free plan. Publishing needs the Starter plan ($29/month). Tell them their page is ready as a draft and that they can choose Starter in Plans (left menu) to publish it.";
+      }
       if (input.publish) {
         const gaps = publishGaps({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: ctx.services.length });
         if (gaps.length) return `not published, missing: ${gaps.join(", ")}`;
@@ -250,6 +253,7 @@ export async function runStoreChatTurn(opts: {
   history: { role: "user" | "assistant"; content: string }[];
   message: string;
   lang: Lang;
+  canPublish: boolean;
 }): Promise<StoreChatResult> {
   let business = opts.business;
   let services = await listServices(business.id);
@@ -297,7 +301,7 @@ export async function runStoreChatTurn(opts: {
       for (const u of uses) {
         let out: string;
         try {
-          out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, { business, services });
+          out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, { business, services, canPublish: opts.canPublish });
         } catch (err) {
           console.error("[ai:store] tool failed", u.name, err);
           out = "error: could not save";

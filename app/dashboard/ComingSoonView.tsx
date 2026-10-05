@@ -1,20 +1,24 @@
 "use client";
 
-import { useT } from "@/components/LangProvider";
+import { useT, useLang } from "@/components/LangProvider";
+import { PLANS_TEXT } from "@/lib/plansI18n";
 
 // Payments and Capital don't exist yet. This screen explains what each one
 // will do and shows an illustrative preview — it never pretends to work.
 export default function ComingSoonView({
   pillar,
   onBack,
+  onPlans,
 }: {
   pillar: "payments" | "capital";
   onBack: () => void;
+  onPlans?: () => void;
 }) {
   const t = useT();
+  const lk = PLANS_TEXT[useLang()].lock;
   const d = t.dashboard;
   const copy = pillar === "payments" ? d.payments : d.capital;
-  const n = pillar === "payments" ? "03" : "04";
+  const n = pillar === "payments" ? "04" : "05";
   const name = pillar === "payments" ? "Payments" : "Capital";
 
   return (
@@ -43,6 +47,11 @@ export default function ComingSoonView({
             </button>
             <span className="text-[13px] text-mutedLight">{d.notReady}</span>
           </div>
+          {pillar === "payments" && onPlans && (
+            <button type="button" onClick={onPlans} className="mt-5 text-[13.5px] underline underline-offset-4" style={{ color: "#3ddc84" }}>
+              {lk.paymentsPro} {lk.seePlans} →
+            </button>
+          )}
         </div>
 
         <div className="soon-stage">

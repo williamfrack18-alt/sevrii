@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT, PROJECTS_TEXT } from "@/lib/planI18n";
+import { PLANS_TEXT } from "@/lib/plansI18n";
 import { switchProjectAction } from "@/app/actions";
 import type { ClientProject, DashboardView } from "./types";
 
@@ -22,7 +23,9 @@ export default function ProjectsView({
   projects,
   activeId,
   onNavigate,
+  projectLimit = MAX_PROJECTS,
 }: {
+  projectLimit?: number;
   projects: ClientProject[];
   activeId: string;
   onNavigate: (view: DashboardView) => void;
@@ -30,7 +33,8 @@ export default function ProjectsView({
   const lang = useLang();
   const t = PROJECTS_TEXT[lang];
   const [pending, start] = useTransition();
-  const atLimit = projects.length >= MAX_PROJECTS;
+  const atLimit = projects.length >= Math.min(MAX_PROJECTS, projectLimit);
+  const lk = PLANS_TEXT[lang].lock;
 
   return (
     <div className="min-h-screen" style={{ background: "#000" }}>
@@ -111,10 +115,27 @@ export default function ProjectsView({
             );
           })}
 
-          {atLimit ? (
+          {atLimit && projectLimit >= MAX_PROJECTS ? (
             <div className="rounded-2xl p-5 flex items-center justify-center text-center text-[13.5px] text-[#8e8e8e]" style={{ border: "1.5px dashed rgba(255,255,255,0.14)" }}>
               {t.limit}
             </div>
+          ) : atLimit ? (
+            <button
+              type="button"
+              onClick={() => onNavigate("plans")}
+              className="rounded-2xl p-5 min-h-[188px] flex flex-col items-center justify-center gap-2.5 text-center transition hover:bg-white/[0.03]"
+              style={{ border: "1.5px dashed rgba(255,255,255,0.18)" }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="5" y="11" width="14" height="9" rx="2" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+              </svg>
+              <span className="text-[15px] font-semibold text-white">{lk.projectsLocked(projectLimit)}</span>
+              <span className="text-[13px] text-[#8e8e8e]">{lk.projectsLockedSub}</span>
+              <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full mt-1" style={{ background: GREEN, color: "#000" }}>
+                {lk.seePlans}
+              </span>
+            </button>
           ) : (
             <a
               href="/start?new=1"

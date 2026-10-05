@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
+import { limitsForUserId } from "@/lib/billing";
 import { addChatMessage, getBusinessById, listCampaigns, listChatMessages, type BusinessRow, type CampaignRow } from "@/lib/db";
 import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
@@ -38,10 +39,15 @@ export async function sendMarketingChatAction(message: string): Promise<Marketin
     history = await listChatMessages(business.id, CHANNEL);
   }
 
+  const limits = await limitsForUserId(business.userId);
+  if (!limits.marketing) {
+    // Free plan: Marketing is part of Starter. Nothing is sent to the AI.
+    return respond(business);
+  }
   let blocked: string | null = null;
   if (text.length > LIMITS.aiMaxChars) blocked = t.aiTooLong;
   else if (!(await allow(`ai:min:u:${business.userId}`, 10, 60))) blocked = t.aiSlowDown;
-  else if (!(await allow(`ai:day:u:${business.userId}`, 200, 24 * 60 * 60))) blocked = t.aiDailyLimit;
+  else if (!(await allow(`ai:day:u:${business.userId}`, limits.aiPerDay, 24 * 60 * 60))) blocked = t.aiDailyLimit;
   if (blocked) {
     await addChatMessage(business.id, CHANNEL, "ai", blocked);
     return respond(business);

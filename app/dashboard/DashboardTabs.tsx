@@ -6,6 +6,9 @@ import StoreView from "./StoreView";
 import MarketingView from "./MarketingView";
 import ProjectsView from "./ProjectsView";
 import PlanView from "./PlanView";
+import PlansView from "./PlansView";
+import { PLANS_TEXT } from "@/lib/plansI18n";
+import { PLANS, type ClientPlan } from "@/lib/plans";
 import ComingSoonView from "./ComingSoonView";
 import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
@@ -24,6 +27,11 @@ function initials(name: string): string {
 }
 
 const ICONS: Record<DashboardView, React.JSX.Element> = {
+  plans: (
+    <>
+      <path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z" />
+    </>
+  ),
   projects: (
     <>
       <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" />
@@ -79,6 +87,8 @@ export default function DashboardTabs({
   planGreeting,
   storeGreeting,
   marketingGreeting,
+  plan,
+  planNotice = null,
 }: {
   initialView?: DashboardView;
   userEmail: string;
@@ -90,11 +100,16 @@ export default function DashboardTabs({
   marketingMessages: ClientMsg[];
   editorMessages: ClientMsg[];
   planGreeting: string;
+  plan: ClientPlan;
+  planNotice?: "success" | "cancel" | "projects" | "publish" | null;
   storeGreeting: string;
   marketingGreeting: string;
 }) {
   const t = useT();
-  const pt = PLAN_TEXT[useLang()];
+  const lang = useLang();
+  const pt = PLAN_TEXT[lang];
+  const bt = PLANS_TEXT[lang];
+  const limits = PLANS[plan.id].limits;
   const [view, setViewState] = useState<DashboardView>(initialView);
   const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
@@ -170,6 +185,9 @@ export default function DashboardTabs({
               {it.label}
             </button>
           ))}
+          <button type="button" onClick={() => setView("plans")} className={`dash-pill ${view === "plans" ? "on" : ""}`}>
+            {bt.nav}
+          </button>
         </div>
       </div>
 
@@ -256,6 +274,36 @@ export default function DashboardTabs({
 
         <div className={`flex flex-col gap-2.5 border-t border-border pt-4 ${railOpen ? "" : "items-center"}`}>
           {railOpen ? (
+            <button
+              type="button"
+              onClick={() => setView("plans")}
+              className={`w-full flex items-center justify-between gap-2 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-white/5 ${view === "plans" ? "bg-white/5" : ""}`}
+            >
+              <span className="flex flex-col min-w-0">
+                <span className="text-[11px] text-mutedLight">{bt.lock.plan}</span>
+                <span className="text-[13px] font-semibold text-ink truncate">{bt.plans[plan.id].name}</span>
+              </span>
+              {plan.id === "free" ? (
+                <span className="text-[11.5px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "#3ddc84", color: "#000" }}>
+                  {bt.lock.upgrade}
+                </span>
+              ) : (
+                <span className="text-[11.5px] text-mutedLight shrink-0">{bt.nav} →</span>
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setView("plans")}
+              title={`${bt.lock.plan}: ${bt.plans[plan.id].name}`}
+              aria-label={bt.nav}
+              className={`dash-nav w-full !justify-center !px-0 relative ${view === "plans" ? "on" : ""}`}
+            >
+              <NavIcon id="plans" on={view === "plans"} />
+              {plan.id === "free" && <span className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full" style={{ background: "#3ddc84" }} />}
+            </button>
+          )}
+          {railOpen ? (
             <>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -287,7 +335,10 @@ export default function DashboardTabs({
 
       {/* Main content */}
       <main className="grow min-w-0">
-        {view === "projects" && <ProjectsView projects={projects} activeId={currentBusiness.id} onNavigate={setView} />}
+        {view === "projects" && (
+          <ProjectsView projects={projects} activeId={currentBusiness.id} onNavigate={setView} projectLimit={limits.projects} />
+        )}
+        {view === "plans" && <PlansView plan={plan} notice={planNotice} />}
         {view === "plan" && (
           <PlanView
             business={currentBusiness}
@@ -307,6 +358,8 @@ export default function DashboardTabs({
             services={currentServices}
             initialMessages={storeMessages}
             greeting={storeGreeting}
+            canPublish={limits.canPublish}
+            onPlans={() => setView("plans")}
             onMessages={setStoreMessages}
             onUpdated={(b, s) => {
               setCurrentBusiness(b);
@@ -320,6 +373,8 @@ export default function DashboardTabs({
             campaigns={currentCampaigns}
             initialMessages={brainMessages}
             greeting={marketingGreeting}
+            locked={!limits.marketing}
+            onPlans={() => setView("plans")}
             onMessages={setBrainMessages}
             onUpdated={(b, c) => {
               setCurrentBusiness(b);
@@ -328,7 +383,7 @@ export default function DashboardTabs({
           />
         )}
         {(view === "payments" || view === "capital") && (
-          <ComingSoonView pillar={view} onBack={() => setView("projects")} />
+          <ComingSoonView pillar={view} onBack={() => setView("projects")} onPlans={() => setView("plans")} />
         )}
 
         {/* Log out on mobile (the rail with it is hidden there) */}

@@ -36,6 +36,7 @@ import { createSessionRow, deleteSessionRow } from "@/lib/db";
 import { allow, clear, clientIp, LIMITS } from "@/lib/guard";
 import { generateSiteDraft } from "@/lib/siteAI";
 import { EMPTY_PLAN } from "@/lib/plan";
+import { limitsFor } from "@/lib/billing";
 import { EMPTY_SITE, normalizePhone, type SiteData } from "@/lib/site";
 import { getCurrentUser, setActiveProject, PROJECT_COOKIE } from "@/lib/session";
 import { runPageEditorTurn } from "@/lib/aiEditor";
@@ -167,7 +168,9 @@ async function checkNewProject(newProject: boolean | undefined): Promise<NewProj
   if (!user) redirect("/login");
   if (user.business && !newProject) redirect("/dashboard");
   if (user.business) {
-    if ((await countProjects(user.id)) >= MAX_PROJECTS) redirect("/dashboard?view=projects");
+    // Each plan allows a number of projects (Free and Starter: 1, Pro: 3, Team: 10).
+    const allowed = Math.min(MAX_PROJECTS, limitsFor(user).projects);
+    if ((await countProjects(user.id)) >= allowed) redirect("/dashboard?view=plans&need=projects");
     if (!(await allow(`project:new:${user.id}`, 8, 24 * 60 * 60))) redirect("/dashboard?view=projects");
   }
   return { userId: user.id, previous: user.business };

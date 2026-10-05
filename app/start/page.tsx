@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
+import { countProjects } from "@/lib/db";
+import { limitsFor } from "@/lib/billing";
 import PathPicker from "./PathPicker";
 import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
@@ -12,6 +14,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   if (!user) redirect("/login");
   const isNew = Boolean(user.business) && (await searchParams)?.new === "1";
   if (user.business && !isNew) redirect("/dashboard");
+  if (isNew && (await countProjects(user.id)) >= limitsFor(user).projects) redirect("/dashboard?view=plans&need=projects");
   const t = getDict(await getLang());
 
   return (

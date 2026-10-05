@@ -12,6 +12,7 @@ import {
 } from "../db";
 import type { Lang } from "../i18n";
 import { allow } from "../guard";
+import { limitsForUserId } from "../billing";
 import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanStage } from "../plan";
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
@@ -30,7 +31,8 @@ const STEPS: Record<"ideas_research" | "research", { parallel: ResearchKind[]; t
   research: { parallel: ["prices", "competitors", "requirements", "faq"], then: ["strategy", "guard"] },
 };
 
-const RUNS_PER_DAY = Number(process.env.SEVRII_RESEARCH_PER_DAY || 3);
+// Research runs per account per day come from the plan; SEVRII_RESEARCH_PER_DAY overrides for everyone.
+const RUNS_OVERRIDE = Number(process.env.SEVRII_RESEARCH_PER_DAY || 0);
 
 export type AdvanceResult = { more: boolean; error?: "limit" | "failed" | "busy" };
 
@@ -52,7 +54,8 @@ export async function advancePipeline(businessId: string, userId: string, lang: 
 
   let jobs = await latestResearchRun(businessId);
   if (!plan.runId || jobs.length === 0 || jobs[0].runId !== plan.runId) {
-    if (!(await allow(`brain:run:u:${userId}`, RUNS_PER_DAY, 24 * 60 * 60))) return { more: false, error: "limit" };
+    const perDay = RUNS_OVERRIDE || (await limitsForUserId(userId)).researchPerDay;
+    if (!(await allow(`brain:run:u:${userId}`, perDay, 24 * 60 * 60))) return { more: false, error: "limit" };
     const runId = await createResearchRun(businessId, [...spec.parallel, ...spec.then]);
     plan = { ...plan, runId };
     await savePlan(businessId, plan);
