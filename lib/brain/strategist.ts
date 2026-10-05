@@ -29,7 +29,7 @@ Honestidad:
 - Nada de reseñas, cifras de clientes, "el número 1", "garantizado" ni urgencia falsa.
 - La oferta es solo una sugerencia: el usuario decide si la quiere y pone la fecha de fin.
 
-Tipo de campaña: Facebook e Instagram "Llamar ahora" para trabajos urgentes o locales; Google Search cuando la gente busca el servicio y el presupuesto llega a unos $15 al día; WhatsApp para clientes hispanos. Suma siempre los canales gratis: perfil de Google Business y referidos.`;
+Tipo de campaña: Facebook e Instagram "Llamar ahora" para trabajos urgentes o locales; Google Search cuando la gente busca el servicio y el presupuesto llega a unos $15 al día; WhatsApp cuando el dueño lo usa y sus clientes prefieren escribir. Suma siempre los canales gratis: perfil de Google Business y referidos.`;
 
 const S = (description: string) => ({ type: "string", description });
 const obj = (properties: Record<string, unknown>) => ({ type: "object", additionalProperties: false, properties, required: Object.keys(properties) });

@@ -19,7 +19,7 @@ Marca como "block":
 Marca como "warn":
 - Categorías especiales de anuncios de Meta: crédito, empleo, vivienda, productos financieros.
 - Precios muy por debajo o por encima del rango de la zona.
-- Textos que preguntan por rasgos personales ("¿Eres latino?", "¿Tienes deudas?").
+- Textos que preguntan por rasgos personales ("¿Estás divorciado?", "¿Tienes deudas?").
 
 La oferta todavía es una sugerencia sin fecha: el dueño pondrá la fecha de fin real antes de aprobar. No la marques por no tener fecha.
 

@@ -64,7 +64,7 @@ export async function generateSiteDraft(input: {
 }): Promise<SiteDraft | null> {
   const client = getClaude();
   if (!client) return null;
-  const language = input.lang === "es" ? "Spanish (neutral, US Hispanic audience, use 'tú')" : "English (US)";
+  const language = input.lang === "es" ? "Spanish (neutral, use 'tú')" : "English (US)";
   try {
     const res = await client.messages.create({
       model: MODEL,

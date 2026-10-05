@@ -21,11 +21,12 @@
         localStorage.setItem('sevrii_lang', 'en');
       } else {
         var lang = ((navigator.language || (navigator.languages && navigator.languages[0]) || '') + '').toLowerCase();
-        if (lang.indexOf('en') === 0) {
+        // English for everyone, unless the browser prefers Spanish.
+        if (lang.indexOf('es') === 0) {
+          localStorage.setItem('sevrii_lang', 'es');
+        } else {
           localStorage.setItem('sevrii_lang', 'en');
           if (path !== enTarget) { window.location.href = enTarget; }
-        } else {
-          localStorage.setItem('sevrii_lang', 'es');
         }
       }
     }

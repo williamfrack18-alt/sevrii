@@ -266,7 +266,7 @@ export async function runStoreChatTurn(opts: {
     };
   }
 
-  const system = `${SYSTEM}\n\nReply in ${es ? "Spanish (neutral, US Hispanic, 'tú')" : "English"}. Page text goes in the page's language (page.lang) unless the owner asks otherwise.`;
+  const system = `${SYSTEM}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}. Page text goes in the page's language (page.lang) unless the owner asks otherwise.`;
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
     { role: "user", content: `Page state (JSON):\n${JSON.stringify(pageState(business, services))}\n\nOwner: ${opts.message}` },

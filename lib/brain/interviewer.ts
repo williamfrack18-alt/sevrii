@@ -20,10 +20,10 @@ import { textOf, today } from "./common";
 // The Brain's chat. The code decides the stage; in each stage the model only
 // talks and saves through the tools that stage allows.
 
-const INTERVIEWER = `Eres el Entrevistador de Sevrii. Ayudas a dueños de pequeños negocios de servicios en EE. UU. (muchos son hispanos) a definir su servicio. En esta etapa solo entiendes; no propones.
+const INTERVIEWER = `Eres el Entrevistador de Sevrii. Ayudas a dueños de pequeños negocios de servicios en EE. UU. a definir su servicio. En esta etapa solo entiendes; no propones.
 
 Cómo conversas:
-- Una pregunta a la vez, corta y amable. Tutea. Español neutro, o inglés si el usuario escribe en inglés.
+- Una pregunta a la vez, corta y amable. Responde en el idioma en que te escribe el usuario (en español, tutea).
 - Sigue la lista "missing" del estado, en orden. Nunca preguntes algo que ya está en el expediente.
 - Si una respuesta trae varios datos, guárdalos todos con save_profile y no los vuelvas a preguntar.
 - Si la respuesta es vaga, pide un ejemplo concreto: "¿cuál fue el último trabajo que hiciste?".
@@ -336,7 +336,7 @@ export async function runPlanChatTurn(opts: {
         max_tokens: 3000,
         thinking: { type: "between_tools" },
         output_config: { effort: "low" },
-        system: [{ type: "text", text: `${system}\n\nReply in ${es ? "Spanish (neutral, US Hispanic, 'tú')" : "English"}.`, cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: `${system}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`, cache_control: { type: "ephemeral" } }],
         ...(tools.length ? { tools } : {}),
         messages,
       });

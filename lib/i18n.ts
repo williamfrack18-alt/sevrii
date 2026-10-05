@@ -14,7 +14,8 @@ export const LANG_COOKIE = "sevrii_lang";
 export function pickLang(cookieValue?: string | null, acceptLanguage?: string | null): Lang {
   if (cookieValue === "es" || cookieValue === "en") return cookieValue;
   const first = (acceptLanguage || "").split(",")[0]?.trim().toLowerCase() || "";
-  return first.startsWith("en") ? "en" : "es";
+  // Sevrii is for every service business in the US: English unless the browser prefers Spanish.
+  return first.startsWith("es") ? "es" : "en";
 }
 
 const es = {
