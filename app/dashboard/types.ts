@@ -19,6 +19,7 @@ export type ClientBusiness = {
   callClicks: number;
   textClicks: number;
   published: boolean;
+  marketCategory: string | null;
   site: SiteData;
   marketing: MarketingData;
   plan: BusinessPlan;
@@ -39,6 +40,7 @@ export function toClientBusiness(b: BusinessRow): ClientBusiness {
     callClicks: b.callClicks,
     textClicks: b.textClicks,
     published: Boolean(b.published),
+    marketCategory: b.marketCategory ?? null,
     site: b.site,
     marketing: b.marketing,
     plan: b.plan,

@@ -5,7 +5,6 @@ import {
   addService,
   deleteService,
   listServices,
-  setBusinessPublished,
   updateBusinessAccent,
   updateBusinessDetails,
   updateBusinessSite,
@@ -15,6 +14,7 @@ import {
   type ServiceRow,
 } from "./db";
 import { LIMITS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl } from "./site";
+import { publishBusiness } from "./marketplace";
 
 // The Store tab is one chat. This agent interviews the owner for exactly the
 // data the conversion template needs (services and prices, offer, photos,
@@ -239,8 +239,10 @@ async function runTool(
         const gaps = publishGaps({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: ctx.services.length });
         if (gaps.length) return `not published, missing: ${gaps.join(", ")}`;
       }
-      await setBusinessPublished(b.id, Boolean(input.publish));
-      return input.publish ? "published" : "moved to draft";
+      const after = await publishBusiness(b.id, Boolean(input.publish));
+      return input.publish
+        ? `published. It is also listed on the Sevrii marketplace (sevrii.com) in the category "${after.marketCategory}", so customers browsing that category can find it.`
+        : "moved to draft (also removed from the Sevrii marketplace)";
     }
     default:
       return "error: unknown tool";

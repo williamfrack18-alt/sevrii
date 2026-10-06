@@ -72,6 +72,9 @@ export const STORE_TEXT = {
       publish: "Publicar página",
       unpublish: "Pasar a borrador",
       publishedOk: "Tu página está publicada.",
+      inMarket: "En el marketplace",
+      publishing: "Publicando…",
+      publishFailed: "No se pudo publicar. Inténtalo de nuevo.",
       draftHint: "Tu página es un borrador. Revisa los textos, precios y datos, y publícala cuando esté lista.",
       gapsTitle: "Antes de publicar falta:",
       gaps: {
@@ -247,6 +250,9 @@ export const STORE_TEXT = {
       publish: "Publish page",
       unpublish: "Move to draft",
       publishedOk: "Your page is published.",
+      inMarket: "On the marketplace",
+      publishing: "Publishing…",
+      publishFailed: "We couldn't publish it. Please try again.",
       draftHint: "Your page is a draft. Review the text, prices and details, and publish it when it's ready.",
       gapsTitle: "Before publishing you still need:",
       gaps: {

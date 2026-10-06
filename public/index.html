@@ -267,6 +267,12 @@ document.addEventListener('DOMContentLoaded', function(){
   .result-rating .star{color:var(--s-star);}
   .result-rating .count{color:var(--s-text-faint);}
 
+  .result-thumb img.cover{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .result-thumb img.logo{width:58%; height:58%; object-fit:contain;}
+  .result-price{font-size:14px; font-weight:600; color:var(--s-text);}
+  .result-tag{display:inline-block; margin-top:8px; font-size:11.5px; color:var(--s-text-faint); border:1px solid var(--s-border); border-radius:999px; padding:2px 8px;}
+  .no-results a{color:inherit; font-weight:600; text-decoration:underline; text-underline-offset:3px;}
+
   /* FOOTER */
   footer{padding:70px 24px 30px;background:var(--accent-grad);border-top:1px solid var(--border);}
   .footer-grid{
@@ -524,8 +530,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <script>
 (function(){
+  // Marketplace: published Sevrii pages load from /api/marketplace and sit
+  // next to the cards written in this file. Category and search filter both.
   var categoryLinks = document.querySelectorAll('.category-item[data-category]');
-  var cards = document.querySelectorAll('.result-card[data-category]');
   var input = document.getElementById('searchInput');
   var searchBtn = document.getElementById('searchBtn');
   var countEl = document.getElementById('resultCount');
@@ -535,18 +542,52 @@ document.addEventListener('DOMContentLoaded', function(){
   var activeCategory = null;
 
   function normalize(s){
-    return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+  function el(tag, cls, text){
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text) e.textContent = text;
+    return e;
+  }
+  function safeImg(u){ return /^https:\/\//.test(u || '') ? u : ''; }
+  function initials(name){
+    return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(function(w){ return w[0]; }).join('').toUpperCase();
+  }
+
+  function card(l){
+    var a = el('a', 'result-card');
+    a.href = '/site/' + encodeURIComponent(l.slug);
+    a.setAttribute('data-category', l.category);
+    a.setAttribute('data-search', [l.title, l.name, l.location, l.category].join(' '));
+    var thumb = el('div', 'result-thumb');
+    var cover = safeImg(l.coverUrl), logo = safeImg(l.logoUrl);
+    if (cover || logo) {
+      var img = el('img', cover ? 'cover' : 'logo');
+      img.src = cover || logo; img.alt = l.name; img.loading = 'lazy';
+      thumb.appendChild(img);
+    } else {
+      thumb.appendChild(el('span', 'mark', initials(l.name)));
+    }
+    a.appendChild(thumb);
+    var body = el('div', 'result-body');
+    body.appendChild(el('p', 'result-title', l.title));
+    body.appendChild(el('div', 'result-by', 'por ' + l.name));
+    if (l.location) body.appendChild(el('div', 'result-loc', l.location));
+    if (l.price) body.appendChild(el('div', 'result-price', /^(desde|from)\b/i.test(l.price) ? l.price : 'Desde ' + l.price));
+    if (l.spanish) body.appendChild(el('span', 'result-tag', 'Se habla español'));
+    a.appendChild(body);
+    return a;
   }
 
   function applyFilters(){
     var term = normalize(input ? input.value : '');
     var visible = 0;
-    cards.forEach(function(card){
-      var matchesCategory = !activeCategory || card.getAttribute('data-category') === activeCategory;
-      var haystack = normalize(card.getAttribute('data-search') || card.textContent);
-      var matchesSearch = !term || haystack.indexOf(term) !== -1;
-      var show = matchesCategory && matchesSearch;
-      card.style.display = show ? '' : 'none';
+    document.querySelectorAll('.result-card[data-category]').forEach(function(c){
+      var matchesCategory = !activeCategory || c.getAttribute('data-category') === activeCategory;
+      var haystack = normalize((c.getAttribute('data-search') || '') + ' ' + c.textContent);
+      var show = matchesCategory && (!term || haystack.indexOf(term) !== -1);
+      c.style.display = show ? '' : 'none';
       if (show) visible++;
     });
     if (countEl) countEl.textContent = visible;
@@ -554,6 +595,8 @@ document.addEventListener('DOMContentLoaded', function(){
     if (noResultsEl) noResultsEl.style.display = visible === 0 ? 'block' : 'none';
     if (grid) grid.style.display = visible === 0 ? 'none' : '';
   }
+
+  if (noResultsEl) noResultsEl.innerHTML = 'No encontramos servicios que coincidan con tu búsqueda. ¿Ofreces este servicio? <a href="ofrecerservicios.html">Publícalo en Sevrii</a>.';
 
   categoryLinks.forEach(function(link){
     link.addEventListener('click', function(){
@@ -569,13 +612,23 @@ document.addEventListener('DOMContentLoaded', function(){
       applyFilters();
     });
   });
-
   if (searchBtn) searchBtn.addEventListener('click', function(){ applyFilters(); });
   if (input) input.addEventListener('keydown', function(e){
     if (e.key === 'Enter') { e.preventDefault(); applyFilters(); }
   });
+
+  fetch('/api/marketplace', { headers: { accept: 'application/json' } })
+    .then(function(r){ return r.ok ? r.json() : { listings: [] }; })
+    .then(function(data){
+      var list = (data && data.listings) || [];
+      var first = grid ? grid.firstChild : null;
+      list.forEach(function(l){ if (grid) grid.insertBefore(card(l), first); });
+      applyFilters();
+    })
+    .catch(function(){ applyFilters(); });
 })();
 </script>
+
 
 </body>
 </html>

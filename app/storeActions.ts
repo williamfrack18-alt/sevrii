@@ -9,7 +9,6 @@ import {
   deleteService,
   getBusinessById,
   listServices,
-  setBusinessPublished,
   updateBusinessAccent,
   updateBusinessDetails,
   updateBusinessSite,
@@ -23,6 +22,7 @@ import { allow, LIMITS as RATE } from "@/lib/guard";
 import { addChatMessage, listChatMessages } from "@/lib/db";
 import { runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
 import { limitsFor, limitsForUserId } from "@/lib/billing";
+import { publishBusiness } from "@/lib/marketplace";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 
@@ -164,8 +164,7 @@ export async function setPublishedAction(
     serviceCount: services.length,
   });
   if (publish && gaps.length > 0) return { ok: false, gaps, business };
-  await setBusinessPublished(business.id, publish);
-  const fresh = (await getBusinessById(business.id))!;
+  const fresh = await publishBusiness(business.id, publish);
   refresh(fresh.slug);
   return { ok: true, gaps: [], business: fresh };
 }

@@ -173,6 +173,8 @@ function ensureSchema(): Promise<void> {
       `;
       await sql`CREATE INDEX IF NOT EXISTS businesses_user_idx ON businesses ("userId")`;
       await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS plan JSONB NOT NULL DEFAULT '{}'::jsonb`;
+      // Marketplace category, set automatically when the page is published.
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "marketCategory" TEXT`;
       // Brain research runs: one row per task, so the screen can show progress.
       await sql`
         CREATE TABLE IF NOT EXISTS research_jobs (
@@ -323,6 +325,7 @@ export type BusinessRow = {
   site: SiteData;
   marketing: MarketingData;
   plan: BusinessPlan;
+  marketCategory: string | null;
   createdAt: string;
 };
 
@@ -390,6 +393,7 @@ export async function createBusiness(input: {
     site,
     marketing: parseMarketing({}),
     plan,
+    marketCategory: null,
     createdAt,
   };
 }
@@ -525,6 +529,45 @@ export async function updateBusinessSite(businessId: string, site: SiteData): Pr
 export async function setBusinessPublished(businessId: string, published: boolean): Promise<void> {
   await ensureSchema();
   await sql`UPDATE businesses SET published = ${published ? 1 : 0} WHERE id = ${businessId}`;
+}
+
+export async function setBusinessMarketCategory(businessId: string, category: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET "marketCategory" = ${category} WHERE id = ${businessId}`;
+}
+
+export type MarketplaceRow = {
+  id: string;
+  slug: string;
+  name: string;
+  city: string | null;
+  site: SiteData;
+  marketCategory: string | null;
+  email: string;
+  plan: string | null;
+  planStatus: string | null;
+  serviceName: string | null;
+  servicePrice: string | null;
+  category: string;
+};
+
+// Published pages for the marketplace, newest first, with their main service.
+export async function listMarketplaceRows(limit = 300): Promise<MarketplaceRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT b.id, b.slug, b.name, b.city, b.site, b."marketCategory", b.category, u.email, u.plan, u."planStatus",
+           s.name AS "serviceName", s.price AS "servicePrice"
+    FROM businesses b
+    JOIN users u ON u.id = b."userId"
+    LEFT JOIN LATERAL (
+      SELECT name, price FROM services WHERE "businessId" = b.id
+      ORDER BY featured DESC, "sortOrder" ASC LIMIT 1
+    ) s ON true
+    WHERE b.published = 1
+    ORDER BY b."createdAt" DESC
+    LIMIT ${limit}
+  `) as Record<string, unknown>[];
+  return rows.map((r) => ({ ...(r as unknown as MarketplaceRow), site: parseSite(r.site) }));
 }
 
 export async function incrementContactClick(businessId: string, channel: "call" | "text" | "whatsapp"): Promise<void> {
