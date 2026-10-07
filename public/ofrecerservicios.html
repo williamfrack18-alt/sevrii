@@ -424,45 +424,61 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,300..500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,300..500&display=swap" rel="stylesheet">
 <style>
-  /* Sevrii Robotics (vision section) */
-  .sr{background:#000;color:#fff;border-top:1px solid rgba(255,255,255,.12);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-  .sr *{box-sizing:border-box;}
-  .sr-wrap{max-width:1280px;margin:0 auto;padding:104px 24px 80px;}
-  .sr-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:end;}
-  .sr-wide{font-family:"Archivo",-apple-system,BlinkMacSystemFont,sans-serif;font-stretch:125%;font-variation-settings:"wdth" 125;}
-  .sr-label{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#7dbf9c;}
-  .sr-h{font-weight:350;font-size:clamp(32px,4.2vw,58px);line-height:1.02;letter-spacing:.005em;text-transform:uppercase;margin:20px 0 26px;color:#fff;}
-  .sr-p{font-size:17px;line-height:1.65;color:#bdbdbd;max-width:540px;margin:0;}
-  .sr-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:34px;}
-  .sr-btn{display:inline-flex;align-items:center;gap:18px;height:52px;padding:0 22px;border:1px solid rgba(255,255,255,.75);border-radius:12px;color:#fff;font-size:15px;font-weight:500;text-decoration:none;transition:background .2s ease,color .2s ease;}
-  .sr-btn:hover{background:#fff;color:#000;}
-  .sr-btn svg{width:14px;height:14px;}
-  .sr-note{font-size:12.5px;line-height:1.5;color:#777;margin-top:22px;max-width:460px;}
-  .sr-media{position:relative;aspect-ratio:5/6;overflow:hidden;background:#3a3d3b;}
-  .sr-media svg{display:block;width:100%;height:100%;}
-  .sr-cap{position:absolute;left:18px;bottom:16px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.75);}
-  .sr-index{margin-top:96px;border-top:1px solid rgba(255,255,255,.2);}
-  .sr-row{display:grid;grid-template-columns:72px minmax(0,1fr) minmax(0,1.1fr) 150px;gap:28px;align-items:center;padding:28px 0;border-bottom:1px solid rgba(255,255,255,.2);}
-  .sr-num{font-size:17px;color:#8a8a8a;}
-  .sr-title{font-weight:400;font-size:clamp(30px,4.4vw,60px);line-height:1;text-transform:uppercase;color:#fff;}
-  .sr-desc{font-size:15.5px;line-height:1.55;color:#a3a3a3;margin:0;}
-  .sr-tag{justify-self:end;font-size:12px;letter-spacing:.04em;padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);color:#cfcfcf;white-space:nowrap;}
-  .sr-tag.on{border-color:rgba(125,191,156,.55);color:#7dbf9c;}
-  .sr-row.dim .sr-title{color:#9a9a9a;}
-  .sr-light{animation:srPulse 3.2s ease-in-out infinite;}
-  @keyframes srPulse{0%,100%{opacity:.65}50%{opacity:1}}
-  .sr-reveal{opacity:0;transform:translateY(24px);transition:opacity .8s ease,transform .8s ease;}
-  .sr-reveal.sr-in{opacity:1;transform:none;}
-  @media (prefers-reduced-motion: reduce){.sr-light{animation:none}.sr-reveal{opacity:1;transform:none;transition:none}}
-  @media (max-width:900px){
-    .sr-wrap{padding:72px 16px 56px;}
-    .sr-grid{grid-template-columns:1fr;gap:40px;}
-    .sr-index{margin-top:64px;}
-    .sr-row{grid-template-columns:40px minmax(0,1fr) auto;gap:8px 14px;padding:22px 0;}
-    .sr-desc{grid-column:2 / 4;}
-    .sr-tag{grid-column:3;grid-row:1;}
+  /* Sevrii Robotics: vision section, styled after a studio-robot product page */
+  .sx{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .sx *{box-sizing:border-box;}
+  .sx-wide{font-family:"Archivo",-apple-system,BlinkMacSystemFont,sans-serif;font-stretch:112%;font-variation-settings:"wdth" 112;}
+  .sx-btn{display:inline-flex;align-items:center;gap:22px;height:50px;padding:0 20px;border:1px solid rgba(255,255,255,.85);border-radius:10px;color:#fff;font-size:15px;font-weight:500;text-decoration:none;white-space:nowrap;transition:background .2s ease,color .2s ease;}
+  .sx-btn:hover{background:#fff;color:#000;}
+  .sx-btn svg{width:13px;height:13px;flex-shrink:0;}
+  .sx-hero{position:relative;height:min(100vh,920px);min-height:600px;overflow:hidden;background:#5f625f;}
+  .sx-hero video,.sx-hero .sx-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 28%;}
+  .sx-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.6) 100%);pointer-events:none;}
+  .sx-top{position:absolute;top:30px;left:50px;z-index:2;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.9);}
+  .sx-bottom{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:0 50px 54px;}
+  .sx-h{font-weight:400;font-size:clamp(24px,2.3vw,34px);line-height:1.1;letter-spacing:.01em;text-transform:uppercase;margin:0 0 16px;max-width:600px;}
+  .sx-p{font-size:16.5px;line-height:1.6;color:#ececec;max-width:480px;margin:0;}
+  .sx-band{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:76px 50px;}
+  .sx-band .sx-p{color:#d9d9d9;}
+  .sx-close{position:relative;height:min(80vh,780px);min-height:420px;overflow:hidden;background:#606360;}
+  .sx-close img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;}
+  .sx-cap{position:absolute;left:50px;bottom:28px;z-index:2;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.8);}
+  .sx-index{position:relative;background:#dcdddb;color:#0b0b0b;overflow:hidden;}
+  .sx-index .sx-blur{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px);opacity:.38;}
+  .sx-index-in{position:relative;display:grid;grid-template-columns:1fr 1.15fr;gap:64px;padding:96px 50px 90px;}
+  .sx-word{font-weight:400;font-size:clamp(52px,7.4vw,118px);line-height:.9;letter-spacing:.32em;margin:0;}
+  .sx-sub{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#3c3c3c;margin-top:16px;}
+  .sx-keep{margin-top:56px;max-width:440px;}
+  .sx-keep h3{font-size:22px;font-weight:500;margin:0 0 8px;color:#0b0b0b;}
+  .sx-keep p{font-size:15.5px;line-height:1.55;color:#2b2b2b;margin:0;}
+  .sx-dark{display:inline-flex;align-items:center;gap:12px;height:50px;padding:0 24px;border-radius:999px;background:#0b0b0b;color:#fff;font-size:15px;font-weight:500;text-decoration:none;margin-top:24px;}
+  .sx-dark svg{width:13px;height:13px;}
+  .sx-keep .sx-note{font-size:12.5px;line-height:1.5;color:#555;margin-top:20px;}
+  .sx-list{align-self:center;}
+  .sx-row{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:16px;padding:20px 0;border-bottom:1px solid rgba(0,0,0,.18);}
+  .sx-row:first-child{padding-top:0;}
+  .sx-num{font-size:20px;color:#1a1a1a;}
+  .sx-title{font-weight:400;font-size:clamp(34px,4.6vw,68px);line-height:1;text-transform:uppercase;color:#0b0b0b;}
+  .sx-row.dim .sx-title{color:#6b6b6b;}
+  .sx-st{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:#3a3a3a;white-space:nowrap;}
+  .sx-row.on .sx-st{color:#1f6644;}
+  @media (max-width:860px){
+    .sx-top{left:16px;top:20px;}
+    .sx-bottom{flex-direction:column;align-items:flex-start;padding:0 16px 32px;}
+    .sx-hero{height:86vh;min-height:560px;}
+    .sx-hero video,.sx-hero .sx-bg{object-position:50% 20%;}
+    .sx-band{grid-template-columns:1fr;padding:48px 16px;gap:28px;}
+    .sx-band > div:first-child{order:2;}
+    .sx-close{height:56vh;min-height:320px;}
+    .sx-cap{left:16px;}
+    .sx-index-in{grid-template-columns:1fr;padding:64px 16px;gap:48px;}
+    .sx-keep{margin-top:36px;}
+    .sx-row{grid-template-columns:34px 1fr auto;gap:10px;}
+    .sx-title{font-size:30px;}
+    .sx-st{font-size:10.5px;letter-spacing:.04em;}
+    .sx-word{letter-spacing:.24em;}
   }
 </style>
 </head>
@@ -710,122 +726,63 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 
 
 <!-- Sevrii Robotics: vision section (not a product yet) -->
-<section class="sr" id="robotics" aria-labelledby="sr-title">
-  <div class="sr-wrap">
-    <div class="sr-grid">
-      <div class="sr-reveal">
-        <div class="sr-label sr-wide">Sevrii Robotics · Visión</div>
-        <h2 class="sr-h sr-wide" id="sr-title">El futuro del servicio también tendrá manos</h2>
-        <p class="sr-p">Hoy Sevrii es el cerebro de tu negocio: investiga tu mercado, arma tu página y prepara tus campañas. Mañana, esa misma inteligencia podrá vivir en robots humanoides que trabajen a tu lado. Empieza hoy con el software y llega primero a lo que viene.</p>
-        <div class="sr-actions">
-          <a class="sr-btn" href="/signup">Empieza hoy gratis <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
-        </div>
-        <p class="sr-note">Sevrii Robotics es nuestra visión a futuro. Todavía no es un servicio disponible.</p>
+<section class="sx" id="robotics" aria-label="Sevrii Robotics">
+  <div class="sx-hero">
+    <video class="sx-video" muted loop playsinline preload="none" poster="/assets/robotics/hero.jpg" aria-hidden="true"><source src="/assets/robotics/hero.mp4" type="video/mp4"></video>
+    <div class="sx-top sx-wide">Sevrii Robotics</div>
+    <div class="sx-bottom">
+      <div>
+        <h2 class="sx-h sx-wide">El futuro del servicio también tendrá manos</h2>
+        <p class="sx-p">Hoy Sevrii es el cerebro de tu negocio. Mañana, esa misma inteligencia podrá trabajar a tu lado en forma de robot.</p>
       </div>
-      <div class="sr-media sr-reveal">
-        <svg class="sr-robot" viewBox="0 0 600 720" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Concepto de robot humanoide Sevrii">
-  <defs>
-    <radialGradient id="srBg" cx="50%" cy="30%" r="80%">
-      <stop offset="0" stop-color="#8d918d"/><stop offset=".5" stop-color="#555955"/><stop offset="1" stop-color="#1c1e1d"/>
-    </radialGradient>
-    <linearGradient id="srShell" x1="0" y1="0" x2=".6" y2="1">
-      <stop offset="0" stop-color="#fdfefc"/><stop offset=".5" stop-color="#e4e7e3"/><stop offset="1" stop-color="#b4b8b3"/>
-    </linearGradient>
-    <linearGradient id="srSide" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#000" stop-opacity=".34"/><stop offset=".2" stop-color="#000" stop-opacity="0"/><stop offset=".8" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".40"/>
-    </linearGradient>
-    <linearGradient id="srArm" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#9da19c"/><stop offset=".6" stop-color="#d9dcd8"/><stop offset="1" stop-color="#b9bcb8"/>
-    </linearGradient>
-    <linearGradient id="srVisor" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2c3631"/><stop offset=".45" stop-color="#0b100d"/><stop offset="1" stop-color="#040605"/>
-    </linearGradient>
-    <linearGradient id="srNeck" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#151716"/><stop offset=".5" stop-color="#3b3f3d"/><stop offset="1" stop-color="#151716"/>
-    </linearGradient>
-    <pattern id="srMesh" width="5" height="5" patternUnits="userSpaceOnUse">
-      <circle cx="2.5" cy="2.5" r="1" fill="#000" fill-opacity=".4"/>
-    </pattern>
-    <filter id="srGlow" x="-50%" y="-400%" width="200%" height="900%">
-      <feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="srSoft" x="-50%" y="-100%" width="200%" height="300%"><feGaussianBlur stdDeviation="12"/></filter>
-  </defs>
-  <rect width="600" height="720" fill="url(#srBg)"/>
-  <!-- arms -->
-  <path d="M86 528 C70 600 64 660 66 720 L156 720 C154 652 158 596 170 548 Z" fill="url(#srArm)"/>
-  <path d="M514 528 C530 600 536 660 534 720 L444 720 C446 652 442 596 430 548 Z" fill="url(#srArm)"/>
-  <path d="M86 528 C70 600 64 660 66 720 L156 720 C154 652 158 596 170 548 Z" fill="url(#srSide)"/>
-  <!-- torso -->
-  <path d="M132 720 C130 620 140 540 178 500 C214 466 254 454 300 452 C346 454 386 466 422 500 C460 540 470 620 468 720 Z" fill="url(#srShell)"/>
-  <path d="M132 720 C130 620 140 540 178 500 C214 466 254 454 300 452 C346 454 386 466 422 500 C460 540 470 620 468 720 Z" fill="url(#srSide)"/>
-  <!-- shoulder caps -->
-  <ellipse cx="134" cy="508" rx="64" ry="50" transform="rotate(-24 134 508)" fill="url(#srShell)"/>
-  <ellipse cx="134" cy="508" rx="64" ry="50" transform="rotate(-24 134 508)" fill="none" stroke="#000" stroke-opacity=".12" stroke-width="2"/>
-  <ellipse cx="466" cy="508" rx="64" ry="50" transform="rotate(24 466 508)" fill="url(#srShell)"/>
-  <ellipse cx="466" cy="508" rx="64" ry="50" transform="rotate(24 466 508)" fill="#000" fill-opacity=".16"/>
-  <!-- chest panel lines -->
-  <path d="M232 506 C246 580 354 580 368 506" fill="none" stroke="#000" stroke-opacity=".09" stroke-width="2"/>
-  <path d="M300 590 L300 720" stroke="#000" stroke-opacity=".07" stroke-width="2"/>
-  <!-- collar + neck -->
-  <rect x="264" y="350" width="72" height="110" rx="16" fill="url(#srNeck)"/>
-  <rect x="264" y="350" width="72" height="110" rx="16" fill="url(#srMesh)"/>
-  <ellipse cx="300" cy="458" rx="84" ry="17" fill="#1d201e"/>
-  <path d="M220 455 C250 470 350 470 380 455" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="2"/>
-  <g transform="translate(0 44)">
-  <ellipse cx="300" cy="334" rx="62" ry="14" fill="#000" opacity=".55" filter="url(#srSoft)"/>
-  <!-- head -->
-  <path d="M300 70 C368 70 404 120 404 196 C404 276 368 334 300 334 C232 334 196 276 196 196 C196 120 232 70 300 70 Z" fill="url(#srShell)"/>
-  <path d="M300 70 C368 70 404 120 404 196 C404 276 368 334 300 334 C232 334 196 276 196 196 C196 120 232 70 300 70 Z" fill="url(#srSide)"/>
-  <rect x="186" y="180" width="18" height="58" rx="9" fill="#c9ccc8"/>
-  <rect x="396" y="180" width="18" height="58" rx="9" fill="#a5a9a4"/>
-  <!-- visor -->
-  <path d="M212 190 C212 166 240 156 300 156 C360 156 388 166 388 190 L388 214 C388 240 360 250 300 250 C240 250 212 240 212 214 Z" fill="url(#srVisor)"/>
-  <path d="M236 170 C270 162 330 162 364 170" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>
-  <rect class="sr-light" x="248" y="200" width="104" height="5" rx="2.5" fill="#6cc497" filter="url(#srGlow)"/>
-  <!-- rim + highlights -->
-  <path d="M244 96 C266 82 304 78 334 86" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-opacity=".95"/>
-  </g>
-  <!-- chest mark -->
-  <g transform="translate(300 618)" opacity=".9">
-    <path d="M0 20 C-12 6 -16 -1 -16 -7 A16 16 0 1 1 16 -7 C16 -1 12 6 0 20 Z" fill="none" stroke="#2e7a55" stroke-width="3" stroke-linejoin="round"/>
-    <circle cx="0" cy="-8" r="5.5" fill="none" stroke="#2e7a55" stroke-width="3"/>
-  </g>
-</svg>
-
-        <span class="sr-cap sr-wide">Concepto</span>
-      </div>
+      <a class="sx-btn" href="/signup">Empieza hoy <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
     </div>
-    <div class="sr-index">
-      <div class="sr-row sr-reveal">
-        <span class="sr-num sr-wide">01</span>
-        <span class="sr-title sr-wide">Software</span>
-        <p class="sr-desc">Cerebro, Store y Marketing para vender tu servicio.</p>
-        <span class="sr-tag on">Disponible hoy</span>
+  </div>
+  <div class="sx-band">
+    <div><a class="sx-btn" href="#servicios">Ver la plataforma <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a></div>
+    <div>
+      <h3 class="sx-h sx-wide">Entiende tu servicio como tú</h3>
+      <p class="sx-p">Primero, el Cerebro de Sevrii aprende tu negocio: tus precios, tus clientes y tu zona. Ese conocimiento es la base de todo lo que viene.</p>
+    </div>
+  </div>
+  <div class="sx-close">
+    <img src="/assets/robotics/face.jpg" alt="Concepto de robot humanoide de Sevrii" loading="lazy" decoding="async">
+    <span class="sx-cap sx-wide">Concepto · Sevrii Robotics</span>
+  </div>
+  <div class="sx-index">
+    <div class="sx-blur" style="background-image:url('/assets/robotics/blur.jpg')"></div>
+    <div class="sx-index-in">
+      <div>
+        <p class="sx-word sx-wide">SEVRII</p>
+        <div class="sx-sub sx-wide">Robotics · Visión</div>
+        <div class="sx-keep">
+          <h3>Llega primero al futuro</h3>
+          <p>Los negocios que hoy venden con Sevrii serán los primeros en trabajar con lo que viene.</p>
+          <a class="sx-dark" href="/signup">Crear mi cuenta gratis <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
+          <p class="sx-note">Sevrii Robotics es nuestra visión a futuro. Todavía no es un servicio disponible.</p>
+        </div>
       </div>
-      <div class="sr-row sr-reveal dim">
-        <span class="sr-num sr-wide">02</span>
-        <span class="sr-title sr-wide">Agentes</span>
-        <p class="sr-desc">Agentes de IA que lanzan tus anuncios y atienden por ti.</p>
-        <span class="sr-tag">Próximamente</span>
-      </div>
-      <div class="sr-row sr-reveal dim">
-        <span class="sr-num sr-wide">03</span>
-        <span class="sr-title sr-wide">Robots</span>
-        <p class="sr-desc">Robots humanoides que ayudan a prestar el servicio.</p>
-        <span class="sr-tag">Visión</span>
+      <div class="sx-list">
+        <div class="sx-row on"><span class="sx-num sx-wide">01</span><span class="sx-title sx-wide">Software</span><span class="sx-st">Disponible hoy</span></div>
+        <div class="sx-row dim"><span class="sx-num sx-wide">02</span><span class="sx-title sx-wide">Agentes</span><span class="sx-st">Próximamente</span></div>
+        <div class="sx-row dim"><span class="sx-num sx-wide">03</span><span class="sx-title sx-wide">Robots</span><span class="sx-st">Visión</span></div>
       </div>
     </div>
   </div>
 </section>
 <script>
 (function(){
-  var els = document.querySelectorAll('.sr-reveal');
-  if (!('IntersectionObserver' in window)) { els.forEach(function(e){ e.classList.add('sr-in'); }); return; }
+  var v = document.querySelector('#robotics .sx-video');
+  if (!v) return;
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still || !('IntersectionObserver' in window)) return; // the poster image stays
   var io = new IntersectionObserver(function(entries){
-    entries.forEach(function(en){ if (en.isIntersecting) { en.target.classList.add('sr-in'); io.unobserve(en.target); } });
-  }, { threshold: 0.15 });
-  els.forEach(function(e){ io.observe(e); });
+    entries.forEach(function(en){
+      if (en.isIntersecting) { v.preload = 'auto'; var p = v.play(); if (p && p.catch) p.catch(function(){}); }
+      else v.pause();
+    });
+  }, { rootMargin: '200px 0px' });
+  io.observe(v);
 })();
 </script>
 <!-- Footer -->
