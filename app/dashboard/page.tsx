@@ -5,20 +5,25 @@ import { marketingGreeting } from "@/lib/marketingBrain";
 import { planGreeting } from "@/lib/planBrain";
 import { getCurrentUser } from "@/lib/session";
 import { listServices, listCampaigns, listChatMessages, listProjects } from "@/lib/db";
-import { clientPlan } from "@/lib/billing";
+import { clientPlan, syncCheckoutSession } from "@/lib/billing";
 import DashboardTabs from "./DashboardTabs";
 import { DASHBOARD_VIEWS, toClientBusiness, type DashboardView } from "./types";
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; checkout?: string; need?: string }>;
+  searchParams: Promise<{ view?: string; checkout?: string; need?: string; session_id?: string }>;
 }) {
-  const user = await getCurrentUser();
+  let user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!user.business) redirect("/start");
 
   const sp = (await searchParams) ?? {};
+  // Back from paying: turn the plan on now (the webhook may arrive a bit later).
+  if (sp.checkout === "success" && sp.session_id) {
+    await syncCheckoutSession(user, sp.session_id);
+    user = (await getCurrentUser()) ?? user;
+  }
   const raw = sp.view;
   const planNotice =
     sp.checkout === "success" ? "success" : sp.checkout === "cancel" ? "cancel" : sp.need === "projects" ? "projects" : sp.need === "publish" ? "publish" : null;
@@ -26,7 +31,7 @@ export default async function DashboardPage({
   const requested = (raw === "home" ? "projects" : raw) as DashboardView | undefined;
   const initialView: DashboardView = requested && DASHBOARD_VIEWS.includes(requested) ? requested : "projects";
 
-  const business = user.business;
+  const business = user.business!;
   const services = await listServices(business.id);
   const campaigns = await listCampaigns(business.id);
   const projects = await listProjects(user.id);

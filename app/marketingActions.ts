@@ -9,6 +9,7 @@ import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { marketingGreeting, runMarketingChatTurn } from "@/lib/marketingBrain";
+import { chatGate, gateMessage, runForUser } from "@/lib/usage";
 
 const CHANNEL = "brain";
 
@@ -46,15 +47,17 @@ export async function sendMarketingChatAction(message: string): Promise<Marketin
   }
   let blocked: string | null = null;
   if (text.length > LIMITS.aiMaxChars) blocked = t.aiTooLong;
-  else if (!(await allow(`ai:min:u:${business.userId}`, 10, 60))) blocked = t.aiSlowDown;
-  else if (!(await allow(`ai:day:u:${business.userId}`, limits.aiPerDay, 24 * 60 * 60))) blocked = t.aiDailyLimit;
+  else {
+    const reason = await chatGate(business.userId, limits);
+    if (reason) blocked = gateMessage(reason, t);
+  }
   if (blocked) {
     await addChatMessage(business.id, CHANNEL, "ai", blocked);
     return respond(business);
   }
 
   await addChatMessage(business.id, CHANNEL, "user", text);
-  const result = await runMarketingChatTurn({
+  const result = await runForUser(business.userId, () => runMarketingChatTurn({
     business,
     reload: async () => (await getBusinessById(business.id))!,
     history: history.slice(-16).map((m) => ({
@@ -63,7 +66,7 @@ export async function sendMarketingChatAction(message: string): Promise<Marketin
     })),
     message: text,
     lang,
-  });
+  }));
   await addChatMessage(business.id, CHANNEL, "ai", result.reply);
   revalidatePath("/dashboard");
   return respond(result.business);

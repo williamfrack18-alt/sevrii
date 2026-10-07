@@ -104,6 +104,8 @@ export default function PlanView({
         if (s.error === "busy") await new Promise((ok) => setTimeout(ok, 5000));
         if (!s.more || (s.plan && !PIPELINE.includes(s.plan.stage))) return;
       }
+      // Ran out of attempts while still researching: show the retry button instead of waiting forever.
+      if (!stop) setPipeErr("failed");
     };
     poll();
     drive();
@@ -183,6 +185,11 @@ export default function PlanView({
               <span className="text-[14px]" style={{ color: pipeErr === "limit" ? AMBER : RED }}>
                 {pipeErr === "limit" ? t.limit : t.failed}
               </span>
+              {pipeErr === "limit" && (
+                <button type="button" onClick={() => onNavigate("plans")} className="h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
+                  {t.seePlans}
+                </button>
+              )}
               {pipeErr === "failed" && (
                 <button type="button" onClick={() => setRetryKey((k) => k + 1)} className="h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
                   {t.retry}

@@ -1,20 +1,12 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/session";
 import { joinPlanWaitlist } from "@/lib/db";
-import { billingReady, createCheckoutUrl, createPortalUrl, effectivePlan } from "@/lib/billing";
+import { AlreadySubscribed, billingReady, createCheckoutUrl, createPortalUrl, effectivePlan, yearlyReady } from "@/lib/billing";
 import { allow } from "@/lib/guard";
 import { PLANS, type PlanId } from "@/lib/plans";
-
-async function origin(): Promise<string> {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") || h.get("host") || "sevrii.com";
-  const proto = h.get("x-forwarded-proto") || "https";
-  return `${proto}://${host}`;
-}
 
 export type BillingResult = { url?: string; error?: "not_ready" | "failed" | "already" | "rate" };
 
@@ -22,12 +14,16 @@ export type BillingResult = { url?: string; error?: "not_ready" | "failed" | "al
 export async function startCheckoutAction(interval: "month" | "year"): Promise<BillingResult> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!billingReady()) return { error: "not_ready" };
+  if (!billingReady() || (interval === "year" && !yearlyReady())) return { error: "not_ready" };
   if (effectivePlan(user) !== "free") return { error: "already" };
   if (!(await allow(`billing:checkout:${user.id}`, 10, 60 * 60))) return { error: "rate" };
   try {
-    return { url: await createCheckoutUrl(user, interval === "year" ? "year" : "month", await origin()) };
+    return { url: await createCheckoutUrl(user, interval === "year" ? "year" : "month") };
   } catch (err) {
+    if (err instanceof AlreadySubscribed) {
+      revalidatePath("/dashboard");
+      return { error: "already" };
+    }
     console.error("[billing] checkout failed", (err as Error)?.message);
     return { error: "failed" };
   }
@@ -39,7 +35,7 @@ export async function openPortalAction(): Promise<BillingResult> {
   if (!user) redirect("/login");
   if (!billingReady() || !user.stripeCustomerId) return { error: "not_ready" };
   try {
-    return { url: await createPortalUrl(user, await origin()) };
+    return { url: await createPortalUrl(user) };
   } catch (err) {
     console.error("[billing] portal failed", (err as Error)?.message);
     return { error: "failed" };

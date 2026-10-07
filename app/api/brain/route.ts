@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getLang } from "@/lib/lang";
 import { getBusinessById, listChatMessages } from "@/lib/db";
 import { advancePipeline, pipelineStatus } from "@/lib/brain/pipeline";
+import { runForUser } from "@/lib/usage";
 
 // Research can take a couple of minutes: each POST runs one step.
 export const maxDuration = 300;
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user?.business) return NextResponse.json({ error: "auth" }, { status: 401 });
   const retry = new URL(req.url).searchParams.get("retry") === "1";
-  const result = await advancePipeline(user.business.id, user.id, await getLang(), retry);
+  const lang = await getLang();
+  const result = await runForUser(user.id, () => advancePipeline(user.business!.id, user.id, lang, retry));
   return NextResponse.json({ ...result, ...(await snapshot(user.business.id)) }, { headers: { "Cache-Control": "no-store" } });
 }

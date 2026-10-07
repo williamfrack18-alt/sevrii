@@ -11,8 +11,7 @@ import {
   type ResearchJobRow,
 } from "../db";
 import type { Lang } from "../i18n";
-import { allow } from "../guard";
-import { limitsForUserId } from "../billing";
+import { researchGate } from "../usage";
 import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanStage } from "../plan";
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
@@ -31,8 +30,7 @@ const STEPS: Record<"ideas_research" | "research", { parallel: ResearchKind[]; t
   research: { parallel: ["prices", "competitors", "requirements", "faq"], then: ["strategy", "guard"] },
 };
 
-// Research runs per account per day come from the plan; SEVRII_RESEARCH_PER_DAY overrides for everyone.
-const RUNS_OVERRIDE = Number(process.env.SEVRII_RESEARCH_PER_DAY || 0);
+// Research runs per account per month and the AI budget come from the plan (lib/usage.ts).
 
 export type AdvanceResult = { more: boolean; error?: "limit" | "failed" | "busy" };
 
@@ -54,13 +52,15 @@ export async function advancePipeline(businessId: string, userId: string, lang: 
 
   let jobs = await latestResearchRun(businessId);
   if (!plan.runId || jobs.length === 0 || jobs[0].runId !== plan.runId) {
-    const perDay = RUNS_OVERRIDE || (await limitsForUserId(userId)).researchPerDay;
-    if (!(await allow(`brain:run:u:${userId}`, perDay, 24 * 60 * 60))) return { more: false, error: "limit" };
+    // Each new run counts against the plan's monthly runs and AI budget.
+    if (await researchGate(userId)) return { more: false, error: "limit" };
     const runId = await createResearchRun(businessId, [...spec.parallel, ...spec.then]);
     plan = { ...plan, runId };
     await savePlan(businessId, plan);
     jobs = await latestResearchRun(businessId);
   } else if (retry) {
+    // A retry re-runs paid research, so it counts like a new run.
+    if (await researchGate(userId)) return { more: false, error: "limit" };
     await requeueFailedJobs(plan.runId);
     jobs = await latestResearchRun(businessId);
   }

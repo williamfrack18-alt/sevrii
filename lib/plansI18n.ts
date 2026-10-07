@@ -51,7 +51,7 @@ const es = {
       title: "Cerebro",
       rows: [
         { label: "Entrevista, investigación de tu zona y propuesta", values: { free: true, starter: true, pro: true, team: true } },
-        { label: "Investigaciones completas por día", values: { free: "2", starter: "3", pro: "6", team: "12" } },
+        { label: "Investigaciones de mercado por mes", values: { free: "2", starter: "10", pro: "25", team: "60" } },
       ],
     },
     {
@@ -79,7 +79,7 @@ const es = {
       rows: [
         { label: "Proyectos (servicios que vendes)", values: { free: "1", starter: "1", pro: "3", team: "10" } },
         { label: "Usuarios", values: { free: "1", starter: "1", pro: "1", team: "Varios" } },
-        { label: "Mensajes a la IA por día", values: { free: "60", starter: "200", pro: "400", team: "800" } },
+        { label: "Mensajes a la IA por mes", values: { free: "150", starter: "800", pro: "2.000", team: "5.000" } },
         { label: "Soporte", values: { free: "Correo", starter: "Correo", pro: "Prioritario", team: "Prioritario" } },
       ],
     },
@@ -145,7 +145,7 @@ const en: typeof es = {
       title: "Brain",
       rows: [
         { label: "Interview, local research and proposal", values: { free: true, starter: true, pro: true, team: true } },
-        { label: "Full research runs per day", values: { free: "2", starter: "3", pro: "6", team: "12" } },
+        { label: "Market research runs per month", values: { free: "2", starter: "10", pro: "25", team: "60" } },
       ],
     },
     {
@@ -173,7 +173,7 @@ const en: typeof es = {
       rows: [
         { label: "Projects (services you sell)", values: { free: "1", starter: "1", pro: "3", team: "10" } },
         { label: "Users", values: { free: "1", starter: "1", pro: "1", team: "Multiple" } },
-        { label: "AI messages per day", values: { free: "60", starter: "200", pro: "400", team: "800" } },
+        { label: "AI messages per month", values: { free: "150", starter: "800", pro: "2,000", team: "5,000" } },
         { label: "Support", values: { free: "Email", starter: "Email", pro: "Priority", team: "Priority" } },
       ],
     },

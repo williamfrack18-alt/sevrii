@@ -173,6 +173,16 @@ function ensureSchema(): Promise<void> {
       `;
       await sql`CREATE INDEX IF NOT EXISTS businesses_user_idx ON businesses ("userId")`;
       await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS plan JSONB NOT NULL DEFAULT '{}'::jsonb`;
+      // AI spend per account per month (micro-dollars), to stop runaway costs.
+      await sql`
+        CREATE TABLE IF NOT EXISTS ai_usage (
+          "userId" TEXT NOT NULL,
+          month TEXT NOT NULL,
+          "costMicros" BIGINT NOT NULL DEFAULT 0,
+          calls INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY ("userId", month)
+        )
+      `;
       // Marketplace category, set automatically when the page is published.
       await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "marketCategory" TEXT`;
       // Brain research runs: one row per task, so the screen can show progress.
@@ -531,6 +541,20 @@ export async function setBusinessPublished(businessId: string, published: boolea
   await sql`UPDATE businesses SET published = ${published ? 1 : 0} WHERE id = ${businessId}`;
 }
 
+export async function addAiUsage(userId: string, month: string, micros: number): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO ai_usage ("userId", month, "costMicros", calls) VALUES (${userId}, ${month}, ${micros}, 1)
+    ON CONFLICT ("userId", month) DO UPDATE SET "costMicros" = ai_usage."costMicros" + ${micros}, calls = ai_usage.calls + 1
+  `;
+}
+
+export async function getAiSpendMicros(userId: string, month: string): Promise<number> {
+  await ensureSchema();
+  const rows = (await sql`SELECT "costMicros" FROM ai_usage WHERE "userId" = ${userId} AND month = ${month}`) as { costMicros: string | number }[];
+  return Number(rows[0]?.costMicros ?? 0);
+}
+
 export async function setBusinessMarketCategory(businessId: string, category: string): Promise<void> {
   await ensureSchema();
   await sql`UPDATE businesses SET "marketCategory" = ${category} WHERE id = ${businessId}`;
@@ -882,9 +906,12 @@ export async function requeueFailedJobs(runId: string): Promise<void> {
 }
 
 // ---------- Plans and billing ----------
-export async function setUserStripeCustomer(userId: string, customerId: string): Promise<void> {
+// Saves the Stripe customer only if the account has none yet; returns the one stored.
+export async function setUserStripeCustomer(userId: string, customerId: string): Promise<string> {
   await ensureSchema();
-  await sql`UPDATE users SET "stripeCustomerId" = ${customerId} WHERE id = ${userId}`;
+  await sql`UPDATE users SET "stripeCustomerId" = ${customerId} WHERE id = ${userId} AND "stripeCustomerId" IS NULL`;
+  const rows = (await sql`SELECT "stripeCustomerId" FROM users WHERE id = ${userId}`) as { stripeCustomerId: string | null }[];
+  return rows[0]?.stripeCustomerId || customerId;
 }
 
 export async function getUserByStripeCustomer(customerId: string): Promise<UserRow | undefined> {

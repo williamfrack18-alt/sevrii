@@ -28,6 +28,16 @@ export function billingReady(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.STRIPE_PRICE_STARTER_MONTHLY);
 }
 
+// The yearly option is only offered when its Stripe price exists.
+export function yearlyReady(): boolean {
+  return billingReady() && Boolean(process.env.STRIPE_PRICE_STARTER_YEARLY);
+}
+
+// Where Stripe sends people back. Never built from request headers.
+export function siteUrl(): string {
+  return (process.env.SEVRII_SITE_URL || "https://sevrii.com").replace(/\/$/, "");
+}
+
 const PAID_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 // The plan an account is really on right now.
@@ -50,6 +60,7 @@ export async function clientPlan(user: UserRow): Promise<ClientPlan> {
     renewsAt: user.planRenewsAt ? new Date(user.planRenewsAt).toISOString() : null,
     cancelAtPeriodEnd: Boolean(user.cancelAtPeriodEnd),
     billingReady: billingReady(),
+    yearlyReady: yearlyReady(),
     waitlist: (await listUserWaitlists(user.id)).filter((p): p is PlanId => p in PLANS),
     admin: isAdmin(user.email),
   };
@@ -62,12 +73,14 @@ function form(params: Record<string, string>): string {
     .join("&");
 }
 
-async function stripe<T = Record<string, unknown>>(method: "GET" | "POST", path: string, params: Record<string, string> = {}): Promise<T> {
+async function stripe<T = Record<string, unknown>>(method: "GET" | "POST", path: string, params: Record<string, string> = {}, idempotencyKey?: string): Promise<T> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
+  const headers: Record<string, string> = { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" };
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
   const res = await fetch(`https://api.stripe.com/v1/${path}${method === "GET" && Object.keys(params).length ? `?${form(params)}` : ""}`, {
     method,
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" },
+    headers,
     body: method === "POST" ? form(params) : undefined,
     cache: "no-store",
   });
@@ -78,16 +91,38 @@ async function stripe<T = Record<string, unknown>>(method: "GET" | "POST", path:
 
 async function ensureCustomer(user: UserRow): Promise<string> {
   if (user.stripeCustomerId) return user.stripeCustomerId;
-  const c = await stripe<{ id: string }>("POST", "customers", { email: user.email, "metadata[userId]": user.id });
-  await setUserStripeCustomer(user.id, c.id);
-  return c.id;
+  // Same idempotency key for the same account: two clicks at once get the same customer.
+  const c = await stripe<{ id: string }>("POST", "customers", { email: user.email, "metadata[userId]": user.id }, `customer-${user.id}`);
+  // Only saved if the account has none yet; then use whatever is stored.
+  return await setUserStripeCustomer(user.id, c.id);
 }
 
-export async function createCheckoutUrl(user: UserRow, interval: "month" | "year", origin: string): Promise<string> {
-  const price = interval === "year" && process.env.STRIPE_PRICE_STARTER_YEARLY ? process.env.STRIPE_PRICE_STARTER_YEARLY : process.env.STRIPE_PRICE_STARTER_MONTHLY;
-  if (!price) throw new Error("no Starter price configured");
+const LIVE = new Set(["active", "trialing", "past_due"]);
+
+// A subscription of this customer that is still running, if any (Stripe is the source of truth).
+export async function findLiveSubscription(customerId: string): Promise<Sub | null> {
+  const list = await stripe<{ data: Sub[] }>("GET", "subscriptions", { customer: customerId, status: "all", limit: "10" });
+  return list.data.find((s) => LIVE.has(s.status)) ?? null;
+}
+
+export class AlreadySubscribed extends Error {}
+
+export async function createCheckoutUrl(user: UserRow, interval: "month" | "year"): Promise<string> {
+  // Never charge a different interval than the one the person chose.
+  const price = interval === "year" ? process.env.STRIPE_PRICE_STARTER_YEARLY : process.env.STRIPE_PRICE_STARTER_MONTHLY;
+  if (!price) throw new Error(`no Starter ${interval} price configured`);
   const customer = await ensureCustomer(user);
+  // Already paying (maybe the webhook hasn't arrived yet)? Sync instead of selling twice.
+  const live = await findLiveSubscription(customer);
+  if (live) {
+    await applySubscription(live);
+    throw new AlreadySubscribed();
+  }
+  const origin = siteUrl();
+  const tax: Record<string, string> =
+    process.env.STRIPE_AUTOMATIC_TAX === "1" ? { "automatic_tax[enabled]": "true", "customer_update[address]": "auto" } : {};
   const session = await stripe<{ url: string }>("POST", "checkout/sessions", {
+    ...tax,
     mode: "subscription",
     customer,
     client_reference_id: user.id,
@@ -95,15 +130,15 @@ export async function createCheckoutUrl(user: UserRow, interval: "month" | "year
     "line_items[0][quantity]": "1",
     "subscription_data[metadata][userId]": user.id,
     allow_promotion_codes: "true",
-    success_url: `${origin}/dashboard?view=plans&checkout=success`,
+    success_url: `${origin}/dashboard?view=plans&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/dashboard?view=plans&checkout=cancel`,
   });
   return session.url;
 }
 
-export async function createPortalUrl(user: UserRow, origin: string): Promise<string> {
+export async function createPortalUrl(user: UserRow): Promise<string> {
   const customer = await ensureCustomer(user);
-  const s = await stripe<{ url: string }>("POST", "billing_portal/sessions", { customer, return_url: `${origin}/dashboard?view=plans` });
+  const s = await stripe<{ url: string }>("POST", "billing_portal/sessions", { customer, return_url: `${siteUrl()}/dashboard?view=plans` });
   return s.url;
 }
 
@@ -136,7 +171,7 @@ type Sub = {
   items?: { data?: { current_period_end?: number; price?: { id?: string } }[] };
 };
 
-function planFromPrice(priceId: string | undefined): PlanId {
+function planFromPrice(priceId: string | undefined): PlanId | null {
   const map: Record<string, PlanId> = {};
   for (const [env, plan] of [
     ["STRIPE_PRICE_STARTER_MONTHLY", "starter"],
@@ -148,42 +183,61 @@ function planFromPrice(priceId: string | undefined): PlanId {
     const v = process.env[env];
     if (v) map[v] = plan;
   }
-  return (priceId && map[priceId]) || "free";
+  return (priceId && map[priceId]) || null;
 }
 
-export async function applySubscription(sub: Sub): Promise<void> {
+// Apply a subscription's CURRENT state, always read from Stripe, so old or
+// out-of-order webhook deliveries can't give or take away a plan by mistake.
+export async function applySubscription(subOrId: Sub | string): Promise<void> {
+  const id = typeof subOrId === "string" ? subOrId : subOrId.id;
+  const sub = await stripe<Sub>("GET", `subscriptions/${id}`);
   const user = (sub.metadata?.userId && (await getUserById(sub.metadata.userId))) || (await getUserByStripeCustomer(sub.customer));
   if (!user) {
     console.warn("[billing] subscription for unknown customer", sub.customer);
     return;
   }
+  const live = LIVE.has(sub.status);
+  // An older subscription ending must not cancel a newer one that is running.
+  if (!live && user.stripeSubscriptionId && user.stripeSubscriptionId !== sub.id) {
+    console.info("[billing] ignoring end of an old subscription", sub.id);
+    return;
+  }
   const item = sub.items?.data?.[0];
   const end = item?.current_period_end ?? sub.current_period_end;
-  const ended = sub.status === "canceled" || sub.status === "incomplete_expired" || sub.status === "unpaid";
+  let plan: PlanId = "free";
+  if (live) {
+    const fromPrice = planFromPrice(item?.price?.id);
+    if (!fromPrice) console.error("[billing] unknown price on a paying subscription; keeping a paid plan", item?.price?.id, sub.id);
+    plan = fromPrice ?? (user.plan && user.plan !== "free" && PLANS[user.plan as PlanId] ? (user.plan as PlanId) : "starter");
+  }
   await updateUserPlan(user.id, {
-    plan: ended ? "free" : planFromPrice(item?.price?.id),
-    planStatus: ended ? "canceled" : sub.status,
+    plan,
+    planStatus: live ? sub.status : "canceled",
     planRenewsAt: end ? new Date(end * 1000).toISOString() : null,
     cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),
-    stripeSubscriptionId: ended ? null : sub.id,
+    stripeSubscriptionId: live ? sub.id : null,
   });
+}
+
+// Coming back from Checkout: activate right away instead of waiting for the webhook.
+export async function syncCheckoutSession(user: UserRow, sessionId: string): Promise<void> {
+  if (!billingReady() || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return;
+  try {
+    const s = await stripe<{ customer?: string; client_reference_id?: string; subscription?: string }>("GET", `checkout/sessions/${sessionId}`);
+    if (s.client_reference_id !== user.id && s.customer !== user.stripeCustomerId) return;
+    if (s.subscription) await applySubscription(s.subscription);
+  } catch (err) {
+    console.error("[billing] checkout sync failed", (err as Error)?.message);
+  }
 }
 
 export async function handleStripeEvent(event: { type: string; data: { object: Record<string, unknown> } }): Promise<void> {
   const obj = event.data.object;
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const subId = obj.subscription as string | undefined;
-      if (subId) await applySubscription(await stripe<Sub>("GET", `subscriptions/${subId}`));
-      break;
-    }
-    case "customer.subscription.created":
-    case "customer.subscription.updated":
-    case "customer.subscription.deleted":
-      await applySubscription(obj as unknown as Sub);
-      break;
-    default:
-      break;
+  if (event.type === "checkout.session.completed") {
+    const subId = obj.subscription as string | undefined;
+    if (subId) await applySubscription(subId);
+  } else if (event.type.startsWith("customer.subscription.")) {
+    await applySubscription(String(obj.id));
   }
 }
 

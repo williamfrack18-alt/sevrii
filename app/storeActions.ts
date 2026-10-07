@@ -23,6 +23,7 @@ import { addChatMessage, listChatMessages } from "@/lib/db";
 import { runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
 import { limitsFor, limitsForUserId } from "@/lib/billing";
 import { publishBusiness } from "@/lib/marketplace";
+import { chatGate, gateMessage, runForUser } from "@/lib/usage";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 
@@ -164,7 +165,7 @@ export async function setPublishedAction(
     serviceCount: services.length,
   });
   if (publish && gaps.length > 0) return { ok: false, gaps, business };
-  const fresh = await publishBusiness(business.id, publish);
+  const fresh = await runForUser(business.userId, () => publishBusiness(business.id, publish));
   refresh(fresh.slug);
   return { ok: true, gaps: [], business: fresh };
 }
@@ -251,17 +252,20 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
 
   let blocked: string | null = null;
   if (text.length > RATE.aiMaxChars) blocked = t.aiTooLong;
-  else if (!(await allow(`ai:min:u:${business.userId}`, 10, 60))) blocked = t.aiSlowDown;
-  else if (!(await allow(`ai:day:u:${business.userId}`, (await limitsForUserId(business.userId)).aiPerDay, 24 * 60 * 60))) blocked = t.aiDailyLimit;
+  else {
+    const reason = await chatGate(business.userId);
+    if (reason) blocked = gateMessage(reason, t);
+  }
   if (blocked) {
     await addChatMessage(business.id, "store", "ai", blocked);
     return respond(business);
   }
 
   await addChatMessage(business.id, "store", "user", text);
-  const result = await runStoreChatTurn({
+  const canPublish = (await limitsForUserId(business.userId)).canPublish;
+  const result = await runForUser(business.userId, () => runStoreChatTurn({
     business,
-    canPublish: (await limitsForUserId(business.userId)).canPublish,
+    canPublish,
     reload: async () => (await getBusinessById(business.id))!,
     history: history.slice(-16).map((m) => ({
       role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
@@ -271,7 +275,7 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
       ? `${lang === "es" ? "Subí una foto" : "I uploaded a photo"}: ${text.slice(3).trim()}`
       : text,
     lang,
-  });
+  }));
   await addChatMessage(business.id, "store", "ai", result.reply);
   refresh(result.business.slug);
   return respond(result.business);

@@ -14,7 +14,9 @@ export type PlanLimits = {
   autoMarketing: boolean; // agent launches and optimizes ads
   payments: boolean; // charge customers with Stripe
   aiPerDay: number; // AI chat messages per account per day
-  researchPerDay: number; // full Brain research runs per day
+  aiPerMonth: number; // AI chat messages per account per month
+  researchPerMonth: number; // Brain research runs per month (each run searches the web)
+  aiBudgetUsd: number; // hard stop: real AI cost per account per month
 };
 
 export type PlanDef = {
@@ -31,28 +33,28 @@ export const PLANS: Record<PlanId, PlanDef> = {
     monthly: 0,
     yearlyPerMonth: null,
     available: true,
-    limits: { projects: 1, canPublish: false, marketing: false, autoMarketing: false, payments: false, aiPerDay: 60, researchPerDay: 2 },
+    limits: { projects: 1, canPublish: false, marketing: false, autoMarketing: false, payments: false, aiPerDay: 15, aiPerMonth: 150, researchPerMonth: 2, aiBudgetUsd: 2 },
   },
   starter: {
     id: "starter",
     monthly: 29,
     yearlyPerMonth: 24,
     available: true,
-    limits: { projects: 1, canPublish: true, marketing: true, autoMarketing: false, payments: false, aiPerDay: 200, researchPerDay: 3 },
+    limits: { projects: 1, canPublish: true, marketing: true, autoMarketing: false, payments: false, aiPerDay: 60, aiPerMonth: 800, researchPerMonth: 10, aiBudgetUsd: 12 },
   },
   pro: {
     id: "pro",
     monthly: 79,
     yearlyPerMonth: 66,
     available: false,
-    limits: { projects: 3, canPublish: true, marketing: true, autoMarketing: true, payments: true, aiPerDay: 400, researchPerDay: 6 },
+    limits: { projects: 3, canPublish: true, marketing: true, autoMarketing: true, payments: true, aiPerDay: 120, aiPerMonth: 2000, researchPerMonth: 25, aiBudgetUsd: 30 },
   },
   team: {
     id: "team",
     monthly: 149,
     yearlyPerMonth: null,
     available: false,
-    limits: { projects: 10, canPublish: true, marketing: true, autoMarketing: true, payments: true, aiPerDay: 800, researchPerDay: 12 },
+    limits: { projects: 10, canPublish: true, marketing: true, autoMarketing: true, payments: true, aiPerDay: 240, aiPerMonth: 5000, researchPerMonth: 60, aiBudgetUsd: 60 },
   },
 };
 
@@ -82,6 +84,7 @@ export type ClientPlan = {
   renewsAt: string | null;
   cancelAtPeriodEnd: boolean;
   billingReady: boolean; // Stripe keys are set up
+  yearlyReady: boolean; // the yearly Starter price exists
   waitlist: PlanId[];
   admin: boolean;
 };

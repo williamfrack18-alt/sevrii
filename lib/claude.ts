@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { recordAiUsage } from "./usage";
 
 // claude-sonnet-4-5 was deprecated on 2026-09-30 and is retired on
 // 2026-11-30, so the default is its replacement. ANTHROPIC_MODEL can still
@@ -17,7 +18,16 @@ export const MODELS = {
 export function getClaude(timeoutMs = 45_000): Anthropic | null {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  return new Anthropic({ apiKey, maxRetries: 2, timeout: timeoutMs });
+  const client = new Anthropic({ apiKey, maxRetries: 2, timeout: timeoutMs });
+  // Charge every call to the account being served (see lib/usage.ts).
+  const create = client.messages.create.bind(client.messages);
+  client.messages.create = (async (body: Parameters<typeof create>[0], opts?: Parameters<typeof create>[1]) => {
+    const res = await create(body, opts);
+    const usage = (res as { usage?: Parameters<typeof recordAiUsage>[1] }).usage;
+    await recordAiUsage(String((body as { model?: string }).model ?? ""), usage);
+    return res;
+  }) as unknown as typeof client.messages.create;
+  return client;
 }
 
 // Sonnet 5.5 thinks by default and counts thinking inside max_tokens. These

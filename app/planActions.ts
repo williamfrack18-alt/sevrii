@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { limitsForUserId } from "@/lib/billing";
+import { chatGate, gateMessage, runForUser } from "@/lib/usage";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
 import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
@@ -52,15 +52,17 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
 
   let blocked: string | null = null;
   if (text.length > LIMITS.aiMaxChars) blocked = t.aiTooLong;
-  else if (!(await allow(`ai:min:u:${business.userId}`, 10, 60))) blocked = t.aiSlowDown;
-  else if (!(await allow(`ai:day:u:${business.userId}`, (await limitsForUserId(business.userId)).aiPerDay, 24 * 60 * 60))) blocked = t.aiDailyLimit;
+  else {
+    const reason = await chatGate(business.userId);
+    if (reason) blocked = gateMessage(reason, t);
+  }
   if (blocked) {
     await addChatMessage(business.id, CHANNEL, "ai", blocked);
     return respond(business);
   }
 
   await addChatMessage(business.id, CHANNEL, "user", text);
-  const result = await runPlanChatTurn({
+  const result = await runForUser(business.userId, () => runPlanChatTurn({
     business,
     history: history.slice(-16).map((m) => ({
       role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
@@ -68,7 +70,7 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
     })),
     message: text,
     lang,
-  });
+  }));
   await addChatMessage(business.id, CHANNEL, "ai", result.reply);
   revalidatePath("/dashboard");
   return respond(result.business, { startPipeline: result.startPipeline });

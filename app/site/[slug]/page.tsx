@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { getBusinessBySlug, listServices, incrementPageViews } from "@/lib/db";
+import { getBusinessBySlug, getUserById, listServices, incrementPageViews, type BusinessRow } from "@/lib/db";
+import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
@@ -9,12 +10,20 @@ import { activeOffer, formatPhone, normalizePhone, storeTheme } from "@/lib/site
 import { BuyActions, Countdown, Gallery, Track } from "./StoreParts";
 import "./store.css";
 
+// A page is public only while it's published AND its owner's plan includes publishing
+// (if the subscription ends, the page goes offline until they subscribe again).
+async function isLive(b: BusinessRow): Promise<boolean> {
+  if (!b.published) return false;
+  const owner = await getUserById(b.userId);
+  return Boolean(owner && limitsFor(owner).canPublish);
+}
+
 const BOT_UA = /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|slack|discord|telegram|preview|vercel|lighthouse|headless/i;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const business = await getBusinessBySlug(slug);
-  if (!business || !business.published) return { title: "Sevrii", robots: { index: false } };
+  if (!business || !(await isLive(business))) return { title: "Sevrii", robots: { index: false } };
   const site = business.site;
   const where = site.serviceArea || business.city || "";
   const title = `${business.name}${site.headline ? ` · ${site.headline}` : business.category ? ` · ${business.category}` : ""}${where ? ` · ${where}` : ""}`;
@@ -34,15 +43,16 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
   if (!business) notFound();
 
   const viewer = await getCurrentUser().catch(() => null);
-  const isOwner = viewer?.business?.id === business.id;
-  if (!business.published && !isOwner) notFound();
+  const isOwner = viewer?.id === business.userId;
+  const live = await isLive(business);
+  if (!live && !isOwner) notFound();
 
   const site = business.site;
   const t = STORE_TEXT[site.lang].site;
   const services = await listServices(business.id);
 
   // Count real visitors only: not the owner, not link-preview bots, once per IP per hour.
-  if (!isOwner && business.published) {
+  if (!isOwner && live) {
     try {
       const ua = (await headers()).get("user-agent") || "";
       if (!BOT_UA.test(ua) && (await allow(`view:${await clientIp()}:${business.id}`, 1, 60 * 60))) {
@@ -79,7 +89,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
 
   return (
     <div className="mt" lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
-      {!business.published && <div className="draft-bar">{t.draftBanner}</div>}
+      {!live && <div className="draft-bar">{t.draftBanner}</div>}
 
       <header className="mt-header">
         <div className="wrap header-row">

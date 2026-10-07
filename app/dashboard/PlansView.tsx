@@ -74,6 +74,7 @@ export default function PlansView({
             <h1 className="text-[28px] md:text-[34px] font-semibold text-white tracking-tight">{t.title}</h1>
             <p className="text-[15px] text-[#8e8e8e] mt-2 max-w-[620px] leading-relaxed">{t.sub}</p>
           </div>
+          {(plan.yearlyReady || !plan.billingReady) && (
           <div className="flex items-center gap-1 rounded-full p-1 self-start md:self-auto" style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
             {[false, true].map((y) => (
               <button
@@ -88,6 +89,7 @@ export default function PlansView({
               </button>
             ))}
           </div>
+          )}
         </div>
 
         {plan.admin && <Banner text={t.admin} color={GREEN} />}
