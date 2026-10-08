@@ -62,28 +62,39 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,300..500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#000;--fg:#fff;--dim:#a3a3a3;--line:rgba(255,255,255,.18);--light:#dcdddb;--green:#7dbf9c;--deep:#1f6644}
+:root{--bg:#000;--fg:#fff;--dim:#a3a3a3;--line:rgba(255,255,255,.18);--pearl:#f3f1ec;--green:#7dbf9c;--deep:#1f6644}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
-.w{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.w{font-family:"Archivo",-apple-system,BlinkMacSystemFont,sans-serif;font-stretch:112%;font-variation-settings:"wdth" 112}
 .pad{padding-left:50px;padding-right:50px}
 .btn{display:inline-flex;align-items:center;gap:22px;height:50px;padding:0 20px;border:1px solid rgba(255,255,255,.85);border-radius:10px;font-size:15px;font-weight:500;white-space:nowrap;transition:background .2s,color .2s}
 .btn:hover{background:#fff;color:#000}
 .btn svg,.dark svg{width:13px;height:13px;flex-shrink:0}
-.label{font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--green)}
-.h{font-weight:700;font-size:clamp(30px,3vw,46px);line-height:1.06;letter-spacing:-.025em;margin:0 0 16px;max-width:640px}
+.label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--green)}
+.h{font-weight:400;font-size:clamp(24px,2.3vw,34px);line-height:1.1;letter-spacing:.01em;text-transform:uppercase;margin:0 0 16px}
 .p{font-size:16.5px;line-height:1.6;color:#e2e2e2;margin:0;max-width:480px}
+/* pearl-white sections */
+.light{background:var(--pearl);color:#0b0b0b;--line:rgba(0,0,0,.14);--dim:#4d4d4d}
+.light .label{color:var(--deep)}
+.light .btn{border-color:rgba(0,0,0,.75);color:#0b0b0b}
+.light .btn:hover{background:#0b0b0b;color:#fff}
+.light .card .n,.light .row .n,.light summary span:last-child{color:#7a7a7a}
+.light .row.dim .t{color:#8a8a8a}
+.light .tagx{border-color:rgba(0,0,0,.2);color:#3a3a3a}
+.light .tagx.on{border-color:rgba(31,102,68,.5);color:var(--deep)}
 /* nav */
 .nav{position:fixed;top:0;left:0;right:0;z-index:20;height:76px;display:flex;align-items:center;justify-content:space-between;transition:background .3s}
 .nav.solid{background:rgba(0,0,0,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:21px;letter-spacing:-.01em}
-.brand img{height:34px!important;width:auto!important}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:19px}
 .brand img{width:26px;height:26px;object-fit:contain}
-.brand small{font-weight:500;color:#bdbdbd;font-size:15px;margin-left:2px}
-.links{display:flex;gap:30px;font-size:14px;font-weight:500}
+.brand small{font-weight:400;color:#bdbdbd;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-left:4px}
+.links{display:flex;gap:30px;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
 .links a{opacity:.85}.links a:hover{opacity:1}
 .navr{display:flex;align-items:center;gap:18px;font-size:13px}
 .pill{height:38px;padding:0 16px;border-radius:999px;background:#fff;color:#000;display:inline-flex;align-items:center;font-weight:600;font-size:13.5px}
@@ -95,8 +106,8 @@ a{color:inherit;text-decoration:none}
 .hero .in{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:56px}
 .hero .tag{margin-bottom:18px}
 /* statement */
-.st{padding-top:140px;padding-bottom:140px;border-bottom:1px solid var(--line)}
-.st p{font-weight:600;font-size:clamp(26px,3.2vw,48px);line-height:1.16;letter-spacing:-.025em;max-width:1180px;margin:22px 0 0}
+.st{padding-top:140px;padding-bottom:140px}
+.st p{font-weight:400;font-size:clamp(26px,3.2vw,48px);line-height:1.18;letter-spacing:-.005em;max-width:1180px;margin:22px 0 0}
 /* band + close-up */
 .band{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding-top:76px;padding-bottom:76px}
 .close{position:relative;height:min(84vh,820px);min-height:420px;overflow:hidden;background:#000}
@@ -109,20 +120,20 @@ a{color:inherit;text-decoration:none}
 .card+.card{padding-left:34px}
 .card:last-child{border-right:0}
 .card .n{font-size:15px;color:#8a8a8a}
-.card h3{font-weight:700;font-size:clamp(22px,2vw,30px);letter-spacing:-.02em;margin:44px 0 14px;line-height:1.1}
+.card h3{font-weight:400;font-size:clamp(22px,2vw,30px);text-transform:uppercase;margin:44px 0 14px;line-height:1.1}
 .card p{color:var(--dim);font-size:15.5px;line-height:1.6;margin:0}
 /* roadmap */
-.road{padding-top:40px;padding-bottom:120px}
+.road{padding-top:120px;padding-bottom:120px}
 .rows{margin-top:36px;border-top:1px solid var(--line)}
 .row{display:grid;grid-template-columns:72px minmax(0,1fr) minmax(0,1.1fr) 150px;gap:28px;align-items:center;padding:28px 0;border-bottom:1px solid var(--line)}
 .row .n{font-size:17px;color:#8a8a8a}
-.row .t{font-weight:700;font-size:clamp(32px,4.6vw,66px);line-height:1;letter-spacing:-.03em}
+.row .t{font-weight:400;font-size:clamp(32px,4.6vw,66px);line-height:1;text-transform:uppercase}
 .row.dim .t{color:#8f8f8f}
 .row p{margin:0;color:var(--dim);font-size:15.5px;line-height:1.55}
 .tagx{justify-self:end;font-size:12px;letter-spacing:.04em;padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);color:#cfcfcf;white-space:nowrap}
 .tagx.on{border-color:rgba(125,191,156,.55);color:var(--green)}
 /* faq */
-.faq{padding-top:40px;padding-bottom:120px;display:grid;grid-template-columns:1fr 1.6fr;gap:60px}
+.faq{padding-top:120px;padding-bottom:120px;display:grid;grid-template-columns:1fr 1.6fr;gap:60px}
 details{border-bottom:1px solid var(--line);padding:22px 0}
 details:first-child{border-top:1px solid var(--line)}
 summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:20px;font-size:18px}
@@ -131,18 +142,17 @@ summary span:last-child{color:#8a8a8a;transition:transform .2s}
 details[open] summary span:last-child{transform:rotate(45deg)}
 details p{color:var(--dim);font-size:15.5px;line-height:1.6;margin:14px 0 0;max-width:640px}
 /* end panel */
-.end{position:relative;background:var(--light);color:#0b0b0b;overflow:hidden}
-.end .blur{position:absolute;inset:-40px;background:url('/assets/robotics/blur.jpg') center/cover;filter:blur(28px);opacity:.2}
+.end{position:relative;background:#000;color:#fff;overflow:hidden;border-top:1px solid rgba(255,255,255,.12)}
+.end .blur{position:absolute;inset:-40px;background:url('/assets/robotics/blur.jpg') center/cover;filter:blur(30px);opacity:.55}
 .end .in{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:64px;padding-top:110px;padding-bottom:100px;align-items:end}
-.word{display:flex;align-items:center;gap:.22em;font-weight:700;font-size:clamp(60px,8.6vw,136px);line-height:.9;letter-spacing:-.035em;margin:0}
-.word img{height:.92em;width:auto;filter:invert(1)}
-.sub{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#3c3c3c;margin-top:16px}
+.word{font-weight:400;font-size:clamp(56px,8.4vw,132px);line-height:.9;letter-spacing:.32em;margin:0}
+.sub{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--green);margin-top:16px}
 .end h3{font-size:24px;font-weight:500;margin:0 0 10px}
-.end p.lead{font-size:16px;line-height:1.55;color:#2b2b2b;margin:0;max-width:460px}
+.end p.lead{font-size:16px;line-height:1.55;color:#d4d4d4;margin:0;max-width:460px}
 .acts{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
-.dark{display:inline-flex;align-items:center;gap:12px;height:50px;padding:0 24px;border-radius:999px;background:#0b0b0b;color:#fff;font-size:15px;font-weight:500}
-.ghost{display:inline-flex;align-items:center;height:50px;padding:0 22px;border-radius:999px;border:1px solid rgba(0,0,0,.35);font-size:15px;font-weight:500}
-.note{font-size:12.5px;line-height:1.5;color:#555;margin-top:20px;max-width:460px}
+.dark{display:inline-flex;align-items:center;gap:12px;height:50px;padding:0 24px;border-radius:999px;background:var(--pearl);color:#0b0b0b;font-size:15px;font-weight:500}
+.ghost{display:inline-flex;align-items:center;height:50px;padding:0 22px;border-radius:999px;border:1px solid rgba(255,255,255,.45);font-size:15px;font-weight:500}
+.note{font-size:12.5px;line-height:1.5;color:#8a8a8a;margin-top:20px;max-width:460px}
 footer{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;padding-top:34px;padding-bottom:34px;font-size:13.5px;color:#9a9a9a}
 footer nav{display:flex;gap:22px}
 footer a:hover{color:#fff}
@@ -169,9 +179,10 @@ footer a:hover{color:#fff}
   .row .t{font-size:30px}
   .row p{grid-column:2 / 4}
   .tagx{grid-column:3;grid-row:1;font-size:11px}
-  .faq{grid-template-columns:1fr;gap:20px;padding-bottom:80px}
+  .faq{grid-template-columns:1fr;gap:20px;padding-top:72px;padding-bottom:72px}
+  .road{padding-top:72px;padding-bottom:72px}
   .end .in{grid-template-columns:1fr;gap:40px;padding-top:72px;padding-bottom:64px}
-  .word{letter-spacing:-.035em}
+  .word{letter-spacing:.24em}
 }
 </style>
 </head>
@@ -194,7 +205,7 @@ footer a:hover{color:#fff}
   </div>
 </section>
 
-<section class="st pad" id="vision">
+<section class="st pad light" id="vision">
   <div class="label w rv">Visión</div>
   <p class="w rv">Los servicios mueven el mundo: limpiar, reparar, mudar, instalar, cuidar. Hoy Sevrii ayuda a los profesionales que los hacen a conseguir más clientes con inteligencia artificial. Mañana queremos que esa inteligencia también pueda moverse en el mundo real, junto a ellos.</p>
 </section>
@@ -211,7 +222,7 @@ footer a:hover{color:#fff}
   <span class="cap w">Concepto · Sevrii Robotics</span>
 </section>
 
-<section class="how pad" id="como">
+<section class="how pad light" id="como">
   <div class="label w rv">Cómo lo imaginamos</div>
   <div class="cards">
       <div class="card rv"><span class="n w">01</span><h3 class="w">Aprende tu negocio</h3><p>El robot llegaría sabiendo lo que el Cerebro de Sevrii ya aprendió de tu servicio: cómo trabajas, qué ofreces y a quién atiendes.</p></div>
@@ -229,7 +240,7 @@ footer a:hover{color:#fff}
   </div>
 </section>
 
-<section class="faq pad" id="faq">
+<section class="faq pad light" id="faq">
   <div class="label w rv">Preguntas</div>
   <div class="rv">
       <details><summary><span>¿Ya puedo comprar o contratar un robot de Sevrii?</span><span>+</span></summary><p>No. Sevrii Robotics es nuestra visión a futuro y todavía no es un producto ni un servicio disponible. Las imágenes de esta página son conceptos.</p></details>
@@ -243,7 +254,7 @@ footer a:hover{color:#fff}
   <div class="blur"></div>
   <div class="in pad">
     <div>
-      <p class="word w"><img src="/assets/sevrii-logo.png" alt="">Sevrii</p>
+      <p class="word w">SEVRII</p>
       <div class="sub w">Robotics</div>
     </div>
     <div>
