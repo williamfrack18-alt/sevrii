@@ -100,9 +100,9 @@ a{color:inherit;text-decoration:none}
 .pill{height:38px;padding:0 16px;border-radius:999px;background:#fff;color:#000;display:inline-flex;align-items:center;font-weight:600;font-size:13.5px}
 /* hero */
 .hero{position:relative;height:100vh;min-height:620px;overflow:hidden;background:#000}
-.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 15%;animation:z 26s ease-in-out infinite alternate;transform-origin:64% 60%}
+.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:60% 20%;animation:z 26s ease-in-out infinite alternate;transform-origin:64% 40%}
 @keyframes z{from{transform:scale(1)}to{transform:scale(1.045)}}
-.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 55%,rgba(0,0,0,.65) 100%);pointer-events:none}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 50%,rgba(0,0,0,.78) 100%),linear-gradient(90deg,rgba(0,0,0,.55) 0,rgba(0,0,0,0) 45%);pointer-events:none}
 .hero .in{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:56px}
 .hero .tag{margin-bottom:18px}
 /* statement */
@@ -111,7 +111,7 @@ a{color:inherit;text-decoration:none}
 /* band + close-up */
 .band{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding-top:76px;padding-bottom:76px}
 .close{position:relative;height:min(84vh,820px);min-height:420px;overflow:hidden;background:#000}
-.close img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%}
+.close img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%}
 .cap{position:absolute;left:50px;bottom:28px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.8)}
 /* how */
 .how{padding-top:120px;padding-bottom:120px}
@@ -165,6 +165,7 @@ footer a:hover{color:#fff}
   .brand small{display:none}
   .hero{height:88vh;min-height:560px}
   .hero img{object-position:50% 0%}
+  .close img{object-position:50% 0%}
   .hero .in{flex-direction:column;align-items:flex-start;padding-bottom:32px}
   .st{padding-top:84px;padding-bottom:84px}
   .band{grid-template-columns:1fr;padding-top:48px;padding-bottom:48px;gap:28px}
@@ -194,7 +195,7 @@ footer a:hover{color:#fff}
 </header>
 
 <section class="hero">
-  <picture><source media="(max-width: 900px)" srcset="/assets/robotics/hero-tall.jpg"><img src="/assets/robotics/hero-wide.jpg" alt="Concepto de robot humanoide de Sevrii" fetchpriority="high"></picture>
+  <picture><source media="(max-width: 900px)" srcset="/assets/robotics/hero-face-tall.jpg"><img src="/assets/robotics/hero-face.jpg" alt="Concepto de robot humanoide de Sevrii" fetchpriority="high"></picture>
   <div class="in pad">
     <div>
       <div class="label w tag">Sevrii Robotics</div>
@@ -218,7 +219,7 @@ footer a:hover{color:#fff}
   </div>
 </section>
 <section class="close">
-  <img src="/assets/robotics/face.jpg" alt="Concepto de robot humanoide de Sevrii" loading="lazy" decoding="async">
+  <picture><source media="(max-width: 900px)" srcset="/assets/robotics/hero-tall.jpg"><img src="/assets/robotics/hero-wide.jpg" alt="Concepto de robot humanoide de Sevrii" loading="lazy" decoding="async"></picture>
   <span class="cap w">Concepto · Sevrii Robotics</span>
 </section>
 
