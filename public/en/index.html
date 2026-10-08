@@ -314,7 +314,10 @@ document.addEventListener('DOMContentLoaded', function(){
   .sx-btn{display:inline-flex;align-items:center;gap:22px;height:50px;padding:0 20px;border:1px solid rgba(255,255,255,.85);border-radius:10px;color:#fff;font-size:15px;font-weight:500;text-decoration:none;white-space:nowrap;transition:background .2s ease,color .2s ease;}
   .sx-btn:hover{background:#fff;color:#000;}
   .sx-btn svg{width:13px;height:13px;flex-shrink:0;}
-  .sx-hero{position:relative;height:min(100vh,920px);min-height:600px;overflow:hidden;background:#5f625f;}
+  .sx-hero{position:relative;height:min(100vh,920px);min-height:600px;overflow:hidden;background:#000;}
+  .sx-hero .sx-bg{animation:sxZoom 26s ease-in-out infinite alternate;transform-origin:64% 60%;}
+  @keyframes sxZoom{from{transform:scale(1)}to{transform:scale(1.045)}}
+  @media (prefers-reduced-motion: reduce){.sx-hero .sx-bg{animation:none}}
   .sx-hero video,.sx-hero .sx-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 15%;}
   .sx-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.6) 100%);pointer-events:none;}
   .sx-top{position:absolute;top:30px;left:50px;z-index:2;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.9);}
@@ -323,11 +326,11 @@ document.addEventListener('DOMContentLoaded', function(){
   .sx-p{font-size:16.5px;line-height:1.6;color:#ececec;max-width:480px;margin:0;}
   .sx-band{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:76px 50px;}
   .sx-band .sx-p{color:#d9d9d9;}
-  .sx-close{position:relative;height:min(80vh,780px);min-height:420px;overflow:hidden;background:#606360;}
-  .sx-close img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;}
+  .sx-close{position:relative;height:min(80vh,780px);min-height:420px;overflow:hidden;background:#000;}
+  .sx-close img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;}
   .sx-cap{position:absolute;left:50px;bottom:28px;z-index:2;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.8);}
   .sx-index{position:relative;background:#dcdddb;color:#0b0b0b;overflow:hidden;}
-  .sx-index .sx-blur{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px);opacity:.38;}
+  .sx-index .sx-blur{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px);opacity:.2;}
   .sx-index-in{position:relative;display:grid;grid-template-columns:1fr 1.15fr;gap:64px;padding:96px 50px 90px;}
   .sx-word{font-weight:400;font-size:clamp(52px,7.4vw,118px);line-height:.9;letter-spacing:.32em;margin:0;}
   .sx-sub{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#3c3c3c;margin-top:16px;}
@@ -349,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function(){
     .sx-top{left:16px;top:20px;}
     .sx-bottom{flex-direction:column;align-items:flex-start;padding:0 16px 32px;}
     .sx-hero{height:86vh;min-height:560px;}
-    .sx-hero video,.sx-hero .sx-bg{object-position:50% 20%;}
+    .sx-hero video,.sx-hero .sx-bg{object-position:50% 0%;}
     .sx-band{grid-template-columns:1fr;padding:48px 16px;gap:28px;}
     .sx-band > div:first-child{order:2;}
     .sx-close{height:56vh;min-height:320px;}
@@ -465,7 +468,7 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Sevrii Robotics: vision section (not a product yet) -->
 <section class="sx" id="robotics" aria-label="Sevrii Robotics">
   <div class="sx-hero">
-    <video class="sx-video" muted loop playsinline preload="none" poster="/assets/robotics/hero.jpg" aria-hidden="true"><source src="/assets/robotics/hero.mp4" type="video/mp4"></video>
+    <picture><source media="(max-width: 860px)" srcset="/assets/robotics/hero-tall.jpg"><img class="sx-bg" src="/assets/robotics/hero-wide.jpg" alt="Sevrii humanoid robot concept" loading="lazy" decoding="async"></picture>
     <div class="sx-top sx-wide">Sevrii Robotics</div>
     <div class="sx-bottom">
       <div>
