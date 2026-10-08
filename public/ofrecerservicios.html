@@ -438,6 +438,10 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   @keyframes sxZoom{from{transform:scale(1)}to{transform:scale(1.045)}}
   @media (prefers-reduced-motion: reduce){.sx-hero .sx-bg{animation:none}}
   .sx-hero video,.sx-hero .sx-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 15%;}
+  .sx-hit{position:absolute;inset:0;z-index:1;}
+  .sx-close .sx-hit{z-index:3;}
+  .sx-bottom,.sx-top{pointer-events:none;}
+  .sx-bottom > *,.sx-top > *{pointer-events:auto;}
   .sx-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.6) 100%);pointer-events:none;}
   .sx-top{position:absolute;top:30px;left:50px;z-index:2;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.9);}
   .sx-bottom{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:0 50px 54px;}
@@ -732,13 +736,14 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 <section class="sx" id="robotics" aria-label="Sevrii Robotics">
   <div class="sx-hero">
     <picture><source media="(max-width: 860px)" srcset="/assets/robotics/hero-tall.jpg"><img class="sx-bg" src="/assets/robotics/hero-wide.jpg" alt="Concepto de robot humanoide de Sevrii" loading="lazy" decoding="async"></picture>
+    <a class="sx-hit" href="/sevriirobotics" aria-label="Sevrii Robotics"></a>
     <div class="sx-top sx-wide">Sevrii Robotics</div>
     <div class="sx-bottom">
       <div>
         <h2 class="sx-h sx-wide">El futuro del servicio también tendrá manos</h2>
         <p class="sx-p">Hoy Sevrii es el cerebro de tu negocio. Mañana, esa misma inteligencia podrá trabajar a tu lado en forma de robot.</p>
       </div>
-      <a class="sx-btn" href="/signup">Empieza hoy <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
+      <a class="sx-btn" href="/sevriirobotics">Conoce Sevrii Robotics <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
     </div>
   </div>
   <div class="sx-band">
@@ -749,6 +754,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
     </div>
   </div>
   <div class="sx-close">
+    <a class="sx-hit" href="/sevriirobotics" aria-label="Sevrii Robotics"></a>
     <img src="/assets/robotics/face.jpg" alt="Concepto de robot humanoide de Sevrii" loading="lazy" decoding="async">
     <span class="sx-cap sx-wide">Concepto · Sevrii Robotics</span>
   </div>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Sevrii language detection: EN/ES auto-switch -->
+<script>
+(function(){
+  var BASENAME = 'sevriirobotics';
+  try {
+    var path = window.location.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i,'');
+    if (path === '') path = '/';
+    var isEn = path === '/en' || path.indexOf('/en/') === 0;
+    var enTarget = (BASENAME === 'index') ? '/en' : '/en/' + BASENAME;
+    var stored = localStorage.getItem('sevrii_lang');
+    if (stored) {
+      // Ya visitó antes: solo actualizamos la preferencia guardada,
+      // nunca lo sacamos de la página en la que ya está (evita el loop /en -> /).
+      localStorage.setItem('sevrii_lang', isEn ? 'en' : 'es');
+    } else {
+      // Primera visita sin preferencia: detecta el idioma del navegador una sola vez.
+      if (isEn) {
+        localStorage.setItem('sevrii_lang', 'en');
+      } else {
+        var lang = ((navigator.language || (navigator.languages && navigator.languages[0]) || '') + '').toLowerCase();
+        // English for everyone, unless the browser prefers Spanish.
+        if (lang.indexOf('es') === 0) {
+          localStorage.setItem('sevrii_lang', 'es');
+        } else {
+          localStorage.setItem('sevrii_lang', 'en');
+          if (path !== enTarget) { window.location.href = enTarget; }
+        }
+      }
+    }
+    // Share the choice with the app (login, signup, dashboard) via a cookie.
+    document.cookie = 'sevrii_lang=' + localStorage.getItem('sevrii_lang') + '; path=/; max-age=31536000; samesite=lax';
+  } catch(e) {}
+})();
+</script>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1606497581185286');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sevrii Robotics | The future of service will have hands too</title>
+<meta name="description" content="Sevrii Robotics is our vision: taking the intelligence that helps service businesses sell today into robots that work alongside them.">
+<meta property="og:title" content="Sevrii Robotics | The future of service will have hands too">
+<meta property="og:description" content="Sevrii Robotics is our vision: taking the intelligence that helps service businesses sell today into robots that work alongside them.">
+<meta property="og:image" content="https://sevrii.com/assets/robotics/hero-wide.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,300..500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--fg:#fff;--dim:#a3a3a3;--line:rgba(255,255,255,.18);--light:#dcdddb;--green:#7dbf9c;--deep:#1f6644}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.w{font-family:"Archivo",-apple-system,BlinkMacSystemFont,sans-serif;font-stretch:112%;font-variation-settings:"wdth" 112}
+.pad{padding-left:50px;padding-right:50px}
+.btn{display:inline-flex;align-items:center;gap:22px;height:50px;padding:0 20px;border:1px solid rgba(255,255,255,.85);border-radius:10px;font-size:15px;font-weight:500;white-space:nowrap;transition:background .2s,color .2s}
+.btn:hover{background:#fff;color:#000}
+.btn svg,.dark svg{width:13px;height:13px;flex-shrink:0}
+.label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--green)}
+.h{font-weight:400;font-size:clamp(24px,2.3vw,34px);line-height:1.1;letter-spacing:.01em;text-transform:uppercase;margin:0 0 16px}
+.p{font-size:16.5px;line-height:1.6;color:#e2e2e2;margin:0;max-width:480px}
+/* nav */
+.nav{position:fixed;top:0;left:0;right:0;z-index:20;height:76px;display:flex;align-items:center;justify-content:space-between;transition:background .3s}
+.nav.solid{background:rgba(0,0,0,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:19px}
+.brand img{width:26px;height:26px;object-fit:contain}
+.brand small{font-weight:400;color:#bdbdbd;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-left:4px}
+.links{display:flex;gap:30px;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.links a{opacity:.85}.links a:hover{opacity:1}
+.navr{display:flex;align-items:center;gap:18px;font-size:13px}
+.pill{height:38px;padding:0 16px;border-radius:999px;background:#fff;color:#000;display:inline-flex;align-items:center;font-weight:600;font-size:13.5px}
+/* hero */
+.hero{position:relative;height:100vh;min-height:620px;overflow:hidden;background:#000}
+.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 15%;animation:z 26s ease-in-out infinite alternate;transform-origin:64% 60%}
+@keyframes z{from{transform:scale(1)}to{transform:scale(1.045)}}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 55%,rgba(0,0,0,.65) 100%);pointer-events:none}
+.hero .in{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:56px}
+.hero .tag{margin-bottom:18px}
+/* statement */
+.st{padding-top:140px;padding-bottom:140px;border-bottom:1px solid var(--line)}
+.st p{font-weight:400;font-size:clamp(26px,3.2vw,48px);line-height:1.18;letter-spacing:-.005em;max-width:1180px;margin:22px 0 0}
+/* band + close-up */
+.band{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding-top:76px;padding-bottom:76px}
+.close{position:relative;height:min(84vh,820px);min-height:420px;overflow:hidden;background:#000}
+.close img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%}
+.cap{position:absolute;left:50px;bottom:28px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.8)}
+/* how */
+.how{padding-top:120px;padding-bottom:120px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:44px;border-top:1px solid var(--line)}
+.card{padding:34px 34px 10px 0;border-right:1px solid var(--line)}
+.card+.card{padding-left:34px}
+.card:last-child{border-right:0}
+.card .n{font-size:15px;color:#8a8a8a}
+.card h3{font-weight:400;font-size:clamp(22px,2vw,30px);text-transform:uppercase;margin:44px 0 14px;line-height:1.1}
+.card p{color:var(--dim);font-size:15.5px;line-height:1.6;margin:0}
+/* roadmap */
+.road{padding-top:40px;padding-bottom:120px}
+.rows{margin-top:36px;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:72px minmax(0,1fr) minmax(0,1.1fr) 150px;gap:28px;align-items:center;padding:28px 0;border-bottom:1px solid var(--line)}
+.row .n{font-size:17px;color:#8a8a8a}
+.row .t{font-weight:400;font-size:clamp(32px,4.6vw,66px);line-height:1;text-transform:uppercase}
+.row.dim .t{color:#8f8f8f}
+.row p{margin:0;color:var(--dim);font-size:15.5px;line-height:1.55}
+.tagx{justify-self:end;font-size:12px;letter-spacing:.04em;padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.22);color:#cfcfcf;white-space:nowrap}
+.tagx.on{border-color:rgba(125,191,156,.55);color:var(--green)}
+/* faq */
+.faq{padding-top:40px;padding-bottom:120px;display:grid;grid-template-columns:1fr 1.6fr;gap:60px}
+details{border-bottom:1px solid var(--line);padding:22px 0}
+details:first-child{border-top:1px solid var(--line)}
+summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:20px;font-size:18px}
+summary::-webkit-details-marker{display:none}
+summary span:last-child{color:#8a8a8a;transition:transform .2s}
+details[open] summary span:last-child{transform:rotate(45deg)}
+details p{color:var(--dim);font-size:15.5px;line-height:1.6;margin:14px 0 0;max-width:640px}
+/* end panel */
+.end{position:relative;background:var(--light);color:#0b0b0b;overflow:hidden}
+.end .blur{position:absolute;inset:-40px;background:url('/assets/robotics/blur.jpg') center/cover;filter:blur(28px);opacity:.2}
+.end .in{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:64px;padding-top:110px;padding-bottom:100px;align-items:end}
+.word{font-weight:400;font-size:clamp(56px,8.4vw,132px);line-height:.9;letter-spacing:.32em;margin:0}
+.sub{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#3c3c3c;margin-top:16px}
+.end h3{font-size:24px;font-weight:500;margin:0 0 10px}
+.end p.lead{font-size:16px;line-height:1.55;color:#2b2b2b;margin:0;max-width:460px}
+.acts{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.dark{display:inline-flex;align-items:center;gap:12px;height:50px;padding:0 24px;border-radius:999px;background:#0b0b0b;color:#fff;font-size:15px;font-weight:500}
+.ghost{display:inline-flex;align-items:center;height:50px;padding:0 22px;border-radius:999px;border:1px solid rgba(0,0,0,.35);font-size:15px;font-weight:500}
+.note{font-size:12.5px;line-height:1.5;color:#555;margin-top:20px;max-width:460px}
+footer{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;padding-top:34px;padding-bottom:34px;font-size:13.5px;color:#9a9a9a}
+footer nav{display:flex;gap:22px}
+footer a:hover{color:#fff}
+.rv{opacity:0;transform:translateY(24px);transition:opacity .8s ease,transform .8s ease}
+.rv.in-view{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){.hero img{animation:none}.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+@media (max-width:900px){
+  .pad{padding-left:16px;padding-right:16px}
+  .links{display:none}
+  .brand small{display:none}
+  .hero{height:88vh;min-height:560px}
+  .hero img{object-position:50% 0%}
+  .hero .in{flex-direction:column;align-items:flex-start;padding-bottom:32px}
+  .st{padding-top:84px;padding-bottom:84px}
+  .band{grid-template-columns:1fr;padding-top:48px;padding-bottom:48px;gap:28px}
+  .band > div:first-child{order:2}
+  .close{height:58vh;min-height:320px}
+  .cap{left:16px}
+  .how{padding-top:72px;padding-bottom:72px}
+  .cards{grid-template-columns:1fr}
+  .card,.card+.card{padding:28px 0;border-right:0;border-bottom:1px solid var(--line)}
+  .card h3{margin-top:18px}
+  .row{grid-template-columns:34px 1fr auto;gap:8px 12px;padding:22px 0}
+  .row .t{font-size:30px}
+  .row p{grid-column:2 / 4}
+  .tagx{grid-column:3;grid-row:1;font-size:11px}
+  .faq{grid-template-columns:1fr;gap:20px;padding-bottom:80px}
+  .end .in{grid-template-columns:1fr;gap:40px;padding-top:72px;padding-bottom:64px}
+  .word{letter-spacing:.24em}
+}
+</style>
+</head>
+<body>
+<header class="nav pad" id="top">
+  <a class="brand" href="/en"><img src="/assets/sevrii-logo.png" alt="">Sevrii<small class="w">Robotics</small></a>
+  <nav class="links w"><a href="#vision">Vision</a><a href="#como">How we imagine it</a><a href="#ruta">Roadmap</a><a href="#faq">FAQ</a></nav>
+  <div class="navr"><a href="/sevriirobotics" style="opacity:.7">ES</a><a class="pill" href="/signup">Start free</a></div>
+</header>
+
+<section class="hero">
+  <picture><source media="(max-width: 900px)" srcset="/assets/robotics/hero-tall.jpg"><img src="/assets/robotics/hero-wide.jpg" alt="Sevrii humanoid robot concept" fetchpriority="high"></picture>
+  <div class="in pad">
+    <div>
+      <div class="label w tag">Sevrii Robotics</div>
+      <h1 class="h w">The future of service will have hands too</h1>
+      <p class="p">Today Sevrii is the brain of your business. Tomorrow, that same intelligence could work alongside you as a robot.</p>
+    </div>
+    <a class="btn" href="#vision">See the vision <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
+  </div>
+</section>
+
+<section class="st pad" id="vision">
+  <div class="label w rv">Vision</div>
+  <p class="w rv">Services move the world: cleaning, repairing, moving, installing, caring. Today Sevrii helps the professionals who do them win more customers with artificial intelligence. Tomorrow we want that intelligence to move in the real world too, right next to them.</p>
+</section>
+
+<section class="band pad">
+  <div class="rv"><a class="btn" href="/en/ofrecerservicios">See the platform <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a></div>
+  <div class="rv">
+    <h2 class="h w">Intelligence that understands your service</h2>
+    <p class="p" style="color:#d4d4d4">It all starts with the software: Sevrii&#x27;s Brain learns your business, your prices, your customers and your area. That knowledge is the foundation for any robot that comes later.</p>
+  </div>
+</section>
+<section class="close">
+  <img src="/assets/robotics/face.jpg" alt="Sevrii humanoid robot concept" loading="lazy" decoding="async">
+  <span class="cap w">Concept · Sevrii Robotics</span>
+</section>
+
+<section class="how pad" id="como">
+  <div class="label w rv">How we imagine it</div>
+  <div class="cards">
+      <div class="card rv"><span class="n w">01</span><h3 class="w">Learns your business</h3><p>The robot would arrive knowing what Sevrii&#x27;s Brain already learned about your service: how you work, what you offer and who you serve.</p></div>
+      <div class="card rv"><span class="n w">02</span><h3 class="w">Works by your side</h3><p>It&#x27;s not here to replace you. We imagine it helping with heavy or repetitive tasks while you do what you do best.</p></div>
+      <div class="card rv"><span class="n w">03</span><h3 class="w">You stay in control</h3><p>Safety first, always with a person in charge. Nothing happens without your approval, just like in Sevrii today.</p></div>
+  </div>
+</section>
+
+<section class="road pad" id="ruta">
+  <div class="label w rv">Roadmap</div>
+  <div class="rows">
+      <div class="row rv"><span class="n w">01</span><span class="t w">Software</span><p>Brain, Store and Marketing to sell your service.</p><span class="tagx on">Available today</span></div>
+      <div class="row rv dim"><span class="n w">02</span><span class="t w">Agents</span><p>AI agents that launch your ads and answer for you.</p><span class="tagx">Coming soon</span></div>
+      <div class="row rv dim"><span class="n w">03</span><span class="t w">Robots</span><p>Humanoid robots that help deliver the service.</p><span class="tagx">Vision</span></div>
+  </div>
+</section>
+
+<section class="faq pad" id="faq">
+  <div class="label w rv">FAQ</div>
+  <div class="rv">
+      <details><summary><span>Can I buy or hire a Sevrii robot today?</span><span>+</span></summary><p>No. Sevrii Robotics is our vision for the future and is not an available product or service yet. The images on this page are concepts.</p></details>
+      <details><summary><span>What can I do with Sevrii today?</span><span>+</span></summary><p>Use the software: the Brain builds your strategy, Store creates your sales page and Marketing prepares your campaigns. You can start free.</p></details>
+      <details><summary><span>Will robots replace professionals?</span><span>+</span></summary><p>That&#x27;s not the idea. We imagine robots that help professionals do more and do it better, with the person always in charge.</p></details>
+      <details><summary><span>How do I hear about what&#x27;s next?</span><span>+</span></summary><p>Create your free Sevrii account. Platform news reaches the people already using it first.</p></details>
+  </div>
+</section>
+
+<section class="end">
+  <div class="blur"></div>
+  <div class="in pad">
+    <div>
+      <p class="word w">SEVRII</p>
+      <div class="sub w">Robotics</div>
+    </div>
+    <div>
+      <h3>Be first to the future</h3>
+      <p class="lead">The businesses selling with Sevrii today will be the first to work with what comes next.</p>
+      <div class="acts"><a class="dark" href="/signup">Create my free account <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a><a class="ghost" href="/en/ofrecerservicios">Offer a service</a></div>
+      <p class="note">Sevrii Robotics is our vision for the future. It is not an available service yet. Images are concepts.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="pad">
+  <span>© 2026 Sevrii · Sevrii Robotics</span>
+  <nav><a href="/en">Marketplace</a><a href="/en/ofrecerservicios">Offer services</a><a href="/en/terminos">Terms</a></nav>
+</footer>
+
+<script>
+(function(){
+  var nav = document.querySelector('.nav');
+  function onScroll(){ nav.classList.toggle('solid', window.scrollY > 40); }
+  onScroll(); window.addEventListener('scroll', onScroll, { passive: true });
+  var els = document.querySelectorAll('.rv');
+  if (!('IntersectionObserver' in window)) { els.forEach(function(x){ x.classList.add('in-view'); }); return; }
+  var io = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { x.target.classList.add('in-view'); io.unobserve(x.target); } }); }, { threshold: 0.12 });
+  els.forEach(function(x){ io.observe(x); });
+})();
+</script>
+</body>
+</html>
