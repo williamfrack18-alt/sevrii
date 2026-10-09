@@ -93,15 +93,18 @@ a{color:inherit;text-decoration:none}
 .light .tagx{border-color:rgba(0,0,0,.2);color:#3a3a3a}
 .light .tagx.on{border-color:rgba(31,102,68,.5);color:var(--deep)}
 /* nav */
-.nav{position:fixed;top:0;left:0;right:0;z-index:20;height:76px;display:flex;align-items:center;justify-content:space-between;transition:background .3s}
-.nav.solid{background:rgba(0,0,0,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:19px}
-.brand img{width:26px;height:26px;object-fit:contain}
-.brand small{font-weight:400;color:#bdbdbd;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-left:4px}
-.links{display:flex;gap:30px;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
-.links a{opacity:.85}.links a:hover{opacity:1}
-.navr{display:flex;align-items:center;gap:18px;font-size:13px}
-.pill{height:38px;padding:0 16px;border-radius:999px;background:#fff;color:#000;display:inline-flex;align-items:center;font-weight:600;font-size:13.5px}
+.nav{position:fixed;top:0;left:0;right:0;z-index:20;border-bottom:1px solid transparent;transition:background .25s ease,border-color .25s ease;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.nav.solid{background:rgba(0,0,0,.75);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom-color:rgba(255,255,255,.1)}
+.nav .navin{padding:0 50px;height:78px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:700}
+.brand img{height:44px;width:auto;display:block}
+.brand small{font-size:22px;font-weight:400;color:#9a9a9a;margin-left:-2px}
+.links{display:flex;gap:30px;font-size:14px;color:#d9dbde}
+.links a:hover{color:#fff}
+.links a.lang{color:#8a8f98}
+.navr{display:flex;gap:14px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;background:#fff;color:#000}
+.pill:hover{background:#e6e6e6}
 /* hero */
 .hero{position:relative;height:100vh;min-height:620px;overflow:hidden;background:#000}
 .hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:60% 20%;animation:z 26s ease-in-out infinite alternate;transform-origin:64% 40%}
@@ -218,9 +221,10 @@ footer a:hover{color:#fff}
 .rv.in-view{opacity:1;transform:none}
 
 @media (prefers-reduced-motion: reduce){.brain .br{opacity:1;transform:none}.brain .bar b{width:100%;transition:none}.card::before{transform:none;transition:none}.vis-float,.floor{animation:none}.vis-bot{transform:none}.wd{color:#0b0b0b}.hero img{animation:none}.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
-@media (max-width:1200px){.links{gap:18px;font-size:12px}.brand small{display:none}}
+@media (max-width:1100px){.links{gap:20px;font-size:13.5px}}
 @media (max-width:900px){
   .pad{padding-left:16px;padding-right:16px}
+  .nav .navin{padding:0 20px}
   .links{display:none}
   .brand small{display:none}
   .hero{height:88vh;min-height:560px}
@@ -259,10 +263,11 @@ footer a:hover{color:#fff}
 </style>
 </head>
 <body>
-<header class="nav pad" id="top">
-  <a class="brand" href="/en"><img src="/assets/sevrii-logo.png" alt="">Sevrii<small class="w">Robotics</small></a>
-  <nav class="links w"><a href="#vision">Vision</a><a href="#como">How we imagine it</a><a href="#ganar">Earn with a robot</a><a href="#ruta">Roadmap</a><a href="#faq">FAQ</a></nav>
-  <div class="navr"><a href="/sevriirobotics" style="opacity:.7">ES</a><a class="pill" href="/signup">Start free</a></div>
+<header class="nav" id="top"><div class="navin">
+  <a class="brand" href="/en"><img src="/assets/sevrii-logo.png" alt="Sevrii">Sevrii<small>Robotics</small></a>
+  <nav class="links"><a href="#vision">Vision</a><a href="#como">How we imagine it</a><a href="#ganar">Earn with a robot</a><a href="#ruta">Roadmap</a><a href="#faq">FAQ</a><a class="lang" href="/sevriirobotics">ES</a></nav>
+  <div class="navr"><a class="pill" href="/signup">Get Started</a></div>
+</div>
 </header>
 
 <section class="hero">
