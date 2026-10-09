@@ -115,12 +115,15 @@ a{color:inherit;text-decoration:none}
 .hero h1{font-size:clamp(38px,4.4vw,68px);line-height:1.02;letter-spacing:-.005em;max-width:680px;margin-bottom:20px;text-shadow:0 2px 30px rgba(0,0,0,.45)}
 .hero .p{text-shadow:0 1px 16px rgba(0,0,0,.6)}
 /* statement */
-.st{padding-top:110px;padding-bottom:56px}
-.vis{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);gap:48px;align-items:center}
+#vision{overflow:visible;height:270vh}
+#vision::before{display:none}
+.vis::before{content:"";position:absolute;top:0;bottom:0;left:-50px;right:-50px;background:radial-gradient(ellipse 34% 75% at 80% 58%,rgba(236,237,235,.85),rgba(236,237,235,0) 72%);z-index:-1;pointer-events:none}
+.st{padding-top:0;padding-bottom:0}
+.vis{position:sticky;top:0;height:100vh;min-height:600px;padding:96px 0 36px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);gap:48px;align-items:center}
 .st p{font-weight:400;font-size:clamp(24px,2.7vw,42px);line-height:1.2;letter-spacing:-.005em;margin:22px 0 0}
 .wd{color:rgba(11,11,11,.2);transition:color .4s ease}
 .wd.on{color:#0b0b0b}
-.vis-bot{--p:0;position:relative;height:min(84vh,800px);display:flex;justify-content:center;align-items:flex-end;transform:translateY(calc((1 - var(--p)) * 70px)) scale(calc(.93 + var(--p) * .08));will-change:transform}
+.vis-bot{--p:0;position:relative;height:min(78vh,760px);display:flex;justify-content:center;align-items:flex-end;transform:translateY(calc((1 - var(--p)) * 60px)) scale(calc(.94 + var(--p) * .06));will-change:transform}
 .vis-float{position:relative;height:100%;transform-origin:50% 100%;animation:flt 6.5s ease-in-out infinite}
 .vis-float img{display:block;height:100%;width:auto;filter:drop-shadow(0 28px 34px rgba(0,0,0,.2))}
 .vis-float canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;filter:drop-shadow(0 28px 34px rgba(0,0,0,.2))}
@@ -234,9 +237,13 @@ footer a:hover{color:#fff}
   .hero img{object-position:50% 0%}
   .close img{object-position:50% 0%}
   .hero .in{flex-direction:column;align-items:flex-start;padding-bottom:32px}
-  .st{padding-top:84px;padding-bottom:40px}
-  .vis{grid-template-columns:1fr;gap:36px}
-  .vis-bot{height:62vh;min-height:420px}
+  #vision{height:250vh}
+  .vis{grid-template-columns:1fr;gap:14px;align-content:center;padding:86px 0 18px;min-height:0}
+  .vis .label{margin-bottom:-8px}
+  .st p{font-size:clamp(19px,5.4vw,23px);margin-top:14px}
+  .vis-cap{display:none}
+  .vis-bot{height:44vh;min-height:280px}
+  .vis::before{left:-16px;right:-16px;background:radial-gradient(ellipse 70% 45% at 50% 72%,rgba(236,237,235,.85),rgba(236,237,235,0) 72%)}
   .hero h1{font-size:clamp(34px,9.5vw,44px)}
   .hero::after{background:linear-gradient(180deg,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 18%,rgba(0,0,0,0) 34%,rgba(0,0,0,.6) 52%,rgba(0,0,0,.9) 72%,rgba(0,0,0,.95) 100%)}
   .band{grid-template-columns:1fr;padding-top:76px;padding-bottom:76px;gap:40px}
@@ -381,28 +388,33 @@ footer a:hover{color:#fff}
   var bot = vis.querySelector('.vis-bot'), txt = vis.querySelector('p'), wds = vis.querySelectorAll('.wd');
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { wds.forEach(function(w){ w.classList.add('on'); }); return; }
   var ticking = false;
+  var fl = vis.querySelector('.vis-float'), cv = vis.querySelector('canvas.spin'), ctx = cv.getContext('2d');
+  var N = 72, step = window.innerWidth < 900 ? 2 : 1, frames = [], last = null, target = 0, cur = 0, anim = false;
+  function clamp(x){ return x < 0 ? 0 : x > 1 ? 1 : x; }
   function upd(){
     ticking = false;
-    var r = vis.getBoundingClientRect(), h = window.innerHeight;
-    var p = Math.min(1, Math.max(0, (h * 0.9 - r.top) / (r.height * 0.8)));
-    bot.style.setProperty('--p', p.toFixed(3));
-    var t = txt.getBoundingClientRect().top;
-    var q = Math.min(1, Math.max(0, (h * 0.85 - t) / (h * 0.55)));
+    var r = vis.getBoundingClientRect(), h = window.innerHeight, run = Math.max(1, r.height - h);
+    var enter = clamp((h - r.top) / h);          // 0 → 1 while the section slides in
+    var p = clamp(-r.top / run);                  // 0 → 1 while it is pinned
+    bot.style.setProperty('--p', enter.toFixed(3));
+    var q = clamp(enter * 0.35 + p * 1.6);
     var n = Math.round(q * wds.length);
     for (var i = 0; i < wds.length; i++) wds[i].classList.toggle('on', i < n);
-    var rr = Math.min(1, Math.max(0, (h - r.top) / (h + r.height)));
-    var mid = (r.top + r.height / 2 - h / 2) / (h + r.height);
-    want = ((Math.round(-mid * 1.6 * N) % N) + N) % N; draw();
+    target = p * (N - 1);
+    if (!anim) { anim = true; requestAnimationFrame(tick); }
   }
-  // 360° turn driven by scroll
-  var fl = vis.querySelector('.vis-float'), cv = vis.querySelector('canvas.spin'), ctx = cv.getContext('2d');
-  var N = 72, step = window.innerWidth < 900 ? 2 : 1, frames = [], last = -1, want = 0;
-  function sizeCv(){ var r = fl.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2); cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); last = -1; draw(); }
+  function tick(){
+    cur += (target - cur) * 0.16;
+    if (Math.abs(target - cur) < 0.05) cur = target;
+    draw();
+    if (cur !== target) requestAnimationFrame(tick); else anim = false;
+  }
+  function sizeCv(){ var r = fl.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2); cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); last = null; draw(); }
   function pick(i){ for (var k = 0; k < N; k++) { var a = frames[(i - k + N) % N]; if (a && a.ok) return a; } return null; }
-  function draw(){ var idx = want - (want % step), im = pick(idx); if (!im || im === last) return; last = im; ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(im, 0, 0, cv.width, cv.height); }
+  function draw(){ var idx = Math.round(cur); idx -= idx % step; var im = pick(idx); if (!im || im === last) return; last = im; ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(im, 0, 0, cv.width, cv.height); }
   function load(){
     var order = []; for (var i = 0; i < N; i += step * 4) order.push(i); for (var j = 0; j < N; j += step) if (order.indexOf(j) < 0) order.push(j);
-    order.forEach(function(i){ var im = new Image(); im.decoding = 'async'; im.onload = function(){ im.ok = true; if (i === 0) { sizeCv(); fl.classList.add('ready'); } last = -1; draw(); }; im.src = '/assets/robotics/spin/r' + (i < 10 ? '0' : '') + i + '.webp'; frames[i] = im; });
+    order.forEach(function(i){ var im = new Image(); im.decoding = 'async'; im.onload = function(){ im.ok = true; if (i === 0) { sizeCv(); fl.classList.add('ready'); } last = null; draw(); }; im.src = '/assets/robotics/spin/r' + (i < 10 ? '0' : '') + i + '.webp'; frames[i] = im; });
   }
   function req(){ if (!ticking) { ticking = true; requestAnimationFrame(upd); } }
   window.addEventListener('scroll', req, { passive: true }); window.addEventListener('resize', function(){ sizeCv(); req(); }); upd();
