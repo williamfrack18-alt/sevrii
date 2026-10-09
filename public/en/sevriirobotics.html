@@ -84,7 +84,7 @@ a{color:inherit;text-decoration:none}
 .light::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse var(--gw,42%) var(--gh,70%) at var(--gx,70%) var(--gy,45%),rgba(236,237,235,.85),rgba(236,237,235,0) 72%);z-index:-1;pointer-events:none}
 #vision{--gx:80%;--gy:58%;--gw:34%;--gh:80%}
 #como{--gx:18%;--gy:20%;--gw:50%;--gh:90%}
-#ruta{--gx:88%;--gy:75%;--gw:45%;--gh:90%}
+#faq{--gx:12%;--gy:70%;--gw:45%;--gh:90%}
 .light .label{color:var(--deep)}
 .light .btn{border-color:rgba(0,0,0,.75);color:#0b0b0b}
 .light .btn:hover{background:#0b0b0b;color:#fff}
@@ -171,15 +171,18 @@ a{color:inherit;text-decoration:none}
 .earn .top{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:end;margin-top:22px}
 .earn .big{font-weight:400;font-size:clamp(34px,4.6vw,70px);line-height:1;text-transform:uppercase;margin:0}
 .earn .top p{color:#cfcfcf;font-size:16.5px;line-height:1.6;margin:0;max-width:520px}
-.ways{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:56px}
-.way{position:relative;border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:40px 40px 36px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 60%);overflow:hidden}
-.way::after{content:"";position:absolute;right:-80px;top:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(closest-side,rgba(125,191,156,.18),rgba(125,191,156,0));pointer-events:none}
-.way .n{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--green)}
-.way h3{font-weight:400;font-size:clamp(28px,2.9vw,44px);line-height:1.02;text-transform:uppercase;margin:60px 0 16px}
-.way p{color:#cfcfcf;font-size:16px;line-height:1.6;margin:0;max-width:520px}
-.way ul{list-style:none;padding:0;margin:30px 0 0;border-top:1px solid rgba(255,255,255,.14)}
-.way li{display:flex;gap:14px;align-items:baseline;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:15px;color:#e8e8e8}
-.way li::before{content:"";flex:0 0 6px;height:6px;border-radius:50%;background:var(--green);transform:translateY(-2px)}
+.ways{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:64px}
+.way{position:relative;padding:40px 56px 8px 0;border-right:1px solid rgba(255,255,255,.16)}
+.way+.way{padding-left:56px;padding-right:0;border-right:0}
+.way::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:rgba(255,255,255,.35);transform:scaleX(0);transform-origin:0 50%;transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
+.way.in-view::before{transform:scaleX(1)}
+.way+.way,.way+.way::before{transition-delay:.15s}
+.way .n{display:block;font-size:clamp(56px,6vw,96px);line-height:.9;font-weight:300;color:rgba(255,255,255,.22)}
+.way h3{font-weight:400;font-size:clamp(28px,2.9vw,44px);line-height:1.02;text-transform:uppercase;margin:34px 0 16px}
+.way p{color:#bdbdbd;font-size:16px;line-height:1.6;margin:0;max-width:520px}
+.way ul{list-style:none;padding:0;margin:30px 0 0}
+.way li{display:flex;gap:16px;align-items:baseline;padding:14px 0;border-top:1px solid rgba(255,255,255,.1);font-size:15px;color:#e8e8e8}
+.way li::before{content:"—";color:var(--green);flex-shrink:0}
 .earn .fine{font-size:12.5px;color:#8a8a8a;margin-top:22px}
 /* roadmap */
 .road{padding-top:120px;padding-bottom:120px}
@@ -255,8 +258,8 @@ footer a:hover{color:#fff}
   .earn .top,.ways{grid-template-columns:1fr}
   .earn .top{gap:18px}
   .ways{margin-top:36px;gap:14px}
-  .way{padding:28px 22px 22px}
-  .way h3{margin-top:36px}
+  .way,.way+.way{padding:32px 0 8px;border-right:0}
+  .way h3{margin-top:22px}
   .end .in{grid-template-columns:1fr;gap:40px;padding-top:72px;padding-bottom:64px}
   .word{letter-spacing:.24em}
 }
@@ -265,7 +268,7 @@ footer a:hover{color:#fff}
 <body>
 <header class="nav" id="top"><div class="navin">
   <a class="brand" href="/en"><img src="/assets/sevrii-logo.png" alt="Sevrii">Sevrii<small>Robotics</small></a>
-  <nav class="links"><a href="#vision">Vision</a><a href="#como">How we imagine it</a><a href="#ganar">Earn with a robot</a><a href="#ruta">Roadmap</a><a href="#faq">FAQ</a><a class="lang" href="/sevriirobotics">ES</a></nav>
+  <nav class="links"><a href="#vision">Vision</a><a href="#ganar">Earn with a robot</a><a href="#como">How we imagine it</a><a href="#ruta">Roadmap</a><a href="#faq">FAQ</a><a class="lang" href="/sevriirobotics">ES</a></nav>
   <div class="navr"><a class="pill" href="/signup">Get Started</a></div>
 </div>
 </header>
@@ -299,35 +302,6 @@ footer a:hover{color:#fff}
   </div>
 </section>
 
-<section class="band pad">
-  <div class="rv">
-    <div class="label w">Platform</div>
-    <h2 class="big w">Intelligence that understands your service</h2>
-    <p class="p">It all starts with the software: Sevrii&#x27;s Brain learns your business, your prices, your customers and your area. That knowledge is the foundation for any robot that comes later.</p>
-    <a class="btn" href="/en/ofrecerservicios">See the platform <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
-  </div>
-  <div class="brain rv" aria-label="Sevrii Brain">
-    <div class="bh"><span class="bt w">Sevrii Brain</span><span class="st8"><i></i>Learning</span></div>
-    <div class="br" style="transition-delay:0.15s"><span>Service</span><span>House cleaning</span></div>
-    <div class="br" style="transition-delay:0.27s"><span>Area</span><span>Miami, FL</span></div>
-    <div class="br" style="transition-delay:0.39s"><span>Price</span><span>From $120</span></div>
-    <div class="br" style="transition-delay:0.51s"><span>Customers</span><span>Families and offices</span></div>
-    <div class="br" style="transition-delay:0.63s"><span>Hours</span><span>Mon to Sat, 8 am to 6 pm</span></div>
-    <div class="sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="3" width="12" height="9" rx="4.5"/><path d="M9 7.5h6M12 12v3M7 21v-4a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v4"/></svg><div class="bar"><b></b></div></div>
-    <div class="sync" style="margin-top:10px;font-size:12px;color:#8f8f8f">Knowledge ready for the robot</div>
-  </div>
-</section>
-
-<section class="how pad light" id="como">
-  <div class="label w rv">How we imagine it</div>
-  <h2 class="big w rv">A robot that already knows your business</h2>
-  <div class="cards">
-      <div class="card rv"><span class="n w">01</span><h3 class="w">Learns your business</h3><p>The robot would arrive knowing what Sevrii&#x27;s Brain already learned about your service: how you work, what you offer and who you serve.</p></div>
-      <div class="card rv"><span class="n w">02</span><h3 class="w">Works by your side</h3><p>It&#x27;s not here to replace you. We imagine it helping with heavy or repetitive tasks while you do what you do best.</p></div>
-      <div class="card rv"><span class="n w">03</span><h3 class="w">You stay in control</h3><p>Safety first, always with a person in charge. Nothing happens without your approval, just like in Sevrii today.</p></div>
-  </div>
-</section>
-
 <section class="earn pad" id="ganar">
   <div class="label w rv">Two ways to earn</div>
   <div class="top rv">
@@ -341,7 +315,17 @@ footer a:hover{color:#fff}
   <p class="fine rv">Future concept. Not an available service yet.</p>
 </section>
 
-<section class="road pad light" id="ruta">
+<section class="how pad light" id="como">
+  <div class="label w rv">How we imagine it</div>
+  <h2 class="big w rv">A robot that already knows your business</h2>
+  <div class="cards">
+      <div class="card rv"><span class="n w">01</span><h3 class="w">Learns your business</h3><p>The robot would arrive knowing what Sevrii&#x27;s Brain already learned about your service: how you work, what you offer and who you serve.</p></div>
+      <div class="card rv"><span class="n w">02</span><h3 class="w">Works by your side</h3><p>It&#x27;s not here to replace you. We imagine it helping with heavy or repetitive tasks while you do what you do best.</p></div>
+      <div class="card rv"><span class="n w">03</span><h3 class="w">You stay in control</h3><p>Safety first, always with a person in charge. Nothing happens without your approval, just like in Sevrii today.</p></div>
+  </div>
+</section>
+
+<section class="road pad" id="ruta">
   <div class="label w rv">Roadmap</div>
   <div class="rows">
       <div class="row rv"><span class="n w">01</span><span class="t w">Software</span><p>Brain, Store and Marketing to sell your service.</p><span class="tagx on">Available today</span></div>
@@ -350,7 +334,7 @@ footer a:hover{color:#fff}
   </div>
 </section>
 
-<section class="faq pad" id="faq">
+<section class="faq pad light" id="faq">
   <div class="rv"><div class="label w">FAQ</div><h2 class="big w">What people ask us most</h2></div>
   <div class="rv">
       <details><summary><span>Can I buy or hire a Sevrii robot today?</span><span>+</span></summary><p>No. Sevrii Robotics is our vision for the future and is not an available product or service yet. The images on this page are concepts.</p></details>
