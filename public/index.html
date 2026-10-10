@@ -369,6 +369,30 @@ document.addEventListener('DOMContentLoaded', function(){
     .sx-st{font-size:10.5px;letter-spacing:.04em;}
     .sx-word{letter-spacing:.24em;}
   }
+  .sx-hero .sx-bg{object-position:50% 40%;}
+  .sx-hero::after{background:linear-gradient(180deg,rgba(0,0,0,.25) 0,rgba(0,0,0,0) 25%,rgba(0,0,0,.15) 50%,rgba(0,0,0,.8) 100%),linear-gradient(90deg,rgba(0,0,0,.55) 0,rgba(0,0,0,0) 55%) !important;}
+  .sx-hero .sx-h{font-size:clamp(28px,3.2vw,52px);line-height:1.04;max-width:min(640px,48vw);}
+  .sx-split{position:relative;height:min(100vh,900px);min-height:560px;overflow:hidden;background:#000;}
+  .sx-split img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:36% 22%;}
+  .sx-split-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(0,0,0,.85) 0,rgba(0,0,0,.5) 34%,rgba(0,0,0,0) 58%),linear-gradient(0deg,rgba(0,0,0,.5) 0,rgba(0,0,0,0) 30%);pointer-events:none;}
+  .sx-split-in{position:absolute;left:50px;top:0;bottom:0;z-index:4;display:flex;flex-direction:column;justify-content:center;max-width:min(520px,40vw);pointer-events:none;}
+  .sx-split-in > *{pointer-events:auto;}
+  .sx-split .sx-h{font-size:clamp(26px,2.8vw,44px);line-height:1.05;margin:18px 0 18px;}
+  .sx-split .sx-p{color:#d9d9d9;margin-bottom:30px;}
+  .sx-split .sx-btn{align-self:flex-start;}
+  .sx-label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#7dbf9c;}
+  .sx-split .sx-hit{z-index:3;}
+  .sx-split .sx-cap{z-index:4;}
+  @media (max-width:860px){
+    .sx-hero .sx-h{max-width:none;font-size:clamp(28px,8vw,36px);}
+    .sx-hero::after{background:linear-gradient(180deg,rgba(0,0,0,.25) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,.55) 55%,rgba(0,0,0,.92) 100%) !important;}
+    .sx-hero .sx-bg{object-position:42% 50%;}
+    .sx-split{height:auto;min-height:0;padding-top:118vw;}
+    .sx-split img{height:130vw;bottom:auto;object-position:50% 0%;}
+    .sx-split-shade{background:linear-gradient(180deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 55%,rgba(0,0,0,.85) 80%,#000 100%);height:130vw;bottom:auto;}
+    .sx-split-in{position:relative;left:auto;top:auto;bottom:auto;max-width:none;padding:0 16px 56px;}
+    .sx-split .sx-cap{display:none;}
+  }
 </style>
 </head>
 <body>
@@ -473,7 +497,7 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Sevrii Robotics: vision section (not a product yet) -->
 <section class="sx" id="robotics" aria-label="Sevrii Robotics">
   <div class="sx-hero">
-    <picture><source media="(max-width: 860px)" srcset="/assets/robotics/hero-tall.jpg"><img class="sx-bg" src="/assets/robotics/hero-wide.jpg" alt="Concepto de robot humanoide de Sevrii" loading="lazy" decoding="async"></picture>
+    <video class="sx-bg sx-video" muted playsinline loop preload="none" poster="/assets/robotics/kitchen.jpg" aria-label="Concepto de robot humanoide de Sevrii"><source src="/assets/robotics/kitchen-sm.mp4" type="video/mp4" media="(max-width: 860px)"><source src="/assets/robotics/kitchen.mp4" type="video/mp4"></video>
     <a class="sx-hit" href="/sevriirobotics" aria-label="Sevrii Robotics"></a>
     <div class="sx-top sx-wide">Sevrii Robotics</div>
     <div class="sx-bottom">
@@ -484,16 +508,16 @@ document.addEventListener('DOMContentLoaded', function(){
       <a class="sx-btn" href="/sevriirobotics">Conoce Sevrii Robotics <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
     </div>
   </div>
-  <div class="sx-band">
-    <div><a class="sx-btn" href="ofrecerservicios.html">Ofrecer un servicio <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a></div>
-    <div>
+  <div class="sx-split">
+    <a class="sx-hit" href="/sevriirobotics" aria-label="Sevrii Robotics"></a>
+    <picture><source media="(max-width: 860px)" srcset="/assets/robotics/hero-face-tall.jpg"><img src="/assets/robotics/hero-face.jpg" alt="Concepto de robot humanoide de Sevrii" loading="lazy" decoding="async"></picture>
+    <div class="sx-split-shade" aria-hidden="true"></div>
+    <div class="sx-split-in">
+      <div class="sx-label sx-wide">Sevrii Robotics</div>
       <h3 class="sx-h sx-wide">Profesionales reales hoy. Robots mañana.</h3>
       <p class="sx-p">Cada negocio en Sevrii usa nuestra inteligencia para atenderte mejor. El siguiente paso es que esa inteligencia también tenga manos.</p>
+      <a class="sx-btn" href="ofrecerservicios.html">Ofrecer un servicio <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
     </div>
-  </div>
-  <div class="sx-close">
-    <a class="sx-hit" href="/sevriirobotics" aria-label="Sevrii Robotics"></a>
-    <img src="/assets/robotics/face.jpg" alt="Concepto de robot humanoide de Sevrii" loading="lazy" decoding="async">
     <span class="sx-cap sx-wide">Concepto · Sevrii Robotics</span>
   </div>
   <div class="sx-index">
