@@ -106,10 +106,15 @@ a{color:inherit;text-decoration:none}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;background:#fff;color:#000}
 .pill:hover{background:#e6e6e6}
 /* hero */
-.hero{position:relative;height:100vh;min-height:620px;overflow:hidden;background:#000}
-.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:30% 20%;animation:z 26s ease-in-out infinite alternate;transform-origin:70% 40%}
+.hero{position:relative;height:230vh;background:#000}
+.hero-pin{position:sticky;top:0;height:100vh;min-height:620px;overflow:hidden;background:radial-gradient(ellipse 38% 60% at 68% 45%,rgba(255,255,255,.07),rgba(255,255,255,0) 70%),#000}
+.hero-bot{position:absolute;top:84px;left:68%;height:122vh;transform:translateX(-50%)}
+.hero-bot img,.hero-bot canvas{display:block;height:100%;width:auto}
+.hero-bot canvas{position:absolute;inset:0;width:100%;opacity:0}
+.hero-bot.ready canvas{opacity:1}
+.hero-bot.ready img{opacity:0}
 @keyframes z{from{transform:scale(1)}to{transform:scale(1.045)}}
-.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 50%,rgba(0,0,0,.78) 100%),linear-gradient(90deg,rgba(0,0,0,.72) 0,rgba(0,0,0,.35) 32%,rgba(0,0,0,0) 55%);pointer-events:none}
+.hero-pin::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 50%,rgba(0,0,0,.78) 100%),linear-gradient(90deg,rgba(0,0,0,.72) 0,rgba(0,0,0,.35) 32%,rgba(0,0,0,0) 55%);pointer-events:none}
 .hero .in{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:56px}
 .hero .tag{margin-bottom:18px}
 .hero h1{font-size:clamp(30px,3.6vw,64px);line-height:1.04;letter-spacing:-.005em;max-width:min(640px,40vw);margin-bottom:20px;text-shadow:0 2px 30px rgba(0,0,0,.45)}
@@ -226,15 +231,16 @@ footer a:hover{color:#fff}
 .rv{opacity:0;transform:translateY(24px);transition:opacity .8s ease,transform .8s ease}
 .rv.in-view{opacity:1;transform:none}
 
-@media (prefers-reduced-motion: reduce){.brain .br{opacity:1;transform:none}.brain .bar b{width:100%;transition:none}.card::before{transform:none;transition:none}.vis-float,.floor{animation:none}.vis-bot{transform:none}.wd{color:#0b0b0b}.hero img{animation:none}.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+@media (prefers-reduced-motion: reduce){.brain .br{opacity:1;transform:none}.brain .bar b{width:100%;transition:none}.card::before{transform:none;transition:none}.vis-float,.floor{animation:none}.vis-bot{transform:none}.wd{color:#0b0b0b}.hero-bot{animation:none}.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
 @media (max-width:1100px){.links{gap:20px;font-size:13.5px}}
 @media (max-width:900px){
   .pad{padding-left:16px;padding-right:16px}
   .nav .navin{padding:0 20px}
   .links{display:none}
   .brand small{display:none}
-  .hero{height:88vh;min-height:560px}
-  .hero img{object-position:50% 0%}
+  .hero{height:200vh}
+  .hero-pin{height:100svh;min-height:540px;background:#000}
+  .hero-bot{left:50%;top:70px;height:108svh}
   .close img{object-position:50% 0%}
   .hero .in{flex-direction:column;align-items:flex-start;padding-bottom:32px}
   #vision{height:250vh}
@@ -246,7 +252,7 @@ footer a:hover{color:#fff}
   .vis::before{left:-16px;right:-16px;background:radial-gradient(ellipse 70% 45% at 50% 72%,rgba(236,237,235,.85),rgba(236,237,235,0) 72%)}
   .hero h1{font-size:clamp(34px,9.5vw,44px);max-width:none}
   .hero .p{max-width:none}
-  .hero::after{background:linear-gradient(180deg,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 18%,rgba(0,0,0,0) 34%,rgba(0,0,0,.6) 52%,rgba(0,0,0,.9) 72%,rgba(0,0,0,.95) 100%)}
+  .hero-pin::after{background:linear-gradient(180deg,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 18%,rgba(0,0,0,0) 34%,rgba(0,0,0,.6) 52%,rgba(0,0,0,.9) 72%,rgba(0,0,0,.95) 100%)}
   .band{grid-template-columns:1fr;padding-top:76px;padding-bottom:76px;gap:40px}
   .brain{padding:22px 20px 20px}
   .card .n{font-size:56px}
@@ -281,8 +287,8 @@ footer a:hover{color:#fff}
 </div>
 </header>
 
-<section class="hero">
-  <picture><source media="(max-width: 900px)" srcset="/assets/robotics/hero-face-tall.jpg"><img src="/assets/robotics/hero-face.jpg" alt="Sevrii humanoid robot concept" fetchpriority="high"></picture>
+<section class="hero"><div class="hero-pin">
+  <div class="hero-bot"><img src="/assets/robotics/spin/r00.webp" alt="Sevrii humanoid robot concept" width="447" height="1290" fetchpriority="high"><canvas aria-hidden="true"></canvas></div>
   <div class="in pad">
     <div>
       <div class="label w tag">Sevrii Robotics</div>
@@ -291,6 +297,7 @@ footer a:hover{color:#fff}
     </div>
     <a class="btn" href="#vision">See the vision <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
   </div>
+</div>
 </section>
 
 <section class="st pad light" id="vision">
@@ -302,7 +309,7 @@ footer a:hover{color:#fff}
     </div>
     <div class="vis-bot">
       <div class="vis-float">
-        <img class="spin0" src="/assets/robotics/spin/r00.webp" alt="Sevrii humanoid robot concept" width="347" height="1000" decoding="async">
+        <img class="spin0" src="/assets/robotics/spin/r00.webp" alt="Sevrii humanoid robot concept" width="447" height="1290" decoding="async">
         <canvas class="spin" aria-hidden="true"></canvas>
       </div>
       <span class="floor" aria-hidden="true"></span>
@@ -385,41 +392,50 @@ footer a:hover{color:#fff}
   els.forEach(function(x){ io.observe(x); });
 })();
 (function(){
-  var vis = document.getElementById('vision'); if (!vis) return;
-  var bot = vis.querySelector('.vis-bot'), txt = vis.querySelector('p'), wds = vis.querySelectorAll('.wd');
-  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { wds.forEach(function(w){ w.classList.add('on'); }); return; }
-  var ticking = false;
-  var fl = vis.querySelector('.vis-float'), cv = vis.querySelector('canvas.spin'), ctx = cv.getContext('2d');
-  var N = 72, step = window.innerWidth < 900 ? 2 : 1, frames = [], last = null, target = 0, cur = 0, anim = false;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var N = 72, step = window.innerWidth < 900 ? 2 : 1, frames = [], started = false, spinners = [];
   function clamp(x){ return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function src(i){ return '/assets/robotics/spin/r' + (i < 10 ? '0' : '') + i + '.webp'; }
+  function loadFrames(){
+    if (started) return; started = true;
+    var order = []; for (var i = 0; i < N; i += step * 4) order.push(i); for (var j = 0; j < N; j += step) if (order.indexOf(j) < 0) order.push(j);
+    order.forEach(function(i){ var im = new Image(); im.decoding = 'async'; im.onload = function(){ im.ok = true; spinners.forEach(function(sp){ sp.loaded(i); }); }; im.src = src(i); frames[i] = im; });
+  }
+  function pick(i){ for (var k = 0; k < N; k++) { var a = frames[(i - k + N) % N]; if (a && a.ok) return a; } return null; }
+  // A robot that turns with scroll while its section is pinned on screen.
+  function Spinner(sec, wrap){
+    var cv = wrap.querySelector('canvas'), ctx = cv.getContext('2d'), last = null, target = 0, cur = 0, anim = false, sp = this;
+    function size(){ var r = wrap.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2); cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); last = null; draw(); }
+    function draw(){ var idx = Math.round(cur); idx -= idx % step; var im = pick(idx); if (!im || im === last || !cv.width) return; last = im; ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(im, 0, 0, cv.width, cv.height); }
+    function tick(){ cur += (target - cur) * 0.16; if (Math.abs(target - cur) < 0.05) cur = target; draw(); if (cur !== target) requestAnimationFrame(tick); else anim = false; }
+    sp.loaded = function(i){ if (i === 0) { size(); wrap.classList.add('ready'); } last = null; draw(); };
+    sp.resize = size;
+    sp.progress = function(){ var r = sec.getBoundingClientRect(), h = window.innerHeight; return { enter: clamp((h - r.top) / h), p: clamp(-r.top / Math.max(1, r.height - h)) }; };
+    sp.set = function(p){ target = p * (N - 1); if (!anim) { anim = true; requestAnimationFrame(tick); } };
+    spinners.push(sp);
+  }
+  var hero = document.querySelector('.hero'), vis = document.getElementById('vision');
+  var hs = hero ? new Spinner(hero, hero.querySelector('.hero-bot')) : null;
+  var vs = vis ? new Spinner(vis, vis.querySelector('.vis-float')) : null;
+  var bot = vis && vis.querySelector('.vis-bot'), wds = vis ? vis.querySelectorAll('.wd') : [];
+  if (reduce) { for (var k = 0; k < wds.length; k++) wds[k].classList.add('on'); return; }
+  var ticking = false;
   function upd(){
     ticking = false;
-    var r = vis.getBoundingClientRect(), h = window.innerHeight, run = Math.max(1, r.height - h);
-    var enter = clamp((h - r.top) / h);          // 0 → 1 while the section slides in
-    var p = clamp(-r.top / run);                  // 0 → 1 while it is pinned
-    bot.style.setProperty('--p', enter.toFixed(3));
-    var q = clamp(enter * 0.35 + p * 1.6);
-    var n = Math.round(q * wds.length);
-    for (var i = 0; i < wds.length; i++) wds[i].classList.toggle('on', i < n);
-    target = p * (N - 1);
-    if (!anim) { anim = true; requestAnimationFrame(tick); }
-  }
-  function tick(){
-    cur += (target - cur) * 0.16;
-    if (Math.abs(target - cur) < 0.05) cur = target;
-    draw();
-    if (cur !== target) requestAnimationFrame(tick); else anim = false;
-  }
-  function sizeCv(){ var r = fl.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2); cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); last = null; draw(); }
-  function pick(i){ for (var k = 0; k < N; k++) { var a = frames[(i - k + N) % N]; if (a && a.ok) return a; } return null; }
-  function draw(){ var idx = Math.round(cur); idx -= idx % step; var im = pick(idx); if (!im || im === last) return; last = im; ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(im, 0, 0, cv.width, cv.height); }
-  function load(){
-    var order = []; for (var i = 0; i < N; i += step * 4) order.push(i); for (var j = 0; j < N; j += step) if (order.indexOf(j) < 0) order.push(j);
-    order.forEach(function(i){ var im = new Image(); im.decoding = 'async'; im.onload = function(){ im.ok = true; if (i === 0) { sizeCv(); fl.classList.add('ready'); } last = null; draw(); }; im.src = '/assets/robotics/spin/r' + (i < 10 ? '0' : '') + i + '.webp'; frames[i] = im; });
+    if (hs) hs.set(hs.progress().p);
+    if (vs) {
+      var g = vs.progress();
+      bot.style.setProperty('--p', g.enter.toFixed(3));
+      var n = Math.round(clamp(g.enter * 0.35 + g.p * 1.6) * wds.length);
+      for (var i = 0; i < wds.length; i++) wds[i].classList.toggle('on', i < n);
+      vs.set(g.p);
+    }
   }
   function req(){ if (!ticking) { ticking = true; requestAnimationFrame(upd); } }
-  window.addEventListener('scroll', req, { passive: true }); window.addEventListener('resize', function(){ sizeCv(); req(); }); upd();
-  if ('IntersectionObserver' in window) { var lo = new IntersectionObserver(function(en){ if (en[0].isIntersecting) { lo.disconnect(); load(); } }, { rootMargin: '600px 0px' }); lo.observe(vis); } else load();
+  window.addEventListener('scroll', req, { passive: true });
+  window.addEventListener('resize', function(){ spinners.forEach(function(sp){ sp.resize(); }); req(); });
+  loadFrames();
+  upd();
 })();
 </script>
 </body>
