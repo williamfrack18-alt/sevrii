@@ -180,6 +180,9 @@ a{color:inherit;text-decoration:none}
 .earn .top{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:end;margin-top:22px}
 .earn .big{font-weight:400;font-size:clamp(34px,4.6vw,70px);line-height:1;text-transform:uppercase;margin:0}
 .earn .top p{color:#cfcfcf;font-size:16.5px;line-height:1.6;margin:0;max-width:520px}
+.earn-vid{margin:56px 0 0}
+.earn-vid video{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
+.earn-vid figcaption{margin-top:14px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:#8a8a8a}
 .ways{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:64px}
 .way{position:relative;padding:40px 56px 8px 0;border-right:1px solid rgba(255,255,255,.16)}
 .way+.way{padding-left:56px;padding-right:0;border-right:0}
@@ -324,6 +327,10 @@ footer a:hover{color:#fff}
     <h2 class="big w">Your robot, your business</h2>
     <p>We imagine a future where robots don&#x27;t only belong to big companies. Anyone could earn money with them in two ways.</p>
   </div>
+  <figure class="earn-vid rv">
+    <video muted playsinline loop preload="none" poster="/assets/robotics/kitchen.jpg" aria-label="Concept · A Sevrii robot cleaning a kitchen"><source src="/assets/robotics/kitchen-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/kitchen.mp4" type="video/mp4"></video>
+    <figcaption class="w">Concept · A Sevrii robot cleaning a kitchen</figcaption>
+  </figure>
   <div class="ways">
       <div class="way rv"><span class="n w">01</span><h3 class="w">Own your robot</h3><p>You have your own Sevrii robot and put it to work. Sevrii finds it cleaning, moving, installation and other service jobs, and you get paid for each one.</p><ul><li>Your robot is listed on the Sevrii marketplace</li><li>Sevrii finds customers and manages the schedule</li><li>You get paid for every job it does</li></ul></div>
       <div class="way rv"><span class="n w">02</span><h3 class="w">Work through the robot</h3><p>If you know a trade, you offer your service from wherever you are: you connect and control a robot remotely, in real time, right where the customer needs it.</p><ul><li>You control the robot remotely</li><li>Serve customers in other cities without traveling</li><li>Your skills and your hands, through the robot</li></ul></div>
@@ -439,6 +446,11 @@ footer a:hover{color:#fff}
   window.addEventListener('scroll', req, { passive: true });
   window.addEventListener('resize', function(){ spinners.forEach(function(sp){ sp.resize(); }); req(); });
   if (hs) hs.start();
+  var kv = document.querySelector('.earn-vid video');
+  if (kv && 'IntersectionObserver' in window) {
+    var vo = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { kv.preload = 'auto'; var pr = kv.play(); if (pr && pr.catch) pr.catch(function(){}); } else kv.pause(); }); }, { threshold: 0.25 });
+    vo.observe(kv);
+  }
   if (vs) { if ('IntersectionObserver' in window) { var lo = new IntersectionObserver(function(en){ if (en[0].isIntersecting) { lo.disconnect(); vs.start(); } }, { rootMargin: '400px 0px' }); lo.observe(vis); } else vs.start(); }
   upd();
 })();
