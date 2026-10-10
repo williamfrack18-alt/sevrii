@@ -336,6 +336,10 @@ footer a:hover{color:#fff}
     <h2 class="big w">Your robot, your business</h2>
     <p>We imagine a future where robots don&#x27;t only belong to big companies. Anyone could earn money with them in two ways.</p>
   </div>
+  <figure class="earn-vid rv">
+    <video class="remote-v" muted playsinline loop preload="none" poster="/assets/robotics/remote.jpg" aria-label="Concept · A professional controls a Sevrii robot remotely"><source src="/assets/robotics/remote-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/remote.mp4" type="video/mp4"></video>
+    <figcaption class="w">Concept · A professional controls a Sevrii robot remotely</figcaption>
+  </figure>
   <div class="ways">
       <div class="way rv"><span class="n w">01</span><h3 class="w">Own your robot</h3><p>You have your own Sevrii robot and put it to work. Sevrii finds it cleaning, moving, installation and other service jobs, and you get paid for each one.</p><ul><li>Your robot is listed on the Sevrii marketplace</li><li>Sevrii finds customers and manages the schedule</li><li>You get paid for every job it does</li></ul></div>
       <div class="way rv"><span class="n w">02</span><h3 class="w">Work through the robot</h3><p>If you know a trade, you offer your service from wherever you are: you connect and control a robot remotely, in real time, right where the customer needs it.</p><ul><li>You control the robot remotely</li><li>Serve customers in other cities without traveling</li><li>Your skills and your hands, through the robot</li></ul></div>
@@ -454,6 +458,8 @@ footer a:hover{color:#fff}
   if (vv && 'IntersectionObserver' in window) {
     var vo = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { vv.preload = 'auto'; var pr = vv.play(); if (pr && pr.catch) pr.catch(function(){}); } else vv.pause(); }); }, { threshold: 0.15 });
     vo.observe(hero);
+    var rv = document.querySelector('.remote-v');
+    if (rv) { var ro = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { rv.preload = 'auto'; var pr = rv.play(); if (pr && pr.catch) pr.catch(function(){}); } else rv.pause(); }); }, { threshold: 0.25 }); ro.observe(rv); }
   }
   upd();
 })();

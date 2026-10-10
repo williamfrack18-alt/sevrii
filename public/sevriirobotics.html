@@ -336,6 +336,10 @@ footer a:hover{color:#fff}
     <h2 class="big w">Tu robot, tu negocio</h2>
     <p>Imaginamos un futuro donde los robots no solo pertenecen a grandes empresas. Cualquier persona podría ganar dinero con ellos de dos maneras.</p>
   </div>
+  <figure class="earn-vid rv">
+    <video class="remote-v" muted playsinline loop preload="none" poster="/assets/robotics/remote.jpg" aria-label="Concepto · Un profesional controla un robot Sevrii a distancia"><source src="/assets/robotics/remote-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/remote.mp4" type="video/mp4"></video>
+    <figcaption class="w">Concepto · Un profesional controla un robot Sevrii a distancia</figcaption>
+  </figure>
   <div class="ways">
       <div class="way rv"><span class="n w">01</span><h3 class="w">Sé dueño de tu robot</h3><p>Tienes tu propio robot Sevrii y lo pones a trabajar. Sevrii le consigue trabajos de limpieza, mudanzas, instalaciones y otros servicios, y tú cobras por cada uno.</p><ul><li>Tu robot aparece en el marketplace de Sevrii</li><li>Sevrii le consigue clientes y organiza la agenda</li><li>Tú cobras por cada servicio que hace</li></ul></div>
       <div class="way rv"><span class="n w">02</span><h3 class="w">Trabaja desde el robot</h3><p>Si sabes hacer un oficio, ofreces tu servicio desde donde estés: te conectas y controlas un robot a distancia, en tiempo real, en el lugar donde el cliente lo necesita.</p><ul><li>Controlas el robot de forma remota</li><li>Atiendes clientes en otras ciudades sin viajar</li><li>Tu experiencia y tus manos, a través del robot</li></ul></div>
@@ -454,6 +458,8 @@ footer a:hover{color:#fff}
   if (vv && 'IntersectionObserver' in window) {
     var vo = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { vv.preload = 'auto'; var pr = vv.play(); if (pr && pr.catch) pr.catch(function(){}); } else vv.pause(); }); }, { threshold: 0.15 });
     vo.observe(hero);
+    var rv = document.querySelector('.remote-v');
+    if (rv) { var ro = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { rv.preload = 'auto'; var pr = rv.play(); if (pr && pr.catch) pr.catch(function(){}); } else rv.pause(); }); }, { threshold: 0.25 }); ro.observe(rv); }
   }
   upd();
 })();
