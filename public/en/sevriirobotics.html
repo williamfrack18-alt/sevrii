@@ -177,6 +177,15 @@ a{color:inherit;text-decoration:none}
 .how .big{font-weight:400;font-size:clamp(30px,3.6vw,54px);line-height:1.02;text-transform:uppercase;margin:22px 0 0;max-width:900px}
 .card p{color:var(--dim);font-size:15.5px;line-height:1.6;margin:0}
 /* earn */
+.man{padding-top:150px;padding-bottom:150px}
+#ganar{--gx:78%;--gy:30%;--gw:46%;--gh:90%}
+.man-h{font-weight:400;text-transform:uppercase;margin:34px 0 0;line-height:.98;letter-spacing:-.01em}
+.man-old{display:block;font-size:clamp(26px,3.6vw,56px);color:rgba(11,11,11,.38)}
+.man-strike{background:linear-gradient(#0b0b0b,#0b0b0b) 0 54%/0% .07em no-repeat;transition:background-size 1.1s cubic-bezier(.2,.7,.2,1) .45s}
+.man-old.in-view .man-strike{background-size:100% .07em}
+.man-new{display:block;font-size:clamp(44px,7.6vw,128px);color:#0b0b0b;margin-top:14px;transition-delay:.9s}
+.man-foot{display:grid;grid-template-columns:1fr auto;gap:40px;align-items:end;margin-top:60px;padding-top:30px;border-top:1px solid rgba(0,0,0,.2)}
+.man-foot p{font-size:clamp(17px,1.5vw,21px);line-height:1.55;color:#1d1d1d;margin:0;max-width:720px}
 .earn{padding-top:120px;padding-bottom:120px}
 .earn .top{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:end;margin-top:22px}
 .earn .big{font-weight:400;font-size:clamp(34px,4.6vw,70px);line-height:1;text-transform:uppercase;margin:0}
@@ -245,7 +254,7 @@ footer a:hover{color:#fff}
 .rv{opacity:0;transform:translateY(24px);transition:opacity .8s ease,transform .8s ease}
 .rv.in-view{opacity:1;transform:none}
 
-@media (prefers-reduced-motion: reduce){.vis2 .wd{color:#fff}.vis2-pin{--sh:1;--tx:1}.brain .br{opacity:1;transform:none}.brain .bar b{width:100%;transition:none}.card::before{transform:none;transition:none}.vis-float,.floor{animation:none}.vis-bot{transform:none}.wd{color:#0b0b0b}.hero-bot{animation:none}.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+@media (prefers-reduced-motion: reduce){.man-strike{background-size:100% .07em;transition:none}.vis2 .wd{color:#fff}.vis2-pin{--sh:1;--tx:1}.brain .br{opacity:1;transform:none}.brain .bar b{width:100%;transition:none}.card::before{transform:none;transition:none}.vis-float,.floor{animation:none}.vis-bot{transform:none}.wd{color:#0b0b0b}.hero-bot{animation:none}.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
 @media (max-width:1100px){.links{gap:20px;font-size:13.5px}.hero-bot{left:77%}}
 @media (max-width:900px){
   .pad{padding-left:16px;padding-right:16px}
@@ -271,6 +280,9 @@ footer a:hover{color:#fff}
   .brain{padding:22px 20px 20px}
   .card .n{font-size:56px}
   .faq .big{max-width:none}
+  .man{padding-top:84px;padding-bottom:84px}
+  .man-new{font-size:clamp(38px,11vw,52px)}
+  .man-foot{grid-template-columns:1fr;gap:24px;margin-top:40px}
   .vis2{height:230vh}
   .vis2-pin{height:100svh;min-height:540px}
   .vis2-txt{justify-content:flex-end;padding-bottom:56px}
@@ -330,12 +342,20 @@ footer a:hover{color:#fff}
   <span class="vis2-cap w">Concept · Sevrii Robotics</span>
 </div></section>
 
-<section class="earn pad" id="ganar">
-  <div class="label w rv">Two ways to earn</div>
-  <div class="top rv">
-    <h2 class="big w">Your robot, your business</h2>
-    <p>We imagine a future where robots don&#x27;t only belong to big companies. Anyone could earn money with them in two ways.</p>
+<section class="man pad light" id="ganar">
+  <div class="label w rv">Your robot, your business</div>
+  <h2 class="man-h w">
+    <span class="man-old rv"><span class="man-strike">Robots for a few big companies.</span></span>
+    <span class="man-new rv">A robot for every person.</span>
+  </h2>
+  <div class="man-foot rv">
+    <p>We imagine a future where robots don&#x27;t only belong to big companies. We want anyone to be able to own their own robot and earn money offering services with it.</p>
+    <a class="btn" href="#formas">See the two ways to earn <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M7 2v10M3 8l4 4 4-4"/></svg></a>
   </div>
+</section>
+
+<section class="earn pad" id="formas">
+  <div class="label w rv">Two ways to earn</div>
   <figure class="earn-vid rv">
     <video class="remote-v" muted playsinline loop preload="none" poster="/assets/robotics/remote.jpg" aria-label="Concept · A professional controls a Sevrii robot remotely"><source src="/assets/robotics/remote-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/remote.mp4" type="video/mp4"></video>
     <figcaption class="w">Concept · A professional controls a Sevrii robot remotely</figcaption>
