@@ -109,6 +109,7 @@ a{color:inherit;text-decoration:none}
 .hero{position:relative;height:100vh;min-height:620px;background:#000}
 .hero-pin{position:relative;height:100%;overflow:hidden;background:#000}
 .hero-v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;background:#000}
+.vis2-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:36% 22%;transform:scale(calc(1.035 - var(--p,0) * .035));transform-origin:85% 30%;will-change:transform}
 .hero-bot{position:absolute;top:0;left:70%;height:100vh;min-height:620px;transform:translateX(-50%)}
 .hero-bot picture{display:block;height:100%}
 .hero-bot img,.hero-bot canvas{display:block;height:100%;width:auto}
@@ -122,7 +123,7 @@ a{color:inherit;text-decoration:none}
 .hero h1{font-size:clamp(30px,3.6vw,64px);line-height:1.04;letter-spacing:-.005em;max-width:min(640px,40vw);margin-bottom:20px;text-shadow:0 2px 30px rgba(0,0,0,.45)}
 .hero .p{text-shadow:0 1px 16px rgba(0,0,0,.6);max-width:min(480px,40vw)}
 /* statement */
-#vision{overflow:visible;height:270vh}
+#vision{overflow:visible;height:200vh}
 #vision::before{display:none}
 .vis::before{content:"";position:absolute;top:0;bottom:0;left:-50px;right:-50px;background:radial-gradient(ellipse 34% 75% at 80% 58%,rgba(236,237,235,.85),rgba(236,237,235,0) 72%);z-index:-1;pointer-events:none}
 .st{padding-top:0;padding-bottom:0}
@@ -190,12 +191,12 @@ a{color:inherit;text-decoration:none}
 .earn .top{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:end;margin-top:22px}
 .earn .big{font-weight:400;font-size:clamp(34px,4.6vw,70px);line-height:1;text-transform:uppercase;margin:0}
 .earn .top p{color:#cfcfcf;font-size:16.5px;line-height:1.6;margin:0;max-width:520px}
-.vis2{position:relative;height:250vh;background:#000}
+.vis2{position:relative;height:200vh;background:#000}
 .vis2-pin{position:sticky;top:0;height:100vh;min-height:600px;overflow:hidden;--sh:1;--tx:1;--cp:0}
 .vis2-v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;background:#000}
 .vis2-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(0,0,0,.85) 0,rgba(0,0,0,.55) 36%,rgba(0,0,0,0) 60%),linear-gradient(0deg,rgba(0,0,0,.5) 0,rgba(0,0,0,0) 30%)}
 .vis2-txt{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:center;padding-top:60px;opacity:var(--tx);transform:translateY(calc((1 - var(--tx)) * -40px))}
-.vis2-txt p{font-weight:400;font-size:clamp(22px,2.4vw,38px);line-height:1.22;letter-spacing:-.005em;max-width:min(620px,42vw);margin:22px 0 0}
+.vis2-txt p{font-weight:400;font-size:clamp(22px,2.4vw,38px);line-height:1.22;letter-spacing:-.005em;max-width:min(560px,38vw);margin:22px 0 0}
 .vis2 .wd{color:rgba(255,255,255,.26)}
 .vis2 .wd.on{color:#fff}
 .vis2-cap{position:absolute;z-index:2;left:50px;bottom:30px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.85);opacity:var(--cp);text-shadow:0 1px 10px rgba(0,0,0,.6)}
@@ -267,9 +268,10 @@ footer a:hover{color:#fff}
   .hero{height:92svh;min-height:560px}
   .hero-v{object-position:42% 50%}
   .hero-bot{left:50%;top:70px;height:108svh}
+  .vis2-img{object-position:50% 0%}
   .close img{object-position:50% 0%}
   .hero .in{flex-direction:column;align-items:flex-start;padding-bottom:32px}
-  #vision{height:250vh}
+  #vision{height:190vh}
   .vis{grid-template-columns:1fr;gap:14px;align-content:center;padding:86px 0 18px;min-height:0}
   .vis .label{margin-bottom:-8px}
   .st p{font-size:clamp(19px,5.4vw,23px);margin-top:14px}
@@ -286,7 +288,7 @@ footer a:hover{color:#fff}
   .man{padding-top:84px;padding-bottom:84px}
   .man-new{font-size:clamp(38px,11vw,52px)}
   .man-foot{grid-template-columns:1fr;gap:24px;margin-top:40px}
-  .vis2{height:230vh}
+  .vis2{height:190vh}
   .vis2-pin{height:100svh;min-height:540px}
   .vis2-txt{justify-content:flex-end;padding-bottom:56px}
   .vis2-shade{background:linear-gradient(180deg,rgba(0,0,0,.25) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,.7) 50%,rgba(0,0,0,.95) 78%)}
@@ -336,7 +338,7 @@ footer a:hover{color:#fff}
 </section>
 
 <section class="vis2" id="vision"><div class="vis2-pin">
-  <div class="hero-bot"><picture><source media="(max-width: 900px)" srcset="/assets/robotics/spin/r00.webp" width="447" height="1290"><img src="/assets/robotics/spinhero/h00.webp" alt="Concepto de robot humanoide de Sevrii" width="1573" height="1100" decoding="async"></picture><canvas aria-hidden="true"></canvas></div>
+  <picture><source media="(max-width: 900px)" srcset="/assets/robotics/hero-face-tall.jpg"><img class="vis2-img" src="/assets/robotics/hero-face.jpg" alt="Concepto de robot humanoide de Sevrii" loading="lazy" decoding="async"></picture>
   <div class="vis2-shade" aria-hidden="true"></div>
   <div class="vis2-txt pad">
     <div class="label w">Visión</div>
@@ -455,7 +457,7 @@ footer a:hover{color:#fff}
   }
   var hero = document.querySelector('.hero'), vis = document.getElementById('vision');
   var vis0 = document.getElementById('vision');
-  var hs = vis0 ? new Spinner(vis0, vis0.querySelector('.hero-bot'), mobile ? '/assets/robotics/spin/r' : '/assets/robotics/spinhero/h') : null;
+  var hs = null;
   var pin = vis && vis.querySelector('.vis2-pin'), vv = hero && hero.querySelector('video'), wds = vis ? vis.querySelectorAll('.wd') : [];
   if (reduce) { for (var k = 0; k < wds.length; k++) wds[k].classList.add('on'); return; }
   var ticking = false;
@@ -468,6 +470,7 @@ footer a:hover{color:#fff}
       var n = Math.round(clamp(enter * 0.45 + p * 1.8) * wds.length);
       for (var i = 0; i < wds.length; i++) wds[i].classList.toggle('on', i < n);
       pin.style.setProperty('--cp', clamp((p - 0.15) / 0.2).toFixed(3));
+      pin.style.setProperty('--p', p.toFixed(3));
     }
   }
   function req(){ if (!ticking) { ticking = true; requestAnimationFrame(upd); } }
