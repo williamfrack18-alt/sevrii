@@ -208,6 +208,9 @@ a{color:inherit;text-decoration:none}
 .way::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:rgba(255,255,255,.35);transform:scaleX(0);transform-origin:0 50%;transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
 .way.in-view::before{transform:scaleX(1)}
 .way+.way,.way+.way::before{transition-delay:.15s}
+.way-vid{margin:0 0 36px}
+.way-vid video{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
+.way-vid figcaption{margin-top:12px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8a8a}
 .way .n{display:block;font-size:clamp(56px,6vw,96px);line-height:.9;font-weight:300;color:rgba(255,255,255,.22)}
 .way h3{font-weight:400;font-size:clamp(28px,2.9vw,44px);line-height:1.02;text-transform:uppercase;margin:34px 0 16px}
 .way p{color:#bdbdbd;font-size:16px;line-height:1.6;margin:0;max-width:520px}
@@ -356,13 +359,9 @@ footer a:hover{color:#fff}
 
 <section class="earn pad" id="formas">
   <div class="label w rv">Dos formas de ganar</div>
-  <figure class="earn-vid rv">
-    <video class="remote-v" muted playsinline loop preload="none" poster="/assets/robotics/remote.jpg" aria-label="Concepto · Un profesional controla un robot Sevrii a distancia"><source src="/assets/robotics/remote-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/remote.mp4" type="video/mp4"></video>
-    <figcaption class="w">Concepto · Un profesional controla un robot Sevrii a distancia</figcaption>
-  </figure>
   <div class="ways">
-      <div class="way rv"><span class="n w">01</span><h3 class="w">Sé dueño de tu robot</h3><p>Tienes tu propio robot Sevrii y lo pones a trabajar. Sevrii le consigue trabajos de limpieza, mudanzas, instalaciones y otros servicios, y tú cobras por cada uno.</p><ul><li>Tu robot aparece en el marketplace de Sevrii</li><li>Sevrii le consigue clientes y organiza la agenda</li><li>Tú cobras por cada servicio que hace</li></ul></div>
-      <div class="way rv"><span class="n w">02</span><h3 class="w">Trabaja desde el robot</h3><p>Si sabes hacer un oficio, ofreces tu servicio desde donde estés: te conectas y controlas un robot a distancia, en tiempo real, en el lugar donde el cliente lo necesita.</p><ul><li>Controlas el robot de forma remota</li><li>Atiendes clientes en otras ciudades sin viajar</li><li>Tu experiencia y tus manos, a través del robot</li></ul></div>
+      <div class="way rv"><figure class="way-vid"><video class="card-v" muted playsinline loop preload="none" poster="/assets/robotics/bedroom.jpg" aria-label="Concepto · Un robot Sevrii tendiendo una cama"><source src="/assets/robotics/bedroom-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/bedroom.mp4" type="video/mp4"></video><figcaption class="w">Concepto · Un robot Sevrii tendiendo una cama</figcaption></figure><span class="n w">01</span><h3 class="w">Sé dueño de tu robot</h3><p>Tienes tu propio robot Sevrii y lo pones a trabajar. Sevrii le consigue trabajos de limpieza, mudanzas, instalaciones y otros servicios, y tú cobras por cada uno.</p><ul><li>Tu robot aparece en el marketplace de Sevrii</li><li>Sevrii le consigue clientes y organiza la agenda</li><li>Tú cobras por cada servicio que hace</li></ul></div>
+      <div class="way rv"><figure class="way-vid"><video class="card-v" muted playsinline loop preload="none" poster="/assets/robotics/remote.jpg" aria-label="Concepto · Un profesional controla un robot Sevrii a distancia"><source src="/assets/robotics/remote-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/remote.mp4" type="video/mp4"></video><figcaption class="w">Concepto · Un profesional controla un robot Sevrii a distancia</figcaption></figure><span class="n w">02</span><h3 class="w">Trabaja desde el robot</h3><p>Si sabes hacer un oficio, ofreces tu servicio desde donde estés: te conectas y controlas un robot a distancia, en tiempo real, en el lugar donde el cliente lo necesita.</p><ul><li>Controlas el robot de forma remota</li><li>Atiendes clientes en otras ciudades sin viajar</li><li>Tu experiencia y tus manos, a través del robot</li></ul></div>
   </div>
   <p class="fine rv">Concepto a futuro. Todavía no es un servicio disponible.</p>
 </section>
@@ -478,8 +477,9 @@ footer a:hover{color:#fff}
   if (vv && 'IntersectionObserver' in window) {
     var vo = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { vv.preload = 'auto'; var pr = vv.play(); if (pr && pr.catch) pr.catch(function(){}); } else vv.pause(); }); }, { threshold: 0.15 });
     vo.observe(hero);
-    var rv = document.querySelector('.remote-v');
-    if (rv) { var ro = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { rv.preload = 'auto'; var pr = rv.play(); if (pr && pr.catch) pr.catch(function(){}); } else rv.pause(); }); }, { threshold: 0.25 }); ro.observe(rv); }
+    var cvs = document.querySelectorAll('.card-v');
+    var co = new IntersectionObserver(function(en){ en.forEach(function(x){ var v = x.target; if (x.isIntersecting) { v.preload = 'auto'; var pr = v.play(); if (pr && pr.catch) pr.catch(function(){}); } else v.pause(); }); }, { threshold: 0.25 });
+    for (var ci = 0; ci < cvs.length; ci++) co.observe(cvs[ci]);
   }
   upd();
 })();
