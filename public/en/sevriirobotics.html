@@ -180,6 +180,15 @@ a{color:inherit;text-decoration:none}
 .earn .top{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:end;margin-top:22px}
 .earn .big{font-weight:400;font-size:clamp(34px,4.6vw,70px);line-height:1;text-transform:uppercase;margin:0}
 .earn .top p{color:#cfcfcf;font-size:16.5px;line-height:1.6;margin:0;max-width:520px}
+.vis2{position:relative;height:250vh;background:#000}
+.vis2-pin{position:sticky;top:0;height:100vh;min-height:600px;overflow:hidden;--sh:1;--tx:1;--cp:0}
+.vis2-v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;background:#000}
+.vis2-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.78) 0,rgba(0,0,0,.6) 55%,rgba(0,0,0,.45) 100%);opacity:var(--sh)}
+.vis2-txt{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding-top:60px;opacity:var(--tx);transform:translateY(calc((1 - var(--tx)) * -40px))}
+.vis2-txt p{font-weight:400;font-size:clamp(26px,3.1vw,46px);line-height:1.2;letter-spacing:-.005em;max-width:1080px;margin:22px 0 0}
+.vis2 .wd{color:rgba(255,255,255,.26)}
+.vis2 .wd.on{color:#fff}
+.vis2-cap{position:absolute;left:50px;bottom:30px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.85);opacity:var(--cp);text-shadow:0 1px 10px rgba(0,0,0,.6)}
 .earn-vid{margin:56px 0 0}
 .earn-vid video{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
 .earn-vid figcaption{margin-top:14px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:#8a8a8a}
@@ -235,7 +244,7 @@ footer a:hover{color:#fff}
 .rv{opacity:0;transform:translateY(24px);transition:opacity .8s ease,transform .8s ease}
 .rv.in-view{opacity:1;transform:none}
 
-@media (prefers-reduced-motion: reduce){.brain .br{opacity:1;transform:none}.brain .bar b{width:100%;transition:none}.card::before{transform:none;transition:none}.vis-float,.floor{animation:none}.vis-bot{transform:none}.wd{color:#0b0b0b}.hero-bot{animation:none}.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+@media (prefers-reduced-motion: reduce){.vis2 .wd{color:#fff}.vis2-pin{--sh:1;--tx:1}.brain .br{opacity:1;transform:none}.brain .bar b{width:100%;transition:none}.card::before{transform:none;transition:none}.vis-float,.floor{animation:none}.vis-bot{transform:none}.wd{color:#0b0b0b}.hero-bot{animation:none}.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
 @media (max-width:1100px){.links{gap:20px;font-size:13.5px}.hero-bot{left:77%}}
 @media (max-width:900px){
   .pad{padding-left:16px;padding-right:16px}
@@ -261,6 +270,11 @@ footer a:hover{color:#fff}
   .brain{padding:22px 20px 20px}
   .card .n{font-size:56px}
   .faq .big{max-width:none}
+  .vis2{height:230vh}
+  .vis2-pin{height:100svh;min-height:540px}
+  .vis2-v{object-position:42% 50%}
+  .vis2-txt p{font-size:clamp(21px,6vw,26px)}
+  .vis2-cap{left:16px;right:16px}
   .end .ghost-bot{right:-30%;height:100%;opacity:.1}
   .how{padding-top:72px;padding-bottom:72px}
   .cards{grid-template-columns:1fr}
@@ -304,22 +318,15 @@ footer a:hover{color:#fff}
 </div>
 </section>
 
-<section class="st pad light" id="vision">
-  <div class="vis">
-    <div>
-      <div class="label w">Vision</div>
-      <p class="w"><span class="wd">Services</span> <span class="wd">move</span> <span class="wd">the</span> <span class="wd">world:</span> <span class="wd">cleaning,</span> <span class="wd">repairing,</span> <span class="wd">moving,</span> <span class="wd">installing,</span> <span class="wd">caring.</span> <span class="wd">Today</span> <span class="wd">Sevrii</span> <span class="wd">helps</span> <span class="wd">the</span> <span class="wd">professionals</span> <span class="wd">who</span> <span class="wd">do</span> <span class="wd">them</span> <span class="wd">win</span> <span class="wd">more</span> <span class="wd">customers</span> <span class="wd">with</span> <span class="wd">artificial</span> <span class="wd">intelligence.</span> <span class="wd">Tomorrow</span> <span class="wd">we</span> <span class="wd">want</span> <span class="wd">that</span> <span class="wd">intelligence</span> <span class="wd">to</span> <span class="wd">move</span> <span class="wd">in</span> <span class="wd">the</span> <span class="wd">real</span> <span class="wd">world</span> <span class="wd">too,</span> <span class="wd">right</span> <span class="wd">next</span> <span class="wd">to</span> <span class="wd">them.</span></p>
-      <span class="vis-cap w">Concept · Sevrii Robotics</span>
-    </div>
-    <div class="vis-bot">
-      <div class="vis-float">
-        <img class="spin0" src="/assets/robotics/spin/r00.webp" alt="Sevrii humanoid robot concept" width="447" height="1290" decoding="async">
-        <canvas class="spin" aria-hidden="true"></canvas>
-      </div>
-      <span class="floor" aria-hidden="true"></span>
-    </div>
+<section class="vis2" id="vision"><div class="vis2-pin">
+  <video class="vis2-v" muted playsinline loop preload="metadata" poster="/assets/robotics/kitchen.jpg" aria-label="Concept · A Sevrii robot cleaning a kitchen"><source src="/assets/robotics/kitchen-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/kitchen.mp4" type="video/mp4"></video>
+  <div class="vis2-shade" aria-hidden="true"></div>
+  <div class="vis2-txt pad">
+    <div class="label w">Vision</div>
+    <p class="w"><span class="wd">Services</span> <span class="wd">move</span> <span class="wd">the</span> <span class="wd">world:</span> <span class="wd">cleaning,</span> <span class="wd">repairing,</span> <span class="wd">moving,</span> <span class="wd">installing,</span> <span class="wd">caring.</span> <span class="wd">Today</span> <span class="wd">Sevrii</span> <span class="wd">helps</span> <span class="wd">the</span> <span class="wd">professionals</span> <span class="wd">who</span> <span class="wd">do</span> <span class="wd">them</span> <span class="wd">win</span> <span class="wd">more</span> <span class="wd">customers</span> <span class="wd">with</span> <span class="wd">artificial</span> <span class="wd">intelligence.</span> <span class="wd">Tomorrow</span> <span class="wd">we</span> <span class="wd">want</span> <span class="wd">that</span> <span class="wd">intelligence</span> <span class="wd">to</span> <span class="wd">move</span> <span class="wd">in</span> <span class="wd">the</span> <span class="wd">real</span> <span class="wd">world</span> <span class="wd">too,</span> <span class="wd">right</span> <span class="wd">next</span> <span class="wd">to</span> <span class="wd">them.</span></p>
   </div>
-</section>
+  <span class="vis2-cap w">Concept · A Sevrii robot cleaning a kitchen</span>
+</div></section>
 
 <section class="earn pad" id="ganar">
   <div class="label w rv">Two ways to earn</div>
@@ -327,10 +334,6 @@ footer a:hover{color:#fff}
     <h2 class="big w">Your robot, your business</h2>
     <p>We imagine a future where robots don&#x27;t only belong to big companies. Anyone could earn money with them in two ways.</p>
   </div>
-  <figure class="earn-vid rv">
-    <video muted playsinline loop preload="none" poster="/assets/robotics/kitchen.jpg" aria-label="Concept · A Sevrii robot cleaning a kitchen"><source src="/assets/robotics/kitchen-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/kitchen.mp4" type="video/mp4"></video>
-    <figcaption class="w">Concept · A Sevrii robot cleaning a kitchen</figcaption>
-  </figure>
   <div class="ways">
       <div class="way rv"><span class="n w">01</span><h3 class="w">Own your robot</h3><p>You have your own Sevrii robot and put it to work. Sevrii finds it cleaning, moving, installation and other service jobs, and you get paid for each one.</p><ul><li>Your robot is listed on the Sevrii marketplace</li><li>Sevrii finds customers and manages the schedule</li><li>You get paid for every job it does</li></ul></div>
       <div class="way rv"><span class="n w">02</span><h3 class="w">Work through the robot</h3><p>If you know a trade, you offer your service from wherever you are: you connect and control a robot remotely, in real time, right where the customer needs it.</p><ul><li>You control the robot remotely</li><li>Serve customers in other cities without traveling</li><li>Your skills and your hands, through the robot</li></ul></div>
@@ -427,31 +430,31 @@ footer a:hover{color:#fff}
   }
   var hero = document.querySelector('.hero'), vis = document.getElementById('vision');
   var hs = hero ? new Spinner(hero, hero.querySelector('.hero-bot'), mobile ? '/assets/robotics/spin/r' : '/assets/robotics/spinhero/h') : null;
-  var vs = vis ? new Spinner(vis, vis.querySelector('.vis-float'), '/assets/robotics/spin/r') : null;
-  var bot = vis && vis.querySelector('.vis-bot'), wds = vis ? vis.querySelectorAll('.wd') : [];
+  var pin = vis && vis.querySelector('.vis2-pin'), vv = vis && vis.querySelector('video'), wds = vis ? vis.querySelectorAll('.wd') : [];
   if (reduce) { for (var k = 0; k < wds.length; k++) wds[k].classList.add('on'); return; }
   var ticking = false;
   function upd(){
     ticking = false;
     if (hs) hs.set(hs.progress().p);
-    if (vs) {
-      var g = vs.progress();
-      bot.style.setProperty('--p', g.enter.toFixed(3));
-      var n = Math.round(clamp(g.enter * 0.35 + g.p * 1.6) * wds.length);
+    if (vis) {
+      var r = vis.getBoundingClientRect(), h = window.innerHeight;
+      var enter = clamp((h - r.top) / h), p = clamp(-r.top / Math.max(1, r.height - h));
+      var n = Math.round(clamp(enter * 0.45 + p * 2.4) * wds.length);
       for (var i = 0; i < wds.length; i++) wds[i].classList.toggle('on', i < n);
-      vs.set(g.p);
+      var out = clamp((p - 0.42) / 0.22);                 // text leaves, video clears
+      pin.style.setProperty('--tx', (1 - out).toFixed(3));
+      pin.style.setProperty('--sh', (1 - out).toFixed(3));
+      pin.style.setProperty('--cp', clamp((p - 0.62) / 0.14).toFixed(3));
     }
   }
   function req(){ if (!ticking) { ticking = true; requestAnimationFrame(upd); } }
   window.addEventListener('scroll', req, { passive: true });
   window.addEventListener('resize', function(){ spinners.forEach(function(sp){ sp.resize(); }); req(); });
   if (hs) hs.start();
-  var kv = document.querySelector('.earn-vid video');
-  if (kv && 'IntersectionObserver' in window) {
-    var vo = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { kv.preload = 'auto'; var pr = kv.play(); if (pr && pr.catch) pr.catch(function(){}); } else kv.pause(); }); }, { threshold: 0.25 });
-    vo.observe(kv);
+  if (vv && 'IntersectionObserver' in window) {
+    var vo = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { vv.preload = 'auto'; var pr = vv.play(); if (pr && pr.catch) pr.catch(function(){}); } else vv.pause(); }); }, { threshold: 0.15 });
+    vo.observe(vis);
   }
-  if (vs) { if ('IntersectionObserver' in window) { var lo = new IntersectionObserver(function(en){ if (en[0].isIntersecting) { lo.disconnect(); vs.start(); } }, { rootMargin: '400px 0px' }); lo.observe(vis); } else vs.start(); }
   upd();
 })();
 </script>
