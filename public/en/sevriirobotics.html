@@ -106,8 +106,9 @@ a{color:inherit;text-decoration:none}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;background:#fff;color:#000}
 .pill:hover{background:#e6e6e6}
 /* hero */
-.hero{position:relative;height:230vh;background:#000}
-.hero-pin{position:sticky;top:0;height:100vh;min-height:620px;overflow:hidden;background:#000}
+.hero{position:relative;height:100vh;min-height:620px;background:#000}
+.hero-pin{position:relative;height:100%;overflow:hidden;background:#000}
+.hero-v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;background:#000}
 .hero-bot{position:absolute;top:0;left:70%;height:100vh;min-height:620px;transform:translateX(-50%)}
 .hero-bot picture{display:block;height:100%}
 .hero-bot img,.hero-bot canvas{display:block;height:100%;width:auto}
@@ -183,12 +184,12 @@ a{color:inherit;text-decoration:none}
 .vis2{position:relative;height:250vh;background:#000}
 .vis2-pin{position:sticky;top:0;height:100vh;min-height:600px;overflow:hidden;--sh:1;--tx:1;--cp:0}
 .vis2-v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;background:#000}
-.vis2-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.78) 0,rgba(0,0,0,.6) 55%,rgba(0,0,0,.45) 100%);opacity:var(--sh)}
-.vis2-txt{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding-top:60px;opacity:var(--tx);transform:translateY(calc((1 - var(--tx)) * -40px))}
-.vis2-txt p{font-weight:400;font-size:clamp(26px,3.1vw,46px);line-height:1.2;letter-spacing:-.005em;max-width:1080px;margin:22px 0 0}
+.vis2-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(0,0,0,.85) 0,rgba(0,0,0,.55) 36%,rgba(0,0,0,0) 60%),linear-gradient(0deg,rgba(0,0,0,.5) 0,rgba(0,0,0,0) 30%)}
+.vis2-txt{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:center;padding-top:60px;opacity:var(--tx);transform:translateY(calc((1 - var(--tx)) * -40px))}
+.vis2-txt p{font-weight:400;font-size:clamp(22px,2.4vw,38px);line-height:1.22;letter-spacing:-.005em;max-width:min(620px,42vw);margin:22px 0 0}
 .vis2 .wd{color:rgba(255,255,255,.26)}
 .vis2 .wd.on{color:#fff}
-.vis2-cap{position:absolute;left:50px;bottom:30px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.85);opacity:var(--cp);text-shadow:0 1px 10px rgba(0,0,0,.6)}
+.vis2-cap{position:absolute;z-index:2;left:50px;bottom:30px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.85);opacity:var(--cp);text-shadow:0 1px 10px rgba(0,0,0,.6)}
 .earn-vid{margin:56px 0 0}
 .earn-vid video{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
 .earn-vid figcaption{margin-top:14px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:#8a8a8a}
@@ -251,8 +252,8 @@ footer a:hover{color:#fff}
   .nav .navin{padding:0 20px}
   .links{display:none}
   .brand small{display:none}
-  .hero{height:200vh}
-  .hero-pin{height:100svh;min-height:540px;background:#000}
+  .hero{height:92svh;min-height:560px}
+  .hero-v{object-position:42% 50%}
   .hero-bot{left:50%;top:70px;height:108svh}
   .close img{object-position:50% 0%}
   .hero .in{flex-direction:column;align-items:flex-start;padding-bottom:32px}
@@ -272,8 +273,9 @@ footer a:hover{color:#fff}
   .faq .big{max-width:none}
   .vis2{height:230vh}
   .vis2-pin{height:100svh;min-height:540px}
-  .vis2-v{object-position:42% 50%}
-  .vis2-txt p{font-size:clamp(21px,6vw,26px)}
+  .vis2-txt{justify-content:flex-end;padding-bottom:56px}
+  .vis2-shade{background:linear-gradient(180deg,rgba(0,0,0,.25) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,.7) 50%,rgba(0,0,0,.95) 78%)}
+  .vis2-txt p{font-size:clamp(19px,5.4vw,23px);max-width:none}
   .vis2-cap{left:16px;right:16px}
   .end .ghost-bot{right:-30%;height:100%;opacity:.1}
   .how{padding-top:72px;padding-bottom:72px}
@@ -306,7 +308,7 @@ footer a:hover{color:#fff}
 </header>
 
 <section class="hero"><div class="hero-pin">
-  <div class="hero-bot"><picture><source media="(max-width: 900px)" srcset="/assets/robotics/spin/r00.webp" width="447" height="1290"><img src="/assets/robotics/spinhero/h00.webp" alt="Sevrii humanoid robot concept" width="1573" height="1100" fetchpriority="high"></picture><canvas aria-hidden="true"></canvas></div>
+  <video class="hero-v" autoplay muted playsinline loop preload="auto" poster="/assets/robotics/kitchen.jpg" aria-label="Concept · A Sevrii robot cleaning a kitchen"><source src="/assets/robotics/kitchen-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/kitchen.mp4" type="video/mp4"></video>
   <div class="in pad">
     <div>
       <div class="label w tag">Sevrii Robotics</div>
@@ -319,13 +321,13 @@ footer a:hover{color:#fff}
 </section>
 
 <section class="vis2" id="vision"><div class="vis2-pin">
-  <video class="vis2-v" muted playsinline loop preload="metadata" poster="/assets/robotics/kitchen.jpg" aria-label="Concept · A Sevrii robot cleaning a kitchen"><source src="/assets/robotics/kitchen-sm.mp4" type="video/mp4" media="(max-width: 900px)"><source src="/assets/robotics/kitchen.mp4" type="video/mp4"></video>
+  <div class="hero-bot"><picture><source media="(max-width: 900px)" srcset="/assets/robotics/spin/r00.webp" width="447" height="1290"><img src="/assets/robotics/spinhero/h00.webp" alt="Sevrii humanoid robot concept" width="1573" height="1100" decoding="async"></picture><canvas aria-hidden="true"></canvas></div>
   <div class="vis2-shade" aria-hidden="true"></div>
   <div class="vis2-txt pad">
     <div class="label w">Vision</div>
     <p class="w"><span class="wd">Services</span> <span class="wd">move</span> <span class="wd">the</span> <span class="wd">world:</span> <span class="wd">cleaning,</span> <span class="wd">repairing,</span> <span class="wd">moving,</span> <span class="wd">installing,</span> <span class="wd">caring.</span> <span class="wd">Today</span> <span class="wd">Sevrii</span> <span class="wd">helps</span> <span class="wd">the</span> <span class="wd">professionals</span> <span class="wd">who</span> <span class="wd">do</span> <span class="wd">them</span> <span class="wd">win</span> <span class="wd">more</span> <span class="wd">customers</span> <span class="wd">with</span> <span class="wd">artificial</span> <span class="wd">intelligence.</span> <span class="wd">Tomorrow</span> <span class="wd">we</span> <span class="wd">want</span> <span class="wd">that</span> <span class="wd">intelligence</span> <span class="wd">to</span> <span class="wd">move</span> <span class="wd">in</span> <span class="wd">the</span> <span class="wd">real</span> <span class="wd">world</span> <span class="wd">too,</span> <span class="wd">right</span> <span class="wd">next</span> <span class="wd">to</span> <span class="wd">them.</span></p>
   </div>
-  <span class="vis2-cap w">Concept · A Sevrii robot cleaning a kitchen</span>
+  <span class="vis2-cap w">Concept · Sevrii Robotics</span>
 </div></section>
 
 <section class="earn pad" id="ganar">
@@ -429,8 +431,9 @@ footer a:hover{color:#fff}
     spinners.push(sp);
   }
   var hero = document.querySelector('.hero'), vis = document.getElementById('vision');
-  var hs = hero ? new Spinner(hero, hero.querySelector('.hero-bot'), mobile ? '/assets/robotics/spin/r' : '/assets/robotics/spinhero/h') : null;
-  var pin = vis && vis.querySelector('.vis2-pin'), vv = vis && vis.querySelector('video'), wds = vis ? vis.querySelectorAll('.wd') : [];
+  var vis0 = document.getElementById('vision');
+  var hs = vis0 ? new Spinner(vis0, vis0.querySelector('.hero-bot'), mobile ? '/assets/robotics/spin/r' : '/assets/robotics/spinhero/h') : null;
+  var pin = vis && vis.querySelector('.vis2-pin'), vv = hero && hero.querySelector('video'), wds = vis ? vis.querySelectorAll('.wd') : [];
   if (reduce) { for (var k = 0; k < wds.length; k++) wds[k].classList.add('on'); return; }
   var ticking = false;
   function upd(){
@@ -439,12 +442,9 @@ footer a:hover{color:#fff}
     if (vis) {
       var r = vis.getBoundingClientRect(), h = window.innerHeight;
       var enter = clamp((h - r.top) / h), p = clamp(-r.top / Math.max(1, r.height - h));
-      var n = Math.round(clamp(enter * 0.45 + p * 2.4) * wds.length);
+      var n = Math.round(clamp(enter * 0.45 + p * 1.8) * wds.length);
       for (var i = 0; i < wds.length; i++) wds[i].classList.toggle('on', i < n);
-      var out = clamp((p - 0.42) / 0.22);                 // text leaves, video clears
-      pin.style.setProperty('--tx', (1 - out).toFixed(3));
-      pin.style.setProperty('--sh', (1 - out).toFixed(3));
-      pin.style.setProperty('--cp', clamp((p - 0.62) / 0.14).toFixed(3));
+      pin.style.setProperty('--cp', clamp((p - 0.15) / 0.2).toFixed(3));
     }
   }
   function req(){ if (!ticking) { ticking = true; requestAnimationFrame(upd); } }
@@ -453,7 +453,7 @@ footer a:hover{color:#fff}
   if (hs) hs.start();
   if (vv && 'IntersectionObserver' in window) {
     var vo = new IntersectionObserver(function(en){ en.forEach(function(x){ if (x.isIntersecting) { vv.preload = 'auto'; var pr = vv.play(); if (pr && pr.catch) pr.catch(function(){}); } else vv.pause(); }); }, { threshold: 0.15 });
-    vo.observe(vis);
+    vo.observe(hero);
   }
   upd();
 })();
