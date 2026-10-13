@@ -270,6 +270,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   .s-pillar.is-green .s-lead,.s-pillar.is-green .s-points span{color:rgba(255,255,255,.72);}
   .s-pillar.is-green .s-points,.s-pillar.is-green .s-points li{border-color:rgba(255,255,255,.16);}
   .s-pillar.is-green .n{color:#8ff0bb;}
+  .s-pillar.is-green + .s-pillar.is-green{margin-top:12px;}
   .s-pillar.is-glow{background:radial-gradient(ellipse 50% 60% at 75% 50%, rgba(61,220,132,.14), transparent 70%),#000;}
 
   /* ---------- Pillar visuals: photo + light Sevrii UI on top ---------- */
@@ -575,43 +576,8 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 </section>
 
 <!-- Overview: the 4 pillars -->
-<section class="s-overview" id="servicios">
-  <div class="s-wrap">
-    <div class="reveal">
-      <h2 class="s-h2">Todo tu negocio de servicios, en 4 pilares</h2>
-      <p class="s-lead">Cada pilar resuelve una parte de tu negocio. Tus agentes de IA hacen el trabajo; tú atiendes a tus clientes.</p>
-    </div>
-    <div class="s-ov-grid">
-      <a class="s-ov reveal" href="#store">
-        <div class="n">01</div>
-        <h3>Store</h3>
-        <p>Tu tienda de servicios, armada por tu agente de IA.</p>
-        <span class="go">Ver más &darr;</span>
-      </a>
-      <a class="s-ov reveal" href="#marketing">
-        <div class="n">02</div>
-        <h3>Marketing</h3>
-        <p>El cerebro que crea tu estrategia y la prepara para ejecutar.</p>
-        <span class="go">Ver más &darr;</span>
-      </a>
-      <a class="s-ov reveal" href="#payments">
-        <div class="n">03 <span class="s-tag">Próximamente</span></div>
-        <h3>Payments</h3>
-        <p>Links de pago para cobrarle a tus clientes.</p>
-        <span class="go">Ver más &darr;</span>
-      </a>
-      <a class="s-ov reveal" href="#capital">
-        <div class="n">04 <span class="s-tag">Próximamente</span></div>
-        <h3>Capital</h3>
-        <p>Financiamiento con un socio financiero para los negocios que cobran con Sevrii.</p>
-        <span class="go">Ver más &darr;</span>
-      </a>
-    </div>
-  </div>
-</section>
-
 <!-- The 4 pillars, one section each, with a sticky pillar nav -->
-<div class="s-pillars">
+<div class="s-pillars" id="servicios">
   <nav class="s-pnav" aria-label="Pilares de Sevrii">
     <div class="s-wrap">
       <a href="#store" data-pillar="store"><span>01</span>Store</a>
@@ -622,7 +588,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   </nav>
 
   <!-- 01. Store -->
-  <section class="s-pillar " id="store">
+  <section class="s-pillar is-green" id="store">
     <div class="s-wrap s-pillar-grid">
       <div class="s-pillar-text reveal">
         <div class="n">01 · Store</div>
@@ -687,7 +653,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   </section>
 
   <!-- 03. Payments -->
-  <section class="s-pillar " id="payments">
+  <section class="s-pillar is-glow" id="payments">
     <div class="s-wrap s-pillar-grid">
       <div class="s-pillar-text reveal">
         <div class="n">03 · Payments <span class="s-tag">Próximamente</span></div>
