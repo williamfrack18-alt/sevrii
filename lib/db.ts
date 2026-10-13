@@ -207,6 +207,7 @@ function ensureSchema(): Promise<void> {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "stripeSubscriptionId" TEXT`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "googleSub" TEXT`;
       await sql`CREATE INDEX IF NOT EXISTS users_stripe_customer_idx ON users ("stripeCustomerId")`;
       await sql`
         CREATE TABLE IF NOT EXISTS plan_waitlist (
@@ -283,6 +284,7 @@ export type UserRow = {
   cancelAtPeriodEnd?: boolean;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
+  googleSub?: string | null;
 };
 
 export async function createUser(
@@ -299,6 +301,18 @@ export async function createUser(
     VALUES (${id}, ${normalizedEmail}, ${passwordHash}, ${salt}, ${createdAt})
   `;
   return { id, email: normalizedEmail, passwordHash, salt, createdAt };
+}
+
+// Google sign-in: links the Google account to the user (first sign-in only).
+export async function setUserGoogleSub(userId: string, sub: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE users SET "googleSub" = ${sub} WHERE id = ${userId} AND "googleSub" IS NULL`;
+}
+
+export async function getUserByGoogleSub(sub: string): Promise<UserRow | undefined> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM users WHERE "googleSub" = ${sub}`) as UserRow[];
+  return rows[0];
 }
 
 export async function getUserByEmail(email: string): Promise<UserRow | undefined> {

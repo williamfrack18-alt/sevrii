@@ -20,13 +20,12 @@ import {
   hashPassword,
   verifyPassword,
   burnPasswordCheck,
-  newSessionToken,
   hashSessionToken,
   SESSION_COOKIE,
   LEGACY_SESSION_COOKIE,
-  SESSION_MAX_AGE,
 } from "@/lib/auth";
-import { createSessionRow, deleteSessionRow } from "@/lib/db";
+import { deleteSessionRow } from "@/lib/db";
+import { startSession } from "@/lib/startSession";
 import { allow, clear, clientIp, LIMITS } from "@/lib/guard";
 import { EMPTY_PLAN } from "@/lib/plan";
 import { limitsFor } from "@/lib/billing";
@@ -35,18 +34,6 @@ import { getCurrentUser, setActiveProject, PROJECT_COOKIE } from "@/lib/session"
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 
-async function startSession(userId: string) {
-  const token = newSessionToken();
-  await createSessionRow(hashSessionToken(token), userId, SESSION_MAX_AGE);
-  (await cookies()).delete(LEGACY_SESSION_COOKIE);
-  (await cookies()).set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: SESSION_MAX_AGE,
-    path: "/",
-  });
-}
 
 export type FormState = { error?: string } | null;
 

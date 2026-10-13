@@ -51,6 +51,24 @@ const es = {
     signupEyebrow: "Crea tu cuenta",
     signupTitle: "Empecemos",
     signupSubtitle: "Estás creando tu cuenta como proveedor de servicios en Sevrii.",
+    signupSlides: [
+      {
+        title: "Haz crecer tu servicio y consigue más clientes",
+        text: "¿Ya tienes un negocio? Sevrii estudia tu mercado, arma tu página y prepara tus campañas con IA para que te lleguen más clientes.",
+      },
+      {
+        title: "Convierte lo que sabes hacer en tu propio negocio",
+        text: "¿Trabajas para alguien más y sabes hacer un oficio? Sevrii te ayuda a ofrecer tu servicio por tu cuenta, paso a paso.",
+      },
+      {
+        title: "Más trabajos, mejores precios, tu propia marca",
+        text: "Limpieza, reparaciones, mudanzas, belleza y más: define tu servicio, publica tu página y empieza a vender hoy.",
+      },
+    ],
+    google: "Continuar con Google",
+    or: "o con tu correo",
+    errGoogle: "No pudimos entrar con Google. Inténtalo de nuevo o usa tu correo.",
+    errGoogleCancel: "Cancelaste el inicio con Google.",
     signupButton: "Crear cuenta",
     haveAccount: "¿Ya tienes una cuenta?",
     loginLink: "Inicia sesión",
@@ -269,6 +287,24 @@ const en: Dict = {
     signupEyebrow: "Create your account",
     signupTitle: "Let’s get started",
     signupSubtitle: "You’re creating your account as a service provider on Sevrii.",
+    signupSlides: [
+      {
+        title: "Grow your service and win more customers",
+        text: "Already run a business? Sevrii studies your market, builds your page and prepares your campaigns with AI so more customers find you.",
+      },
+      {
+        title: "Turn what you’re good at into your own business",
+        text: "Working for someone else and good at a trade? Sevrii helps you offer your service on your own, step by step.",
+      },
+      {
+        title: "More jobs, better prices, your own brand",
+        text: "Cleaning, repairs, moving, beauty and more: define your service, publish your page and start selling today.",
+      },
+    ],
+    google: "Continue with Google",
+    or: "or with your email",
+    errGoogle: "We couldn't sign you in with Google. Try again or use your email.",
+    errGoogleCancel: "You canceled signing in with Google.",
     signupButton: "Create account",
     haveAccount: "Already have an account?",
     loginLink: "Log in",

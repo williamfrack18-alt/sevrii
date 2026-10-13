@@ -5,9 +5,15 @@ import LangToggle from "@/components/LangToggle";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { ACCENT } from "@/lib/brand";
+import GoogleButton, { OrDivider } from "@/components/GoogleButton";
+import RotatingHeadline from "@/components/RotatingHeadline";
+import { googleReady } from "@/lib/google";
 
-export default async function SignupPage() {
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const t = getDict(await getLang());
+  const sp = (await searchParams) ?? {};
+  const err = sp.error === "google_cancel" ? t.auth.errGoogleCancel : sp.error ? t.auth.errGoogle : null;
+  const google = googleReady();
   return (
     <div className="theme-dark flex">
       <div
@@ -18,12 +24,7 @@ export default async function SignupPage() {
         }}
       >
         <BrandMark />
-        <div className="flex flex-col gap-6">
-          <h1 className="font-serif text-[48px] leading-[1.06]">{t.auth.signupPanelTitle}</h1>
-          <p className="text-[17px] leading-relaxed max-w-sm" style={{ color: "rgba(255,255,255,.75)" }}>
-            {t.auth.signupPanelText}
-          </p>
-        </div>
+        <RotatingHeadline items={t.auth.signupSlides} />
         <div className="text-[13px]" style={{ color: "rgba(255,255,255,.55)" }}>
           © Sevrii 2026
         </div>
@@ -44,6 +45,13 @@ export default async function SignupPage() {
               <h2 className="font-serif text-[40px] leading-[1.08]">{t.auth.signupTitle}</h2>
               <p className="text-muted text-[16px]">{t.auth.signupSubtitle}</p>
             </div>
+            {err && <p className="text-[13px] text-red-600">{err}</p>}
+            {google && (
+              <div className="flex flex-col gap-5">
+                <GoogleButton from="signup" label={t.auth.google} />
+                <OrDivider label={t.auth.or} />
+              </div>
+            )}
             <SignupForm />
             <p className="text-[14px] text-muted">
               {t.auth.haveAccount}{" "}
