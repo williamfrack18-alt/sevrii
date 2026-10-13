@@ -3,11 +3,13 @@
 import { useActionState } from "react";
 import { signupAction, type FormState } from "@/app/actions";
 import SubmitButton from "@/components/SubmitButton";
-import { useT } from "@/components/LangProvider";
+import { useLang, useT } from "@/components/LangProvider";
 
 export default function SignupForm() {
   const [state, formAction] = useActionState<FormState, FormData>(signupAction, null);
   const t = useT();
+  const en = useLang() === "en";
+  const base = en ? "/en" : "";
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -33,6 +35,17 @@ export default function SignupForm() {
       </div>
       {state?.error && <p className="text-[13px] text-red-600">{state.error}</p>}
       <SubmitButton>{t.auth.signupButton}</SubmitButton>
+      <p className="text-center text-[12px] leading-relaxed text-muted">
+        {en ? "By creating your account you agree to Sevrii’s " : "Al crear tu cuenta aceptas los "}
+        <a href={`${base}/terminos`} target="_blank" rel="noopener" className="underline underline-offset-2 hover:text-ink">
+          {en ? "Terms of Service" : "Términos y Condiciones"}
+        </a>
+        {en ? " and " : " y la "}
+        <a href={`${base}/privacidad`} target="_blank" rel="noopener" className="underline underline-offset-2 hover:text-ink">
+          {en ? "Privacy Policy" : "Política de privacidad"}
+        </a>
+        {en ? "." : " de Sevrii."}
+      </p>
     </form>
   );
 }

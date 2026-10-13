@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
 <!-- Sevrii language detection: EN/ES auto-switch -->
 <script>
 (function(){
@@ -63,202 +66,187 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terms & Conditions | Sevrii</title>
+<title>Terms of Service | Sevrii</title>
+<meta name="description" content="Terms of Service — Sevrii (Moengli LLC).">
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <style>
-  :root{
-    --bg:#000;
-    --panel:#0a0e14;
-    --navy:#070b14;
-    --text:#f5f5f5;
-    --muted:#9aa0a8;
-    --muted-2:#6b7178;
-    --green:#3ddc84;
-    --border:rgba(255,255,255,.1);
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  a{color:inherit;text-decoration:none;}
-  img{display:block;max-width:100%;}
-  .wrap{max-width:1280px;margin:0 auto;padding:0 40px;}
-
-  /* NAV */
-  header{
-    position:sticky;top:0;z-index:50;
-    background:rgba(0,0,0,.75);
-    backdrop-filter:blur(10px);
-    border-bottom:1px solid var(--border);
-  }
-  nav.wrap{
-    display:flex;align-items:center;justify-content:space-between;
-    height:78px;
-  }
-  .logo{font-size:22px;font-weight:600;letter-spacing:.5px;display:flex;align-items:center;gap:10px;}
-  .logo img{height:44px;width:auto;display:block;}
-  .logo span{color:var(--muted);font-weight:400;font-size:14px;margin-left:6px;letter-spacing:2px;}
-  .nav-links{display:flex;gap:34px;font-size:14px;color:#d9dbde;}
-  .nav-links a:hover{color:#fff;}
-  .btn{
-    display:inline-flex;align-items:center;gap:8px;
-    padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;
-    border:1px solid var(--border);cursor:pointer;transition:.2s;
-  }
-  .btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);}
-  .btn-outline:hover{background:rgba(255,255,255,.08);}
-  .btn-primary{background:#fff;color:#000;border:none;}
-  .btn-primary:hover{background:#e6e6e6;}
-
-  /* LEGAL CONTENT */
-  .legal-hero{
-    padding:80px 24px 40px;text-align:center;border-bottom:1px solid var(--border);
-  }
-  .legal-hero h1{font-size:clamp(32px,5vw,52px);font-weight:300;letter-spacing:-1px;margin-bottom:14px;}
-  .legal-hero p{color:var(--muted);font-size:15px;}
-
-  .legal{padding:70px 24px 100px;}
-  .legal-body{max-width:760px;margin:0 auto;}
-  .legal-body h2{
-    font-size:20px;font-weight:600;margin:44px 0 14px;color:#fff;
-  }
-  .legal-body h2:first-child{margin-top:0;}
-  .legal-body p{color:#c7cad0;font-size:15px;line-height:1.8;margin-bottom:14px;}
-  .legal-body ul{color:#c7cad0;font-size:15px;line-height:1.8;margin:0 0 14px 22px;}
-  .legal-body li{margin-bottom:6px;}
-  .legal-body strong{color:#fff;}
-
-  /* FOOTER */
-  footer{padding:70px 24px 30px;border-top:1px solid var(--border);}
-  .footer-grid{
-    display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:40px;
-    max-width:1280px;margin:0 auto 50px;
-  }
-  .footer-grid h4{font-size:16px;font-weight:600;margin-bottom:18px;}
-  .footer-grid a{display:block;font-size:14px;color:var(--muted);margin-bottom:12px;}
-  .footer-grid a:hover{color:#fff;}
-  .footer-bottom{
-    max-width:1280px;margin:0 auto;padding-top:30px;border-top:1px solid var(--border);
-    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;
-    font-size:13px;color:var(--muted-2);
-  }
-  .footer-bottom .links{display:flex;gap:24px;}
-  .footer-bottom .links a:hover{color:#fff;}
-
-  @media(max-width:900px){
-    .nav-links{display:none;}
-    .footer-grid{grid-template-columns:1fr 1fr;}
-  }
-  @media(max-width:600px){
-    .wrap{padding:0 20px;}
-    .footer-grid{grid-template-columns:1fr;}
-    nav.wrap{height:auto; padding-block:14px; flex-wrap:nowrap; gap:10px;}
-    .logo{font-size:16px; gap:8px;}
-    .logo img{height:28px;}
-    .logo span{display:none;}
-    .btn{padding:8px 14px; font-size:12.5px; white-space:nowrap;}
-  }
+:root{--bg:#000;--text:#f5f5f5;--muted:#9aa0a8;--muted-2:#6b7178;--accent:#7dbf9c;--border:rgba(255,255,255,.1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1280px;margin:0 auto;padding:0 40px}
+header{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+nav.wrap{display:flex;align-items:center;justify-content:space-between;height:78px}
+.logo{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px}
+.logo img{height:44px;width:auto;display:block}
+.nav-links{display:flex;gap:30px;font-size:14px;color:#d9dbde}
+.nav-links a:hover,.nav-links a.on{color:#fff}
+.nav-links a.lang{color:var(--muted)}
+.btn{display:inline-flex;align-items:center;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;background:#fff;color:#000}
+.btn:hover{background:#e6e6e6}
+.hero{padding:84px 0 44px;border-bottom:1px solid var(--border)}
+.hero .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
+.hero h1{font-size:clamp(34px,5vw,58px);font-weight:400;letter-spacing:-.01em;margin:16px 0 14px}
+.hero .date{color:var(--muted);font-size:14px}
+.tabs{display:flex;gap:8px;margin-top:28px}
+.tabs a{font-size:14px;padding:9px 16px;border-radius:999px;border:1px solid var(--border);color:#cfd2d6}
+.tabs a.on{background:#fff;color:#000;border-color:#fff}
+.layout{display:grid;grid-template-columns:240px minmax(0,760px);gap:72px;padding-top:56px;padding-bottom:110px}
+.toc{position:sticky;top:110px;align-self:start;max-height:calc(100vh - 140px);overflow:auto}
+.toc p{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2);margin-bottom:14px}
+.toc a{display:block;font-size:13.5px;line-height:1.35;color:var(--muted);padding:6px 0}
+.toc a:hover{color:#fff}
+.intro{font-size:17px;line-height:1.75;color:#e4e6e9;margin-bottom:12px}
+.body h2{font-size:21px;font-weight:600;margin:48px 0 14px;color:#fff;scroll-margin-top:100px}
+.body p,.body li{color:#c7cad0;font-size:15.5px;line-height:1.8}
+.body p{margin-bottom:14px}
+.body ul{margin:0 0 16px 20px}
+.body li{margin-bottom:8px;padding-left:4px}
+.body li::marker{color:var(--accent)}
+.body strong{color:#fff;font-weight:600}
+.body a,.intro a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+footer{padding:44px 0 36px;border-top:1px solid var(--border)}
+.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;font-size:13.5px;color:var(--muted-2)}
+.foot .links{display:flex;gap:22px}
+.foot .links a:hover{color:#fff}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:0}.toc{display:none}.nav-links{display:none}}
+@media(max-width:600px){.wrap{padding:0 18px}nav.wrap{height:66px}.logo{font-size:18px}.logo img{height:32px}.btn{padding:9px 14px;font-size:13px}.hero{padding:56px 0 32px}.layout{padding-top:36px;padding-bottom:72px}.body h2{font-size:19px;margin-top:40px}.intro{font-size:16px}}
 </style>
 </head>
 <body>
 
 <header>
   <nav class="wrap">
-    <a href="index.html" class="logo"><img src="../assets/sevrii-logo.png" alt="Sevrii">Sevrii <span>FOR SERVICES</span></a>
+    <a href="index.html" class="logo"><img src="../assets/sevrii-logo.png" alt="Sevrii">Sevrii</a>
     <div class="nav-links">
       <a href="index.html#explorar">Explore</a>
-      <a href="terminos.html">Terms & Conditions</a>
-      <a href="/terminos" onclick="try{localStorage.setItem('sevrii_lang','es')}catch(e){}" style="color:var(--muted);">ES</a>
+      <a href="terminos.html" class="on">Terms</a>
+      <a href="privacidad.html">Privacy</a>
+      <a class="lang" href="/terminos" onclick="try{localStorage.setItem('sevrii_lang','es')}catch(e){}">ES</a>
     </div>
-    <div style="display:flex;gap:14px;align-items:center;">
-      <a href="ofrecerservicios.html" class="btn btn-primary">Offer a Service</a>
-    </div>
+    <a href="ofrecerservicios.html" class="btn">Offer a Service</a>
   </nav>
 </header>
 
-<section class="legal-hero">
-  <h1>Terms & Conditions</h1>
-  <p>Last updated: August 22, 2026</p>
-</section>
-
-<section class="legal">
-  <div class="legal-body">
-
-    <h2>1. Acceptance of the Terms</h2>
-    <p>By accessing or using the Sevrii platform (the "Service"), whether as a client looking to hire a service or as a provider offering one, you agree to be bound by these Terms & Conditions. If you do not agree with any part of these terms, you must not use the Service.</p>
-
-    <h2>2. Description of the Service</h2>
-    <p>Sevrii is a digital platform that connects clients with independent, verified service providers. Sevrii acts solely as a technology intermediary: it does not directly provide the services listed on the platform, and it is not an employer, partner, or legal representative of the providers.</p>
-    <p>Each provider is responsible for the quality, legality, safety, and regulatory compliance of the service they offer, including any license, permit, or regulation applicable to their industry (for example, financial services, moving services, or other regulated services).</p>
-
-    <h2>3. Registration and Eligibility</h2>
-    <p>To offer services through Sevrii, you must provide truthful, complete, and up-to-date information during the verification process. Sevrii reserves the right to approve, reject, or remove any provider from the platform at its sole discretion, even after verification.</p>
-
-    <h2>4. Service Provider Responsibilities</h2>
-    <ul>
-      <li>Provide accurate information about services, prices, and conditions.</li>
-      <li>Comply with all laws and regulations applicable to their activity.</li>
-      <li>Attend to clients who come through Sevrii in a professional and timely manner.</li>
-      <li>Not use the platform for fraudulent, deceptive, or illegal purposes.</li>
-    </ul>
-
-    <h2>5. Client Responsibilities</h2>
-    <p>Clients are responsible for evaluating and deciding whether to hire a provider listed on Sevrii. Sevrii facilitates discovery and contact between the parties, but the final contractual relationship (including payments, deliverables, and service conditions) is established directly between the client and the provider.</p>
-
-    <h2>6. Membership and Included Services</h2>
-    <p>For providers who join the Sevrii ecosystem, the platform produces advertising content (videos, images), manages ad campaigns on networks such as Meta, TikTok, and YouTube, and maintains a page within Sevrii on the provider's behalf.</p>
-    <p>Access to these services is subject to a membership whose conditions, scope, and cost are explained directly to the provider before starting the business relationship. To learn the current details, contact us via WhatsApp through the channels listed on the Offer a Service page.</p>
-
-    <h2>7. Content and Intellectual Property</h2>
-    <p>Advertising content (videos, images, text) produced by Sevrii for a provider remains the property of Sevrii for the duration of the business relationship, unless otherwise agreed in writing. The provider retains rights to their brand, logo, and any content they supplied directly.</p>
-
-    <h2>8. Prohibited Conduct</h2>
-    <p>It is prohibited to use Sevrii to post false information, impersonate identities, offer illegal services, or attempt to evade payments to the platform through side agreements with clients referred by Sevrii.</p>
-
-    <h2>9. Limitation of Liability</h2>
-    <p>Sevrii does not guarantee specific results from the use of the platform or the advertising campaigns it manages. To the maximum extent permitted by law, Sevrii will not be liable for indirect, incidental, or consequential damages arising from use of the Service or from the relationship between clients and providers.</p>
-
-    <h2>10. Changes to the Terms</h2>
-    <p>Sevrii may update these Terms & Conditions at any time. Changes take effect when published on this page. Continued use of the Service after an update constitutes acceptance of the new terms.</p>
-
-    <h2>11. Termination</h2>
-    <p>Sevrii may suspend or terminate access for any user or provider who violates these terms, without prior notice, especially in cases of fraud, illegal conduct, or damage to the platform's reputation.</p>
-
-    <h2>12. Contact</h2>
-    <p>If you have questions about these Terms & Conditions, you can contact us via WhatsApp through the channels listed on our Offer a Service or Explore Services pages.</p>
-
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Legal</div>
+    <h1>Terms of Service</h1>
+    <p class="date">Last updated: October 13, 2026</p>
+    <div class="tabs"><a href="terminos.html" class="on">Terms</a><a href="privacidad.html">Privacy</a></div>
   </div>
 </section>
+
+<main class="wrap layout">
+  <nav class="toc" aria-label="Contents">
+    <p>Contents</p>
+      <a href="#s1">1. Who can use Sevrii</a>
+      <a href="#s2">2. What Sevrii is</a>
+      <a href="#s3">3. Your account</a>
+      <a href="#s4">4. Plans, payments and cancellation</a>
+      <a href="#s5">5. Publishing and the marketplace</a>
+      <a href="#s6">6. Your content</a>
+      <a href="#s7">7. Artificial intelligence</a>
+      <a href="#s8">8. Professionals' responsibilities</a>
+      <a href="#s9">9. If you hire a service through the marketplace</a>
+      <a href="#s10">10. Prohibited uses</a>
+      <a href="#s11">11. Sevrii Robotics and future features</a>
+      <a href="#s12">12. Sevrii's property</a>
+      <a href="#s13">13. Third-party services</a>
+      <a href="#s14">14. No warranties</a>
+      <a href="#s15">15. Limitation of liability</a>
+      <a href="#s16">16. Indemnification</a>
+      <a href="#s17">17. Suspension and account closure</a>
+      <a href="#s18">18. Governing law</a>
+      <a href="#s19">19. Changes to these Terms</a>
+      <a href="#s20">20. Contact</a>
+  </nav>
+  <article class="body">
+      <p class="intro">These Terms govern your use of Sevrii, a platform operated by <strong>Moengli LLC</strong>, a limited liability company registered in Delaware, United States ("Sevrii", "we", "us"). Please read them carefully: by creating an account or using Sevrii, you agree to these Terms and to our <a href="privacidad.html">Privacy Policy</a>.</p>
+
+      <h2 id="s1">1. Who can use Sevrii</h2>
+      <p>To create an account you must be at least 18 years old and legally able to enter into a contract. Sevrii is built for service professionals and businesses in the United States who use it for business purposes.</p>
+      <p>If you use Sevrii on behalf of a company, you confirm that you are authorized to accept these Terms on its behalf.</p>
+
+      <h2 id="s2">2. What Sevrii is</h2>
+      <p>Sevrii is software that helps service businesses sell better with artificial intelligence. Depending on your plan, it includes:</p>
+      <ul><li><strong>Brain:</strong> an AI interview and local market research that builds a plan for your business.</li><li><strong>Store:</strong> an AI editor to create the sales page for your service.</li><li><strong>Marketing:</strong> a strategy and ready-made campaigns, with instructions for you to launch them on ad platforms.</li><li><strong>Marketplace:</strong> the directory on sevrii.com where published pages appear.</li></ul>
+      <p>Sevrii is a technology tool. <strong>We do not provide the services offered on the platform</strong>, we are not the employer, partner or agent of the professionals, and we are not a party to agreements between a professional and their customers.</p>
+
+      <h2 id="s3">3. Your account</h2>
+      <p>You must provide accurate information and keep it up to date. You are responsible for keeping your password safe and for all activity in your account. If you think someone accessed your account without permission, tell us right away.</p>
+
+      <h2 id="s4">4. Plans, payments and cancellation</h2>
+      <ul><li><strong>Free ($0):</strong> includes the Brain and your page as a draft, with AI usage limits. It does not allow publishing.</li><li><strong>Starter ($29 per month, or $288 per year, equal to $24 per month):</strong> lets you publish your page on sevrii.com and use Marketing, with higher usage limits.</li><li>Plans marked "Coming soon" (such as Pro and Team) are not for sale yet. Joining the waitlist does not commit you to anything, and does not commit us to launching them on a specific date or at a specific price.</li></ul>
+      <p>Prices are in US dollars and may be subject to applicable taxes. Payments are processed by <strong>Stripe</strong>; Sevrii never sees or stores your full card number.</p>
+      <p><strong>Automatic renewal.</strong> Paid plans renew automatically at the end of each period (monthly or yearly) and are charged to your saved payment method until you cancel.</p>
+      <p><strong>Cancellation.</strong> You can cancel at any time from the Plan section of your account. You keep paid features until the end of the period you already paid for; after that your account moves to the Free plan and your page is no longer published.</p>
+      <p><strong>Refunds.</strong> Except where the law requires otherwise, payments are non-refundable, including partially used periods. If you think we charged you by mistake, write to us within 30 days of the charge and we will review it.</p>
+      <p><strong>Failed payments.</strong> If a charge fails, we will ask you to update your card. If it is not resolved, we may move your account to the Free plan.</p>
+      <p><strong>Price changes.</strong> If we change the price of your plan, we will notify you at least 30 days in advance, and the new price will apply from your next renewal. You can cancel before then if you do not agree.</p>
+      <p><strong>Usage limits.</strong> Each plan has monthly limits on AI messages, research runs and AI spend. They keep the service sustainable and may be adjusted with notice.</p>
+
+      <h2 id="s5">5. Publishing and the marketplace</h2>
+      <p>When you publish your page (requires a paid plan), the information on it becomes public at a sevrii.com address and appears in the marketplace. This can include your business name, services and prices, area, phone, WhatsApp, hours, license number, photos and links. Review carefully what you publish.</p>
+      <p>Sevrii automatically assigns your page's marketplace category. If your plan ends or you unpublish, your page is no longer public. We may hide or remove pages that violate these Terms or that are reported for a valid reason.</p>
+
+      <h2 id="s6">6. Your content</h2>
+      <p>What you upload or write (text, photos, logo, services and prices) remains yours. To provide the service, you give us a non-exclusive, worldwide, royalty-free license to store, process, reformat and display that content in Sevrii, and to show your published page on sevrii.com and in Sevrii promotional materials. This license ends when you delete the content or your account, except for backup copies that are deleted in the normal course.</p>
+      <p>You confirm that you have the right to use what you upload and that the information you publish is true, including licenses, insurance, years of experience and reviews.</p>
+
+      <h2 id="s7">7. Artificial intelligence</h2>
+      <p>Sevrii uses artificial intelligence to generate plans, research, text, pages and campaigns. AI can make mistakes or give outdated information. What it generates is guidance and <strong>is not legal, tax, financial or insurance advice</strong>; for example, always confirm licensing requirements with your state authority.</p>
+      <p>You decide what you publish and which campaigns you launch, and you are responsible for them. Sevrii does not run ads for you or spend your money: you pay ad spend directly to platforms such as Meta or Google. We do not guarantee sales, customers or results.</p>
+
+      <h2 id="s8">8. Professionals' responsibilities</h2>
+      <ul><li>Comply with the laws that apply to your service, including licenses, permits, insurance and taxes.</li><li>Honor the prices and terms you publish, and serve your customers professionally.</li><li>Follow the rules of ad platforms and consumer protection and advertising laws.</li><li>Handle your customers' data with care.</li></ul>
+
+      <h2 id="s9">9. If you hire a service through the marketplace</h2>
+      <p>The agreement, payment and work are directly between you and the professional. Sevrii does not guarantee the quality, safety or legality of the services, and does not verify each professional unless stated otherwise. Check licenses and reviews before hiring. If something on a page looks false or dangerous, use the report option.</p>
+
+      <h2 id="s10">10. Prohibited uses</h2>
+      <ul><li>Offering illegal services, or regulated services without the required license.</li><li>Publishing false or misleading information, fake reviews or photos that are not yours.</li><li>Impersonating another person or business.</li><li>Sending spam, harassing others or posting offensive, discriminatory or sexual content.</li><li>Copying Sevrii, scraping data, reverse engineering or getting around usage limits.</li><li>Using Sevrii's AI for purposes unrelated to your service business or in ways that overload the system.</li></ul>
+
+      <h2 id="s11">11. Sevrii Robotics and future features</h2>
+      <p>Sevrii Robotics and any feature marked "Vision", "Concept" or "Coming soon" describe future ideas. They are not available products or an offer for sale, and we do not promise they will exist in any particular form, date or price. Robot images and videos are concepts.</p>
+
+      <h2 id="s12">12. Sevrii's property</h2>
+      <p>Sevrii's software, design, brand, logo and content (other than your content) belong to Moengli LLC. You may not use them without our written permission.</p>
+
+      <h2 id="s13">13. Third-party services</h2>
+      <p>Sevrii relies on services from other companies, such as Stripe (payments), Anthropic (artificial intelligence), Vercel and Neon (hosting and database), and links to Meta, Google and WhatsApp. Your use of those services may be subject to their own terms.</p>
+
+      <h2 id="s14">14. No warranties</h2>
+      <p>Sevrii is provided "as is" and "as available". To the extent permitted by law, we make no warranties of any kind, including merchantability, fitness for a particular purpose, and uninterrupted or error-free operation.</p>
+
+      <h2 id="s15">15. Limitation of liability</h2>
+      <p>To the extent permitted by law, Moengli LLC will not be liable for indirect, incidental, special or consequential damages, or for lost profits, customers or data. Our total liability for any claim related to Sevrii will not exceed the amount you paid us in the 12 months before the claim, or $100, whichever is greater.</p>
+
+      <h2 id="s16">16. Indemnification</h2>
+      <p>You agree to defend and hold Moengli LLC harmless from third-party claims arising from your content, the services you offer, or your breach of these Terms or the law.</p>
+
+      <h2 id="s17">17. Suspension and account closure</h2>
+      <p>You can stop using Sevrii at any time and ask us to delete your account by writing to our contact email. We may suspend or close accounts that violate these Terms, put other users at risk, or where needed to comply with the law, with notice when reasonable.</p>
+
+      <h2 id="s18">18. Governing law</h2>
+      <p>These Terms are governed by the laws of the State of Delaware, United States, without regard to its conflict of laws rules. Any dispute will be resolved in the state or federal courts located in Delaware, unless the law of your state gives you the right to another venue. Either party may bring a claim in small claims court if it qualifies.</p>
+
+      <h2 id="s19">19. Changes to these Terms</h2>
+      <p>We may update these Terms. If a change is material, we will notify you by email or within Sevrii before it takes effect. If you keep using Sevrii afterwards, you accept the new version.</p>
+      <p>These Terms are available in Spanish and English. If there are differences between the two versions, the English version prevails.</p>
+
+      <h2 id="s20">20. Contact</h2>
+      <p>Moengli LLC (Sevrii)<br>Email: <a href="mailto:williamfrack18@gmail.com">williamfrack18@gmail.com</a><br>WhatsApp: <a href="https://wa.me/12245083851" target="_blank" rel="noopener">+1 (224) 508-3851</a></p>
+  </article>
+</main>
 
 <footer>
-  <div class="footer-grid">
-    <div>
-      <h4>Sevrii Main</h4>
-      <a href="index.html">Home</a>
-      <a href="ofrecerservicios.html">Get Started</a>
-    </div>
-    <div>
-      <h4>For Businesses</h4>
-      <a href="ofrecerservicios.html">Business Solutions</a>
-    </div>
-    <div>
-      <h4>For Professionals</h4>
-      <a href="ofrecerservicios.html">Freelancers</a>
-      <a href="ofrecerservicios.html">Employees</a>
-    </div>
-    <div>
-      <h4>Our Ecosystem</h4>
-      <a href="index.html#explorar">Services Marketplace</a>
-    </div>
-  </div>
-  <div class="footer-bottom wrap">
-    <span>© 2026 Sevrii Ecosystem. All rights reserved.</span>
+  <div class="wrap foot">
+    <span>© 2026 Moengli LLC. All rights reserved.</span>
     <div class="links">
       <a href="terminos.html">Terms</a>
-      <a href="terminos.html">Privacy</a>
+      <a href="privacidad.html">Privacy</a>
       <a href="https://wa.me/12245083851?text=Hi%2C%20I%20need%20help%20with%20Sevrii" target="_blank" rel="noopener">Support</a>
     </div>
   </div>

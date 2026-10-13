@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Sevrii language detection: EN/ES auto-switch -->
+<script>
+(function(){
+  var BASENAME = 'privacidad';
+  try {
+    var path = window.location.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i,'');
+    if (path === '') path = '/';
+    var isEn = path === '/en' || path.indexOf('/en/') === 0;
+    var enTarget = (BASENAME === 'index') ? '/en' : '/en/' + BASENAME;
+    var stored = localStorage.getItem('sevrii_lang');
+    if (stored) {
+      // Ya visitó antes: solo actualizamos la preferencia guardada,
+      // nunca lo sacamos de la página en la que ya está (evita el loop /en -> /).
+      localStorage.setItem('sevrii_lang', isEn ? 'en' : 'es');
+    } else {
+      // Primera visita sin preferencia: detecta el idioma del navegador una sola vez.
+      if (isEn) {
+        localStorage.setItem('sevrii_lang', 'en');
+      } else {
+        var lang = ((navigator.language || (navigator.languages && navigator.languages[0]) || '') + '').toLowerCase();
+        if (lang.indexOf('en') === 0) {
+          localStorage.setItem('sevrii_lang', 'en');
+          if (path !== enTarget) { window.location.href = enTarget; }
+        } else {
+          localStorage.setItem('sevrii_lang', 'es');
+        }
+      }
+    }
+    // Share the choice with the app (login, signup, dashboard) via a cookie.
+    document.cookie = 'sevrii_lang=' + localStorage.getItem('sevrii_lang') + '; path=/; max-age=31536000; samesite=lax';
+  } catch(e) {}
+})();
+</script>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1606497581185286');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
+<!-- Trackea cada clic en un boton de WhatsApp como evento "Contact" -->
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a[href*="wa.me"]').forEach(function(link){
+    link.addEventListener('click', function(){
+      if (typeof fbq === 'function') { fbq('track', 'Contact'); }
+    });
+  });
+});
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy | Sevrii</title>
+<meta name="description" content="Privacy Policy — Sevrii (Moengli LLC).">
+<link rel="icon" type="image/png" href="../assets/favicon.png">
+<style>
+:root{--bg:#000;--text:#f5f5f5;--muted:#9aa0a8;--muted-2:#6b7178;--accent:#7dbf9c;--border:rgba(255,255,255,.1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1280px;margin:0 auto;padding:0 40px}
+header{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+nav.wrap{display:flex;align-items:center;justify-content:space-between;height:78px}
+.logo{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px}
+.logo img{height:44px;width:auto;display:block}
+.nav-links{display:flex;gap:30px;font-size:14px;color:#d9dbde}
+.nav-links a:hover,.nav-links a.on{color:#fff}
+.nav-links a.lang{color:var(--muted)}
+.btn{display:inline-flex;align-items:center;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;background:#fff;color:#000}
+.btn:hover{background:#e6e6e6}
+.hero{padding:84px 0 44px;border-bottom:1px solid var(--border)}
+.hero .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
+.hero h1{font-size:clamp(34px,5vw,58px);font-weight:400;letter-spacing:-.01em;margin:16px 0 14px}
+.hero .date{color:var(--muted);font-size:14px}
+.tabs{display:flex;gap:8px;margin-top:28px}
+.tabs a{font-size:14px;padding:9px 16px;border-radius:999px;border:1px solid var(--border);color:#cfd2d6}
+.tabs a.on{background:#fff;color:#000;border-color:#fff}
+.layout{display:grid;grid-template-columns:240px minmax(0,760px);gap:72px;padding-top:56px;padding-bottom:110px}
+.toc{position:sticky;top:110px;align-self:start;max-height:calc(100vh - 140px);overflow:auto}
+.toc p{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2);margin-bottom:14px}
+.toc a{display:block;font-size:13.5px;line-height:1.35;color:var(--muted);padding:6px 0}
+.toc a:hover{color:#fff}
+.intro{font-size:17px;line-height:1.75;color:#e4e6e9;margin-bottom:12px}
+.body h2{font-size:21px;font-weight:600;margin:48px 0 14px;color:#fff;scroll-margin-top:100px}
+.body p,.body li{color:#c7cad0;font-size:15.5px;line-height:1.8}
+.body p{margin-bottom:14px}
+.body ul{margin:0 0 16px 20px}
+.body li{margin-bottom:8px;padding-left:4px}
+.body li::marker{color:var(--accent)}
+.body strong{color:#fff;font-weight:600}
+.body a,.intro a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+footer{padding:44px 0 36px;border-top:1px solid var(--border)}
+.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;font-size:13.5px;color:var(--muted-2)}
+.foot .links{display:flex;gap:22px}
+.foot .links a:hover{color:#fff}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:0}.toc{display:none}.nav-links{display:none}}
+@media(max-width:600px){.wrap{padding:0 18px}nav.wrap{height:66px}.logo{font-size:18px}.logo img{height:32px}.btn{padding:9px 14px;font-size:13px}.hero{padding:56px 0 32px}.layout{padding-top:36px;padding-bottom:72px}.body h2{font-size:19px;margin-top:40px}.intro{font-size:16px}}
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="wrap">
+    <a href="index.html" class="logo"><img src="../assets/sevrii-logo.png" alt="Sevrii">Sevrii</a>
+    <div class="nav-links">
+      <a href="index.html#explorar">Explore</a>
+      <a href="terminos.html">Terms</a>
+      <a href="privacidad.html" class="on">Privacy</a>
+      <a class="lang" href="/privacidad" onclick="try{localStorage.setItem('sevrii_lang','es')}catch(e){}">ES</a>
+    </div>
+    <a href="ofrecerservicios.html" class="btn">Offer a Service</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Legal</div>
+    <h1>Privacy Policy</h1>
+    <p class="date">Last updated: October 13, 2026</p>
+    <div class="tabs"><a href="terminos.html">Terms</a><a href="privacidad.html" class="on">Privacy</a></div>
+  </div>
+</section>
+
+<main class="wrap layout">
+  <nav class="toc" aria-label="Contents">
+    <p>Contents</p>
+      <a href="#s1">1. Information you give us</a>
+      <a href="#s2">2. Information collected automatically</a>
+      <a href="#s3">3. Payment information</a>
+      <a href="#s4">4. How we use information</a>
+      <a href="#s5">5. Artificial intelligence</a>
+      <a href="#s6">6. Cookies and similar technologies</a>
+      <a href="#s7">7. Who we share information with</a>
+      <a href="#s8">8. How long we keep it</a>
+      <a href="#s9">9. Your rights</a>
+      <a href="#s10">10. Security</a>
+      <a href="#s11">11. Children</a>
+      <a href="#s12">12. Where information is processed</a>
+      <a href="#s13">13. Changes to this Policy</a>
+      <a href="#s14">14. Contact</a>
+  </nav>
+  <article class="body">
+      <p class="intro">This Policy explains what information Sevrii collects, how we use it and the choices you have. Sevrii is operated by <strong>Moengli LLC</strong>, registered in Delaware, United States. <strong>We do not sell your personal information.</strong></p>
+
+      <h2 id="s1">1. Information you give us</h2>
+      <ul><li><strong>Account:</strong> your email and password. The password is stored with one-way encryption; no one at Sevrii can see it.</li><li><strong>Your business and page:</strong> name, category, description, city, state and service area, services and prices, phone, WhatsApp, hours, license number, insurance, years of experience, FAQs, offers, review links and photos (logo, cover and gallery).</li><li><strong>Brain and Marketing:</strong> your answers about your experience, tools, available hours, budget, licenses, languages and goals, and your campaign details (budget, ideal customer and area).</li><li><strong>Conversations with the AI:</strong> the messages you write in Sevrii's chats and the replies.</li><li><strong>Messages and reports:</strong> what you send us by email or WhatsApp, and page reports sent by any visitor.</li></ul>
+
+      <h2 id="s2">2. Information collected automatically</h2>
+      <ul><li><strong>IP address:</strong> used for security, to limit login attempts and abuse, and to count visits to published pages without double counting.</li><li><strong>Your page statistics:</strong> number of visits and clicks on call, text and WhatsApp. We do not identify visitors.</li><li><strong>AI usage:</strong> how many messages and research runs you use and their cost, to apply your plan's limits.</li><li><strong>Cookies</strong>, explained in section 6.</li></ul>
+
+      <h2 id="s3">3. Payment information</h2>
+      <p>Payments are processed by <strong>Stripe</strong>. Stripe receives your email and card details; Sevrii never sees or stores your full card number. From Stripe we receive your customer ID, plan, subscription status and renewal date.</p>
+
+      <h2 id="s4">4. How we use information</h2>
+      <ul><li>To provide the service: build your plan, page and campaigns, and publish your page when you ask.</li><li>To charge for your plan and manage your subscription.</li><li>To keep Sevrii secure, prevent fraud and abuse, and apply usage limits.</li><li>To answer your questions and provide support.</li><li>To understand how Sevrii is used and improve it.</li><li>To comply with the law.</li></ul>
+      <p>We do not use your information to make automated decisions with legal effects on you.</p>
+
+      <h2 id="s5">5. Artificial intelligence</h2>
+      <p>To answer in the chats, build your plan, write your page and classify your business in the marketplace, we send the necessary information to <strong>Anthropic</strong>, the company that provides Sevrii's AI models. Under its commercial terms, Anthropic does not use that information to train its models.</p>
+      <p>The Brain's research searches the internet for public information about your city's market (prices, competition, requirements and customer questions) using your city and state. It does not search for personal information about you or anyone else.</p>
+
+      <h2 id="s6">6. Cookies and similar technologies</h2>
+      <ul><li><strong>sevrii_sid</strong> (necessary): keeps you signed in for 30 days.</li><li><strong>sevrii_project</strong> (necessary): remembers which of your projects is open.</li><li><strong>sevrii_lang</strong> (preference): remembers your language. It is also saved in your browser's local storage.</li><li><strong>Meta Pixel</strong> (measurement and advertising): it is on our informational pages (home, Offer services, Sevrii Robotics and legal pages), not inside your account or on businesses' published pages. It tells Meta which pages are visited and when someone taps a WhatsApp button, so we can measure and improve our ads. Meta uses that information under its own data policy.</li><li><strong>Google Fonts and YouTube:</strong> we load fonts from Google and videos from YouTube, which may receive your IP address and set their own cookies.</li></ul>
+      <p>You can block or delete cookies in your browser; if you block the necessary ones, you will not be able to sign in. You can also limit personalized ads in Meta's ad settings.</p>
+
+      <h2 id="s7">7. Who we share information with</h2>
+      <p><strong>We do not sell your personal information.</strong> We share it only in these cases:</p>
+      <ul><li><strong>Providers that help us operate:</strong> Vercel (hosting and photo storage), Neon (database), Anthropic (artificial intelligence), Stripe (payments) and Meta (measurement on our informational pages). They only receive what they need for their function.</li><li><strong>The public:</strong> the information on your page is visible to anyone once you publish it, as are the photos you upload to it.</li><li><strong>Legal obligations:</strong> when required by law, a court order or an authority, or to protect the rights and safety of Sevrii and others.</li><li><strong>Change of ownership:</strong> if Moengli LLC merges, is sold or transfers the business, your information may pass to the new owner under this same Policy.</li></ul>
+
+      <h2 id="s8">8. How long we keep it</h2>
+      <p>We keep your information while your account is active. If you cancel your plan, your information stays in your free account. If you ask us to delete your account, we delete your information and photos within 30 days, except what we must keep for legal, billing or fraud-prevention reasons, and backups, which are deleted in their normal cycle.</p>
+
+      <h2 id="s9">9. Your rights</h2>
+      <p>You can ask us to:</p>
+      <ul><li>Tell you what information we have about you and give you a copy.</li><li>Correct inaccurate information.</li><li>Delete your account and your information.</li><li>Stop using your information for targeted advertising.</li></ul>
+      <p>Email us at <a href="mailto:williamfrack18@gmail.com">williamfrack18@gmail.com</a> from your account email. We will respond within 45 days and may ask for information to confirm your identity. If you live in a state with its own privacy laws (for example California, Colorado, Connecticut, Texas or Virginia), you have these rights under those laws, and you can appeal if we deny your request by replying to our message. We will not treat you differently for exercising your rights.</p>
+
+      <h2 id="s10">10. Security</h2>
+      <p>We use encrypted connections (HTTPS), store passwords encrypted, keep session cookies inaccessible to browser scripts and limit access to data. No system is 100% secure; if an incident affects your information, we will notify you as required by law.</p>
+
+      <h2 id="s11">11. Children</h2>
+      <p>Sevrii is not directed to anyone under 18, and we do not knowingly collect information from minors. If you believe a minor has given us information, write to us and we will delete it.</p>
+
+      <h2 id="s12">12. Where information is processed</h2>
+      <p>Sevrii operates in the United States and your information is processed and stored there. If you use Sevrii from another country, you understand that your information is transferred to the United States.</p>
+
+      <h2 id="s13">13. Changes to this Policy</h2>
+      <p>If we make material changes, we will notify you by email or within Sevrii before they take effect. If there are differences between the Spanish and English versions, the English version prevails.</p>
+
+      <h2 id="s14">14. Contact</h2>
+      <p>Moengli LLC (Sevrii)<br>Email: <a href="mailto:williamfrack18@gmail.com">williamfrack18@gmail.com</a><br>WhatsApp: <a href="https://wa.me/12245083851" target="_blank" rel="noopener">+1 (224) 508-3851</a></p>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>© 2026 Moengli LLC. All rights reserved.</span>
+    <div class="links">
+      <a href="terminos.html">Terms</a>
+      <a href="privacidad.html">Privacy</a>
+      <a href="https://wa.me/12245083851?text=Hi%2C%20I%20need%20help%20with%20Sevrii" target="_blank" rel="noopener">Support</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
