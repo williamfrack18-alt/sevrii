@@ -22,5 +22,5 @@ export async function GET(req: Request) {
     maxAge: GOOGLE_STATE_MAX_AGE,
     path: "/api/auth/google",
   });
-  return NextResponse.redirect(googleAuthUrl(s));
+  return NextResponse.redirect(googleAuthUrl(s, url.origin));
 }

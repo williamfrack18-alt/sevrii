@@ -1,5 +1,4 @@
 import { createHash, randomBytes } from "crypto";
-import { siteUrl } from "./billing";
 
 // "Continue with Google" (OAuth 2.0 / OpenID Connect, authorization code + PKCE).
 // Turned on by setting GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Vercel.
@@ -12,8 +11,11 @@ export function googleReady(): boolean {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
 
-export function googleRedirectUri(): string {
-  return `${siteUrl()}/api/auth/google/callback`;
+// Built from the domain the person is on (sevrii.com or www.sevrii.com), so the
+// return trip lands on the same domain as the state cookie. Both addresses must
+// be listed as authorized redirect URIs in Google Cloud.
+export function googleRedirectUri(origin: string): string {
+  return `${origin.replace(/\/$/, "")}/api/auth/google/callback`;
 }
 
 function b64url(buf: Buffer): string {
@@ -27,11 +29,11 @@ export function newGoogleState(from: "login" | "signup"): GoogleState {
   return { state: b64url(randomBytes(24)), verifier: b64url(randomBytes(32)), from };
 }
 
-export function googleAuthUrl(s: GoogleState): string {
+export function googleAuthUrl(s: GoogleState, origin: string): string {
   const challenge = b64url(createHash("sha256").update(s.verifier).digest());
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID || "",
-    redirect_uri: googleRedirectUri(),
+    redirect_uri: googleRedirectUri(origin),
     response_type: "code",
     scope: "openid email",
     state: s.state,
@@ -48,7 +50,7 @@ export type GoogleIdentity = { sub: string; email: string };
 // The ID token comes straight from Google over TLS in exchange for our client
 // secret, so per OpenID Connect (Core 3.1.3.7) its claims can be read without
 // re-checking the signature; we still check issuer, audience and expiry.
-export async function exchangeGoogleCode(code: string, verifier: string): Promise<GoogleIdentity | null> {
+export async function exchangeGoogleCode(code: string, verifier: string, origin: string): Promise<GoogleIdentity | null> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -56,7 +58,7 @@ export async function exchangeGoogleCode(code: string, verifier: string): Promis
       code,
       client_id: process.env.GOOGLE_CLIENT_ID || "",
       client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
-      redirect_uri: googleRedirectUri(),
+      redirect_uri: googleRedirectUri(origin),
       grant_type: "authorization_code",
       code_verifier: verifier,
     }),

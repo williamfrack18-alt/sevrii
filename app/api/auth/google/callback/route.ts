@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   const state = url.searchParams.get("state");
   if (!googleReady() || !saved || !code || !state || state !== saved.state || code.length > 2048) return fail();
 
-  const who = await exchangeGoogleCode(code, saved.verifier);
+  const who = await exchangeGoogleCode(code, saved.verifier, url.origin);
   if (!who) return fail();
 
   try {
