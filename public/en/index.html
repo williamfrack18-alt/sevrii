@@ -91,10 +91,11 @@ document.addEventListener('DOMContentLoaded', function(){
   /* NAV */
   header{
     position:sticky;top:0;z-index:50;
-    background:var(--accent-grad);
-    backdrop-filter:blur(10px);
-    border-bottom:1px solid var(--border);
+    background:transparent;
+    border-bottom:1px solid transparent;
+    transition:background .25s ease,border-color .25s ease;
   }
+  header.scrolled{background:rgba(0,0,0,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom-color:var(--border);}
   nav.wrap{
     display:flex;align-items:center;justify-content:space-between;
     height:78px;
@@ -116,7 +117,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   /* HERO */
   .hero{
-    min-height:50vh;
+    min-height:calc(50vh + 78px);
+    margin-top:-78px;padding-top:78px;
     display:flex;flex-direction:column;justify-content:center;
     position:relative;overflow:hidden;
     background:#020a06;
@@ -782,5 +784,8 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 
 
+<script>
+(function(){var h=document.querySelector('header');if(!h)return;function u(){h.classList.toggle('scrolled',window.scrollY>40);}u();window.addEventListener('scroll',u,{passive:true});})();
+</script>
 </body>
 </html>
