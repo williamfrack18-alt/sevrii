@@ -928,6 +928,15 @@ export async function setUserStripeCustomer(userId: string, customerId: string):
   return rows[0]?.stripeCustomerId || customerId;
 }
 
+// Swaps a customer ID that no longer exists in the connected Stripe account
+// (for example after moving to a new Stripe account). Only replaces the exact old value.
+export async function replaceUserStripeCustomer(userId: string, oldId: string, newId: string): Promise<string> {
+  await ensureSchema();
+  await sql`UPDATE users SET "stripeCustomerId" = ${newId} WHERE id = ${userId} AND "stripeCustomerId" = ${oldId}`;
+  const rows = (await sql`SELECT "stripeCustomerId" FROM users WHERE id = ${userId}`) as { stripeCustomerId: string | null }[];
+  return rows[0]?.stripeCustomerId || newId;
+}
+
 export async function getUserByStripeCustomer(customerId: string): Promise<UserRow | undefined> {
   await ensureSchema();
   const rows = (await sql`SELECT * FROM users WHERE "stripeCustomerId" = ${customerId}`) as UserRow[];

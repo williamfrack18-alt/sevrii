@@ -3,6 +3,7 @@ import {
   getUserById,
   getUserByStripeCustomer,
   listUserWaitlists,
+  replaceUserStripeCustomer,
   setUserStripeCustomer,
   updateUserPlan,
   type UserRow,
@@ -90,11 +91,28 @@ async function stripe<T = Record<string, unknown>>(method: "GET" | "POST", path:
 }
 
 async function ensureCustomer(user: UserRow): Promise<string> {
-  if (user.stripeCustomerId) return user.stripeCustomerId;
+  if (user.stripeCustomerId) {
+    // The saved customer must exist in the Stripe account the keys point to
+    // (it won't after switching Stripe accounts). If it's gone, make a new one.
+    const stale = await customerMissing(user.stripeCustomerId);
+    if (!stale) return user.stripeCustomerId;
+    const fresh = await stripe<{ id: string }>("POST", "customers", { email: user.email, "metadata[userId]": user.id }, `customer-${user.id}-${user.stripeCustomerId}`);
+    return await replaceUserStripeCustomer(user.id, user.stripeCustomerId, fresh.id);
+  }
   // Same idempotency key for the same account: two clicks at once get the same customer.
   const c = await stripe<{ id: string }>("POST", "customers", { email: user.email, "metadata[userId]": user.id }, `customer-${user.id}`);
   // Only saved if the account has none yet; then use whatever is stored.
   return await setUserStripeCustomer(user.id, c.id);
+}
+
+// True only when Stripe says this customer doesn't exist (or was deleted).
+async function customerMissing(customerId: string): Promise<boolean> {
+  try {
+    const c = await stripe<{ deleted?: boolean }>("GET", `customers/${encodeURIComponent(customerId)}`);
+    return Boolean(c.deleted);
+  } catch (err) {
+    return /: 404 /.test((err as Error)?.message || "");
+  }
 }
 
 const LIVE = new Set(["active", "trialing", "past_due"]);
