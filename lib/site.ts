@@ -33,6 +33,7 @@ export type SiteData = {
   coverUrl: string;
   gallery: string[];
   lang: "es" | "en";
+  fromPlan: string; // fingerprint of the Brain plan the page was last built from ("" = never)
 };
 
 export const EMPTY_SITE: SiteData = {
@@ -62,6 +63,7 @@ export const EMPTY_SITE: SiteData = {
   coverUrl: "",
   gallery: [],
   lang: "en",
+  fromPlan: "",
 };
 
 export const LIMITS = {
@@ -165,6 +167,7 @@ export function parseSite(raw: unknown): SiteData {
       .filter(Boolean)
       .slice(0, LIMITS.gallery),
     lang: obj.lang === "en" ? "en" : "es",
+    fromPlan: str(obj.fromPlan, 20),
   };
 }
 

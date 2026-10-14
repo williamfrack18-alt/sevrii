@@ -15,6 +15,7 @@ import {
 } from "./db";
 import { LIMITS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl } from "./site";
 import { publishBusiness } from "./marketplace";
+import { planFingerprint } from "./planToStore";
 
 // The Store tab is one chat. This agent interviews the owner for exactly the
 // data the conversion template needs (services and prices, offer, photos,
@@ -331,7 +332,7 @@ export async function runStoreChatTurn(opts: {
 // First message when the chat is empty — no AI call needed.
 export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number): string {
   const es = lang === "es";
-  if (b.plan.service && b.plan.packages.length > 0) {
+  if (b.plan.service && b.plan.packages.length > 0 && b.site.fromPlan !== planFingerprint(b.plan)) {
     return es
       ? `¡Hola! Ya tengo la estrategia que armaste en el Cerebro para "${b.plan.service}". Con eso armo la página de ${b.name}: título, puntos clave y tus paquetes con precio. ¿La armo así y luego la revisamos juntos?`
       : `Hi! I have the strategy you built in the Brain for "${b.plan.service}". I'll use it for ${b.name}'s page: headline, key points and your priced packages. Shall I build it that way and then we review it together?`;

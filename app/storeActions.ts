@@ -26,6 +26,7 @@ import { publishBusiness } from "@/lib/marketplace";
 import { chatGate, gateMessage, runForUser } from "@/lib/usage";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
+import { fillStoreFromPlan } from "@/lib/storeFill";
 
 async function requireBusiness(): Promise<BusinessRow> {
   const user = await getCurrentUser();
@@ -279,4 +280,24 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
   await addChatMessage(business.id, "store", "ai", result.reply);
   refresh(result.business.slug);
   return respond(result.business);
+}
+
+// "Build my page from my expediente" in the Store tab.
+export async function fillStoreFromPlanAction(): Promise<{
+  ok: boolean;
+  business: BusinessRow;
+  services: ServiceRow[];
+  messages: { id: string; role: string; content: string }[];
+}> {
+  const business = await requireBusiness();
+  const lang = await getLang();
+  const ok = (await allow(`fillplan:${business.id}`, 20, 60 * 60)) && (await fillStoreFromPlan(business.id, lang)).filled;
+  const fresh = (await getBusinessById(business.id)) ?? business;
+  if (ok) refresh(fresh.slug);
+  return {
+    ok,
+    business: fresh,
+    services: await listServices(business.id),
+    messages: (await listChatMessages(business.id, "store")).map((m) => ({ id: m.id, role: m.role, content: m.content })),
+  };
 }

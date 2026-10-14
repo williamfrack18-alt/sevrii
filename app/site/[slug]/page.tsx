@@ -266,8 +266,8 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
               {site.steps.map((s, n) => (
                 <div key={n} className="process-card">
                   <span className="process-num grad-text">{n + 1}</span>
-                  <h3>{s.title}</h3>
-                  <p>{s.text}</p>
+                  {s.title ? <h3>{s.title}</h3> : null}
+                  <p className={s.title ? undefined : "solo"}>{s.text}</p>
                 </div>
               ))}
             </div>

@@ -6,7 +6,8 @@ import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
-import { setPublishedAction } from "@/app/storeActions";
+import { fillStoreFromPlanAction, setPublishedAction } from "@/app/storeActions";
+import { planFingerprint, planReadyForStore } from "@/lib/planToStore";
 import type { PublishGap } from "@/lib/site";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
@@ -58,6 +59,33 @@ export default function StoreView({
     }
   }
   const liveUrl = `/site/${business.slug}`;
+
+  // The Brain's expediente is approved and the page doesn't reflect it yet.
+  const fp = STORE_TEXT[lang].editor.fromPlan;
+  const planPending = planReadyForStore(business.plan) && business.site.fromPlan !== planFingerprint(business.plan);
+  const [filling, setFilling] = useState(false);
+  const [fillError, setFillError] = useState(false);
+  const [sync, setSync] = useState<{ key: number; messages: { id: string; role: string; content: string }[] } | undefined>();
+
+  async function fillFromPlan() {
+    setFilling(true);
+    setFillError(false);
+    try {
+      const res = await fillStoreFromPlanAction();
+      if (!res.ok) setFillError(true);
+      onUpdated(
+        toClientBusiness(res.business),
+        res.services.map((x) => ({ id: x.id, name: x.name, price: x.price, description: x.description }))
+      );
+      setSync({ key: Date.now(), messages: res.messages });
+      onMessages?.(res.messages);
+      setPreviewKey((k) => k + 1);
+    } catch {
+      setFillError(true);
+    } finally {
+      setFilling(false);
+    }
+  }
 
   return (
     <div style={{ background: "#000" }}>
@@ -148,7 +176,33 @@ export default function StoreView({
             </button>
           </div>
         )}
+        {planPending && (
+          <div
+            className="shrink-0 mx-4 md:mx-6 mb-2 rounded-2xl px-4 py-4 md:px-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5"
+            style={{ background: "linear-gradient(135deg, rgba(46,122,85,.22), rgba(46,122,85,.08))", boxShadow: "0 0 0 1px rgba(46,122,85,.45)" }}
+          >
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-semibold text-white">{business.site.fromPlan ? fp.changedTitle : fp.newTitle}</div>
+              <p className="text-[13.5px] text-[#c9c9c9] mt-0.5 leading-relaxed">{business.site.fromPlan ? fp.changedText : fp.newText}</p>
+              <p className="text-[12.5px] text-[#8e8e8e] mt-1">
+                {fp.keep}
+                {services.length > 0 ? ` ${fp.replaceServices}` : ""}
+              </p>
+              {fillError && <p className="text-[12.5px] mt-1 text-red-400">{fp.failed}</p>}
+            </div>
+            <button
+              type="button"
+              disabled={filling}
+              onClick={fillFromPlan}
+              className="h-10 px-5 rounded-full text-[14px] font-semibold shrink-0 disabled:opacity-60 self-start sm:self-auto"
+              style={BRAND_BTN}
+            >
+              {filling ? fp.building : business.site.fromPlan ? fp.update : fp.build}
+            </button>
+          </div>
+        )}
         <StoreChat
+          sync={sync}
           greeting={greeting}
           initialMessages={initialMessages}
           onMessages={onMessages}

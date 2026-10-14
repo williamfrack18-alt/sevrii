@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { fillStoreFromPlan } from "@/lib/storeFill";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { chatGate, gateMessage, runForUser } from "@/lib/usage";
@@ -116,13 +117,18 @@ export async function approveBlockAction(block: string, approved: boolean): Prom
   const { plan: next, refused } = applyApprovals(plan, [block as ApprovalBlock], lang);
   await updateBusinessPlan(business.id, next);
   if (next.stage === "approved") {
+    const { filled } = await fillStoreFromPlan(business.id, lang, { onlyIfEmpty: true });
     await addChatMessage(
       business.id,
       CHANNEL,
       "ai",
-      lang === "es"
-        ? "¡Tu expediente está aprobado! Con esto ya puedo armar tu página en Store. Si quieres cambiar algo después, escríbeme aquí."
-        : "Your expediente is approved! I can now build your page in Store. If you want to change something later, write to me here."
+      filled
+        ? lang === "es"
+          ? "¡Tu expediente está aprobado! Ya armé tu página en Store con todo lo que aprobaste. Entra a Store para verla y completar lo que falta."
+          : "Your expediente is approved! I already built your page in Store with everything you approved. Open Store to see it and finish what's missing."
+        : lang === "es"
+          ? "¡Tu expediente está aprobado! En Store puedes actualizar tu página con todo lo que aprobaste. Si quieres cambiar algo después, escríbeme aquí."
+          : "Your expediente is approved! In Store you can update your page with everything you approved. If you want to change something later, write to me here."
     );
   }
   revalidatePath("/dashboard");

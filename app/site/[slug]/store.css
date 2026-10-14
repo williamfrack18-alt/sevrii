@@ -132,6 +132,7 @@
 .mt .process-num { font-weight: 700; font-size: 34px; display: block; margin-bottom: 12px; }
 .mt .process-card h3 { font-size: 19px; margin: 0 0 8px; }
 .mt .process-card p { color: var(--ink-dim); font-size: 14px; margin: 0; }
+.mt .process-card p.solo { color: var(--ink); font-size: 16.5px; line-height: 1.5; font-weight: 500; }
 .mt .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 @media (max-width: 900px) { .mt .services-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .mt .services-grid { grid-template-columns: 1fr; } }

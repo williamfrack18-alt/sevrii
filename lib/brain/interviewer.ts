@@ -15,6 +15,7 @@ import {
   type PlanStage,
 } from "../plan";
 import { codeGuard } from "./guard";
+import { fillStoreFromPlan } from "../storeFill";
 import { textOf, today } from "./common";
 
 // The Brain's chat. The code decides the stage; in each stage the model only
@@ -277,7 +278,8 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       const blocks = (Array.isArray(input.blocks) ? input.blocks : []).filter((x): x is ApprovalBlock => APPROVAL_BLOCKS.includes(x as ApprovalBlock));
       const { plan: next, refused } = applyApprovals(plan, blocks, lang);
       await updateBusinessPlan(b.id, next);
-      return { out: `${next.stage === "approved" ? "all approved: the expediente is ready for Store" : "approved"}${refused.length ? `; not approved: ${refused.join(" ")}` : ""}` };
+      const built = next.stage === "approved" ? (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true })).filled : false;
+      return { out: `${next.stage === "approved" ? (built ? "all approved: the store page was built from the expediente automatically; tell the owner to open Store to see it" : "all approved: the expediente is ready; the owner can update the page from Store") : "approved"}${refused.length ? `; not approved: ${refused.join(" ")}` : ""}` };
     }
     default:
       return { out: "error: unknown tool" };

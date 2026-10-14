@@ -11,7 +11,9 @@ export default function StoreChat({
   initialMessages,
   onUpdated,
   onMessages,
+  sync,
 }: {
+  sync?: { key: number; messages: Msg[] };
   greeting: string;
   initialMessages: Msg[];
   onUpdated: (business: ClientBusiness, services: ClientService[]) => void;
@@ -22,6 +24,7 @@ export default function StoreChat({
     <ChatPanel
       greeting={greeting}
       initialMessages={initialMessages}
+      sync={sync}
       texts={{
         placeholder: t.chatPlaceholder,
         emptyTitle: t.emptyTitle,
