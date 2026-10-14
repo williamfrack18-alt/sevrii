@@ -61,26 +61,50 @@ async function stripe<T = Record<string, unknown>>(
   return data;
 }
 
-// ---------- Connected accounts ----------
-// A full Stripe account owned by the business (they get their own Stripe
-// Dashboard). Stripe collects its fees from them and handles losses, so the
-// platform pays no Connect fees.
+// ---------- Connected accounts (Stripe Accounts v2) ----------
+// Sevrii's Connect platform is set up with Stripe's Accounts v2: each business
+// gets a full Stripe account (their own Stripe Dashboard). Stripe collects its
+// processing fees from them and covers losses, so the platform pays no Connect
+// fees. Payments still use v1 Checkout with the Stripe-Account header.
+const V2_VERSION = process.env.STRIPE_V2_VERSION || "2026-09-30.preview";
+
+async function stripeV2<T = Record<string, unknown>>(
+  method: "GET" | "POST",
+  path: string,
+  body?: Record<string, unknown>,
+  idempotencyKey?: string
+): Promise<T> {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
+  const headers: Record<string, string> = { Authorization: `Bearer ${key}`, "Stripe-Version": V2_VERSION };
+  if (body) headers["Content-Type"] = "application/json";
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+  const res = await fetch(`https://api.stripe.com/v2/${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+  const data = (await res.json()) as T & { error?: { message?: string; code?: string } };
+  if (!res.ok) throw new Error(`stripe v2 ${path}: ${res.status} ${data?.error?.code ?? ""} ${data?.error?.message ?? ""}`);
+  return data;
+}
+
 async function ensureAccount(business: BusinessRow, email: string): Promise<string> {
   if (business.stripeAccountId) return business.stripeAccountId;
-  const acct = await stripe<{ id: string }>(
+  const acct = await stripeV2<{ id: string }>(
     "POST",
-    "accounts",
+    "core/accounts",
     {
-      country: "US",
-      email,
-      "controller[fees][payer]": "account",
-      "controller[losses][payments]": "stripe",
-      "controller[stripe_dashboard][type]": "full",
-      "business_profile[name]": business.name.slice(0, 100),
-      "business_profile[url]": `${siteUrl()}/site/${business.slug}`,
-      "metadata[sevriiBusinessId]": business.id,
+      contact_email: email,
+      display_name: business.name.slice(0, 100),
+      dashboard: "full",
+      identity: { country: "us" },
+      configuration: { merchant: { capabilities: { card_payments: { requested: true } } } },
+      defaults: { currency: "usd", responsibilities: { fees_collector: "stripe", losses_collector: "stripe" } },
+      metadata: { sevriiBusinessId: business.id },
     },
-    { idempotencyKey: `connect-account-${business.id}` }
+    `connect-account-v2-${business.id}`
   );
   return await setBusinessStripeAccount(business.id, acct.id);
 }
@@ -89,22 +113,34 @@ async function ensureAccount(business: BusinessRow, email: string): Promise<stri
 export async function onboardingUrl(business: BusinessRow, email: string): Promise<string> {
   const account = await ensureAccount(business, email);
   const base = `${siteUrl()}/dashboard?view=payments`;
-  const link = await stripe<{ url: string }>("POST", "account_links", {
+  const link = await stripeV2<{ url: string }>("POST", "core/account_links", {
     account,
-    type: "account_onboarding",
-    refresh_url: `${base}&connect=refresh`,
-    return_url: `${base}&connect=return`,
+    use_case: {
+      type: "account_onboarding",
+      account_onboarding: {
+        configurations: ["merchant"],
+        refresh_url: `${base}&connect=refresh`,
+        return_url: `${base}&connect=return`,
+      },
+    },
   });
   return link.url;
 }
 
-type StripeAccount = { charges_enabled?: boolean; details_submitted?: boolean };
+type V2Account = {
+  configuration?: { merchant?: { capabilities?: { card_payments?: { status?: string } } } | null } | null;
+  requirements?: { entries?: { minimum_deadline?: { status?: string } }[] } | null;
+};
 
-// Reads the account from Stripe and stores where the business is.
+// Reads the account from Stripe and stores where the business is:
+// ready = can take card payments; review = Stripe is checking; pending = info missing.
 export async function refreshPayStatus(business: BusinessRow): Promise<PayStatus> {
   if (!business.stripeAccountId) return "none";
-  const a = await stripe<StripeAccount>("GET", `accounts/${encodeURIComponent(business.stripeAccountId)}`);
-  const status: PayStatus = a.charges_enabled ? "ready" : a.details_submitted ? "review" : "pending";
+  const id = encodeURIComponent(business.stripeAccountId);
+  const a = await stripeV2<V2Account>("GET", `core/accounts/${id}?include=configuration.merchant&include=requirements`);
+  const card = a.configuration?.merchant?.capabilities?.card_payments?.status;
+  const due = (a.requirements?.entries || []).some((e) => ["currently_due", "past_due"].includes(e.minimum_deadline?.status || ""));
+  const status: PayStatus = card === "active" ? "ready" : due ? "pending" : "review";
   if (status !== business.payStatus) await setBusinessPayStatus(business.id, status);
   return status;
 }
