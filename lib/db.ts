@@ -233,6 +233,15 @@ function ensureSchema(): Promise<void> {
         )
       `;
       await sql`CREATE INDEX IF NOT EXISTS payment_links_business_idx ON payment_links ("businessId", "createdAt")`;
+      // Password reset links: only the SHA-256 of the token is stored.
+      await sql`
+        CREATE TABLE IF NOT EXISTS password_resets (
+          "tokenHash" TEXT PRIMARY KEY,
+          "userId" TEXT NOT NULL REFERENCES users(id),
+          "expiresAt" TIMESTAMPTZ NOT NULL,
+          "usedAt" TIMESTAMPTZ
+        )
+      `;
     })().catch((err) => {
       // Don't cache a failed setup forever — let the next request retry.
       schemaReady = null;
@@ -1065,4 +1074,69 @@ export async function getPaymentLink(id: string): Promise<PaymentLinkRow | undef
 export async function setPaymentLinkActive(id: string, businessId: string, active: boolean): Promise<void> {
   await ensureSchema();
   await sql`UPDATE payment_links SET active = ${active} WHERE id = ${id} AND "businessId" = ${businessId}`;
+}
+
+// ---------- Password reset ----------
+export async function createPasswordReset(userId: string, tokenHash: string, minutes: number): Promise<void> {
+  await ensureSchema();
+  // One live link per account: older unused links stop working.
+  await sql`UPDATE password_resets SET "usedAt" = now() WHERE "userId" = ${userId} AND "usedAt" IS NULL`;
+  await sql`
+    INSERT INTO password_resets ("tokenHash", "userId", "expiresAt")
+    VALUES (${tokenHash}, ${userId}, now() + make_interval(mins => ${minutes}::int))
+  `;
+}
+
+export async function isPasswordResetValid(tokenHash: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT 1 FROM password_resets WHERE "tokenHash" = ${tokenHash} AND "usedAt" IS NULL AND "expiresAt" > now()
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+// Marks the link used and returns its account, only if it was still valid.
+export async function consumePasswordReset(tokenHash: string): Promise<string | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE password_resets SET "usedAt" = now()
+    WHERE "tokenHash" = ${tokenHash} AND "usedAt" IS NULL AND "expiresAt" > now()
+    RETURNING "userId"
+  `) as { userId: string }[];
+  return rows[0]?.userId ?? null;
+}
+
+export async function setUserPassword(userId: string, passwordHash: string, salt: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE users SET "passwordHash" = ${passwordHash}, salt = ${salt} WHERE id = ${userId}`;
+}
+
+// ---------- Account deletion ----------
+// Removes the account and everything that belongs to it. Returns the photo
+// URLs of its pages so the caller can delete the files too.
+export async function deleteUserEverything(userId: string): Promise<string[]> {
+  await ensureSchema();
+  const businesses = (await sql`SELECT id, site FROM businesses WHERE "userId" = ${userId}`) as { id: string; site: unknown }[];
+  const photos: string[] = [];
+  for (const b of businesses) {
+    const site = parseSite(b.site);
+    photos.push(site.logoUrl, site.coverUrl, ...site.gallery);
+  }
+  const ids = businesses.map((b) => b.id);
+  if (ids.length) {
+    await sql`DELETE FROM services WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM reviews WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM campaigns WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM chat_messages WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM page_reports WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM research_jobs WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM payment_links WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM businesses WHERE "userId" = ${userId}`;
+  }
+  await sql`DELETE FROM sessions WHERE "userId" = ${userId}`;
+  await sql`DELETE FROM password_resets WHERE "userId" = ${userId}`;
+  await sql`DELETE FROM plan_waitlist WHERE "userId" = ${userId}`;
+  await sql`DELETE FROM ai_usage WHERE "userId" = ${userId}`;
+  await sql`DELETE FROM users WHERE id = ${userId}`;
+  return photos.filter(Boolean);
 }

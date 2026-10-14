@@ -316,11 +316,16 @@ export default function DashboardTabs({
                 </div>
                 <LangToggle />
               </div>
-              <form action={logoutAction}>
-                <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
-                  {t.dashboard.logout}
-                </button>
-              </form>
+              <div className="flex items-center gap-4">
+                <a href="/account" className="text-[12px] font-medium text-muted hover:text-ink">
+                  {lang === "es" ? "Mi cuenta" : "My account"}
+                </a>
+                <form action={logoutAction}>
+                  <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
+                    {t.dashboard.logout}
+                  </button>
+                </form>
+              </div>
             </>
           ) : (
             <button
@@ -389,7 +394,7 @@ export default function DashboardTabs({
 
         {/* Log out on mobile (the rail with it is hidden there) */}
         <div className="md:hidden px-5 py-6 border-t border-border flex items-center justify-between gap-3">
-          <span className="text-[12px] text-muted truncate">{userEmail}</span>
+          <a href="/account" className="text-[12px] text-muted truncate">{userEmail}</a>
           <form action={logoutAction}>
             <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
               {t.dashboard.logout}

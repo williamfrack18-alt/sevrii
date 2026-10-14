@@ -6,9 +6,11 @@ import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import GoogleButton, { OrDivider } from "@/components/GoogleButton";
 import { googleReady } from "@/lib/google";
+import { ACCOUNT_TEXT } from "@/lib/accountI18n";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const t = getDict(await getLang());
+  const lang = await getLang();
+  const t = getDict(lang);
   const sp = (await searchParams) ?? {};
   const err = sp.error === "google_cancel" ? t.auth.errGoogleCancel : sp.error === "busy" ? t.auth.errTooMany : sp.error ? t.auth.errGoogle : null;
   const google = googleReady();
@@ -32,6 +34,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             </div>
           )}
           <LoginForm />
+          <Link href="/forgot" className="text-[13.5px] text-muted underline underline-offset-4 -mt-4">
+            {ACCOUNT_TEXT[lang].forgotLink}
+          </Link>
           <p className="text-[14px] text-muted">
             {t.auth.newHere}{" "}
             <Link href="/signup" className="text-ink font-semibold underline">

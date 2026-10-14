@@ -74,7 +74,7 @@ function form(params: Record<string, string>): string {
     .join("&");
 }
 
-async function stripe<T = Record<string, unknown>>(method: "GET" | "POST", path: string, params: Record<string, string> = {}, idempotencyKey?: string): Promise<T> {
+async function stripe<T = Record<string, unknown>>(method: "GET" | "POST" | "DELETE", path: string, params: Record<string, string> = {}, idempotencyKey?: string): Promise<T> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
   const headers: Record<string, string> = { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" };
@@ -152,6 +152,17 @@ export async function createCheckoutUrl(user: UserRow, interval: "month" | "year
     cancel_url: `${origin}/dashboard?view=plans&checkout=cancel`,
   });
   return session.url;
+}
+
+// Account deletion: stop charging right away (no refund of the current period).
+export async function cancelSubscriptionNow(subscriptionId: string): Promise<void> {
+  try {
+    await stripe("DELETE", `subscriptions/${encodeURIComponent(subscriptionId)}`);
+  } catch (err) {
+    // Already canceled is fine.
+    if (/No such subscription|canceled/i.test((err as Error)?.message || "")) return;
+    throw err;
+  }
 }
 
 export async function createPortalUrl(user: UserRow): Promise<string> {
