@@ -118,7 +118,6 @@ export async function onboardingUrl(business: BusinessRow, email: string): Promi
     use_case: {
       type: "account_onboarding",
       account_onboarding: {
-        configurations: ["merchant"],
         refresh_url: `${base}&connect=refresh`,
         return_url: `${base}&connect=return`,
       },
