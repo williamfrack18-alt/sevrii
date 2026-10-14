@@ -242,6 +242,14 @@ function ensureSchema(): Promise<void> {
           "usedAt" TIMESTAMPTZ
         )
       `;
+      // One "you got paid" email per Stripe Checkout session, never two.
+      await sql`
+        CREATE TABLE IF NOT EXISTS payment_notices (
+          "sessionId" TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
     })().catch((err) => {
       // Don't cache a failed setup forever — let the next request retry.
       schemaReady = null;
@@ -1076,6 +1084,34 @@ export async function setPaymentLinkActive(id: string, businessId: string, activ
   await sql`UPDATE payment_links SET active = ${active} WHERE id = ${id} AND "businessId" = ${businessId}`;
 }
 
+// ---------- Payment notices ----------
+export async function hasPaymentNotice(sessionId: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`SELECT 1 FROM payment_notices WHERE "sessionId" = ${sessionId}`) as unknown[];
+  return rows.length > 0;
+}
+
+// True only for the first caller, so the owner gets exactly one email.
+export async function claimPaymentNotice(sessionId: string, businessId: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO payment_notices ("sessionId", "businessId") VALUES (${sessionId}, ${businessId})
+    ON CONFLICT ("sessionId") DO NOTHING
+    RETURNING "sessionId"
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+export async function releasePaymentNotice(sessionId: string): Promise<void> {
+  await sql`DELETE FROM payment_notices WHERE "sessionId" = ${sessionId}`;
+}
+
+export async function getBusinessByStripeAccount(accountId: string): Promise<BusinessRow | undefined> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM businesses WHERE "stripeAccountId" = ${accountId} LIMIT 1`) as Record<string, unknown>[];
+  return toBusiness(rows[0]);
+}
+
 // ---------- Password reset ----------
 export async function createPasswordReset(userId: string, tokenHash: string, minutes: number): Promise<void> {
   await ensureSchema();
@@ -1131,6 +1167,7 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM page_reports WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM research_jobs WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM payment_links WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM payment_notices WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM businesses WHERE "userId" = ${userId}`;
   }
   await sql`DELETE FROM sessions WHERE "userId" = ${userId}`;

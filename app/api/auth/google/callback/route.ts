@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { getLang } from "@/lib/lang";
+import { sendWelcomeEmail } from "@/lib/notify";
 import { exchangeGoogleCode, googleReady, GOOGLE_STATE_COOKIE, type GoogleState } from "@/lib/google";
 import { createUser, getUserByEmail, getUserByGoogleSub, setUserGoogleSub } from "@/lib/db";
 import { startSession } from "@/lib/startSession";
@@ -44,6 +46,11 @@ export async function GET(req: Request) {
       await setUserGoogleSub(user.id, who.sub);
     }
     await startSession(user.id);
+    if (isNew) {
+      const email = user.email;
+      const lang = await getLang();
+      after(() => sendWelcomeEmail(email, lang));
+    }
     return NextResponse.redirect(new URL(isNew ? "/start" : "/dashboard", url.origin));
   } catch (err) {
     console.error("[google] sign-in failed", (err as Error)?.message);

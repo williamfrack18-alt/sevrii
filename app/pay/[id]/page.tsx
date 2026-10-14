@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
+import { allow, clientIp } from "@/lib/guard";
+import { notifyPaymentReceived } from "@/lib/notify";
 import { getBusinessById, getPaymentLink } from "@/lib/db";
 import { payAction } from "./actions";
 import "./pay.css";
@@ -63,7 +66,7 @@ export default async function PayPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ paid?: string; error?: string }>;
+  searchParams: Promise<{ paid?: string; error?: string; s?: string }>;
 }) {
   const { id } = await params;
   const sp = (await searchParams) ?? {};
@@ -73,6 +76,15 @@ export default async function PayPage({
   const available = Boolean(link && business && link.active && business.payStatus === "ready");
   const accent = accentOf(business?.accentColor || "");
   const logo = business?.site.logoUrl || "";
+
+  // Back from Stripe after paying: email the owner (once per payment).
+  const sessionId = String(sp.s || "");
+  if (sp.paid === "1" && business && /^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) {
+    if (await allow(`paynotice:ip:${await clientIp()}`, 30, 60 * 60)) {
+      const biz = business;
+      after(() => notifyPaymentReceived(biz, sessionId));
+    }
+  }
 
   return (
     <div className="pay" lang={lang} style={{ ["--accent" as string]: accent } as React.CSSProperties}>

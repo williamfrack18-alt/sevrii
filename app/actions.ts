@@ -1,6 +1,8 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { after } from "next/server";
+import { sendWelcomeEmail } from "@/lib/notify";
 import { randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -64,6 +66,8 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
   const { hash, salt } = hashPassword(password);
   const user = await createUser(email, hash, salt);
   await startSession(user.id);
+  const lang = await getLang();
+  after(() => sendWelcomeEmail(user.email, lang));
   redirect("/start");
 }
 

@@ -23,6 +23,12 @@ export function sevriiFeeCents(amountCents: number): number {
   return Math.max(0, total - stripe);
 }
 
+// Everything taken from a payment (Stripe's standard fee + Sevrii's part).
+export function totalFeeCents(amountCents: number): number {
+  if (!amountCents) return 0;
+  return Math.round(amountCents * STRIPE_RATE) + STRIPE_FIXED_CENTS + sevriiFeeCents(amountCents);
+}
+
 export function paymentsReady(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY);
 }
@@ -160,7 +166,7 @@ export async function checkoutForLink(business: BusinessRow, link: PaymentLinkRo
     "metadata[sevriiLinkId]": link.id,
     "metadata[sevriiBusinessId]": business.id,
     "metadata[sevriiTitle]": link.title.slice(0, 120),
-    success_url: `${back}?paid=1`,
+    success_url: `${back}?paid=1&s={CHECKOUT_SESSION_ID}`,
     cancel_url: back,
   };
   if (link.description) params["line_items[0][price_data][product_data][description]"] = link.description.slice(0, 300);
@@ -201,10 +207,32 @@ export async function listReceivedPayments(business: BusinessRow): Promise<Recei
         title: s.metadata?.sevriiTitle || "",
         amountCents: amount,
         // Approximate total taken (Stripe's standard fee + Sevrii's part).
-        feeCents: amount ? Math.round(amount * STRIPE_RATE) + STRIPE_FIXED_CENTS + sevriiFeeCents(amount) : 0,
+        feeCents: totalFeeCents(amount),
         email: s.customer_details?.email ?? null,
         name: s.customer_details?.name ?? null,
         createdAt: new Date(s.created * 1000).toISOString(),
       };
     });
+}
+
+// One paid Sevrii session, read from the business's own Stripe account.
+// Returns null unless it is really paid and really belongs to this business.
+export async function getPaidSession(business: BusinessRow, sessionId: string): Promise<ReceivedPayment | null> {
+  if (!business.stripeAccountId || !/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) return null;
+  try {
+    const s = await stripe<Session>("GET", `checkout/sessions/${encodeURIComponent(sessionId)}`, {}, { account: business.stripeAccountId });
+    if (s.payment_status !== "paid" || s.metadata?.sevriiBusinessId !== business.id) return null;
+    const amount = s.amount_total ?? 0;
+    return {
+      id: s.id,
+      title: s.metadata?.sevriiTitle || "",
+      amountCents: amount,
+      feeCents: totalFeeCents(amount),
+      email: s.customer_details?.email ?? null,
+      name: s.customer_details?.name ?? null,
+      createdAt: new Date(s.created * 1000).toISOString(),
+    };
+  } catch {
+    return null;
+  }
 }
