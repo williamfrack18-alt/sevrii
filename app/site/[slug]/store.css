@@ -163,3 +163,7 @@
 .mt .sticky-cta .btn { flex: 1; padding: 14px 12px; font-size: 15px; }
 @media (max-width: 760px) { .mt .sticky-cta { display: block; } }
 .mt .draft-bar { background: #fff4d6; color: #5c4400; font-size: 13px; text-align: center; padding: 10px 16px; }
+
+/* Payment links (Sevrii Payments) */
+.pay-card-link { display: flex; flex-direction: column; }
+.pay-card-link .pay-cta { margin-top: 14px; align-self: flex-start; }

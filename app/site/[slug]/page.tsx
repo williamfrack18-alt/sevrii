@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { getBusinessBySlug, getUserById, listServices, incrementPageViews, type BusinessRow } from "@/lib/db";
+import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, type BusinessRow } from "@/lib/db";
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
@@ -50,6 +50,13 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
   const site = business.site;
   const t = STORE_TEXT[site.lang].site;
   const services = await listServices(business.id);
+  // Payment links the owner turned on (only when their Stripe account can take payments).
+  const payLinks = business.payStatus === "ready" ? (await listPaymentLinks(business.id)).filter((l) => l.active).slice(0, 6) : [];
+  const payText =
+    site.lang === "en"
+      ? { eyebrow: "Pay online", title: "Book and pay here", button: "Pay" }
+      : { eyebrow: "Paga en línea", title: "Reserva y paga aquí", button: "Pagar" };
+  const usd = (c: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(c / 100);
 
   // Count real visitors only: not the owner, not link-preview bots, once per IP per hour.
   if (!isOwner && live) {
@@ -302,6 +309,25 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                   </div>
                 );
               })}
+            </div>
+          </section>
+        )}
+
+        {payLinks.length > 0 && (
+          <section className="block wrap" id="pagar">
+            <div className="section-head">
+              <span className="eyebrow grad-text">{payText.eyebrow}</span>
+              <h2>{payText.title}</h2>
+            </div>
+            <div className="services-grid">
+              {payLinks.map((l) => (
+                <a key={l.id} href={`/pay/${l.id}`} className="service-card pay-card-link">
+                  <h3>{l.title}</h3>
+                  {l.description && <p>{l.description}</p>}
+                  <span className="service-range grad-text">{usd(l.amountCents)}</span>
+                  <span className="btn pay-cta">{payText.button} →</span>
+                </a>
+              ))}
             </div>
           </section>
         )}

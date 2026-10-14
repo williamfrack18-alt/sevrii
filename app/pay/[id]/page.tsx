@@ -1,0 +1,130 @@
+import type { Metadata } from "next";
+import { getBusinessById, getPaymentLink } from "@/lib/db";
+import { payAction } from "./actions";
+import "./pay.css";
+
+const TEXT = {
+  es: {
+    title: "Pagar",
+    secure: "Pago seguro con tarjeta, Apple Pay o Google Pay. Procesado por Stripe.",
+    pay: (amt: string) => `Pagar ${amt}`,
+    paidTitle: "¡Pago recibido!",
+    paidText: (biz: string) => `Gracias. ${biz} ya recibió tu pago. Stripe te envió el recibo a tu correo.`,
+    payAgain: "Volver",
+    offTitle: "Este link de pago no está disponible",
+    offText: "Puede que el negocio lo haya desactivado. Escríbele directamente para pagar.",
+    error: "No pudimos abrir el pago. Inténtalo de nuevo en un momento.",
+    rate: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+    by: "Pagos con",
+  },
+  en: {
+    title: "Pay",
+    secure: "Secure payment by card, Apple Pay or Google Pay. Processed by Stripe.",
+    pay: (amt: string) => `Pay ${amt}`,
+    paidTitle: "Payment received!",
+    paidText: (biz: string) => `Thank you. ${biz} has received your payment. Stripe emailed you the receipt.`,
+    payAgain: "Back",
+    offTitle: "This payment link isn't available",
+    offText: "The business may have turned it off. Contact them directly to pay.",
+    error: "We couldn't open the payment. Please try again in a moment.",
+    rate: "Too many attempts. Please wait a few minutes and try again.",
+    by: "Payments by",
+  },
+};
+
+function money(cents: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+}
+
+function accentOf(hex: string): string {
+  return /^#[0-9a-f]{6}$/i.test(hex) && hex.toLowerCase() !== "#122118" ? hex : "#234f36";
+}
+
+async function load(id: string) {
+  const link = /^[a-z0-9]{6,40}$/.test(id) ? await getPaymentLink(id) : undefined;
+  const business = link ? await getBusinessById(link.businessId) : undefined;
+  return { link, business };
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const { link, business } = await load(id);
+  if (!link || !business || !link.active) return { title: "Sevrii", robots: { index: false } };
+  const t = TEXT[business.site.lang];
+  return {
+    title: `${t.title} · ${link.title} · ${business.name}`,
+    description: `${link.title} — ${money(link.amountCents)}`,
+    robots: { index: false },
+  };
+}
+
+export default async function PayPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ paid?: string; error?: string }>;
+}) {
+  const { id } = await params;
+  const sp = (await searchParams) ?? {};
+  const { link, business } = await load(id);
+  const lang = business?.site.lang ?? "es";
+  const t = TEXT[lang];
+  const available = Boolean(link && business && link.active && business.payStatus === "ready");
+  const accent = accentOf(business?.accentColor || "");
+  const logo = business?.site.logoUrl || "";
+
+  return (
+    <div className="pay" lang={lang} style={{ ["--accent" as string]: accent } as React.CSSProperties}>
+      <main className="pay-card">
+        {business && (
+          <div className="pay-biz">
+            {logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logo} alt="" className="pay-logo" />
+            ) : (
+              <span className="pay-initial">{business.name.trim().charAt(0).toUpperCase()}</span>
+            )}
+            <span className="pay-biz-name">{business.name}</span>
+          </div>
+        )}
+
+        {sp.paid === "1" && link && business ? (
+          <div className="pay-done">
+            <div className="pay-check">✓</div>
+            <h1>{t.paidTitle}</h1>
+            <p>{t.paidText(business.name)}</p>
+            <div className="pay-amount small">
+              {link.title} · {money(link.amountCents)}
+            </div>
+          </div>
+        ) : available && link ? (
+          <>
+            <h1 className="pay-title">{link.title}</h1>
+            {link.description && <p className="pay-desc">{link.description}</p>}
+            <div className="pay-amount">{money(link.amountCents)}</div>
+            {sp.error && <p className="pay-error">{sp.error === "rate" ? t.rate : t.error}</p>}
+            <form action={payAction}>
+              <input type="hidden" name="id" value={link.id} />
+              <button type="submit" className="pay-btn">
+                {t.pay(money(link.amountCents))}
+              </button>
+            </form>
+            <p className="pay-secure">🔒 {t.secure}</p>
+          </>
+        ) : (
+          <div className="pay-done">
+            <h1>{t.offTitle}</h1>
+            <p>{t.offText}</p>
+          </div>
+        )}
+      </main>
+      <footer className="pay-foot">
+        {t.by}{" "}
+        <a href={lang === "en" ? "/en" : "/"} target="_blank" rel="noreferrer">
+          Sevrii
+        </a>
+      </footer>
+    </div>
+  );
+}

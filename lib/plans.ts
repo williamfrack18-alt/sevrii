@@ -1,7 +1,8 @@
 // Sevrii plans. Pure data, shared by server and UI.
 // Free → Starter ($29) → Pro ($79) → Team ($149). Each plan includes the one
-// below it. Pro and Team depend on features still being built (the Marketing
-// agent that launches ads, Payments), so they can't be bought yet: people can
+// below it. Payments (charging clients) is in every plan, paid per payment.
+// Pro and Team depend on features still being built (the Marketing agent that
+// launches ads), so they can't be bought yet: people can
 // join their waitlist instead. We never sell what doesn't exist.
 
 export type PlanId = "free" | "starter" | "pro" | "team";
@@ -33,14 +34,14 @@ export const PLANS: Record<PlanId, PlanDef> = {
     monthly: 0,
     yearlyPerMonth: null,
     available: true,
-    limits: { projects: 1, canPublish: false, marketing: false, autoMarketing: false, payments: false, aiPerDay: 15, aiPerMonth: 150, researchPerMonth: 2, aiBudgetUsd: 2 },
+    limits: { projects: 1, canPublish: false, marketing: false, autoMarketing: false, payments: true, aiPerDay: 15, aiPerMonth: 150, researchPerMonth: 2, aiBudgetUsd: 2 },
   },
   starter: {
     id: "starter",
     monthly: 29,
     yearlyPerMonth: 24,
     available: true,
-    limits: { projects: 1, canPublish: true, marketing: true, autoMarketing: false, payments: false, aiPerDay: 60, aiPerMonth: 800, researchPerMonth: 10, aiBudgetUsd: 12 },
+    limits: { projects: 1, canPublish: true, marketing: true, autoMarketing: false, payments: true, aiPerDay: 60, aiPerMonth: 800, researchPerMonth: 10, aiBudgetUsd: 12 },
   },
   pro: {
     id: "pro",

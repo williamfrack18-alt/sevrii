@@ -1,0 +1,151 @@
+.pay {
+  min-height: 100dvh;
+  background: #f4f4f1;
+  color: #111;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px 24px;
+  -webkit-font-smoothing: antialiased;
+}
+.pay-card {
+  width: 100%;
+  max-width: 440px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 32px 28px 28px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 40px rgba(0, 0, 0, 0.07);
+}
+.pay-biz {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.pay-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+.pay-initial {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 18px;
+}
+.pay-biz-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+.pay-title {
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+.pay-desc {
+  color: #5b5f57;
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0 0 4px;
+}
+.pay-amount {
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 22px 0 24px;
+}
+.pay-amount.small {
+  font-size: 16px;
+  font-weight: 500;
+  color: #5b5f57;
+  margin: 16px 0 0;
+}
+.pay-btn {
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.pay-btn:hover {
+  filter: brightness(1.08);
+}
+.pay-secure {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: #7a7d74;
+  line-height: 1.5;
+}
+.pay-error {
+  background: #fdecec;
+  color: #a12222;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  margin: 0 0 16px;
+}
+.pay-done {
+  text-align: center;
+  padding: 8px 0;
+}
+.pay-done h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.pay-done p {
+  color: #5b5f57;
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+}
+.pay-check {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 26px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+}
+.pay-foot {
+  margin-top: 20px;
+  font-size: 12.5px;
+  color: #8a8d84;
+}
+.pay-foot a {
+  color: #5b5f57;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (max-width: 480px) {
+  .pay {
+    justify-content: flex-start;
+    padding-top: 24px;
+  }
+  .pay-card {
+    padding: 26px 20px 22px;
+    border-radius: 20px;
+  }
+  .pay-amount {
+    font-size: 38px;
+  }
+}

@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { parseSite, type SiteData } from "./site";
 import { parseMarketing, parseCampaignSpec, type MarketingData, type CampaignSpec } from "./marketing";
 import { parsePlan, type BusinessPlan } from "./plan";
@@ -217,6 +217,22 @@ function ensureSchema(): Promise<void> {
           PRIMARY KEY ("userId", plan)
         )
       `;
+      // Payments: each project (business) can connect its own Stripe account
+      // to charge its clients. Status: none | pending | review | ready.
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "stripeAccountId" TEXT`;
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "payStatus" TEXT NOT NULL DEFAULT 'none'`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS payment_links (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL REFERENCES businesses(id),
+          title TEXT NOT NULL,
+          "amountCents" INTEGER NOT NULL,
+          description TEXT,
+          active BOOLEAN NOT NULL DEFAULT true,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS payment_links_business_idx ON payment_links ("businessId", "createdAt")`;
     })().catch((err) => {
       // Don't cache a failed setup forever — let the next request retry.
       schemaReady = null;
@@ -350,6 +366,8 @@ export type BusinessRow = {
   marketing: MarketingData;
   plan: BusinessPlan;
   marketCategory: string | null;
+  stripeAccountId?: string | null;
+  payStatus?: string;
   createdAt: string;
 };
 
@@ -964,4 +982,87 @@ export async function listUserWaitlists(userId: string): Promise<string[]> {
   await ensureSchema();
   const rows = (await sql`SELECT plan FROM plan_waitlist WHERE "userId" = ${userId}`) as { plan: string }[];
   return rows.map((r) => r.plan);
+}
+
+// ---------- Payments (Stripe Connect) ----------
+export type PayStatus = "none" | "pending" | "review" | "ready";
+
+export async function setBusinessStripeAccount(businessId: string, accountId: string): Promise<string> {
+  await ensureSchema();
+  // Only the first account sticks, so two clicks at once can't leave two accounts.
+  await sql`UPDATE businesses SET "stripeAccountId" = ${accountId}, "payStatus" = 'pending' WHERE id = ${businessId} AND "stripeAccountId" IS NULL`;
+  const rows = (await sql`SELECT "stripeAccountId" FROM businesses WHERE id = ${businessId}`) as { stripeAccountId: string | null }[];
+  return rows[0]?.stripeAccountId || accountId;
+}
+
+export async function setBusinessPayStatus(businessId: string, status: PayStatus): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET "payStatus" = ${status} WHERE id = ${businessId}`;
+}
+
+export type PaymentLinkRow = {
+  id: string;
+  businessId: string;
+  title: string;
+  amountCents: number;
+  description: string | null;
+  active: boolean;
+  createdAt: string;
+};
+
+function toLink(r: Record<string, unknown>): PaymentLinkRow {
+  return {
+    id: String(r.id),
+    businessId: String(r.businessId),
+    title: String(r.title),
+    amountCents: Number(r.amountCents),
+    description: (r.description as string | null) ?? null,
+    active: Boolean(r.active),
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+  };
+}
+
+// Short, unguessable IDs for public pay links (sevrii.com/pay/xxxx).
+function linkId(): string {
+  const abc = "abcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = randomBytes(10);
+  let out = "";
+  for (const b of bytes) out += abc[b % abc.length];
+  return out;
+}
+
+export async function createPaymentLink(businessId: string, title: string, amountCents: number, description: string | null): Promise<PaymentLinkRow> {
+  await ensureSchema();
+  const id = linkId();
+  const rows = (await sql`
+    INSERT INTO payment_links (id, "businessId", title, "amountCents", description)
+    VALUES (${id}, ${businessId}, ${title}, ${amountCents}, ${description})
+    RETURNING *
+  `) as Record<string, unknown>[];
+  return toLink(rows[0]);
+}
+
+export async function listPaymentLinks(businessId: string): Promise<PaymentLinkRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM payment_links WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT 100
+  `) as Record<string, unknown>[];
+  return rows.map(toLink);
+}
+
+export async function countPaymentLinks(businessId: string): Promise<number> {
+  await ensureSchema();
+  const rows = (await sql`SELECT COUNT(*)::int AS n FROM payment_links WHERE "businessId" = ${businessId}`) as { n: number }[];
+  return Number(rows[0]?.n ?? 0);
+}
+
+export async function getPaymentLink(id: string): Promise<PaymentLinkRow | undefined> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM payment_links WHERE id = ${id}`) as Record<string, unknown>[];
+  return rows[0] ? toLink(rows[0]) : undefined;
+}
+
+export async function setPaymentLinkActive(id: string, businessId: string, active: boolean): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE payment_links SET active = ${active} WHERE id = ${id} AND "businessId" = ${businessId}`;
 }

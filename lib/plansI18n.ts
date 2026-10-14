@@ -36,13 +36,13 @@ const es = {
   plans: {
     free: { name: "Gratis", tagline: "Para probar", summary: "Conoce tu estrategia y ve tu página lista, sin pagar." },
     starter: { name: "Starter", tagline: "Para empezar a vender", summary: "Sevrii te prepara todo: publicas tu página y lanzas tus campañas con la guía." },
-    pro: { name: "Pro", tagline: "Para crecer", summary: "Sevrii lo hace por ti: el agente lanza y cuida tus anuncios, y cobras con Stripe." },
+    pro: { name: "Pro", tagline: "Para crecer", summary: "Sevrii lo hace por ti: el agente lanza y cuida tus anuncios." },
     team: { name: "Equipo", tagline: "Para negocios con equipo", summary: "Varios servicios y varias personas trabajando en Sevrii." },
   } as Record<PlanId, { name: string; tagline: string; summary: string }>,
   highlights: {
-    free: ["Cerebro completo: entrevista, investigación de tu zona y propuesta", "Tu página de venta armada, en borrador", "1 proyecto"],
+    free: ["Cerebro completo: entrevista, investigación de tu zona y propuesta", "Tu página de venta armada, en borrador", "Cobra a tus clientes con links de pago (Payments)", "1 proyecto"],
     starter: ["Todo lo de Gratis", "Tu página publicada en sevrii.com", "Estrategia y campañas listas, con guía para lanzarlas tú", "Conteo de visitas, llamadas y mensajes", "1 proyecto"],
-    pro: ["Todo lo de Starter", "El agente publica tus campañas en Meta y Google, con tu aprobación", "Revisión semanal y resumen de resultados", "Cobra a tus clientes con Stripe (Payments)", "Hasta 3 proyectos"],
+    pro: ["Todo lo de Starter", "El agente publica tus campañas en Meta y Google, con tu aprobación", "Revisión semanal y resumen de resultados", "Hasta 3 proyectos"],
     team: ["Todo lo de Pro", "Hasta 10 proyectos", "Varios usuarios", "Reportes de todos tus proyectos", "Soporte prioritario"],
   } as Record<PlanId, string[]>,
   compareTitle: "Compara los planes",
@@ -72,7 +72,10 @@ const es = {
     },
     {
       title: "Payments",
-      rows: [{ label: "Cobrar a tus clientes con Stripe", values: { free: false, starter: false, pro: true, team: true } }],
+      rows: [
+        { label: "Cobrar a tus clientes con links de pago", values: { free: true, starter: true, pro: true, team: true } },
+        { label: "Comisión por pago (incluye Stripe)", values: { free: "5%", starter: "5%", pro: "5%", team: "5%" } },
+      ],
     },
     {
       title: "Cuenta",
@@ -92,7 +95,7 @@ const es = {
     marketingTitle: "Marketing está en el plan Starter",
     marketingSub: "Con Starter, el cerebro de marketing arma tu estrategia y te deja las campañas listas con guía para lanzarlas. Con Pro (próximamente), el agente las publica y las cuida por ti.",
     autoPro: "Publicar automático: plan Pro (próximamente)",
-    paymentsPro: "Payments viene incluido en el plan Pro (próximamente).",
+    paymentsPro: "Payments viene incluido en todos los planes: 5% por pago, todo incluido.",
     projectsLocked: (n: number) => `Tu plan permite ${n === 1 ? "1 proyecto" : `${n} proyectos`}`,
     projectsLockedSub: "Para vender otro servicio, mejora tu plan.",
   },
@@ -130,13 +133,13 @@ const en: typeof es = {
   plans: {
     free: { name: "Free", tagline: "To try it", summary: "Get your strategy and see your page ready, without paying." },
     starter: { name: "Starter", tagline: "To start selling", summary: "Sevrii prepares everything: you publish your page and launch your campaigns with the guide." },
-    pro: { name: "Pro", tagline: "To grow", summary: "Sevrii does it for you: the agent launches and manages your ads, and you charge with Stripe." },
+    pro: { name: "Pro", tagline: "To grow", summary: "Sevrii does it for you: the agent launches and manages your ads." },
     team: { name: "Team", tagline: "For businesses with a team", summary: "Several services and several people working in Sevrii." },
   },
   highlights: {
-    free: ["Full Brain: interview, local research and proposal", "Your sales page built, as a draft", "1 project"],
+    free: ["Full Brain: interview, local research and proposal", "Your sales page built, as a draft", "Charge your clients with payment links (Payments)", "1 project"],
     starter: ["Everything in Free", "Your page published on sevrii.com", "Strategy and ready campaigns, with a guide to launch them", "Visits, calls and messages count", "1 project"],
-    pro: ["Everything in Starter", "The agent publishes your campaigns on Meta and Google, with your approval", "Weekly review and results summary", "Charge your customers with Stripe (Payments)", "Up to 3 projects"],
+    pro: ["Everything in Starter", "The agent publishes your campaigns on Meta and Google, with your approval", "Weekly review and results summary", "Up to 3 projects"],
     team: ["Everything in Pro", "Up to 10 projects", "Multiple users", "Reports across projects", "Priority support"],
   },
   compareTitle: "Compare plans",
@@ -166,7 +169,10 @@ const en: typeof es = {
     },
     {
       title: "Payments",
-      rows: [{ label: "Charge your customers with Stripe", values: { free: false, starter: false, pro: true, team: true } }],
+      rows: [
+        { label: "Charge your clients with payment links", values: { free: true, starter: true, pro: true, team: true } },
+        { label: "Fee per payment (Stripe included)", values: { free: "5%", starter: "5%", pro: "5%", team: "5%" } },
+      ],
     },
     {
       title: "Account",
@@ -186,7 +192,7 @@ const en: typeof es = {
     marketingTitle: "Marketing is in the Starter plan",
     marketingSub: "With Starter, the marketing brain builds your strategy and leaves your campaigns ready with a guide to launch them. With Pro (coming soon), the agent publishes and manages them for you.",
     autoPro: "Auto-publish: Pro plan (coming soon)",
-    paymentsPro: "Payments is included in the Pro plan (coming soon).",
+    paymentsPro: "Payments is included in every plan: 5% per payment, all included.",
     projectsLocked: (n: number) => `Your plan allows ${n === 1 ? "1 project" : `${n} projects`}`,
     projectsLockedSub: "To sell another service, upgrade your plan.",
   },

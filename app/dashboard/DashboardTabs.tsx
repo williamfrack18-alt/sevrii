@@ -10,6 +10,7 @@ import PlansView from "./PlansView";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { PLANS, type ClientPlan } from "@/lib/plans";
 import ComingSoonView from "./ComingSoonView";
+import PaymentsView from "./PaymentsView";
 import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
 import { useT, useLang } from "@/components/LangProvider";
@@ -146,7 +147,7 @@ export default function DashboardTabs({
     { id: "plan", label: pt.nav.plan, n: "01" },
     { id: "store", label: t.dashboard.store, n: "02" },
     { id: "marketing", label: t.dashboard.marketing, n: "03" },
-    { id: "payments", label: "Payments", n: "04", soon: true },
+    { id: "payments", label: "Payments", n: "04" },
     { id: "capital", label: "Capital", n: "05", soon: true },
   ];
 
@@ -383,9 +384,8 @@ export default function DashboardTabs({
             }}
           />
         )}
-        {(view === "payments" || view === "capital") && (
-          <ComingSoonView pillar={view} onBack={() => setView("projects")} onPlans={() => setView("plans")} />
-        )}
+        {view === "payments" && <PaymentsView business={currentBusiness} services={currentServices} />}
+        {view === "capital" && <ComingSoonView pillar="capital" onBack={() => setView("projects")} onPlans={() => setView("plans")} />}
 
         {/* Log out on mobile (the rail with it is hidden there) */}
         <div className="md:hidden px-5 py-6 border-t border-border flex items-center justify-between gap-3">
