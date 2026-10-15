@@ -215,7 +215,6 @@ export function missingForSales(opts: {
   if (s.gallery.length === 0 && !s.coverUrl) m.push("photos");
   if (s.keyPoints.length === 0) m.push("keyPoints");
   if (!s.offer) m.push("offer (ask; it's fine to have none)");
-  if (isLicensedTrade(opts.category) && !s.licenseNumber && !s.noLicenseNeeded) m.push("license");
   if (!s.serviceArea) m.push("serviceArea");
   if (!s.hours) m.push("hours");
   if (s.steps.length === 0) m.push("steps (how they work)");
@@ -275,17 +274,8 @@ export function readableTextOn(hex: string): string {
   return 1.05 / (L + 0.05) >= 4.5 ? "#ffffff" : "#111111";
 }
 
-// ---------- Licensed trades ----------
-// Trades that usually need a state license in the US. In California the
-// license number must appear in all advertising for licensed work.
-const LICENSED = /(hvac|air.?cond|heating|electric|plumb|roof|contractor|construct|remodel|handyman|pest|aire acond|calefacci|electricist|plomer|techad|contratist|construcci|remodela|fumiga)/i;
-
-export function isLicensedTrade(category: string): boolean {
-  return LICENSED.test(category || "");
-}
-
 // What still blocks publishing. Empty array = ready.
-export type PublishGap = "contact" | "services" | "license";
+export type PublishGap = "contact" | "services";
 
 export function publishGaps(opts: {
   category: string;
@@ -296,7 +286,6 @@ export function publishGaps(opts: {
   const gaps: PublishGap[] = [];
   if (!opts.site.phone && !normalizePhone(opts.whatsapp)) gaps.push("contact");
   if (opts.serviceCount === 0) gaps.push("services");
-  if (isLicensedTrade(opts.category) && !opts.site.licenseNumber && !opts.site.noLicenseNeeded) gaps.push("license");
   return gaps;
 }
 

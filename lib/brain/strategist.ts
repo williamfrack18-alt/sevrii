@@ -20,7 +20,7 @@ Ideas (persona B), puntaje de 1 a 5 en cada punto:
 - Encaje con su experiencia y herramientas.
 - Demanda con evidencia en su ciudad.
 - Inversión inicial dentro de su dinero disponible.
-- Licencia: si exige una que no tiene, la idea sale o se marca "primero la licencia".
+- Requisitos para arrancar: menos trámites y permisos, más puntos.
 - Rapidez para conseguir el primer cliente.
 Muestra las 3 mejores con pros y contras, sin prometer ingresos.
 
@@ -66,7 +66,7 @@ const IDEAS_SCHEMA = obj({
       fit: { type: "integer" },
       demand: { type: "integer" },
       cost: { type: "integer" },
-      license: { type: "integer" },
+      requirements: { type: "integer", description: "Fewer permits/paperwork to start = higher" },
       speed: { type: "integer" },
       pros: S("Pros, one line"),
       cons: S("Cons, one line"),
@@ -158,7 +158,7 @@ export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: La
     const o = (x ?? {}) as Record<string, number | string>;
     const base = researched[Number(o.index)];
     if (!base || picked.some((p) => p.title === base.title)) continue;
-    const pts = ["fit", "demand", "cost", "license", "speed"].reduce((a, k) => a + Math.max(0, Math.min(5, Number(o[k]) || 0)), 0);
+    const pts = ["fit", "demand", "cost", "requirements", "speed"].reduce((a, k) => a + Math.max(0, Math.min(5, Number(o[k]) || 0)), 0);
     picked.push({ ...base, pros: str(o.pros, 240), cons: str(o.cons, 240), score: pts });
     if (picked.length === 3) break;
   }

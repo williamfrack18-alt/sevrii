@@ -1,6 +1,6 @@
 // Writes an approved Brain expediente into the store page (see planToStore.ts).
 import { addChatMessage, addService, deleteService, getBusinessById, listServices, updateBusinessDetails, updateBusinessSite, type BusinessRow } from "./db";
-import { isLicensedTrade, normalizePhone, type SiteData } from "./site";
+import { normalizePhone, type SiteData } from "./site";
 import { planFingerprint, planReadyForStore, storeFromPlan } from "./planToStore";
 
 type Lang = "es" | "en";
@@ -65,7 +65,6 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   if (!s.phone && !normalizePhone(b.whatsapp)) missing.push(es ? "tu WhatsApp o teléfono" : "your WhatsApp or phone number");
   if (s.gallery.length === 0 && !s.coverUrl) missing.push(es ? "fotos de tus trabajos" : "photos of your work");
   if (!s.hours) missing.push(es ? "tu horario" : "your hours");
-  if (isLicensedTrade(b.category) && !s.licenseNumber && !s.noLicenseNeeded) missing.push(es ? "tu número de licencia" : "your license number");
   const built = es
     ? `¡Listo! Armé tu página con tu expediente: título, puntos clave, cómo trabajas, preguntas frecuentes${packages ? ` y tus ${packages} paquetes con precio` : ""}. Mírala aquí abajo.`
     : `Done! I built your page from your expediente: headline, key points, how you work, FAQ${packages ? ` and your ${packages} priced packages` : ""}. See it below.`;

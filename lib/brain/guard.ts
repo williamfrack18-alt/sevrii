@@ -13,8 +13,7 @@ Marca como "block":
 - Afirmaciones sin respaldo en el expediente: licencia, seguro, años, garantías, "el mejor", cifras de clientes o reseñas.
 - Promesas de ingresos, resultados o tiempos que nadie puede asegurar.
 - Urgencia falsa u ofertas sin fecha real.
-- Un oficio que pide licencia en ese estado cuando el dueño no la tiene.
-- Servicios de alto riesgo sin licencia: reparación de crédito, asesoría legal o migratoria ("notario"), préstamos, servicios médicos.
+- Servicios de alto riesgo: reparación de crédito, asesoría legal o migratoria ("notario"), préstamos, servicios médicos.
 
 Marca como "warn":
 - Categorías especiales de anuncios de Meta: crédito, empleo, vivienda, productos financieros.

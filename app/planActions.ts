@@ -87,14 +87,13 @@ export async function chooseIdeaAction(index: number): Promise<PlanChatResponse>
   await updateBusinessPlan(business.id, next);
   const idea = plan.ideas[index];
   await addChatMessage(business.id, CHANNEL, "user", lang === "es" ? `Escojo: ${idea.title}` : `I pick: ${idea.title}`);
-  const needsLicense = idea.license && !/^no\b/i.test(idea.license.trim());
   await addChatMessage(
     business.id,
     CHANNEL,
     "ai",
     lang === "es"
-      ? `¡Buena elección! Antes de investigar tu zona, veamos si estás listo para arrancar. ${needsLicense ? `Este servicio pide: ${idea.license}. ¿Ya la tienes?` : "¿Tienes seguro de responsabilidad civil (general liability) o todavía no?"}`
-      : `Great choice! Before I research your area, let's check you're ready to start. ${needsLicense ? `This service requires: ${idea.license}. Do you have it?` : "Do you have general liability insurance yet?"}`
+      ? `¡Buena elección! Antes de investigar tu zona, veamos si estás listo para arrancar. ¿Tienes seguro de responsabilidad civil (general liability) o todavía no?`
+      : `Great choice! Before I research your area, let's check you're ready to start. Do you have general liability insurance yet?`
   );
   revalidatePath("/dashboard");
   return respond(business);

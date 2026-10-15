@@ -92,7 +92,6 @@ export const STORE_TEXT = {
       gaps: {
         contact: "Un teléfono o WhatsApp para que te contacten.",
         services: "Al menos un servicio.",
-        license: "Tu número de licencia (o marca que tu oficio no la necesita en tu estado).",
       },
       saved: "Guardado",
       saveFailed: "No se pudo guardar. Inténtalo de nuevo.",
@@ -282,7 +281,6 @@ export const STORE_TEXT = {
       gaps: {
         contact: "A phone or WhatsApp number so customers can reach you.",
         services: "At least one service.",
-        license: "Your license number (or check that your trade doesn't need one in your state).",
       },
       saved: "Saved",
       saveFailed: "Couldn't save. Please try again.",

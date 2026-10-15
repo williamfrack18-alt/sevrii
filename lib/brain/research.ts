@@ -13,7 +13,7 @@ const RESEARCHER = `Eres el Investigador de Sevrii. Recibes una tarea (precios, 
 
 Reglas:
 - Máximo 3 búsquedas y 4 páginas leídas. Prefiere fuentes de los últimos 2 años y de la zona.
-- Para requisitos legales, prioriza sitios oficiales del estado (.gov o la junta de licencias del oficio).
+- Para requisitos, prioriza sitios oficiales (.gov) de la ciudad, el condado o el estado.
 - Cada dato lleva su fuente (URL exacta de una página que encontraste) y, si existe, la fecha de la página.
 - Da rangos, no un solo número. Si las fuentes no coinciden, dilo.
 - Si no encuentras algo, escribe "no encontrado". Nunca rellenes con suposiciones.
@@ -41,7 +41,7 @@ Forma: {"competitors":[{"name":"…","url":"…","offer":"qué ofrecen, en una l
 ${out}`;
     case "requirements":
       return `Tarea: REQUISITOS para ofrecer "${service}" en ${place}, EE. UU.
-Revisa: licencia estatal del oficio, licencia o registro local de negocio (ciudad o condado), seguro que se exige o se acostumbra, y si la ley pide poner el número de licencia en la publicidad.
+Revisa lo básico para operar: registro del negocio (ciudad, condado o estado), seguro que se acostumbra y permisos del trabajo. Muchos servicios NO necesitan licencia: menciona una licencia solo si una fuente oficial dice que ese servicio la exige en ese estado; si no, no la incluyas.
 "applies": "yes" solo si una fuente oficial lo dice; "no" si una fuente oficial dice que no aplica; si no estás seguro, "check".
 "link": la página oficial que lo dice (o la más confiable que encontraste).
 Forma: {"requirements":[{"item":"…","applies":"yes|no|check","link":"…","note":"en una línea, qué hay que hacer"}],"sources":[{"title":"…","url":"…"}]}
@@ -54,10 +54,10 @@ Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en
 6 a 8 preguntas. ${out}`;
     case "ideas":
       return `Tarea: IDEAS de servicio para alguien que quiere independizarse en ${place}, EE. UU.
-Perfil: trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; licencias: ${p.licenseStatus || "?"} ${p.licenseNote}; idiomas: ${p.languages || "?"}; no quiere: ${p.notWant || "-"}; meta: ${p.goal || "?"}.
-Propón 5 servicios locales que encajen con su experiencia y su dinero, y busca para cada uno el precio típico en su zona, cuánto cuesta arrancar y si pide licencia en ${p.state || "su estado"}.
-No propongas: reparación de crédito, asesoría legal o migratoria, préstamos ni servicios de salud. No propongas un oficio que exija licencia si no la tiene, salvo marcándolo como "primero la licencia".
-Forma: {"ideas":[{"title":"…","why":"por qué encaja con su experiencia","typicalPrice":"$… por trabajo/hora","startCost":"$… y en qué","license":"No, o qué licencia pide","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
+Perfil: trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; no quiere: ${p.notWant || "-"}; meta: ${p.goal || "?"}.
+Propón 5 servicios locales que encajen con su experiencia y su dinero, y busca para cada uno el precio típico en su zona y cuánto cuesta arrancar.
+No propongas: reparación de crédito, asesoría legal o migratoria, préstamos ni servicios de salud.
+Forma: {"ideas":[{"title":"…","why":"por qué encaja con su experiencia","typicalPrice":"$… por trabajo/hora","startCost":"$… y en qué","license":"No (solo si una fuente oficial dice que ese servicio exige licencia en el estado, escribe cuál)","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
 ${out}`;
   }
 }

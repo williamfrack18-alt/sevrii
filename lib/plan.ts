@@ -406,7 +406,6 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.differentiators, "differentiators (what makes them different)");
     need(!p.howGetsClients, "howGetsClients (how they get customers today)");
     need(!p.languages, "languages (es, en or both)");
-    need(!p.licenseStatus, "licenseStatus (has / no / not_needed)");
     need(!p.insured, "insured (yes / no)");
     need(!p.businessName, "businessName");
   } else if (plan.stage === "interview") {
@@ -417,14 +416,10 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.hasVehicle, "hasVehicle (yes / no)");
     need(p.hoursPerWeek === null, "hoursPerWeek");
     need(p.startBudgetUsd === null, "startBudgetUsd (money available to start)");
-    need(!p.licenseStatus, "licenseStatus (any license or certification: has / no)");
     need(!p.languages, "languages (es, en or both)");
     need(!p.notWant, "notWant (work they don't want to do)");
     need(!p.goal, "goal (extra income or full time)");
   } else if (plan.stage === "ready_check") {
-    const idea = plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : undefined;
-    const needsLicense = idea ? !/^no\b/i.test(idea.license.trim()) && idea.license.trim() !== "" : false;
-    need(needsLicense && p.licenseStatus !== "has", "licenseStatus for the chosen idea (has / no)");
     need(!p.insured, "insured (yes / no)");
     need(!p.toolsReady, "toolsReady (has the tools for the chosen idea: yes / no)");
     need(!p.costs, "costs (materials and hours per job, an estimate is fine)");
@@ -479,8 +474,6 @@ export function codeChecks(p: BusinessPlan, today: string, final = true): { bloc
   for (const t of texts) if (t && BANNED_CLAIMS.test(t)) block.push(`claim: "${t.slice(0, 80)}" uses a claim that needs proof`);
   if (final && p.offer && !p.offer.endsAt) block.push("offer: the offer needs a real end date");
   if (final && p.offer && p.offer.endsAt && p.offer.endsAt < today) block.push("offer: the end date already passed");
-  const licenseNeeded = p.market.requirements.some((r) => r.applies === "yes" && /licen/i.test(r.item));
-  if (licenseNeeded && p.profile.licenseStatus === "no") block.push("license: this trade needs a state license the owner doesn't have");
   if (/\b(credit repair|reparaci[oó]n de cr[eé]dito|notari|immigration|inmigraci[oó]n|migratori|loan|pr[eé]stamo)/i.test(`${p.service} ${p.profile.mainService}`))
     block.push("restricted: this kind of service needs a manual review by Sevrii before publishing");
   return { block, warn };

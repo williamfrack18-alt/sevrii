@@ -220,7 +220,7 @@ export default function PlanView({
                       rows={[
                         [t.typicalPrice, idea.typicalPrice],
                         [t.startCost, idea.startCost],
-                        [t.license, idea.license],
+                        [t.license, idea.license && !/^no\b/i.test(idea.license.trim()) ? idea.license : ""],
                         [t.demand, idea.demand],
                       ]}
                     />
