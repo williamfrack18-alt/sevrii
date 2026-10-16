@@ -17,6 +17,10 @@ export type ChatTexts = {
 };
 
 const PHOTO = /^📷\s+(https:\/\/\S+)$/;
+// An assistant message can carry interactive boxes: "[[card:media]]".
+const CARD = /\[\[card:([a-z]+)\]\]/g;
+
+export type ChatTool = { key: string; label: string };
 const GREEN = ACCENT;
 
 // Clean, ChatGPT-style chat in Sevrii's colors: black canvas, assistant text
@@ -32,7 +36,13 @@ export default function ChatPanel({
   locked,
   sync,
   prefill,
+  tools,
+  renderCard,
 }: {
+  // Buttons above the composer that open a box inside the chat (photos, area…).
+  tools?: ChatTool[];
+  // Draws an interactive box (from a tool button or a "[[card:x]]" in a reply).
+  renderCard?: (key: string) => React.ReactNode;
   greeting: string;
   initialMessages: Msg[];
   texts: ChatTexts;
@@ -50,6 +60,7 @@ export default function ChatPanel({
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
+  const [openTool, setOpenTool] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const empty = messages.length === 0;
@@ -115,6 +126,10 @@ export default function ChatPanel({
   }
 
   const canSend = !pending && input.trim().length > 0;
+  const lastCard: Record<string, number> = {};
+  messages.forEach((m, i) => {
+    if (m.role !== "user") for (const x of m.content.matchAll(CARD)) lastCard[x[1]] = i;
+  });
 
   const composer = locked ? (
     <div className="w-full">
@@ -129,6 +144,34 @@ export default function ChatPanel({
   ) : (
     <div className="w-full">
       {error && <p className="text-[13px] text-[#ff6b6b] mb-2 px-4">{error}</p>}
+      {openTool && renderCard && (
+        <div className="relative mb-2 max-h-[52vh] overflow-y-auto rounded-2xl">
+          <button
+            type="button"
+            onClick={() => setOpenTool(null)}
+            aria-label="close"
+            className="absolute top-3 right-3 z-10 h-7 w-7 rounded-full text-[#d4d4d4] hover:bg-white/10 text-[18px] leading-none"
+          >
+            ×
+          </button>
+          {renderCard(openTool)}
+        </div>
+      )}
+      {tools && tools.length > 0 && renderCard && (
+        <div className="flex flex-wrap gap-2 mb-2 px-1">
+          {tools.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setOpenTool((o) => (o === t.key ? null : t.key))}
+              className="h-8 px-3.5 rounded-full text-[13px] font-medium transition"
+              style={openTool === t.key ? { background: "rgba(46,122,85,.25)", color: "#fff", boxShadow: `0 0 0 1px ${ACCENT}` } : { background: "#1a1a1a", color: "#d4d4d4", boxShadow: "0 0 0 1px rgba(255,255,255,.08)" }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
       <form
         className="flex items-end gap-1.5 rounded-[28px] px-2.5 py-2.5"
         style={{ background: "#1f1f1f", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}
@@ -218,7 +261,7 @@ export default function ChatPanel({
     <div className="flex-1 min-h-0 flex flex-col">
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-6 pb-8 flex flex-col gap-7">
-          {messages.map((m) => {
+          {messages.map((m, idx) => {
             const photo = PHOTO.exec(m.content);
             if (m.role === "user") {
               return (
@@ -234,9 +277,31 @@ export default function ChatPanel({
                 </div>
               );
             }
+            const cards = renderCard ? [...m.content.matchAll(CARD)].map((x) => x[1]) : [];
+            const text = m.content.replace(CARD, "").trim();
             return (
-              <div key={m.id} className="text-[16px] leading-[1.75] whitespace-pre-line" style={{ color: "#ececec" }}>
-                {m.content}
+              <div key={m.id} className="flex flex-col gap-3">
+                {text && (
+                  <div className="text-[16px] leading-[1.75] whitespace-pre-line" style={{ color: "#ececec" }}>
+                    {text}
+                  </div>
+                )}
+                {cards.map((c, i) =>
+                  // Only the latest mention shows the full box; older ones become a button.
+                  lastCard[c] === idx ? (
+                    <div key={`${c}-${i}`}>{renderCard!(c)}</div>
+                  ) : (
+                    <button
+                      key={`${c}-${i}`}
+                      type="button"
+                      onClick={() => setOpenTool(c)}
+                      className="self-start h-8 px-3.5 rounded-full text-[13px] font-medium"
+                      style={{ background: "#1a1a1a", color: "#d4d4d4", boxShadow: "0 0 0 1px rgba(255,255,255,.08)" }}
+                    >
+                      {tools?.find((t) => t.key === c)?.label ?? c}
+                    </button>
+                  )
+                )}
               </div>
             );
           })}

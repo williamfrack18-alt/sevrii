@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import StoreChat from "./StoreChat";
-import StoreMedia from "./StoreMedia";
-import StoreReach from "./StoreReach";
 import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
@@ -94,7 +92,7 @@ export default function StoreView({
   return (
     <div style={{ background: "#000" }}>
       {/* Chat: fills the screen, composer pinned at the bottom */}
-      <section className="h-[calc(100dvh-118px)] md:h-screen flex flex-col">
+      <section className="h-[calc(100dvh-118px-52px)] md:h-[calc(100vh-52px)] flex flex-col">
         <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between">
           <span className="text-[17px] font-semibold text-white">
             Sevrii <span className="text-[#8e8e8e] font-normal">· Store</span>
@@ -211,6 +209,11 @@ export default function StoreView({
           </div>
         )}
         <StoreChat
+          business={business}
+          onBusiness={(b) => {
+            onUpdated(b, services);
+            setPreviewKey((k) => k + 1);
+          }}
           sync={sync}
           greeting={greeting}
           initialMessages={initialMessages}
@@ -222,23 +225,20 @@ export default function StoreView({
         />
       </section>
 
+      {/* Always visible under the chat: the page is being built right below. */}
+      <a
+        href="#store-page"
+        className="h-[52px] flex items-center justify-center gap-2 text-[14px] font-semibold text-white"
+        style={{ background: "linear-gradient(90deg, rgba(46,122,85,.35), rgba(46,122,85,.15), rgba(46,122,85,.35))", borderTop: "1px solid rgba(61,220,132,.35)" }}
+      >
+        <span className="animate-bounce">↓</span>
+        {lang === "es" ? "Tu página se está armando aquí abajo — desliza para verla en vivo" : "Your page is being built right below — scroll to see it live"}
+        <span className="animate-bounce">↓</span>
+      </a>
+
       {/* The page, below the chat */}
       <section id="store-page" className="px-3 md:px-8 pt-6 pb-10" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-[1180px] mx-auto">
-          <StoreReach
-            business={business}
-            onUpdated={(b) => {
-              onUpdated(b, services);
-              setPreviewKey((k) => k + 1);
-            }}
-          />
-          <StoreMedia
-            business={business}
-            onUpdated={(b) => {
-              onUpdated(b, services);
-              setPreviewKey((k) => k + 1);
-            }}
-          />
           <div className="flex items-center justify-between gap-3 mb-4">
             <h2 className="text-[15px] font-semibold text-white">{st.yourPage}</h2>
             <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] text-muted hover:text-ink">

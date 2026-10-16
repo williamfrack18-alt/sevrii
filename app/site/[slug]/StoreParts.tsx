@@ -234,7 +234,7 @@ export function BuyActions({
 
   return (
     <>
-      {services.length > 0 && (
+      {services.length > 1 && (
         <div className="selector">
           <div className="selector-label">{labels.chooseLabel}</div>
           <div className="chip-row">

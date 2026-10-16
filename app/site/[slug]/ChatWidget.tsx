@@ -8,8 +8,8 @@ const TEXT = {
     open: "Chatea con nosotros",
     teaser: "¿Tienes preguntas? Escríbenos 👋",
     title: (biz: string) => biz,
-    status: "Responde al instante",
-    hello: (biz: string) => `¡Hola! 👋 Soy el asistente de ${biz}. Pregúntame por precios, servicios o disponibilidad.`,
+    status: "En línea · asistente que responde al instante",
+    hello: (_biz: string) => `¡Hola! 👋 Gracias por escribirnos. ¿En qué te podemos ayudar?`,
     placeholder: "Escribe tu mensaje…",
     send: "Enviar",
     interest: (svc: string) => `Hola, me interesa: ${svc}`,
@@ -29,8 +29,8 @@ const TEXT = {
     open: "Chat with us",
     teaser: "Got questions? Message us 👋",
     title: (biz: string) => biz,
-    status: "Replies instantly",
-    hello: (biz: string) => `Hi! 👋 I'm ${biz}'s assistant. Ask me about prices, services or availability.`,
+    status: "Online · assistant that replies instantly",
+    hello: (_biz: string) => `Hi! 👋 Thanks for reaching out. How can we help you?`,
     placeholder: "Type your message…",
     send: "Send",
     interest: (svc: string) => `Hi, I'm interested in: ${svc}`,
@@ -220,8 +220,10 @@ export default function ChatWidget({
             </button>
           </div>
           <div className="cw-list" ref={listRef}>
-            <div className="cw-from">✨ {t.assistant(businessName)}</div>
-            <div className="cw-msg ai">{t.hello(businessName)}</div>
+            <div className="cw-row cw-hello">
+              <Avatar src={logoUrl} name={businessName} className="cw-mini" />
+              <div className="cw-msg ai">{t.hello(businessName)}</div>
+            </div>
             {msgs.map((m, i) => {
               const prev = msgs[i - 1];
               const firstOwner = m.role === "owner" && !msgs.slice(0, i).some((x) => x.role === "owner");
@@ -229,7 +231,7 @@ export default function ChatWidget({
               return (
                 <div key={`${m.seq}-${i}`} className="cw-row">
                   {firstOwner && <div className="cw-joined">👋 {t.joined(ownerLabel)}</div>}
-                  {showFrom && m.role === "ai" && <div className="cw-from">✨ {t.assistant(businessName)}</div>}
+
                   {showFrom && m.role === "owner" && (
                     <div className="cw-from owner">
                       <Avatar src={ownerPhoto} name={ownerLabel} className="cw-mini" />
@@ -280,7 +282,7 @@ export default function ChatWidget({
               </svg>
             </button>
           </form>
-          <div className="cw-note">{ownerHere ? `${t.talkingWith(ownerLabel)} · ${t.ownerOf(businessName)}` : t.note(businessName)}</div>
+          {ownerHere && <div className="cw-note">{`${t.talkingWith(ownerLabel)} · ${t.ownerOf(businessName)}`}</div>}
         </div>
       )}
       {!open && teaser && (

@@ -78,11 +78,16 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   if (!s.phone && !normalizePhone(b.whatsapp)) missing.push(es ? "tu teléfono para llamadas y textos (y WhatsApp si lo usas)" : "your phone for calls and texts (and WhatsApp if you use it)");
   if (s.gallery.length === 0 && !s.coverUrl) missing.push(es ? "fotos de tus trabajos" : "photos of your work");
   if (!s.hours) missing.push(es ? "tu horario" : "your hours");
-  if (!s.videoUrl) missing.push(es ? "un video corto tuyo (súbelo en «Fotos y video», aquí abajo)" : "a short video of you (upload it in “Photos and video” below)");
+  if (!s.videoUrl) missing.push(es ? "un video corto tuyo" : "a short video of you");
   const built = es
     ? `¡Listo! Armé tu página con tu expediente: título, puntos clave, cómo trabajas, preguntas frecuentes${packages ? ` y tus ${packages} paquetes con precio` : ""}. Mírala aquí abajo.`
     : `Done! I built your page from your expediente: headline, key points, how you work, FAQ${packages ? ` and your ${packages} priced packages` : ""}. See it below.`;
+  // Boxes the owner can use right here in the chat.
+  const cards = [!s.reachMode ? "[[card:reach]]" : "", s.gallery.length === 0 && !s.coverUrl || !s.videoUrl ? "[[card:media]]" : ""].filter(Boolean).join("\n");
+  const tail = cards ? `\n${cards}` : "";
+  if (!s.reachMode) missing.unshift(es ? "dónde atiendes (en persona en tu zona o en línea)" : "where you serve (in person in your area, or online)");
   if (!missing.length) return `${built} ${es ? "Si quieres cambiar algo, dímelo aquí." : "If you want to change anything, tell me here."}`;
   const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} ${es ? "y" : "and"} ${missing[missing.length - 1]}`;
-  return `${built} ${es ? `Para que quede completa me falta ${list}. Mándamelo aquí.` : `To finish it I still need ${list}. Send it to me here.`}`;
+  const how = tail ? (es ? "Puedes hacerlo aquí mismo:" : "You can do it right here:") : es ? "Dímelo aquí." : "Tell me here.";
+  return `${built} ${es ? `Para que quede completa me falta ${list}.` : `To finish it I still need ${list}.`} ${how}${tail}`;
 }

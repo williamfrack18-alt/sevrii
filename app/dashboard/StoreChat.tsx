@@ -5,24 +5,42 @@ import { STORE_TEXT } from "@/lib/storeI18n";
 import { sendStoreChatAction, uploadStoreImageAction } from "@/app/storeActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
 import { prepareImage } from "@/lib/clientImage";
+import StoreMedia from "./StoreMedia";
+import StoreReach from "./StoreReach";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
 
 export default function StoreChat({
+  business,
+  onBusiness,
   greeting,
   initialMessages,
   onUpdated,
   onMessages,
   sync,
 }: {
+  business: ClientBusiness;
+  onBusiness: (b: ClientBusiness) => void;
   sync?: { key: number; messages: Msg[] };
   greeting: string;
   initialMessages: Msg[];
   onUpdated: (business: ClientBusiness, services: ClientService[]) => void;
   onMessages?: (m: Msg[]) => void;
 }) {
-  const t = STORE_TEXT[useLang()].editor;
+  const lang = useLang();
+  const t = STORE_TEXT[lang].editor;
   return (
     <ChatPanel
+      tools={[
+        { key: "media", label: lang === "es" ? "📷 Fotos y video" : "📷 Photos & video" },
+        { key: "reach", label: lang === "es" ? "📍 Dónde atiendes" : "📍 Service area" },
+      ]}
+      renderCard={(key) =>
+        key === "media" ? (
+          <StoreMedia business={business} onUpdated={onBusiness} />
+        ) : key === "reach" ? (
+          <StoreReach business={business} onUpdated={onBusiness} />
+        ) : null
+      }
       greeting={greeting}
       initialMessages={initialMessages}
       sync={sync}

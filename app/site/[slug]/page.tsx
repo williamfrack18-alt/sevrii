@@ -82,6 +82,8 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
   const mainTitle = site.headline || business.category || business.name;
   const images = [site.coverUrl, ...site.gallery].filter(Boolean);
   const ordered = [...services].sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
+  // One service only: the page focuses on it (no options to pick, one big card).
+  const single = ordered.length === 1;
 
   // A service with an active payment link of the same name gets "Book and pay".
   const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -178,7 +180,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
 
           {(ordered.length > 0 || area || site.hours || phone || site.googleReviewsUrl) && (
             <div className="below-gallery">
-              {ordered.length > 0 && (
+              {ordered.length > 1 && (
                 <div className="pkg-card">
                   <div className="eyebrow grad-text">{t.packagesTitle}</div>
                   <ul className="pkg-list">
@@ -324,6 +326,40 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
           </section>
         )}
 
+        {site.chat && (
+          <section className="block quote-block" id="chat">
+            <div className="wrap quote-grid">
+              <div className="quote-side">
+                <span className="eyebrow">{CHAT_HEAD[site.lang].eyebrow}</span>
+                <h2>{CHAT_HEAD[site.lang].title}</h2>
+                <p>{CHAT_HEAD[site.lang].sub(business.name)}</p>
+                <div className="quote-alt">
+                  {link("chat", "btn chat", <><ChannelIcon c="chat" /> {CHAT_HEAD[site.lang].open}</>)}
+                  {channels.filter((c) => c !== "chat").map((c) => link(c, "btn ghost-light", <><ChannelIcon c={c} /> {c === "call" && phone ? formatPhone(phone) : short[c]}</>))}
+                </div>
+                {(area || site.hours) && <div className="quote-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
+              </div>
+              {link(
+                "chat",
+                "chat-preview",
+                <>
+                  <span className="cp-head">
+                    <span className="cp-avatar">{business.name.slice(0, 1).toUpperCase()}</span>
+                    <span>
+                      <strong>{business.name}</strong>
+                      <em>● {site.lang === "en" ? "Replies instantly" : "Responde al instante"}</em>
+                    </span>
+                  </span>
+                  <span className="cp-bubble">
+                    {site.lang === "en" ? "Hi! 👋 Thanks for reaching out. How can we help you?" : "¡Hola! 👋 Gracias por escribirnos. ¿En qué te podemos ayudar?"}
+                  </span>
+                  <span className="cp-input">{site.lang === "en" ? "Type your message…" : "Escribe tu mensaje…"} <span className="cp-send">→</span></span>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
         {offer && primary && (
           <section className="offer-band">
             <div className="wrap offer-row">
@@ -348,9 +384,9 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             <div className="wrap">
               <div className="section-head">
                 <span className="eyebrow grad-text">{t.servicesEyebrow}</span>
-                <h2>{t.servicesTitle}</h2>
+                <h2>{single ? (site.lang === "en" ? "What you get" : "Lo que recibes") : t.servicesTitle}</h2>
               </div>
-              <div className={`services-grid ${ordered.length === 4 ? "n4" : ""}`}>
+              <div className={`services-grid ${ordered.length === 4 ? "n4" : ""} ${single ? "single" : ""}`}>
                 {ordered.map((s, n) => {
                   const pay = payFor(s.name);
                   const [c1, c2] = channels;
@@ -358,7 +394,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                   return (
                     <article key={s.id} className={`service-card ${s.featured ? "lead" : ""}`}>
                       <div className={`service-media ${img ? "" : "grad"}`} style={img ? { backgroundImage: `url("${img}")` } : undefined}>
-                        {s.featured && <span className="service-ribbon">★ {s.tag || t.featured}</span>}
+                        {s.featured && !single && <span className="service-ribbon">★ {s.tag || t.featured}</span>}
                         <span className="service-price-chip">{s.price || t.priceOnRequest}</span>
                       </div>
                       <div className="service-body">
@@ -413,42 +449,6 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                   </div>
                 ))}
               </div>
-            </div>
-          </section>
-        )}
-
-        {site.chat && (
-          <section className="block quote-block" id="chat">
-            <div className="wrap quote-grid">
-              <div className="quote-side">
-                <span className="eyebrow">{CHAT_HEAD[site.lang].eyebrow}</span>
-                <h2>{CHAT_HEAD[site.lang].title}</h2>
-                <p>{CHAT_HEAD[site.lang].sub(business.name)}</p>
-                <div className="quote-alt">
-                  {link("chat", "btn chat", <><ChannelIcon c="chat" /> {CHAT_HEAD[site.lang].open}</>)}
-                  {channels.filter((c) => c !== "chat").map((c) => link(c, "btn ghost-light", <><ChannelIcon c={c} /> {c === "call" && phone ? formatPhone(phone) : short[c]}</>))}
-                </div>
-                {(area || site.hours) && <div className="quote-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
-              </div>
-              {link(
-                "chat",
-                "chat-preview",
-                <>
-                  <span className="cp-head">
-                    <span className="cp-avatar">{business.name.slice(0, 1).toUpperCase()}</span>
-                    <span>
-                      <strong>{business.name}</strong>
-                      <em>● {site.lang === "en" ? "Replies instantly" : "Responde al instante"}</em>
-                    </span>
-                  </span>
-                  <span className="cp-bubble">
-                    {site.lang === "en"
-                      ? `Hi! 👋 I'm ${business.name}'s assistant. Ask me about prices, services or availability.`
-                      : `¡Hola! 👋 Soy el asistente de ${business.name}. Pregúntame por precios, servicios o disponibilidad.`}
-                  </span>
-                  <span className="cp-input">{site.lang === "en" ? "Type your message…" : "Escribe tu mensaje…"} <span className="cp-send">→</span></span>
-                </>
-              )}
             </div>
           </section>
         )}

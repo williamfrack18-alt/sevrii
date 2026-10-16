@@ -357,3 +357,15 @@
 .mt .cw-joined { align-self: center; font-size: 12px; font-weight: 600; color: #137a3d; background: #e3f6ea; padding: 5px 12px; border-radius: 999px; margin: 8px 0 2px; }
 .mt .cw-head.owner { background: linear-gradient(135deg, #12432a, #0b2918); }
 .mt .cw-head.owner .cw-avatar { box-shadow: 0 0 0 2px #3ddc84; }
+
+/* one service only: a single wide card */
+.mt .services-grid.single { grid-template-columns: 1fr; max-width: 980px; }
+.mt .services-grid.single .service-card { flex-direction: row; }
+.mt .services-grid.single .service-media { aspect-ratio: auto; width: 46%; min-height: 300px; flex-shrink: 0; }
+.mt .services-grid.single .service-body { padding: 28px 30px; justify-content: center; }
+.mt .services-grid.single .service-body h3 { font-size: 26px; }
+.mt .services-grid.single .service-body p { font-size: 16px; flex: 0; }
+.mt .services-grid.single .service-actions { margin-top: 18px; }
+.mt .services-grid.single .service-actions .btn { flex: 0 1 auto; padding: 14px 24px; font-size: 15px; }
+@media (max-width: 700px) { .mt .services-grid.single .service-card { flex-direction: column; } .mt .services-grid.single .service-media { width: 100%; min-height: 220px; } .mt .services-grid.single .service-body { padding: 20px; } }
+.mt .cw-row.cw-hello { flex-direction: row; align-items: flex-end; gap: 8px; }
