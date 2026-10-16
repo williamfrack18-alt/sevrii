@@ -98,6 +98,11 @@ export default function StoreView({
             Sevrii <span className="text-[#8e8e8e] font-normal">· Store</span>
           </span>
           <div className="flex items-center gap-2">
+            {business.site.chat && (
+              <a href="#inbox" className="text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
+                💬 {lang === "es" ? "Conversaciones" : "Conversations"}
+              </a>
+            )}
             {business.published ? (
               <>
                 {business.marketCategory && (

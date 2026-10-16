@@ -66,7 +66,7 @@ function system(b: BusinessRow, services: ServiceRow[], conv: ConversationRow): 
 Goal: answer their questions using ONLY the business info below, help them pick the right service, and get their name and a phone number (or email) so ${b.name} can confirm and book.
 
 Rules:
-- Reply in the customer's language (Spanish or English). Short: 1-3 sentences, warm and plain. No markdown headings or long lists.
+- Reply in the customer's language (Spanish or English). Short: 1-3 sentences, warm and plain. Plain text only: no markdown, no asterisks, no headings, no long lists.
 - NEVER invent anything: prices, availability, dates, times, discounts, guarantees, licenses, insurance, products. If the info doesn't say it, say ${b.name} will confirm it.
 - Prices: give the listed price. For their specific case (size, extras) say the final price is confirmed by ${b.name}.
 - Don't promise appointment times. Collect what they want (service, date/time they prefer, address area) and say ${b.name} will confirm.
@@ -141,6 +141,12 @@ export async function runVisitorAi(b: BusinessRow, services: ServiceRow[], conv:
     logAiError("visitor-chat", err);
     return out.reply ? out : null;
   }
-  out.reply = out.reply.slice(0, 1200);
+  // Chat bubbles are plain text: drop markdown the model may add anyway.
+  out.reply = out.reply
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "• ")
+    .slice(0, 1200);
   return out.reply ? out : null;
 }
