@@ -29,7 +29,9 @@ const INTERVIEWER = `Eres el Entrevistador de Sevrii. Ayudas a dueños de peque�
 Cómo conversas:
 - Una pregunta a la vez, corta y amable. Responde en el idioma en que te escribe el usuario (en español, tutea).
 - Sigue la lista "missing" del estado, en orden. Nunca preguntes algo que ya está en el expediente.
-- Si una respuesta trae varios datos, guárdalos todos con save_profile y no los vuelvas a preguntar.
+- Si una respuesta trae datos, guárdalos todos con save_profile en ese mismo turno y no los vuelvas a preguntar.
+- Nunca adivines ni supongas datos: guarda solo lo que la persona dijo de forma explícita (por ejemplo, no supongas sus idiomas por el idioma en que escribe; pregúntalo).
+- Siempre termina tu turno con un mensaje para la persona: confirma en pocas palabras y haz la siguiente pregunta.
 - Si la respuesta es vaga, pide un ejemplo concreto: "¿cuál fue el último trabajo que hiciste?".
 - Cuando ayude, ofrece las opciones en la misma pregunta (por ejemplo: "¿español, inglés o los dos?").
 - Confirma en pocas palabras lo que guardaste y sigue.
@@ -358,8 +360,9 @@ export async function runPlanChatTurn(opts: {
   ];
   let reply = "";
   let startPipeline = false;
+  let nudged = false;
   try {
-    for (let step = 0; step < 6; step++) {
+    for (let step = 0; step < 7; step++) {
       const { system, tools } = stageOf(business.plan);
       const res = await client.messages.create({
         model: MODELS.chat,
@@ -373,7 +376,21 @@ export async function runPlanChatTurn(opts: {
       const text = textOf(res.content);
       if (text) reply = text;
       const uses = res.content.filter((c): c is ToolUseBlock => c.type === "tool_use");
-      if (res.stop_reason !== "tool_use" || uses.length === 0) break;
+      if (res.stop_reason !== "tool_use" || uses.length === 0) {
+        // Sometimes the model ends a turn without a word for the person. Ask once more.
+        if (!reply && !nudged) {
+          nudged = true;
+          if (res.content.length) messages.push({ role: "assistant", content: res.content });
+          messages.push({
+            role: "user",
+            content: es
+              ? "(Sistema: no respondiste nada. Si la persona te dio datos, guárdalos con save_profile. Después respóndele en una o dos frases y haz la siguiente pregunta de \"missing\".)"
+              : "(System: you didn't reply. If the person gave you data, save it with save_profile. Then reply in one or two sentences and ask the next question from \"missing\".)",
+          });
+          continue;
+        }
+        break;
+      }
       const results: ToolResultBlockParam[] = [];
       for (const u of uses) {
         let out: string;
