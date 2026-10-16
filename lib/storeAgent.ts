@@ -122,8 +122,8 @@ How to work:
 - Write persuasive copy yourself (headline, pitch, key points, steps, closing CTA) from the owner's facts. Benefit first, specific, no fluff.
 - Services: get each service's name and price. Mark the main one as featured.
 - Offer: ask if they have a current promotion. Only use a real one. A welcome offer for new customers (only their first service, e.g. "10% off your first cleaning") needs NO end date — never ask for one. Any other time-limited promotion needs its real end date. Never create fake urgency, fake discounts or "ends today" offers.
-- Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to tap the 📎 button. When a message says a photo was uploaded, use set_photo (a photo of the owner = cover). Never suggest stock photos.
-- Video: if "brainPlan.videoScript" exists, remind them it's ready in the Brain tab: recording it with their phone (30-60 s, looking at the camera) builds the most trust.
+- Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to tap the 📎 button. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, don't use it as cover, and ask for the right kind of photo. Never suggest stock photos.
+- Video: if "brainPlan.videoScript" exists, remind them it's ready in the Brain tab (called "Cerebro" in Spanish): recording it with their phone (30-60 s, looking at the camera) builds the most trust.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
 - When the essentials are done (services with prices, contact, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
@@ -274,10 +274,18 @@ export async function runStoreChatTurn(opts: {
     };
   }
 
+  const photo = /(https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[^\s"']+)/i.exec(opts.message)?.[1];
   const system = `${SYSTEM}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}. Page text goes in the page's language (page.lang) unless the owner asks otherwise.`;
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
-    { role: "user", content: `Page state (JSON):\n${JSON.stringify(pageState(business, services))}\n\nOwner: ${opts.message}` },
+    {
+      role: "user",
+      content: [
+        // A photo the owner just uploaded (our own Blob storage only): let the model see it.
+        ...(photo ? [{ type: "image" as const, source: { type: "url" as const, url: photo } }] : []),
+        { type: "text" as const, text: `Page state (JSON):\n${JSON.stringify(pageState(business, services))}\n\nOwner: ${opts.message}` },
+      ],
+    },
   ];
 
   let reply = "";
