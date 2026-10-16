@@ -16,8 +16,11 @@ import {
   createPageReport,
   countProjects,
   getBusinessForUser,
+  deleteBusinessForUser,
+  getBusinessByUserId,
   type BusinessRow,
 } from "@/lib/db";
+import { del } from "@vercel/blob";
 import {
   hashPassword,
   verifyPassword,
@@ -185,6 +188,28 @@ export async function switchProjectAction(projectId: string) {
   }
   revalidatePath("/dashboard");
   redirect("/dashboard?view=plan");
+}
+
+// Delete one project for good (its strategy, page, campaigns and payment links).
+export async function deleteProjectAction(projectId: string): Promise<{ error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (typeof projectId !== "string" || projectId.length > 64) return { error: "invalid" };
+  if (!(await allow(`project:delete:${user.id}`, 20, 60 * 60))) return { error: getDict(await getLang()).auth.errTooMany };
+  const photos = await deleteBusinessForUser(user.id, projectId);
+  if (photos === null) return { error: "invalid" };
+  if (photos.length && process.env.BLOB_READ_WRITE_TOKEN) {
+    try {
+      await del(photos);
+    } catch (err) {
+      console.error("[project] could not delete photos", (err as Error)?.message);
+    }
+  }
+  const next = await getBusinessByUserId(user.id);
+  if (next) await setActiveProject(next.id);
+  else (await cookies()).delete(PROJECT_COOKIE);
+  revalidatePath("/dashboard");
+  redirect(next ? "/dashboard?view=projects" : "/start");
 }
 
 // ---------- Public page analytics (best-effort, no auth — called by visitors) ----------

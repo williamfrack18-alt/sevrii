@@ -1,10 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT, PROJECTS_TEXT } from "@/lib/planI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
-import { switchProjectAction } from "@/app/actions";
+import { deleteProjectAction, switchProjectAction } from "@/app/actions";
 import type { ClientProject, DashboardView } from "./types";
 import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
 
@@ -34,6 +34,8 @@ export default function ProjectsView({
   const lang = useLang();
   const t = PROJECTS_TEXT[lang];
   const [pending, start] = useTransition();
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const atLimit = projects.length >= Math.min(MAX_PROJECTS, projectLimit);
   const lk = PLANS_TEXT[lang].lock;
 
@@ -63,16 +65,20 @@ export default function ProjectsView({
         <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-9 ${pending ? "opacity-60 pointer-events-none" : ""}`}>
           {projects.map((p) => {
             const active = p.id === activeId;
+            const asking = confirmId === p.id;
             return (
-              <button
+              <div
                 key={p.id}
-                type="button"
-                onClick={() => (active ? onNavigate("plan") : start(() => switchProjectAction(p.id)))}
-                className="text-left rounded-2xl p-5 flex flex-col gap-4 transition hover:-translate-y-0.5"
+                className="rounded-2xl flex flex-col transition hover:-translate-y-0.5"
                 style={{
                   background: "#111",
                   boxShadow: active ? `0 0 0 1.5px ${RING}` : "0 0 0 1px rgba(255,255,255,0.08)",
                 }}
+              >
+              <button
+                type="button"
+                onClick={() => (active ? onNavigate("plan") : start(() => switchProjectAction(p.id)))}
+                className="text-left p-5 pb-3 flex flex-col gap-4"
               >
                 <div className="flex items-start gap-3">
                   <div
@@ -113,6 +119,44 @@ export default function ProjectsView({
                   <span>{t.campaigns(p.campaigns)}</span>
                 </div>
               </button>
+              {asking ? (
+                <div className="mx-5 mb-5 rounded-xl p-3.5 flex flex-col gap-2.5" style={{ background: "rgba(248,113,113,.08)", boxShadow: "0 0 0 1px rgba(248,113,113,.3)" }}>
+                  <span className="text-[14px] font-semibold text-white">{t.deleteAsk(p.name)}</span>
+                  <span className="text-[12.5px] text-[#d4d4d4] leading-relaxed">{t.deleteWarn}</span>
+                  {deleteError && <span className="text-[12.5px] text-red-400">{deleteError}</span>}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        start(async () => {
+                          setDeleteError("");
+                          const res = await deleteProjectAction(p.id);
+                          if (res?.error) setDeleteError(res.error === "invalid" ? t.deleteFailed : res.error);
+                        })
+                      }
+                      className="h-9 px-4 rounded-full text-[13px] font-semibold text-white"
+                      style={{ background: "#b42318" }}
+                    >
+                      {pending ? t.deleting : t.deleteYes}
+                    </button>
+                    <button type="button" onClick={() => setConfirmId(null)} className="h-9 px-4 rounded-full text-[13px] text-[#d4d4d4]" style={{ background: "rgba(255,255,255,0.08)" }}>
+                      {t.cancel}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteError("");
+                    setConfirmId(p.id);
+                  }}
+                  className="self-start mx-5 mb-4 text-[12px] text-[#71717a] hover:text-red-400"
+                >
+                  {t.delete}
+                </button>
+              )}
+              </div>
             );
           })}
 

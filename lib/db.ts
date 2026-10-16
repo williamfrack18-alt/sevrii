@@ -1150,6 +1150,26 @@ export async function setUserPassword(userId: string, passwordHash: string, salt
 // ---------- Account deletion ----------
 // Removes the account and everything that belongs to it. Returns the photo
 // URLs of its pages so the caller can delete the files too.
+// Deletes one project (business) of this account and everything in it.
+// Returns the photo URLs to remove from storage, or null if it isn't theirs.
+export async function deleteBusinessForUser(userId: string, businessId: string): Promise<string[] | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT id, site FROM businesses WHERE id = ${businessId} AND "userId" = ${userId}`) as { id: string; site: unknown }[];
+  if (!rows[0]) return null;
+  const site = parseSite(rows[0].site);
+  const id = rows[0].id;
+  await sql`DELETE FROM services WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM reviews WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM campaigns WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM chat_messages WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM page_reports WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM research_jobs WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM payment_links WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM payment_notices WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM businesses WHERE id = ${id} AND "userId" = ${userId}`;
+  return [site.logoUrl, site.coverUrl, ...site.gallery].filter(Boolean);
+}
+
 export async function deleteUserEverything(userId: string): Promise<string[]> {
   await ensureSchema();
   const businesses = (await sql`SELECT id, site FROM businesses WHERE "userId" = ${userId}`) as { id: string; site: unknown }[];

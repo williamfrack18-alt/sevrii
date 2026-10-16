@@ -34,7 +34,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     monthly: 0,
     yearlyPerMonth: null,
     available: true,
-    limits: { projects: 1, canPublish: false, marketing: false, autoMarketing: false, payments: true, aiPerDay: 15, aiPerMonth: 150, researchPerMonth: 2, aiBudgetUsd: 2 },
+    limits: { projects: 1, canPublish: false, marketing: false, autoMarketing: false, payments: true, aiPerDay: 15, aiPerMonth: 150, researchPerMonth: 2, aiBudgetUsd: 3 },
   },
   starter: {
     id: "starter",
