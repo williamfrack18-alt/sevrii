@@ -2,7 +2,7 @@
 // Both are best-effort: if email isn't set up or sending fails, nothing breaks.
 import { emailReady, sendEmail, simpleEmail } from "./email";
 import { siteUrl } from "./billing";
-import { claimPaymentNotice, getUserById, hasPaymentNotice, releasePaymentNotice, type BusinessRow } from "./db";
+import { claimPaymentNotice, getUserById, hasPaymentNotice, releasePaymentNotice, type BusinessRow, type LeadRow } from "./db";
 import { getPaidSession } from "./payments";
 
 type Lang = "es" | "en";
@@ -115,5 +115,57 @@ export async function notifyPaymentReceived(business: BusinessRow, sessionId: st
     if (!ok) await releasePaymentNotice(sessionId);
   } catch (err) {
     console.error("[notify] payment notice failed", (err as Error)?.message);
+  }
+}
+
+// Visitor text can't carry clickable links into an email sent from Sevrii.
+function defang(s: string): string {
+  return s
+    .replace(/\b(?:https?:\/\/|www\.)\S+/gi, "[link]")
+    .replace(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|xyz|info|biz|app|link|site|top|ru|cn)\b\S*/gi, "[link]");
+}
+
+// A visitor asked for a quote on the owner's page.
+export async function notifyNewLead(business: BusinessRow, lead: LeadRow): Promise<void> {
+  if (!emailReady()) return;
+  try {
+    const owner = await getUserById(business.userId);
+    if (!owner?.email) return;
+    const es = business.site.lang !== "en";
+    const pref = {
+      call: es ? "Llamada" : "Call",
+      text: es ? "Mensaje de texto" : "Text message",
+      whatsapp: "WhatsApp",
+      email: "Email",
+    }[lead.contactPref as "call" | "text" | "whatsapp" | "email"];
+    const items = [
+      `${es ? "Nombre" : "Name"}: ${defang(lead.name)}`,
+      ...(lead.phone ? [`${es ? "Teléfono" : "Phone"}: ${lead.phone}`] : []),
+      ...(lead.email ? [`Email: ${lead.email}`] : []),
+      ...(lead.service ? [`${es ? "Servicio" : "Service"}: ${lead.service}`] : []),
+      ...(pref ? [`${es ? "Prefiere" : "Prefers"}: ${pref}`] : []),
+    ];
+    const { html, text } = simpleEmail({
+      title: es ? "¡Nuevo cliente interesado!" : "New customer request!",
+      intro: es
+        ? `Alguien pidió una cotización en tu página de ${business.name}. Responde rápido: quien contesta primero se queda con el cliente.`
+        : `Someone asked for a quote on your ${business.name} page. Reply fast: whoever answers first usually gets the job.`,
+      items: lead.message ? [...items, `${es ? "Mensaje del visitante" : "Visitor's message"}: ${defang(lead.message)}`] : items,
+      button: es ? "Ver mis clientes" : "See my requests",
+      url: `${siteUrl()}/dashboard?view=store#leads`,
+      outro: lead.email
+        ? es ? "Puedes responder este correo y le llega directo al cliente." : "You can reply to this email and it goes straight to the customer."
+        : es ? "Llámalo o escríbele al número que dejó." : "Call or text the number they left.",
+    });
+    await sendEmail(
+      owner.email,
+      es ? `Nuevo cliente: ${defang(lead.name)}${lead.service ? ` · ${lead.service}` : ""}` : `New request: ${defang(lead.name)}${lead.service ? ` · ${lead.service}` : ""}`,
+      html,
+      text,
+      // Replies go to the customer; with no customer email, back to the owner.
+      lead.email || owner.email
+    );
+  } catch (err) {
+    console.error("[notify] lead failed", (err as Error)?.message);
   }
 }

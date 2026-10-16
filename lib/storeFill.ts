@@ -1,5 +1,5 @@
 // Writes an approved Brain expediente into the store page (see planToStore.ts).
-import { addChatMessage, addService, deleteService, getBusinessById, listServices, updateBusinessDetails, updateBusinessSite, type BusinessRow } from "./db";
+import { addChatMessage, addService, deleteService, getBusinessById, listServices, mergeBusinessSite, updateBusinessDetails, type BusinessRow } from "./db";
 import { normalizePhone, type SiteData } from "./site";
 import { planFingerprint, planReadyForStore, storeFromPlan } from "./planToStore";
 
@@ -38,7 +38,10 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
     lang: d.lang,
     fromPlan: planFingerprint(b.plan),
   };
-  await updateBusinessSite(b.id, site);
+  // Never write the photo/video fields: an upload may be happening right now.
+  const { coverUrl: _c, logoUrl: _l, gallery: _g, videoUrl: _v, ...text } = site;
+  void _c; void _l; void _g; void _v;
+  await mergeBusinessSite(b.id, cur, text);
 
   const det = draft.details;
   await updateBusinessDetails(b.id, {
@@ -62,7 +65,7 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   const es = lang === "es";
   const s = b.site;
   const missing: string[] = [];
-  if (!s.phone && !normalizePhone(b.whatsapp)) missing.push(es ? "tu WhatsApp o teléfono" : "your WhatsApp or phone number");
+  if (!s.phone && !normalizePhone(b.whatsapp)) missing.push(es ? "tu teléfono para llamadas y textos (y WhatsApp si lo usas)" : "your phone for calls and texts (and WhatsApp if you use it)");
   if (s.gallery.length === 0 && !s.coverUrl) missing.push(es ? "fotos de tus trabajos" : "photos of your work");
   if (!s.hours) missing.push(es ? "tu horario" : "your hours");
   if (!s.videoUrl) missing.push(es ? "un video corto tuyo (súbelo en «Fotos y video», aquí abajo)" : "a short video of you (upload it in “Photos and video” below)");

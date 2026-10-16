@@ -3,6 +3,7 @@
 import { useState } from "react";
 import StoreChat from "./StoreChat";
 import StoreMedia from "./StoreMedia";
+import StoreLeads from "./StoreLeads";
 import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
@@ -217,6 +218,7 @@ export default function StoreView({
       {/* The page, below the chat */}
       <section id="store-page" className="px-3 md:px-8 pt-6 pb-10" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-[1180px] mx-auto">
+          <StoreLeads businessId={business.id} />
           <StoreMedia
             business={business}
             onUpdated={(b) => {

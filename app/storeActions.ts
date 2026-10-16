@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { del, put } from "@vercel/blob";
+import { del, head, put } from "@vercel/blob";
 import { getCurrentUser } from "@/lib/session";
 import {
   addService,
@@ -15,11 +15,12 @@ import {
   updateBusinessWhatsapp,
   appendGalleryPhoto,
   patchBusinessSite,
+  mergeBusinessSite,
   updateService,
   type BusinessRow,
   type ServiceRow,
 } from "@/lib/db";
-import { isOurBlob, LIMITS, normalizePhone, parseSite, publishGaps, type PublishGap, type SiteData } from "@/lib/site";
+import { isOurBlob, ownsBlob, LIMITS, normalizePhone, parseSite, publishGaps, type PublishGap, type SiteData } from "@/lib/site";
 import { allow, LIMITS as RATE } from "@/lib/guard";
 import { addChatMessage, listChatMessages } from "@/lib/db";
 import { runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
@@ -199,10 +200,16 @@ export async function uploadStoreImageAction(formData: FormData): Promise<Upload
       contentType: file.type,
       addRandomSuffix: true,
     });
-    if (kind === "logo") await patchBusinessSite(business.id, { logoUrl: blob.url });
-    else if (kind === "cover") await patchBusinessSite(business.id, { coverUrl: blob.url });
-    else if (!(await appendGalleryPhoto(business.id, blob.url, LIMITS.gallery))) {
-      await dropBlob(blob.url);
+    if (kind === "logo") {
+      await patchBusinessSite(business.id, { logoUrl: blob.url });
+      if (business.site.logoUrl) await dropBlob(business.site.logoUrl, business.id);
+    } else if (kind === "cover") {
+      await patchBusinessSite(business.id, { coverUrl: blob.url });
+      // The old main photo stays on the page, in the gallery.
+      const old = business.site.coverUrl;
+      if (old && !(await appendGalleryPhoto(business.id, old, LIMITS.gallery))) await dropBlob(old, business.id);
+    } else if (!(await appendGalleryPhoto(business.id, blob.url, LIMITS.gallery))) {
+      await dropBlob(blob.url, business.id);
       return { ok: false, error: "galleryFull" };
     }
   } catch (err) {
@@ -217,15 +224,16 @@ export async function uploadStoreImageAction(formData: FormData): Promise<Upload
 export async function removeStoreImageAction(kind: "logo" | "cover" | "gallery", url?: string): Promise<BusinessRow> {
   const business = await requireBusiness();
   const site = { ...business.site };
+  if (kind === "gallery" && (!url || !site.gallery.includes(url))) return business;
   if (kind === "logo") site.logoUrl = "";
   else if (kind === "cover") {
     // The next photo becomes the main one, so the page never loses its photo.
     site.coverUrl = site.gallery[0] || "";
     site.gallery = site.gallery.slice(1);
   } else site.gallery = site.gallery.filter((g) => g !== url);
-  await updateBusinessSite(business.id, site);
+  await patchBusinessSite(business.id, { logoUrl: site.logoUrl, coverUrl: site.coverUrl, gallery: site.gallery });
   const gone = kind === "logo" ? business.site.logoUrl : kind === "cover" ? business.site.coverUrl : url || "";
-  if (gone && ![site.logoUrl, site.coverUrl, ...site.gallery].includes(gone)) await dropBlob(gone);
+  if (gone && ![site.logoUrl, site.coverUrl, ...site.gallery].includes(gone)) await dropBlob(gone, business.id);
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return fresh;
@@ -240,14 +248,15 @@ export async function setStoreCoverAction(url: string): Promise<BusinessRow> {
   site.gallery = site.gallery.filter((g) => g !== url);
   if (site.coverUrl) site.gallery = [site.coverUrl, ...site.gallery];
   site.coverUrl = url;
-  await updateBusinessSite(business.id, parseSite(site));
+  await patchBusinessSite(business.id, { coverUrl: site.coverUrl, gallery: site.gallery });
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return fresh;
 }
 
-async function dropBlob(url: string) {
-  if (!url || !isOurBlob(url) || !process.env.BLOB_READ_WRITE_TOKEN) return;
+// Deletes a file, but only one inside this business's own folder.
+async function dropBlob(url: string, businessId: string) {
+  if (!url || !ownsBlob(url, businessId) || !process.env.BLOB_READ_WRITE_TOKEN) return;
   try {
     await del(url);
   } catch {
@@ -266,9 +275,16 @@ export async function setStoreVideoAction(url: string): Promise<{ ok: boolean; b
     return { ok: false, business };
   }
   if (!isOurBlob(url) || !path.startsWith(`/stores/${business.id}/video-`)) return { ok: false, business };
+  // head() only finds files in Sevrii's own storage, and tells us it's a video.
+  try {
+    const info = await head(url);
+    if (!info.contentType.startsWith("video/")) return { ok: false, business };
+  } catch {
+    return { ok: false, business };
+  }
   const old = business.site.videoUrl;
   await patchBusinessSite(business.id, { videoUrl: url });
-  if (old && old !== url) await dropBlob(old);
+  if (old && old !== url) await dropBlob(old, business.id);
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return { ok: true, business: fresh };
@@ -278,7 +294,7 @@ export async function removeStoreVideoAction(): Promise<BusinessRow> {
   const business = await requireBusiness();
   const old = business.site.videoUrl;
   await patchBusinessSite(business.id, { videoUrl: "" });
-  await dropBlob(old);
+  await dropBlob(old, business.id);
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return fresh;

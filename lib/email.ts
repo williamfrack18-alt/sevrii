@@ -10,14 +10,14 @@ const FROM = process.env.EMAIL_FROM || "Sevrii <hola@sevrii.com>";
 // Where replies go (hola@sevrii.com only sends).
 const REPLY_TO = process.env.EMAIL_REPLY_TO || "williamfrack18@gmail.com";
 
-export async function sendEmail(to: string, subject: string, html: string, text: string): Promise<boolean> {
+export async function sendEmail(to: string, subject: string, html: string, text: string, replyTo?: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return false;
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: FROM, to: [to], reply_to: REPLY_TO, subject, html, text }),
+      body: JSON.stringify({ from: FROM, to: [to], reply_to: replyTo || REPLY_TO, subject, html, text }),
       cache: "no-store",
     });
     if (!res.ok) {

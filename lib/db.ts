@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { randomBytes, randomUUID } from "node:crypto";
-import { parseSite, type SiteData } from "./site";
+import { ownsBlob, parseSite, type SiteData } from "./site";
 import { parseMarketing, parseCampaignSpec, type MarketingData, type CampaignSpec } from "./marketing";
 import { parsePlan, type BusinessPlan } from "./plan";
 
@@ -250,6 +250,21 @@ function ensureSchema(): Promise<void> {
           "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
         )
       `;
+      // Quote requests sent from the public page's form.
+      await sql`
+        CREATE TABLE IF NOT EXISTS leads (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL DEFAULT '',
+          email TEXT NOT NULL DEFAULT '',
+          service TEXT NOT NULL DEFAULT '',
+          message TEXT NOT NULL DEFAULT '',
+          "contactPref" TEXT NOT NULL DEFAULT '',
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS leads_business_idx ON leads ("businessId", "createdAt" DESC)`;
     })().catch((err) => {
       // Don't cache a failed setup forever — let the next request retry.
       schemaReady = null;
@@ -587,9 +602,19 @@ export async function updateBusinessSite(businessId: string, site: SiteData): Pr
 
 // Changes only the given fields, so two saves at the same time (e.g. the video
 // and a photo) never erase each other.
-export async function patchBusinessSite(businessId: string, patch: Partial<Pick<SiteData, "videoUrl" | "coverUrl" | "logoUrl">>): Promise<void> {
+export async function patchBusinessSite(businessId: string, patch: Partial<SiteData>): Promise<void> {
   await ensureSchema();
+  if (!Object.keys(patch).length) return;
   await sql`UPDATE businesses SET site = site || ${JSON.stringify(patch)}::jsonb WHERE id = ${businessId}`;
+}
+
+// Validates the merged page, then writes only the fields in the patch, so a
+// slow writer (the AI chat) never erases photos saved in the meantime.
+export async function mergeBusinessSite(businessId: string, current: SiteData, patch: Partial<SiteData>): Promise<void> {
+  const merged = parseSite({ ...current, ...patch }) as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(patch)) out[k] = merged[k];
+  await patchBusinessSite(businessId, out as Partial<SiteData>);
 }
 
 // Adds one photo to the end of the gallery in a single statement.
@@ -1184,8 +1209,10 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM research_jobs WHERE "businessId" = ${id}`;
   await sql`DELETE FROM payment_links WHERE "businessId" = ${id}`;
   await sql`DELETE FROM payment_notices WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM leads WHERE "businessId" = ${id}`;
   await sql`DELETE FROM businesses WHERE id = ${id} AND "userId" = ${userId}`;
-  return [site.logoUrl, site.coverUrl, site.videoUrl, ...site.gallery].filter(Boolean);
+  // Only this project's own files (a logo carried over from another project stays).
+  return [site.logoUrl, site.coverUrl, site.videoUrl, ...site.gallery].filter((u) => u && ownsBlob(u, id));
 }
 
 export async function deleteUserEverything(userId: string): Promise<string[]> {
@@ -1206,6 +1233,7 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM research_jobs WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM payment_links WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM payment_notices WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM leads WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM businesses WHERE "userId" = ${userId}`;
   }
   await sql`DELETE FROM sessions WHERE "userId" = ${userId}`;
@@ -1214,4 +1242,38 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
   await sql`DELETE FROM ai_usage WHERE "userId" = ${userId}`;
   await sql`DELETE FROM users WHERE id = ${userId}`;
   return photos.filter(Boolean);
+}
+
+// ---------- Leads (quote requests from the public page) ----------
+export type LeadRow = {
+  id: string;
+  businessId: string;
+  name: string;
+  phone: string;
+  email: string;
+  service: string;
+  message: string;
+  contactPref: string;
+  createdAt: string;
+};
+
+export async function addLead(l: Omit<LeadRow, "id" | "createdAt">): Promise<LeadRow> {
+  await ensureSchema();
+  const id = newId();
+  const rows = (await sql`
+    INSERT INTO leads (id, "businessId", name, phone, email, service, message, "contactPref")
+    VALUES (${id}, ${l.businessId}, ${l.name}, ${l.phone}, ${l.email}, ${l.service}, ${l.message}, ${l.contactPref})
+    RETURNING id, "businessId", name, phone, email, service, message, "contactPref", "createdAt"
+  `) as LeadRow[];
+  return { ...rows[0], createdAt: new Date(rows[0].createdAt).toISOString() };
+}
+
+export async function listLeads(businessId: string, limit = 50): Promise<LeadRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT id, "businessId", name, phone, email, service, message, "contactPref", "createdAt"
+    FROM leads WHERE "businessId" = ${businessId}
+    ORDER BY "createdAt" DESC LIMIT ${limit}
+  `) as LeadRow[];
+  return rows.map((r) => ({ ...r, createdAt: new Date(r.createdAt).toISOString() }));
 }

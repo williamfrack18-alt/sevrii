@@ -4,7 +4,9 @@ import type { Lang } from "./i18n";
 import {
   addService,
   deleteService,
+  getBusinessById,
   listServices,
+  mergeBusinessSite,
   updateBusinessAccent,
   updateBusinessDetails,
   updateBusinessSite,
@@ -13,7 +15,7 @@ import {
   type BusinessRow,
   type ServiceRow,
 } from "./db";
-import { LIMITS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl } from "./site";
+import { LIMITS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
 import { planFingerprint } from "./planToStore";
 
@@ -43,9 +45,11 @@ const TOOLS: Tool[] = [
         city: { type: "string" },
         serviceArea: { type: "string", description: "e.g. 'Miami-Dade and Broward'" },
         hours: { type: "string", description: "e.g. 'Mon–Sat 8am–6pm'" },
-        phone: { type: "string", description: "Phone for calls, US numbers like (305) 555-0123" },
-        whatsapp: { type: "string", description: "WhatsApp number with country code" },
-        textEnabled: { type: "boolean", description: "Whether the phone accepts SMS" },
+        phone: { type: "string", description: "Phone for calls (and texts), US numbers like (305) 555-0123" },
+        whatsapp: { type: "string", description: "WhatsApp number with country code (optional; many US customers don't use WhatsApp)" },
+        textEnabled: { type: "boolean", description: "Whether the phone accepts text messages (SMS)" },
+        contactPref: { type: "string", enum: ["", "call", "text", "whatsapp", "form"], description: "The owner's favorite way to be contacted; it becomes the main button. '' = automatic (call/text first)" },
+        quoteForm: { type: "boolean", description: "Show the 'free quote' form on the page (requests go to the owner's email and dashboard). On by default." },
         licenseNumber: { type: "string", description: "ONLY a number the owner typed" },
         licenseState: { type: "string" },
         noLicenseNeeded: { type: "boolean", description: "Owner said their trade needs no license in their state" },
@@ -70,7 +74,7 @@ const TOOLS: Tool[] = [
         },
         ctaTitle: { type: "string", description: "Closing section title" },
         ctaText: { type: "string" },
-        ctaNote: { type: "string", description: "Tiny line under the buttons, e.g. 'We reply on WhatsApp 8am–8pm' (owner facts only)" },
+        ctaNote: { type: "string", description: "Tiny line under the buttons, e.g. 'We answer calls and texts 8am–8pm' (owner facts only)" },
         disclaimer: { type: "string", description: "Optional legal note the owner wants in the footer" },
         accentColor: { type: "string", description: "Hex color like #0B5FFF" },
         lang: { type: "string", enum: ["es", "en"], description: "Language of the public page" },
@@ -114,7 +118,7 @@ const TOOLS: Tool[] = [
   },
 ];
 
-const SYSTEM = `You are Sevrii's store builder. In this chat you build the owner's sales page — a one-page "product page" for a US service business, designed to turn visitors into calls and WhatsApp messages (title, price, photos, offer, service options, selling points, how it works, FAQ).
+const SYSTEM = `You are Sevrii's store builder. In this chat you build the owner's sales page — a one-page "product page" for a US service business, designed to turn visitors into calls, texts, quote requests and messages (title, price, photos, offer, service options, selling points, how it works, FAQ).
 
 How to work:
 - Interview the owner like a friendly expert: ask ONE thing at a time (two only if tightly related), in plain short sentences. Follow the "missing" list in the page state, in that order. Explain in a few words why each thing sells ("los precios claros generan más llamadas").
@@ -124,6 +128,7 @@ How to work:
 - Offer: ask if they have a current promotion. Only use a real one. A welcome offer for new customers (only their first service, e.g. "10% off your first cleaning") needs NO end date — never ask for one. Any other time-limited promotion needs its real end date. Never create fake urgency, fake discounts or "ends today" offers.
 - Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to tap the 📎 button. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
 - Video: if "page.videoUrl" is empty, recommend a short video of the owner talking about the service (30-60 s, phone, looking at the camera) — it builds the most trust and shows first in the gallery. They upload it in the "Fotos y video" / "Photos and video" box right below this chat (where the Brain's script is too). Photos can also be added and ordered there. Don't push the video more than once per conversation.
+- Contact: this is the US market and many customers don't use WhatsApp — they call, text or fill a form. Ask for the phone number for calls and texts first, and whether it receives text messages; then ask if they also use WhatsApp (optional). If the owner gives a single number, ask which apps it works with (calls, texts, WhatsApp) and save it in every field that applies (phone and/or whatsapp). Ask which they prefer customers use first and save contactPref. The page always includes a "free quote" form whose requests arrive by email and in the dashboard; mention it once.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
 - When the essentials are done (services with prices, contact, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
@@ -176,7 +181,7 @@ async function runTool(
       for (const k of [
         "headline", "serviceArea", "hours", "textEnabled", "licenseNumber", "licenseState", "noLicenseNeeded", "insured",
         "spanish", "yearsInBusiness", "googleReviewsUrl", "keyPoints", "steps", "features", "faq", "ctaTitle", "ctaText",
-        "ctaNote", "disclaimer", "lang",
+        "ctaNote", "disclaimer", "lang", "contactPref", "quoteForm",
       ]) {
         if (input[k] !== undefined) patch[k] = input[k];
       }
@@ -190,7 +195,7 @@ async function runTool(
       if (typeof input.googleReviewsUrl === "string" && input.googleReviewsUrl && !safeUrl(input.googleReviewsUrl)) {
         notes.push("googleReviewsUrl must be an https link");
       }
-      if (Object.keys(patch).length) await updateBusinessSite(b.id, parseSite({ ...b.site, ...patch }));
+      if (Object.keys(patch).length) await mergeBusinessSite(b.id, b.site, patch as Partial<SiteData>);
       return notes.length ? `saved, with problems: ${notes.join("; ")}` : "saved";
     }
     case "save_service": {
@@ -219,10 +224,12 @@ async function runTool(
     }
     case "set_photo": {
       const url = safeUrl(input.url);
+      // Fresh copy: photos may have been uploaded while the AI was thinking.
+      const cur = (await getBusinessById(b.id))?.site ?? b.site;
       // Only photos that belong to this store (uploaded through Sevrii) can be placed.
-      const known = new Set([b.site.coverUrl, b.site.logoUrl, ...b.site.gallery].filter(Boolean));
+      const known = new Set([cur.coverUrl, cur.logoUrl, ...cur.gallery].filter(Boolean));
       if (!url || !known.has(url)) return "error: unknown photo url";
-      const site = { ...b.site, gallery: b.site.gallery.filter((g) => g !== url) };
+      const site = { ...cur, gallery: cur.gallery.filter((g) => g !== url) };
       if (site.coverUrl === url) site.coverUrl = "";
       if (site.logoUrl === url) site.logoUrl = "";
       if (input.role === "cover") {
@@ -230,7 +237,7 @@ async function runTool(
         site.coverUrl = url;
       } else if (input.role === "logo") site.logoUrl = url;
       else if (input.role === "gallery") site.gallery = [...site.gallery, url];
-      await updateBusinessSite(b.id, parseSite(site));
+      await mergeBusinessSite(b.id, cur, { coverUrl: site.coverUrl, logoUrl: site.logoUrl, gallery: site.gallery });
       return "saved";
     }
     case "publish_page": {

@@ -10,6 +10,8 @@ export type SiteData = {
   headline: string;
   phone: string; // E.164, e.g. +13055550123 ("" = none)
   textEnabled: boolean; // the phone number accepts SMS
+  contactPref: ContactPref; // the owner's favorite way to be contacted ("" = automatic)
+  quoteForm: boolean; // show the "free quote" form (requests arrive by email + dashboard)
   serviceArea: string;
   hours: string;
   licenseNumber: string;
@@ -37,10 +39,29 @@ export type SiteData = {
   fromPlan: string; // fingerprint of the Brain plan the page was last built from ("" = never)
 };
 
+export type ContactPref = "" | "call" | "text" | "whatsapp" | "form";
+export type Channel = "call" | "text" | "whatsapp" | "form";
+
+// The ways a visitor can reach the business, best first. Many people in the US
+// don't use WhatsApp, so calls and texts come first unless the owner prefers
+// WhatsApp (or only has WhatsApp). The quote form works for everyone.
+export function contactChannels(site: Pick<SiteData, "phone" | "textEnabled" | "contactPref" | "quoteForm">, whatsapp: string | null | undefined): Channel[] {
+  const wa = normalizePhone(whatsapp);
+  const available: Channel[] = [];
+  if (site.phone) available.push("call");
+  if (site.phone && site.textEnabled) available.push("text");
+  if (wa) available.push("whatsapp");
+  if (site.quoteForm) available.push("form");
+  const pref = site.contactPref && available.includes(site.contactPref) ? site.contactPref : "";
+  return pref ? [pref, ...available.filter((c) => c !== pref)] : available;
+}
+
 export const EMPTY_SITE: SiteData = {
   headline: "",
   phone: "",
   textEnabled: true,
+  contactPref: "",
+  quoteForm: true,
   serviceArea: "",
   hours: "",
   licenseNumber: "",
@@ -120,6 +141,16 @@ export function isOurBlob(url: string): boolean {
   return /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/stores\//i.test(url);
 }
 
+// A file inside this business's own folder (never another project's).
+export function ownsBlob(url: string, businessId: string): boolean {
+  if (!isOurBlob(url)) return false;
+  try {
+    return new URL(url).pathname.startsWith(`/stores/${businessId}/`);
+  } catch {
+    return false;
+  }
+}
+
 export function parseSite(raw: unknown): SiteData {
   let obj: Record<string, unknown> = {};
   if (typeof raw === "string") {
@@ -136,6 +167,8 @@ export function parseSite(raw: unknown): SiteData {
     headline: str(obj.headline, LIMITS.headline),
     phone: normalizePhone(str(obj.phone, 30)) ?? "",
     textEnabled: obj.textEnabled === undefined ? true : Boolean(obj.textEnabled),
+    contactPref: (["call", "text", "whatsapp", "form"] as const).find((x) => x === obj.contactPref) ?? "",
+    quoteForm: obj.quoteForm === undefined ? true : Boolean(obj.quoteForm),
     serviceArea: str(obj.serviceArea, LIMITS.serviceArea),
     hours: str(obj.hours, LIMITS.hours),
     licenseNumber: str(obj.licenseNumber, LIMITS.license),
