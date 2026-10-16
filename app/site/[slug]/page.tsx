@@ -7,9 +7,10 @@ import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { activeOffer, contactChannels, formatPhone, normalizePhone, storeTheme } from "@/lib/site";
-import { BuyActions, ChannelIcon, ContactLink, Countdown, Gallery, QuoteForm, Track, type MediaItem } from "./StoreParts";
+import { BuyActions, ChannelIcon, ContactLink, Countdown, Gallery, Track, type MediaItem } from "./StoreParts";
+import ChatWidget from "./ChatWidget";
 import "./store.css";
-import { channelClass, QUOTE_HEAD, type ContactChannel } from "@/lib/storeContact";
+import { CHAT_HEAD, channelClass, type ContactChannel } from "@/lib/storeContact";
 
 // A page is public only while it's published AND its owner's plan includes publishing
 // (if the subscription ends, the page goes offline until they subscribe again).
@@ -117,8 +118,8 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
   const contact = { channels, wa, phone };
   const primary: ContactChannel | null = channels[0] ?? null;
   const msgs = { msgService: t.msgService("{biz}", "{svc}"), msgGeneric: t.msgGeneric("{biz}") };
-  const long: Record<ContactChannel, string> = { call: t.callNow, text: t.text, whatsapp: t.writeWhatsapp, form: t.quoteBtn };
-  const short: Record<ContactChannel, string> = { call: t.call, text: t.textShort, whatsapp: "WhatsApp", form: t.quoteShort };
+  const long: Record<ContactChannel, string> = { call: t.callNow, text: t.text, whatsapp: t.writeWhatsapp, chat: t.chatBtn };
+  const short: Record<ContactChannel, string> = { call: t.call, text: t.textShort, whatsapp: "WhatsApp", chat: t.chatShort };
   const link = (c: ContactChannel, className: string, children: React.ReactNode, service?: string) => (
     <ContactLink key={c} channel={c} businessId={business.id} businessName={business.name} service={service} contact={contact} labels={msgs} className={className}>
       {children}
@@ -412,21 +413,38 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
           </section>
         )}
 
-        {site.quoteForm && (
-          <section className="block quote-block" id="cotizar">
+        {site.chat && (
+          <section className="block quote-block" id="chat">
             <div className="wrap quote-grid">
               <div className="quote-side">
-                <span className="eyebrow">{QUOTE_HEAD[site.lang].eyebrow}</span>
-                <h2>{QUOTE_HEAD[site.lang].title}</h2>
-                <p>{QUOTE_HEAD[site.lang].sub(business.name)}</p>
-                {channels.filter((c) => c !== "form").length > 0 && (
-                  <div className="quote-alt">
-                    {channels.filter((c) => c !== "form").map((c) => link(c, "btn ghost-light", <><ChannelIcon c={c} /> {c === "call" && phone ? formatPhone(phone) : short[c]}</>))}
-                  </div>
-                )}
+                <span className="eyebrow">{CHAT_HEAD[site.lang].eyebrow}</span>
+                <h2>{CHAT_HEAD[site.lang].title}</h2>
+                <p>{CHAT_HEAD[site.lang].sub(business.name)}</p>
+                <div className="quote-alt">
+                  {link("chat", "btn chat", <><ChannelIcon c="chat" /> {CHAT_HEAD[site.lang].open}</>)}
+                  {channels.filter((c) => c !== "chat").map((c) => link(c, "btn ghost-light", <><ChannelIcon c={c} /> {c === "call" && phone ? formatPhone(phone) : short[c]}</>))}
+                </div>
                 {(area || site.hours) && <div className="quote-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
               </div>
-              <QuoteForm slug={business.slug} businessName={business.name} lang={site.lang} services={ordered.map((x) => x.name)} hasWhatsapp={Boolean(wa)} />
+              {link(
+                "chat",
+                "chat-preview",
+                <>
+                  <span className="cp-head">
+                    <span className="cp-avatar">{business.name.slice(0, 1).toUpperCase()}</span>
+                    <span>
+                      <strong>{business.name}</strong>
+                      <em>● {site.lang === "en" ? "Replies instantly" : "Responde al instante"}</em>
+                    </span>
+                  </span>
+                  <span className="cp-bubble">
+                    {site.lang === "en"
+                      ? `Hi! 👋 I'm ${business.name}'s assistant. Ask me about prices, services or availability.`
+                      : `¡Hola! 👋 Soy el asistente de ${business.name}. Pregúntame por precios, servicios o disponibilidad.`}
+                  </span>
+                  <span className="cp-input">{site.lang === "en" ? "Type your message…" : "Escribe tu mensaje…"} <span className="cp-send">→</span></span>
+                </>
+              )}
             </div>
           </section>
         )}
@@ -496,6 +514,8 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
           </div>
         </div>
       </footer>
+
+      {site.chat && <ChatWidget slug={business.slug} businessName={business.name} logoUrl={site.logoUrl} lang={site.lang} />}
 
       {primary && (
         <div className="sticky-cta">

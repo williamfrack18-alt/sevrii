@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { trackContactClickAction } from "@/app/actions";
-import { submitLeadAction } from "@/app/leadActions";
 import { channelClass } from "@/lib/storeContact";
 
 type Channel = "call" | "text" | "whatsapp";
@@ -134,7 +133,7 @@ export type ContactLabels = {
   call: string;
   text: string;
   whatsapp: string;
-  form: string;
+  chat: string;
   msgService: string; // template with {biz} and {svc}
   msgGeneric: string; // template with {biz}
 };
@@ -151,11 +150,11 @@ export function ChannelIcon({ c }: { c: ContactChannel }) {
   if (c === "call") return <svg {...common}><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>;
   if (c === "text") return <svg {...common}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 9h8M8 13h5" /></svg>;
   if (c === "whatsapp") return <svg {...common}><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.6-5.4A8.4 8.4 0 1 1 21 11.5z" /></svg>;
-  return <svg {...common}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h5" /></svg>;
+  return <svg {...common}><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z" /><path d="M8.5 12h.01M12 12h.01M15.5 12h.01" strokeWidth={3} /></svg>;
 }
 
-// Opens the right app for each channel; "form" scrolls to the quote form and
-// picks the service there.
+// Opens the right app for each channel; "chat" opens the page chat with the
+// service already written.
 export function ContactLink({
   channel,
   businessId,
@@ -178,17 +177,17 @@ export function ContactLink({
   const msg = service
     ? labels.msgService.replace("{biz}", () => businessName).replace("{svc}", () => service)
     : labels.msgGeneric.replace("{biz}", () => businessName);
-  if (channel === "form") {
+  if (channel === "chat") {
     return (
-      <a
-        href="#cotizar"
+      <button
+        type="button"
         className={className}
         onClick={() => {
-          window.dispatchEvent(new CustomEvent("sevrii:quote", { detail: service || "" }));
+          window.dispatchEvent(new CustomEvent("sevrii:chat", { detail: service || "" }));
         }}
       >
         {children}
-      </a>
+      </button>
     );
   }
   const href =
@@ -198,7 +197,7 @@ export function ContactLink({
         ? smsLink(contact.phone, msg)
         : contact.phone
           ? `tel:${contact.phone}`
-          : "#cotizar";
+          : "#";
   return (
     <Track href={href} businessId={businessId} channel={channel} className={className}>
       {children}
@@ -291,190 +290,5 @@ export function BuyActions({
         )}
       </div>
     </>
-  );
-}
-
-// "Get a free quote": works for people who don't use WhatsApp or don't want to
-// call. The request is saved and emailed to the owner.
-const QUOTE_TEXT = {
-  es: {
-    name: "Tu nombre",
-    phone: "Teléfono",
-    email: "Correo",
-    oneOf: "Deja tu teléfono o tu correo (o los dos).",
-    service: "Servicio",
-    choose: "— Elige un servicio —",
-    other: "Otro / no estoy seguro",
-    message: "¿Qué necesitas? (opcional)",
-    messagePh: "Ej. casa de 3 cuartos, el sábado en la mañana",
-    how: "¿Cómo prefieres que te contacten?",
-    prefs: { call: "Llamada", text: "Texto", whatsapp: "WhatsApp", email: "Correo" },
-    send: "Enviar solicitud",
-    sending: "Enviando…",
-    consent: (biz: string) => `Al enviar, aceptas que ${biz} te contacte por el medio que elegiste sobre tu solicitud.`,
-    done: (biz: string) => `¡Listo! ${biz} recibió tu solicitud y te contactará pronto.`,
-    again: "Enviar otra",
-    errors: {
-      name: "Escribe tu nombre.",
-      contact: "Deja tu teléfono o tu correo.",
-      email: "Ese correo no parece correcto.",
-      phone: "Ese teléfono no parece correcto.",
-      rate: "Ya enviaste varias solicitudes. Intenta más tarde.",
-      closed: "Esta página no está recibiendo solicitudes por ahora.",
-      failed: "No se pudo enviar. Inténtalo de nuevo.",
-    },
-  },
-  en: {
-    name: "Your name",
-    phone: "Phone",
-    email: "Email",
-    oneOf: "Leave your phone or your email (or both).",
-    service: "Service",
-    choose: "— Choose a service —",
-    other: "Other / not sure",
-    message: "What do you need? (optional)",
-    messagePh: "E.g. 3-bedroom house, Saturday morning",
-    how: "How should they contact you?",
-    prefs: { call: "Call", text: "Text", whatsapp: "WhatsApp", email: "Email" },
-    send: "Send request",
-    sending: "Sending…",
-    consent: (biz: string) => `By sending, you agree that ${biz} may contact you about your request using the method you chose.`,
-    done: (biz: string) => `Done! ${biz} got your request and will contact you soon.`,
-    again: "Send another",
-    errors: {
-      name: "Enter your name.",
-      contact: "Leave your phone or your email.",
-      email: "That email doesn't look right.",
-      phone: "That phone number doesn't look right.",
-      rate: "You've sent several requests. Try again later.",
-      closed: "This page isn't taking requests right now.",
-      failed: "Couldn't send. Please try again.",
-    },
-  },
-};
-
-export function QuoteForm({
-  slug,
-  businessName,
-  lang,
-  services,
-  hasWhatsapp,
-}: {
-  slug: string;
-  businessName: string;
-  lang: "es" | "en";
-  services: string[];
-  hasWhatsapp: boolean;
-}) {
-  const t = QUOTE_TEXT[lang];
-  const [service, setService] = useState("");
-  const [pref, setPref] = useState<"" | "call" | "text" | "whatsapp" | "email">("");
-  const [state, setState] = useState<"idle" | "sending" | "done">("idle");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const pick = (e: Event) => {
-      const name = (e as CustomEvent<string>).detail;
-      if (name && services.includes(name)) setService(name);
-    };
-    window.addEventListener("sevrii:quote", pick);
-    return () => window.removeEventListener("sevrii:quote", pick);
-  }, [services]);
-
-  async function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    setError("");
-    setState("sending");
-    try {
-      const res = await submitLeadAction({
-        slug,
-        name: String(f.get("name") || ""),
-        phone: String(f.get("phone") || ""),
-        email: String(f.get("email") || ""),
-        service: service === "__other" ? "" : service,
-        message: String(f.get("message") || ""),
-        contactPref: pref,
-        website: String(f.get("website") || ""),
-      });
-      if (res.ok) setState("done");
-      else {
-        setError(t.errors[res.error]);
-        setState("idle");
-      }
-    } catch {
-      setError(t.errors.failed);
-      setState("idle");
-    }
-  }
-
-  if (state === "done") {
-    return (
-      <div className="quote-done">
-        <div className="quote-done-icon">✓</div>
-        <p>{t.done(businessName)}</p>
-        <button type="button" className="btn ghost" onClick={() => setState("idle")}>
-          {t.again}
-        </button>
-      </div>
-    );
-  }
-
-  const prefs = (["text", "call", ...(hasWhatsapp ? ["whatsapp"] : []), "email"] as const) as readonly ("call" | "text" | "whatsapp" | "email")[];
-  return (
-    <form className="quote-form" onSubmit={submit} noValidate>
-      <div className="q-row">
-        <label>
-          <span>{t.name}</span>
-          <input name="name" autoComplete="name" required maxLength={80} />
-        </label>
-      </div>
-      <div className="q-row two">
-        <label>
-          <span>{t.phone}</span>
-          <input name="phone" type="tel" autoComplete="tel" inputMode="tel" maxLength={30} placeholder="(305) 555-0123" />
-        </label>
-        <label>
-          <span>{t.email}</span>
-          <input name="email" type="email" autoComplete="email" maxLength={254} />
-        </label>
-      </div>
-      <p className="q-hint">{t.oneOf}</p>
-      {services.length > 0 && (
-        <label className="q-row">
-          <span>{t.service}</span>
-          <select value={service} onChange={(e) => setService(e.target.value)}>
-            <option value="">{t.choose}</option>
-            {services.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-            <option value="__other">{t.other}</option>
-          </select>
-        </label>
-      )}
-      <label className="q-row">
-        <span>{t.message}</span>
-        <textarea name="message" rows={3} maxLength={1000} placeholder={t.messagePh} />
-      </label>
-      <div className="q-row">
-        <span className="q-label">{t.how}</span>
-        <div className="chip-row">
-          {prefs.map((p) => (
-            <button key={p} type="button" className={`chip ${pref === p ? "active" : ""}`} onClick={() => setPref(pref === p ? "" : p)}>
-              {t.prefs[p]}
-            </button>
-          ))}
-        </div>
-      </div>
-      {/* honeypot */}
-      <input name="website" tabIndex={-1} autoComplete="off" className="q-hp" aria-hidden="true" />
-      {error && <p className="q-error">{error}</p>}
-      <button type="submit" className="btn block quote" disabled={state === "sending"}>
-        {state === "sending" ? t.sending : t.send}
-      </button>
-      <p className="q-consent">{t.consent(businessName)}</p>
-    </form>
   );
 }

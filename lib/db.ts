@@ -265,6 +265,38 @@ function ensureSchema(): Promise<void> {
         )
       `;
       await sql`CREATE INDEX IF NOT EXISTS leads_business_idx ON leads ("businessId", "createdAt" DESC)`;
+      // Chat on the public page: a visitor talks with the business (AI first, owner any time).
+      await sql`
+        CREATE TABLE IF NOT EXISTS conversations (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          "tokenHash" TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          phone TEXT NOT NULL DEFAULT '',
+          email TEXT NOT NULL DEFAULT '',
+          "aiEnabled" BOOLEAN NOT NULL DEFAULT true,
+          handoff BOOLEAN NOT NULL DEFAULT false,
+          "ownerUnread" INTEGER NOT NULL DEFAULT 0,
+          "aiReplies" INTEGER NOT NULL DEFAULT 0,
+          "lastMessage" TEXT NOT NULL DEFAULT '',
+          "lastMessageAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "visitorSeenAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "notifiedAt" TIMESTAMPTZ,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS conversations_business_idx ON conversations ("businessId", "lastMessageAt" DESC)`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS conversations_token_idx ON conversations ("tokenHash")`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS conv_messages (
+          seq BIGSERIAL PRIMARY KEY,
+          "conversationId" TEXT NOT NULL,
+          role TEXT NOT NULL,
+          content TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS conv_messages_conv_idx ON conv_messages ("conversationId", seq)`;
     })().catch((err) => {
       // Don't cache a failed setup forever — let the next request retry.
       schemaReady = null;
@@ -1210,6 +1242,8 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM payment_links WHERE "businessId" = ${id}`;
   await sql`DELETE FROM payment_notices WHERE "businessId" = ${id}`;
   await sql`DELETE FROM leads WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM conv_messages WHERE "conversationId" IN (SELECT id FROM conversations WHERE "businessId" = ${id})`;
+  await sql`DELETE FROM conversations WHERE "businessId" = ${id}`;
   await sql`DELETE FROM businesses WHERE id = ${id} AND "userId" = ${userId}`;
   // Only this project's own files (a logo carried over from another project stays).
   return [site.logoUrl, site.coverUrl, site.videoUrl, ...site.gallery].filter((u) => u && ownsBlob(u, id));
@@ -1234,6 +1268,8 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM payment_links WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM payment_notices WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM leads WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM conv_messages WHERE "conversationId" IN (SELECT id FROM conversations WHERE "businessId" = ANY(${ids}))`;
+    await sql`DELETE FROM conversations WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM businesses WHERE "userId" = ${userId}`;
   }
   await sql`DELETE FROM sessions WHERE "userId" = ${userId}`;
@@ -1276,4 +1312,122 @@ export async function listLeads(businessId: string, limit = 50): Promise<LeadRow
     ORDER BY "createdAt" DESC LIMIT ${limit}
   `) as LeadRow[];
   return rows.map((r) => ({ ...r, createdAt: new Date(r.createdAt).toISOString() }));
+}
+
+// ---------- Page chat (visitor ↔ AI ↔ owner) ----------
+export type ConversationRow = {
+  id: string;
+  businessId: string;
+  name: string;
+  phone: string;
+  email: string;
+  aiEnabled: boolean;
+  handoff: boolean;
+  ownerUnread: number;
+  aiReplies: number;
+  lastMessage: string;
+  lastMessageAt: string;
+  visitorSeenAt: string;
+  notifiedAt: string | null;
+  createdAt: string;
+};
+export type ConvMessageRow = { seq: number; role: "visitor" | "ai" | "owner"; content: string; createdAt: string };
+
+function convRow(r: Record<string, unknown>): ConversationRow {
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : "");
+  return {
+    id: String(r.id),
+    businessId: String(r.businessId),
+    name: String(r.name ?? ""),
+    phone: String(r.phone ?? ""),
+    email: String(r.email ?? ""),
+    aiEnabled: Boolean(r.aiEnabled),
+    handoff: Boolean(r.handoff),
+    ownerUnread: Number(r.ownerUnread ?? 0),
+    aiReplies: Number(r.aiReplies ?? 0),
+    lastMessage: String(r.lastMessage ?? ""),
+    lastMessageAt: iso(r.lastMessageAt),
+    visitorSeenAt: iso(r.visitorSeenAt),
+    notifiedAt: r.notifiedAt ? iso(r.notifiedAt) : null,
+    createdAt: iso(r.createdAt),
+  };
+}
+
+export async function createConversation(businessId: string, tokenHash: string): Promise<ConversationRow> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO conversations (id, "businessId", "tokenHash") VALUES (${newId()}, ${businessId}, ${tokenHash})
+    RETURNING *
+  `) as Record<string, unknown>[];
+  return convRow(rows[0]);
+}
+
+export async function getConversationByToken(businessId: string, tokenHash: string): Promise<ConversationRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM conversations WHERE "tokenHash" = ${tokenHash} AND "businessId" = ${businessId}`) as Record<string, unknown>[];
+  return rows[0] ? convRow(rows[0]) : null;
+}
+
+export async function getConversationForBusiness(businessId: string, id: string): Promise<ConversationRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM conversations WHERE id = ${id} AND "businessId" = ${businessId}`) as Record<string, unknown>[];
+  return rows[0] ? convRow(rows[0]) : null;
+}
+
+export async function listConversations(businessId: string, limit = 40): Promise<ConversationRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM conversations WHERE "businessId" = ${businessId}
+    ORDER BY "lastMessageAt" DESC LIMIT ${limit}
+  `) as Record<string, unknown>[];
+  return rows.map(convRow);
+}
+
+export async function countUnreadConversations(businessId: string): Promise<number> {
+  await ensureSchema();
+  const rows = (await sql`SELECT COUNT(*)::int AS n FROM conversations WHERE "businessId" = ${businessId} AND "ownerUnread" > 0`) as { n: number }[];
+  return rows[0]?.n ?? 0;
+}
+
+export async function addConvMessage(conversationId: string, role: "visitor" | "ai" | "owner", content: string): Promise<ConvMessageRow> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO conv_messages ("conversationId", role, content) VALUES (${conversationId}, ${role}, ${content})
+    RETURNING seq, role, content, "createdAt"
+  `) as { seq: string | number; role: ConvMessageRow["role"]; content: string; createdAt: string }[];
+  const preview = content.slice(0, 140);
+  if (role === "visitor") {
+    await sql`UPDATE conversations SET "lastMessage" = ${preview}, "lastMessageAt" = now(), "visitorSeenAt" = now(), "ownerUnread" = "ownerUnread" + 1 WHERE id = ${conversationId}`;
+  } else if (role === "ai") {
+    await sql`UPDATE conversations SET "lastMessage" = ${preview}, "lastMessageAt" = now(), "aiReplies" = "aiReplies" + 1 WHERE id = ${conversationId}`;
+  } else {
+    await sql`UPDATE conversations SET "lastMessage" = ${preview}, "lastMessageAt" = now(), "ownerUnread" = 0 WHERE id = ${conversationId}`;
+  }
+  const r = rows[0];
+  return { seq: Number(r.seq), role: r.role, content: r.content, createdAt: new Date(r.createdAt).toISOString() };
+}
+
+export async function listConvMessages(conversationId: string, afterSeq = 0, limit = 80): Promise<ConvMessageRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT seq, role, content, "createdAt" FROM conv_messages
+    WHERE "conversationId" = ${conversationId} AND seq > ${afterSeq}
+    ORDER BY seq DESC LIMIT ${limit}
+  `) as { seq: string | number; role: ConvMessageRow["role"]; content: string; createdAt: string }[];
+  return rows.reverse().map((r) => ({ seq: Number(r.seq), role: r.role, content: r.content, createdAt: new Date(r.createdAt).toISOString() }));
+}
+
+export async function updateConversation(
+  id: string,
+  patch: { name?: string; phone?: string; email?: string; aiEnabled?: boolean; handoff?: boolean; read?: boolean; seen?: boolean; notified?: boolean }
+): Promise<void> {
+  await ensureSchema();
+  if (patch.name !== undefined) await sql`UPDATE conversations SET name = ${patch.name} WHERE id = ${id}`;
+  if (patch.phone !== undefined) await sql`UPDATE conversations SET phone = ${patch.phone} WHERE id = ${id}`;
+  if (patch.email !== undefined) await sql`UPDATE conversations SET email = ${patch.email} WHERE id = ${id}`;
+  if (patch.aiEnabled !== undefined) await sql`UPDATE conversations SET "aiEnabled" = ${patch.aiEnabled} WHERE id = ${id}`;
+  if (patch.handoff !== undefined) await sql`UPDATE conversations SET handoff = ${patch.handoff} WHERE id = ${id}`;
+  if (patch.read) await sql`UPDATE conversations SET "ownerUnread" = 0 WHERE id = ${id}`;
+  if (patch.seen) await sql`UPDATE conversations SET "visitorSeenAt" = now() WHERE id = ${id}`;
+  if (patch.notified) await sql`UPDATE conversations SET "notifiedAt" = now() WHERE id = ${id}`;
 }

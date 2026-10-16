@@ -2,7 +2,7 @@
 // Both are best-effort: if email isn't set up or sending fails, nothing breaks.
 import { emailReady, sendEmail, simpleEmail } from "./email";
 import { siteUrl } from "./billing";
-import { claimPaymentNotice, getUserById, hasPaymentNotice, releasePaymentNotice, type BusinessRow, type LeadRow } from "./db";
+import { claimPaymentNotice, getUserById, hasPaymentNotice, releasePaymentNotice, type BusinessRow, type ConversationRow } from "./db";
 import { getPaidSession } from "./payments";
 
 type Lang = "es" | "en";
@@ -125,47 +125,59 @@ function defang(s: string): string {
     .replace(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|xyz|info|biz|app|link|site|top|ru|cn)\b\S*/gi, "[link]");
 }
 
-// A visitor asked for a quote on the owner's page.
-export async function notifyNewLead(business: BusinessRow, lead: LeadRow): Promise<void> {
+// The owner gets an email when a chat needs them (throttled by the caller).
+export async function notifyChatOwner(business: BusinessRow, conv: ConversationRow, why: "contact" | "handoff" | "message", detail: string): Promise<void> {
   if (!emailReady()) return;
   try {
     const owner = await getUserById(business.userId);
     if (!owner?.email) return;
     const es = business.site.lang !== "en";
-    const pref = {
-      call: es ? "Llamada" : "Call",
-      text: es ? "Mensaje de texto" : "Text message",
-      whatsapp: "WhatsApp",
-      email: "Email",
-    }[lead.contactPref as "call" | "text" | "whatsapp" | "email"];
+    const who = conv.name ? defang(conv.name) : es ? "Un cliente" : "A customer";
     const items = [
-      `${es ? "Nombre" : "Name"}: ${defang(lead.name)}`,
-      ...(lead.phone ? [`${es ? "Teléfono" : "Phone"}: ${lead.phone}`] : []),
-      ...(lead.email ? [`Email: ${lead.email}`] : []),
-      ...(lead.service ? [`${es ? "Servicio" : "Service"}: ${lead.service}`] : []),
-      ...(pref ? [`${es ? "Prefiere" : "Prefers"}: ${pref}`] : []),
+      ...(conv.name ? [`${es ? "Nombre" : "Name"}: ${defang(conv.name)}`] : []),
+      ...(conv.phone ? [`${es ? "Teléfono" : "Phone"}: ${conv.phone}`] : []),
+      ...(conv.email ? [`Email: ${conv.email}`] : []),
+      ...(detail ? [`${why === "handoff" ? (es ? "Lo que quiere" : "What they want") : es ? "Último mensaje" : "Last message"}: ${defang(detail)}`] : []),
     ];
+    const title =
+      why === "handoff"
+        ? es ? "Un cliente quiere que lo atiendas" : "A customer wants you to follow up"
+        : why === "contact"
+          ? es ? "Nuevo cliente en tu chat" : "New customer in your chat"
+          : es ? "Nuevo mensaje en tu chat" : "New message in your chat";
     const { html, text } = simpleEmail({
-      title: es ? "¡Nuevo cliente interesado!" : "New customer request!",
+      title,
       intro: es
-        ? `Alguien pidió una cotización en tu página de ${business.name}. Responde rápido: quien contesta primero se queda con el cliente.`
-        : `Someone asked for a quote on your ${business.name} page. Reply fast: whoever answers first usually gets the job.`,
-      items: lead.message ? [...items, `${es ? "Mensaje del visitante" : "Visitor's message"}: ${defang(lead.message)}`] : items,
-      button: es ? "Ver mis clientes" : "See my requests",
-      url: `${siteUrl()}/dashboard?view=store#leads`,
-      outro: lead.email
-        ? es ? "Puedes responder este correo y le llega directo al cliente." : "You can reply to this email and it goes straight to the customer."
-        : es ? "Llámalo o escríbele al número que dejó." : "Call or text the number they left.",
+        ? `${who} escribió en el chat de tu página de ${business.name}. Responde rápido: quien contesta primero se queda con el cliente.`
+        : `${who} wrote in the chat on your ${business.name} page. Reply fast: whoever answers first usually gets the job.`,
+      items,
+      button: es ? "Abrir la conversación" : "Open the conversation",
+      url: `${siteUrl()}/dashboard?view=store#inbox`,
+      outro: es
+        ? "Puedes contestar desde Sevrii, o llamarlo o escribirle directo al número que dejó."
+        : "You can answer in Sevrii, or call or text the number they left.",
     });
-    await sendEmail(
-      owner.email,
-      es ? `Nuevo cliente: ${defang(lead.name)}${lead.service ? ` · ${lead.service}` : ""}` : `New request: ${defang(lead.name)}${lead.service ? ` · ${lead.service}` : ""}`,
-      html,
-      text,
-      // Replies go to the customer; with no customer email, back to the owner.
-      lead.email || owner.email
-    );
+    await sendEmail(owner.email, `${title}${conv.name ? ` · ${defang(conv.name)}` : ""}`, html, text, conv.email || owner.email);
   } catch (err) {
-    console.error("[notify] lead failed", (err as Error)?.message);
+    console.error("[notify] chat owner failed", (err as Error)?.message);
+  }
+}
+
+// The owner answered after the visitor left the page: send it to their email.
+export async function emailVisitorReply(business: BusinessRow, conv: ConversationRow, message: string): Promise<void> {
+  if (!emailReady() || !conv.email) return;
+  try {
+    const owner = await getUserById(business.userId);
+    const es = business.site.lang !== "en";
+    const { html, text } = simpleEmail({
+      title: es ? `${business.name} te respondió` : `${business.name} replied`,
+      intro: message.slice(0, 2000),
+      button: es ? "Seguir la conversación" : "Continue the conversation",
+      url: `${siteUrl()}/site/${business.slug}?chat=1`,
+      outro: es ? "También puedes responder este correo." : "You can also reply to this email.",
+    });
+    await sendEmail(conv.email, es ? `Respuesta de ${business.name}` : `Reply from ${business.name}`, html, text, owner?.email || undefined);
+  } catch (err) {
+    console.error("[notify] visitor reply failed", (err as Error)?.message);
   }
 }
