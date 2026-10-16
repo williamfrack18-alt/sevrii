@@ -13,6 +13,8 @@ import {
   updateBusinessDetails,
   updateBusinessSite,
   updateBusinessWhatsapp,
+  appendGalleryPhoto,
+  patchBusinessSite,
   updateService,
   type BusinessRow,
   type ServiceRow,
@@ -197,11 +199,12 @@ export async function uploadStoreImageAction(formData: FormData): Promise<Upload
       contentType: file.type,
       addRandomSuffix: true,
     });
-    const site = { ...business.site };
-    if (kind === "logo") site.logoUrl = blob.url;
-    else if (kind === "cover") site.coverUrl = blob.url;
-    else site.gallery = [...site.gallery, blob.url];
-    await updateBusinessSite(business.id, site);
+    if (kind === "logo") await patchBusinessSite(business.id, { logoUrl: blob.url });
+    else if (kind === "cover") await patchBusinessSite(business.id, { coverUrl: blob.url });
+    else if (!(await appendGalleryPhoto(business.id, blob.url, LIMITS.gallery))) {
+      await dropBlob(blob.url);
+      return { ok: false, error: "galleryFull" };
+    }
   } catch (err) {
     console.error("[store] upload failed", err);
     return { ok: false, error: "failed" };
@@ -264,7 +267,7 @@ export async function setStoreVideoAction(url: string): Promise<{ ok: boolean; b
   }
   if (!isOurBlob(url) || !path.startsWith(`/stores/${business.id}/video-`)) return { ok: false, business };
   const old = business.site.videoUrl;
-  await updateBusinessSite(business.id, parseSite({ ...business.site, videoUrl: url }));
+  await patchBusinessSite(business.id, { videoUrl: url });
   if (old && old !== url) await dropBlob(old);
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
@@ -274,7 +277,7 @@ export async function setStoreVideoAction(url: string): Promise<{ ok: boolean; b
 export async function removeStoreVideoAction(): Promise<BusinessRow> {
   const business = await requireBusiness();
   const old = business.site.videoUrl;
-  await updateBusinessSite(business.id, { ...business.site, videoUrl: "" });
+  await patchBusinessSite(business.id, { videoUrl: "" });
   await dropBlob(old);
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);

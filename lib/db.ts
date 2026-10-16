@@ -585,6 +585,24 @@ export async function updateBusinessSite(businessId: string, site: SiteData): Pr
   await sql`UPDATE businesses SET site = ${JSON.stringify(parseSite(site))}::jsonb WHERE id = ${businessId}`;
 }
 
+// Changes only the given fields, so two saves at the same time (e.g. the video
+// and a photo) never erase each other.
+export async function patchBusinessSite(businessId: string, patch: Partial<Pick<SiteData, "videoUrl" | "coverUrl" | "logoUrl">>): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET site = site || ${JSON.stringify(patch)}::jsonb WHERE id = ${businessId}`;
+}
+
+// Adds one photo to the end of the gallery in a single statement.
+export async function appendGalleryPhoto(businessId: string, url: string, max: number): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE businesses
+    SET site = jsonb_set(site, '{gallery}', COALESCE(site->'gallery', '[]'::jsonb) || to_jsonb(${url}::text))
+    WHERE id = ${businessId} AND jsonb_array_length(COALESCE(site->'gallery', '[]'::jsonb)) < ${max}
+    RETURNING id`) as { id: string }[];
+  return rows.length > 0;
+}
+
 export async function setBusinessPublished(businessId: string, published: boolean): Promise<void> {
   await ensureSchema();
   await sql`UPDATE businesses SET published = ${published ? 1 : 0} WHERE id = ${businessId}`;
