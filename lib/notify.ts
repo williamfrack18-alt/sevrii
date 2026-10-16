@@ -152,7 +152,7 @@ export async function notifyChatOwner(business: BusinessRow, conv: ConversationR
         : `${who} wrote in the chat on your ${business.name} page. Reply fast: whoever answers first usually gets the job.`,
       items,
       button: es ? "Abrir la conversación" : "Open the conversation",
-      url: `${siteUrl()}/dashboard?view=store#inbox`,
+      url: `${siteUrl()}/dashboard?view=chats&c=${conv.id}`,
       outro: es
         ? "Puedes contestar desde Sevrii, o llamarlo o escribirle directo al número que dejó."
         : "You can answer in Sevrii, or call or text the number they left.",

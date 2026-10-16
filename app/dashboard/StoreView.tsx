@@ -3,8 +3,6 @@
 import { useState } from "react";
 import StoreChat from "./StoreChat";
 import StoreMedia from "./StoreMedia";
-import StoreInbox from "./StoreInbox";
-import StoreNotify from "./StoreNotify";
 import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
@@ -25,7 +23,9 @@ export default function StoreView({
   onMessages,
   canPublish = true,
   onPlans,
+  onChats,
 }: {
+  onChats?: () => void;
   canPublish?: boolean;
   onPlans?: () => void;
   business: ClientBusiness;
@@ -100,9 +100,9 @@ export default function StoreView({
           </span>
           <div className="flex items-center gap-2">
             {business.site.chat && (
-              <a href="#inbox" className="text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
+              <button type="button" onClick={onChats} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
                 💬 {lang === "es" ? "Conversaciones" : "Conversations"}
-              </a>
+              </button>
             )}
             {business.published ? (
               <>
@@ -224,8 +224,6 @@ export default function StoreView({
       {/* The page, below the chat */}
       <section id="store-page" className="px-3 md:px-8 pt-6 pb-10" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-[1180px] mx-auto">
-          <StoreInbox businessId={business.id} />
-          <StoreNotify />
           <StoreMedia
             business={business}
             onUpdated={(b) => {

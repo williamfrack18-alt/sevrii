@@ -11,6 +11,7 @@ import {
   getUserById,
   listConvMessages,
   listConversations,
+  countUnreadConversations,
   listServices,
   updateConversation,
   updateBusinessSite,
@@ -85,7 +86,7 @@ async function notifyOwner(b: BusinessRow, conv: ConversationRow, why: Why, deta
           ? es ? `💬 Nuevo chat en ${b.name}` : `💬 New chat on ${b.name}`
           : es ? `💬 ${who} te escribió` : `💬 ${who} wrote you`;
   after(async () => {
-    if (push) await pushToUser(b.userId, { title, body: detail, url: "/dashboard?view=store#inbox", tag: `chat-${conv.id}` });
+    if (push) await pushToUser(b.userId, { title, body: detail, url: `/dashboard?view=chats&c=${conv.id}`, tag: `chat-${conv.id}` });
     if (mail) await notifyChatOwner(b, conv, why === "new" ? "message" : why, detail);
   });
 }
@@ -169,6 +170,12 @@ export async function visitorChatPollAction(input: { slug: string; token: string
 async function ownerBusiness(): Promise<BusinessRow | null> {
   const user = await getCurrentUser();
   return user?.business ?? null;
+}
+
+export async function unreadChatsAction(): Promise<number> {
+  const b = await ownerBusiness();
+  if (!b) return 0;
+  return countUnreadConversations(b.id);
 }
 
 export type InboxConversation = Pick<ConversationRow, "id" | "name" | "phone" | "email" | "aiEnabled" | "handoff" | "ownerUnread" | "lastMessage" | "lastMessageAt">;
@@ -272,7 +279,7 @@ export async function testPushAction(): Promise<number> {
   return pushToUser(user.id, {
     title: es ? "✅ Notificaciones activadas" : "✅ Notifications are on",
     body: es ? `Así te avisaremos cuando alguien escriba en ${user.business.name}.` : `This is how we'll tell you when someone writes to ${user.business.name}.`,
-    url: "/dashboard?view=store#inbox",
+    url: "/dashboard?view=chats",
     tag: "test",
   });
 }

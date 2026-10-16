@@ -19,6 +19,8 @@ import type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, ClientPr
 
 export type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, DashboardView } from "./types";
 import { DASHBOARD_VIEWS } from "./types";
+import ChatsView from "./ChatsView";
+import { unreadChatsAction } from "@/app/chatActions";
 import { ACCENT, BRAND_BTN } from "@/lib/brand";
 
 function initials(name: string): string {
@@ -52,6 +54,12 @@ const ICONS: Record<DashboardView, React.JSX.Element> = {
       <path d="M4 9l1-5h14l1 5" />
       <path d="M4 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0" />
       <path d="M5 9v11h14V9" />
+    </>
+  ),
+  chats: (
+    <>
+      <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z" />
+      <path d="M8.5 12h.01M12 12h.01M15.5 12h.01" />
     </>
   ),
   marketing: (
@@ -113,6 +121,22 @@ export default function DashboardTabs({
   const bt = PLANS_TEXT[lang];
   const limits = PLANS[plan.id].limits;
   const [view, setViewState] = useState<DashboardView>(initialView);
+  // Store opens a small sub-menu with the chats ("Conversaciones").
+  const [storeOpen, setStoreOpen] = useState(true);
+  const [unreadChats, setUnreadChats] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const check = () =>
+      unreadChatsAction()
+        .then((n) => alive && setUnreadChats(n))
+        .catch(() => {});
+    check();
+    const id = setInterval(check, 30000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [view, business.id]);
   // A link to /dashboard?view=… while the dashboard is already open keeps this
   // component mounted, so follow the new section from the URL.
   useEffect(() => {
@@ -142,11 +166,13 @@ export default function DashboardTabs({
 
   function setView(next: DashboardView) {
     setViewState(next);
+    if (next === "store" || next === "chats") setStoreOpen(true);
     // Keep the URL in sync so a refresh or a shared link opens the same section.
     window.history.replaceState(null, "", next === "projects" ? "/dashboard" : `/dashboard?view=${next}`);
     window.scrollTo({ top: 0 });
   }
 
+  const chatsLabel = lang === "es" ? "Conversaciones" : "Conversations";
   const items: { id: DashboardView; label: string; n?: string; soon?: boolean }[] = [
     { id: "projects", label: pt.nav.projects },
     { id: "plan", label: pt.nav.plan, n: "01" },
@@ -183,14 +209,17 @@ export default function DashboardTabs({
         </div>
         <div className="dash-pills flex gap-2 px-4 pb-3 overflow-x-auto">
           {items.map((it) => (
-            <button
-              key={it.id}
-              type="button"
-              onClick={() => setView(it.id)}
-              className={`dash-pill ${view === it.id ? "on" : ""}`}
-            >
-              {it.label}
-            </button>
+            <span key={it.id} className="contents">
+              <button type="button" onClick={() => setView(it.id)} className={`dash-pill ${view === it.id ? "on" : ""}`}>
+                {it.label}
+              </button>
+              {it.id === "store" && (
+                <button type="button" onClick={() => setView("chats")} className={`dash-pill ${view === "chats" ? "on" : ""}`}>
+                  💬 {chatsLabel}
+                  {unreadChats > 0 && <span className="dash-badge">{unreadChats}</span>}
+                </button>
+              )}
+            </span>
           ))}
           <button type="button" onClick={() => setView("plans")} className={`dash-pill ${view === "plans" ? "on" : ""}`}>
             {bt.nav}
@@ -264,16 +293,36 @@ export default function DashboardTabs({
                 {!railOpen && i === 1 && <div className="h-px bg-border my-2 mx-2" />}
                 <button
                   type="button"
-                  onClick={() => setView(it.id)}
+                  onClick={() => (it.id === "store" && view === "store" && railOpen ? setStoreOpen((o) => !o) : setView(it.id))}
                   title={railOpen ? undefined : it.label}
                   aria-label={it.label}
+                  aria-expanded={it.id === "store" ? storeOpen : undefined}
                   className={`dash-nav w-full ${railOpen ? "" : "!justify-center !px-0 relative"} ${view === it.id ? "on" : ""}`}
                 >
                   <NavIcon id={it.id} on={view === it.id} />
                   {railOpen && <span className="grow text-left">{it.label}</span>}
+                  {railOpen && it.id === "store" && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-mutedLight transition-transform" style={{ transform: storeOpen ? "rotate(180deg)" : "none" }}>
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  )}
                   {railOpen && i > 0 && (it.soon ? <span className="dash-soon">{t.dashboard.soon}</span> : <span className="dash-n">{it.n}</span>)}
                   {!railOpen && it.soon && <span className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-[#ffc400]" />}
                 </button>
+                {it.id === "store" && (storeOpen || !railOpen) && (
+                  <button
+                    type="button"
+                    onClick={() => setView("chats")}
+                    title={railOpen ? undefined : chatsLabel}
+                    aria-label={chatsLabel}
+                    className={`dash-nav w-full mt-1 ${railOpen ? "dash-sub" : "!justify-center !px-0 relative"} ${view === "chats" ? "on" : ""}`}
+                  >
+                    <NavIcon id="chats" on={view === "chats"} />
+                    {railOpen && <span className="grow text-left">{chatsLabel}</span>}
+                    {railOpen && unreadChats > 0 && <span className="dash-badge">{unreadChats}</span>}
+                    {!railOpen && unreadChats > 0 && <span className="absolute top-1.5 right-2 h-2 w-2 rounded-full" style={{ background: ACCENT }} />}
+                  </button>
+                )}
               </div>
             ))}
           </nav>
@@ -364,8 +413,12 @@ export default function DashboardTabs({
             }}
           />
         )}
+        {view === "chats" && (
+          <ChatsView businessId={currentBusiness.id} published={currentBusiness.published} onStore={() => setView("store")} />
+        )}
         {view === "store" && (
           <StoreView
+            onChats={() => setView("chats")}
             business={currentBusiness}
             services={currentServices}
             initialMessages={storeMessages}
