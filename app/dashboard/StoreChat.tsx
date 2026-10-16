@@ -2,11 +2,10 @@
 
 import { useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
-import { sendStoreChatAction, uploadStoreImageAction } from "@/app/storeActions";
+import { sendStoreChatAction, setStoreVideoAction, uploadStoreImageAction } from "@/app/storeActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
 import { prepareImage } from "@/lib/clientImage";
-import StoreMedia from "./StoreMedia";
-import StoreReach from "./StoreReach";
+import { upload } from "@vercel/blob/client";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
 
 export default function StoreChat({
@@ -30,17 +29,6 @@ export default function StoreChat({
   const t = STORE_TEXT[lang].editor;
   return (
     <ChatPanel
-      tools={[
-        { key: "media", label: lang === "es" ? "📷 Fotos y video" : "📷 Photos & video" },
-        { key: "reach", label: lang === "es" ? "📍 Dónde atiendes" : "📍 Service area" },
-      ]}
-      renderCard={(key) =>
-        key === "media" ? (
-          <StoreMedia business={business} onUpdated={onBusiness} />
-        ) : key === "reach" ? (
-          <StoreReach business={business} onUpdated={onBusiness} />
-        ) : null
-      }
       greeting={greeting}
       initialMessages={initialMessages}
       sync={sync}
@@ -65,6 +53,24 @@ export default function StoreChat({
         return res.messages;
       }}
       onUpload={async (picked) => {
+        // A video goes straight to storage (it can be big), then onto the page.
+        if (picked.type.startsWith("video/") || /\.(mov|mp4|webm)$/i.test(picked.name)) {
+          if (picked.size > 200 * 1024 * 1024) return { error: lang === "es" ? "El video pesa más de 200 MB. Grábalo más corto." : "The video is over 200 MB. Record a shorter one." };
+          try {
+            const ext = /\.mov$/i.test(picked.name) || picked.type === "video/quicktime" ? "mov" : picked.type === "video/webm" ? "webm" : "mp4";
+            const blob = await upload(`stores/${business.id}/video-${Date.now()}.${ext}`, picked, {
+              access: "public",
+              handleUploadUrl: "/api/upload",
+              multipart: picked.size > 30 * 1024 * 1024,
+            });
+            const res = await setStoreVideoAction(blob.url);
+            if (!res.ok) throw new Error("save");
+            onBusiness(toClientBusiness(res.business));
+            return { send: `🎥 ${blob.url}` };
+          } catch {
+            return { error: lang === "es" ? "No se pudo subir el video. Inténtalo de nuevo." : "The video couldn't be uploaded. Try again." };
+          }
+        }
         const file = await prepareImage(picked);
         if (file.size > 4 * 1024 * 1024) return { error: t.photos.tooBig };
         if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return { error: t.photos.badType };

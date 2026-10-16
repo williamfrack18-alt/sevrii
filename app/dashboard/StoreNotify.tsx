@@ -180,13 +180,13 @@ export default function StoreNotify() {
 
   return (
     <div className="rounded-2xl p-4 md:p-5 mb-5" style={{ background: "#0f0f0f", boxShadow: "0 0 0 1px rgba(255,255,255,.08)" }}>
-      <h3 className="text-[15px] font-semibold text-white">🔔 {t.title}</h3>
+      <h3 className="text-[15px] font-semibold text-white">{t.title}</h3>
       <p className="text-[13px] text-[#9a9a9a] mt-1">{t.sub}</p>
       <div className="grid md:grid-cols-3 gap-3 mt-4">
         {/* Push */}
         <div className={row} style={rowStyle}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[14px] font-semibold text-white">📱 {t.push}</span>
+            <span className="text-[14px] font-semibold text-white">{t.push}</span>
             {chip(push === "on")}
           </div>
           <p className="text-[12.5px] text-[#a1a1a1] leading-relaxed">
@@ -216,7 +216,7 @@ export default function StoreNotify() {
         {/* Email */}
         <div className={row} style={rowStyle}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[14px] font-semibold text-white">✉️ {t.email}</span>
+            <span className="text-[14px] font-semibold text-white">{t.email}</span>
             <button
               type="button"
               role="switch"
@@ -234,7 +234,7 @@ export default function StoreNotify() {
         {/* SMS */}
         <div className={row} style={{ ...rowStyle, opacity: 0.6 }}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[14px] font-semibold text-white">💬 {t.sms}</span>
+            <span className="text-[14px] font-semibold text-white">{t.sms}</span>
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,.08)", color: "#a1a1a1" }}>
               {t.smsSoon}
             </span>

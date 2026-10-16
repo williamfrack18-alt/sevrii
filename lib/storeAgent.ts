@@ -117,12 +117,6 @@ const TOOLS: Tool[] = [
     },
   },
   {
-    name: "show_panel",
-    description:
-      "Show an interactive box right under your message, inside this chat, so the owner can do it themselves: media = upload and order photos and their video (with the Brain's video script); reach = choose where they offer the service (in person in a city + miles, or online). Use it every time you ask for photos/video or for the service area.",
-    input_schema: { type: "object", properties: { panel: { type: "string", enum: ["media", "reach"] } }, required: ["panel"] },
-  },
-  {
     name: "publish_page",
     description: "Publish (or unpublish) the page. Only after the owner clearly says yes.",
     input_schema: { type: "object", properties: { publish: { type: "boolean" } }, required: ["publish"] },
@@ -137,10 +131,10 @@ How to work:
 - Write persuasive copy yourself (headline, pitch, key points, steps, closing CTA) from the owner's facts. Benefit first, specific, no fluff.
 - Services: get each service's name and price. Mark the main one as featured.
 - Offer: ask if they have a current promotion. Only use a real one. A welcome offer for new customers (only their first service, e.g. "10% off your first cleaning") needs NO end date — never ask for one. Any other time-limited promotion needs its real end date. Never create fake urgency, fake discounts or "ends today" offers.
-- Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Show the photo box with show_panel("media") (they can also tap the + button or "📷 Fotos y video" above the message box). When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
-- Video: if "page.videoUrl" is empty, recommend a short video of the owner talking about the service (30-60 s, phone, looking at the camera) — it builds the most trust and shows first in the gallery. They upload it in the photo and video box: show it with show_panel("media") (the Brain's script is there too). Photos can also be added and ordered there. Don't push the video more than once per conversation.
+- Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to send the photos right here in the chat with the + button next to the message box ("Súbeme aquí con el botón + …"), then place each one yourself with set_photo. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
+- Video: if "page.videoUrl" is empty, recommend a short video of the owner talking about the service (30-60 s, phone, looking at the camera) — it builds the most trust and shows first in the gallery. They send it right here with the + button (it goes on the page automatically, first in the gallery). If "brainPlan.videoScript" exists, give them the script in a few short lines. Photos can also be added and ordered there. Don't push the video more than once per conversation.
 - Contact: customers talk to the business through the chat on the page (it sits next to the price; an AI answers instantly with the page info, collects their name and phone, and alerts the owner, who can answer in "Conversaciones"/"Conversations"). The page has no call or text buttons, so don't ask for a phone or WhatsApp for the page. Ask the owner's first name once (if "page.ownerName" is empty) and save it as ownerName: when they answer a chat personally, customers see their name and photo, so they know they're talking with the real person. Remind them once to turn on alerts (🔔 Avisos in Conversaciones) so they never miss a customer.
-- Service area: if "page.reachMode" is empty, ask whether they do the work in person in an area (cleaning, moving, repairs…) or online from anywhere (video editing, design…). Show the box with show_panel("reach") so they can pick it, or save it yourself from their answer: local → reachMode=local, reachCity (city or ZIP), reachRadiusMiles; online → reachMode=remote and reachScope (us / world). The marketplace only shows them to customers they can really serve.
+- Service area: work it out yourself from what they say and save it with update_page — never show forms. If "page.reachMode" is empty: a service done at the customer's place (cleaning, moving, repairs, beauty at home…) is local → if you know their city (page, brainPlan or the chat), save reachMode=local with reachCity and ask only how many miles they travel (default 25 if they don't care); work that can be delivered online (video editing, design, bookkeeping, classes by video…) is remote → ask in one short question if they take customers in the whole US or other countries too, and save reachMode=remote with reachScope. If unsure, ask one plain question ("¿Lo haces en persona en tu zona o en línea?"). The marketplace only shows them to customers they can really serve.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
 - Conversion coach: you are also their sales-page expert. Once the essentials are saved, give ONE concrete improvement per reply, the one with the biggest impact first, say in a few words why it brings more customers, and offer to do it: a clear photo of the owner as the main photo; a 30-60 s video of them; a welcome offer for first-time customers; a price on every package; their Google reviews link; FAQ answers to the top fears; notifications on so they answer chats fast. Never invent results or numbers.
@@ -332,7 +326,6 @@ export async function runStoreChatTurn(opts: {
   ];
 
   let reply = "";
-  const panels = new Set<string>();
   try {
     for (let step = 0; step < 6; step++) {
       const res = await client.messages.create({
@@ -356,12 +349,6 @@ export async function runStoreChatTurn(opts: {
       const results: ToolResultBlockParam[] = [];
       for (const u of uses) {
         let out: string;
-        if (u.name === "show_panel") {
-          const panel = (u.input as { panel?: string })?.panel;
-          if (panel === "media" || panel === "reach") panels.add(panel);
-          results.push({ type: "tool_result", tool_use_id: u.id, content: "shown under your message" });
-          continue;
-        }
         try {
           out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, { business, services, canPublish: opts.canPublish });
         } catch (err) {
@@ -385,8 +372,7 @@ export async function runStoreChatTurn(opts: {
       : "I had a problem saving that. Please try again in a moment.";
   }
 
-  const cards = [...panels].map((p) => `[[card:${p}]]`).join("\n");
-  return { reply: `${reply || (es ? "Listo." : "Done.")}${cards ? `\n${cards}` : ""}`, business, services };
+  return { reply: reply || (es ? "Listo." : "Done."), business, services };
 }
 
 // First message when the chat is empty — no AI call needed.

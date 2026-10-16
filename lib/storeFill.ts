@@ -82,12 +82,12 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   const built = es
     ? `¡Listo! Armé tu página con tu expediente: título, puntos clave, cómo trabajas, preguntas frecuentes${packages ? ` y tus ${packages} paquetes con precio` : ""}. Mírala aquí abajo.`
     : `Done! I built your page from your expediente: headline, key points, how you work, FAQ${packages ? ` and your ${packages} priced packages` : ""}. See it below.`;
-  // Boxes the owner can use right here in the chat.
-  const cards = [!s.reachMode ? "[[card:reach]]" : "", s.gallery.length === 0 && !s.coverUrl || !s.videoUrl ? "[[card:media]]" : ""].filter(Boolean).join("\n");
-  const tail = cards ? `\n${cards}` : "";
   if (!s.reachMode) missing.unshift(es ? "dónde atiendes (en persona en tu zona o en línea)" : "where you serve (in person in your area, or online)");
+  const media = s.gallery.length === 0 && !s.coverUrl || !s.videoUrl;
   if (!missing.length) return `${built} ${es ? "Si quieres cambiar algo, dímelo aquí." : "If you want to change anything, tell me here."}`;
   const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} ${es ? "y" : "and"} ${missing[missing.length - 1]}`;
-  const how = tail ? (es ? "Puedes hacerlo aquí mismo:" : "You can do it right here:") : es ? "Dímelo aquí." : "Tell me here.";
-  return `${built} ${es ? `Para que quede completa me falta ${list}.` : `To finish it I still need ${list}.`} ${how}${tail}`;
+  const how = media
+    ? es ? "Las fotos y el video me los puedes mandar aquí mismo con el botón +." : "You can send me the photos and the video right here with the + button."
+    : es ? "Dímelo aquí." : "Tell me here.";
+  return `${built} ${es ? `Para que quede completa me falta ${list}.` : `To finish it I still need ${list}.`} ${how}`;
 }

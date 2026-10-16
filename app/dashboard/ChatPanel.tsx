@@ -17,6 +17,7 @@ export type ChatTexts = {
 };
 
 const PHOTO = /^📷\s+(https:\/\/\S+)$/;
+const VIDEO = /^🎥\s+(https:\/\/\S+)$/;
 // An assistant message can carry interactive boxes: "[[card:media]]".
 const CARD = /\[\[card:([a-z]+)\]\]/g;
 
@@ -191,7 +192,7 @@ export default function ChatPanel({
           </svg>
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,video/mp4,video/quicktime,video/webm"
             className="hidden"
             onChange={(e) => {
               upload(e.target.files?.[0]);
@@ -263,14 +264,17 @@ export default function ChatPanel({
         <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-6 pb-8 flex flex-col gap-7">
           {messages.map((m, idx) => {
             const photo = PHOTO.exec(m.content);
+            const video = VIDEO.exec(m.content);
             if (m.role === "user") {
               return (
                 <div key={m.id} className="flex justify-end">
-                  {photo ? (
+                  {video ? (
+                    <video src={video[1]} controls playsInline preload="metadata" className="max-w-[280px] rounded-3xl bg-black" />
+                  ) : photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photo[1]} alt="" className="max-w-[240px] rounded-3xl" />
                   ) : (
-                    <div className="max-w-[78%] rounded-3xl px-5 py-3 text-[16px] leading-[1.6] whitespace-pre-line" style={{ background: "#2a2a2a", color: "#fff" }}>
+                    <div className="max-w-[78%] rounded-3xl px-5 py-3 text-[15.5px] leading-[1.6] whitespace-pre-line" style={{ background: "#2a2a2a", color: "#fff" }}>
                       {m.content}
                     </div>
                   )}
@@ -282,7 +286,7 @@ export default function ChatPanel({
             return (
               <div key={m.id} className="flex flex-col gap-3">
                 {text && (
-                  <div className="text-[16px] leading-[1.75] whitespace-pre-line" style={{ color: "#ececec" }}>
+                  <div className="text-[15.5px] leading-[1.7] whitespace-pre-line" style={{ color: "#e8e8e8" }}>
                     {text}
                   </div>
                 )}

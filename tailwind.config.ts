@@ -8,8 +8,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ["Fraunces", "Georgia", "serif"],
-        sans: ["Inter", "Helvetica", "Arial", "sans-serif"],
+        serif: ["var(--font-geist-sans)", "-apple-system", "Helvetica", "Arial", "sans-serif"],
+        sans: ["var(--font-geist-sans)", "-apple-system", "Helvetica", "Arial", "sans-serif"],
       },
       colors: {
         ink: "#122118",

@@ -376,7 +376,11 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
     })),
     message: text.startsWith("📷 ")
       ? `${lang === "es" ? "Subí una foto" : "I uploaded a photo"}: ${text.slice(3).trim()}`
-      : text,
+      : text.startsWith("🎥 ")
+        ? lang === "es"
+          ? "Subí mi video (ya quedó puesto en la página, primero en la galería)."
+          : "I uploaded my video (it's already on the page, first in the gallery)."
+        : text,
     lang,
   }));
   await addChatMessage(business.id, "store", "ai", result.reply);

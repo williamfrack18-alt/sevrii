@@ -13,85 +13,92 @@ import {
   type InboxConversation,
 } from "@/app/chatActions";
 import { formatPhone } from "@/lib/site";
-import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
 import StoreNotify from "./StoreNotify";
 
 const TEXT = {
   es: {
     title: "Conversaciones",
-    sub: "Lo que te escriben en el chat de tu página. La IA responde al instante con la info de tu tienda y te avisa por correo cuando alguien quiere agendar. Puedes contestar tú cuando quieras.",
-    empty: "Todavía no hay conversaciones. Cuando alguien escriba en el chat de tu página, aparece aquí.",
-    visitor: "Visitante",
-    needsYou: "Te necesita",
-    ai: "IA",
+    empty: "Aún no tienes conversaciones",
+    emptySub: "Cuando un cliente te escriba desde tu página, aparecerá aquí.",
+    visitor: "Cliente",
+    needsYou: "Pendiente",
+    ai: "Asistente",
     you: "Tú",
-    customer: "Cliente",
-    aiOn: "La IA responde",
-    aiOff: "Respondes tú",
-    turnAiOn: "Dejar que la IA responda",
-    turnAiOff: "Pausar IA",
-    placeholder: "Escribe tu respuesta…",
+    aiOn: "El asistente está respondiendo",
+    aiOff: "Estás respondiendo tú",
+    turnAiOn: "Devolver al asistente",
+    turnAiOff: "Responder yo",
+    placeholder: "Escribe un mensaje",
     send: "Enviar",
-    hint: "Al responder tú, la IA se pausa en esta conversación. Si el cliente ya no está en la página y dejó correo, le llega por email.",
     call: "Llamar",
-    text: "Texto",
     email: "Correo",
-    back: "← Conversaciones",
-    pick: "Elige una conversación para verla aquí.",
+    back: "Volver",
+    pick: "Selecciona una conversación",
     all: "Todas",
-    needs: "Te necesitan",
+    needs: "Pendientes",
     unreadF: "Sin leer",
     alerts: "Avisos",
-    noneFilter: "No hay conversaciones en este filtro.",
-    draft: "Tu página está en borrador: el chat solo lo ves tú. Publícala para que los clientes puedan escribirte.",
+    noneFilter: "Nada por aquí.",
+    draft: "Tu página está en borrador. Publícala para que los clientes puedan escribirte.",
     goStore: "Ir a Store",
-    legendAi: "✨ IA = respuesta automática",
-    legendYou: "Tú = tu respuesta",
-    seenAs: "Los clientes te ven como",
+    seenAs: "Te ven como",
     change: "Cambiar",
     save: "Guardar",
-    namePh: "Tu nombre, ej. Carlos",
-    askName: "¿Cómo te llamas? Cuando respondas, el cliente verá tu nombre y tu foto con «Persona real», para que sepa que habla contigo.",
-    photoHint: "Tu foto es la foto principal de tu tienda.",
+    namePh: "Tu nombre",
+    askName: "¿Cómo te llamas? Los clientes verán tu nombre y tu foto cuando respondas.",
   },
   en: {
     title: "Conversations",
-    sub: "What people write in your page's chat. The AI answers instantly with your store info and emails you when someone wants to book. You can reply yourself any time.",
-    empty: "No conversations yet. When someone writes in your page's chat, it shows up here.",
-    visitor: "Visitor",
-    needsYou: "Needs you",
-    ai: "AI",
+    empty: "No conversations yet",
+    emptySub: "When a customer writes to you from your page, it shows up here.",
+    visitor: "Customer",
+    needsYou: "Pending",
+    ai: "Assistant",
     you: "You",
-    customer: "Customer",
-    aiOn: "AI is answering",
-    aiOff: "You're answering",
-    turnAiOn: "Let the AI answer",
-    turnAiOff: "Pause AI",
-    placeholder: "Type your reply…",
+    aiOn: "The assistant is replying",
+    aiOff: "You're replying",
+    turnAiOn: "Hand back to assistant",
+    turnAiOff: "Reply myself",
+    placeholder: "Write a message",
     send: "Send",
-    hint: "When you reply, the AI pauses in this conversation. If the customer left the page and gave an email, they get it by email.",
     call: "Call",
-    text: "Text",
     email: "Email",
-    back: "← Conversations",
-    pick: "Pick a conversation to see it here.",
+    back: "Back",
+    pick: "Select a conversation",
     all: "All",
-    needs: "Needs you",
+    needs: "Pending",
     unreadF: "Unread",
     alerts: "Alerts",
-    noneFilter: "No conversations in this filter.",
-    draft: "Your page is a draft: only you can see the chat. Publish it so customers can write to you.",
+    noneFilter: "Nothing here.",
+    draft: "Your page is a draft. Publish it so customers can write to you.",
     goStore: "Go to Store",
-    legendAi: "✨ AI = automatic answer",
-    legendYou: "You = your reply",
     seenAs: "Customers see you as",
     change: "Change",
     save: "Save",
-    namePh: "Your name, e.g. Carlos",
-    askName: "What's your name? When you reply, the customer sees your name and photo with “Real person”, so they know they're talking with you.",
-    photoHint: "Your photo is your store's main photo.",
+    namePh: "Your name",
+    askName: "What's your name? Customers see your name and photo when you reply.",
   },
 };
+
+const I = {
+  phone: <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" />,
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l9 6 9-6" />
+    </>
+  ),
+  bell: <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0" />,
+  back: <path d="M15 18l-6-6 6-6" />,
+  send: <path d="M12 19V5M5 12l7-7 7 7" />,
+};
+function Icon({ d, size = 16 }: { d: React.ReactNode; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {d}
+    </svg>
+  );
+}
 
 function when(iso: string, lang: "es" | "en") {
   const d = new Date(iso);
@@ -187,226 +194,226 @@ export default function ChatsView({ businessId, published, onStore }: { business
   const unread = (list ?? []).filter((c) => c.ownerUnread > 0).length;
   const needs = (list ?? []).filter((c) => c.handoff).length;
   const shown = (list ?? []).filter((c) => (filter === "needs" ? c.handoff : filter === "unread" ? c.ownerUnread > 0 : true));
-  const pill = "h-8 px-3 rounded-full text-[12.5px] font-medium inline-flex items-center";
-  const tab = (on: boolean) => ({ background: on ? "rgba(255,255,255,.12)" : "transparent", color: on ? "#fff" : "#9a9a9a" });
+  const line = "1px solid rgba(255,255,255,0.08)";
+  const quiet = "h-8 px-3 rounded-lg text-[13px] text-[#a3a3a3] hover:text-white hover:bg-white/[0.06] inline-flex items-center gap-1.5 transition-colors";
+  const initial = (n: string) => (n || "?").trim().slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-118px)] md:h-screen" style={{ background: "#000" }}>
+    <div className="flex flex-col h-[calc(100dvh-118px)] md:h-screen bg-black text-[#ededed]">
       {/* Header */}
-      <div className="shrink-0 px-4 md:px-6 h-14 flex items-center justify-between gap-3" style={{ borderBottom: "1px solid rgba(255,255,255,.08)" }}>
-        <span className="text-[17px] font-semibold text-white">
-          Sevrii <span className="text-[#8e8e8e] font-normal">· {t.title}</span>
-          {unread > 0 && (
-            <span className="ml-2 align-middle text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: ACCENT, color: "#04120a" }}>
-              {unread}
-            </span>
-          )}
-        </span>
-        <button type="button" onClick={() => setShowAlerts((v) => !v)} className="text-[12.5px] px-3 py-1.5 rounded-full font-medium" style={{ background: showAlerts ? TINT : "rgba(255,255,255,.08)", color: showAlerts ? ACCENT : "#d4d4d4" }}>
-          🔔 {t.alerts}
+      <div className="shrink-0 h-14 px-5 md:px-6 flex items-center justify-between" style={{ borderBottom: line }}>
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-[15px] font-medium tracking-[-0.01em] text-white">{t.title}</h1>
+          {unread > 0 && <span className="text-[13px] text-[#8a8a8a]">{unread}</span>}
+        </div>
+        <button type="button" onClick={() => setShowAlerts((v) => !v)} className={quiet} style={showAlerts ? { color: "#fff", background: "rgba(255,255,255,0.06)" } : undefined}>
+          <Icon d={I.bell} size={15} /> {t.alerts}
         </button>
       </div>
 
       {showAlerts && (
-        <div className="shrink-0 px-4 md:px-6 pt-4 max-h-[50vh] overflow-y-auto">
+        <div className="shrink-0 px-5 md:px-6 pt-4 max-h-[50vh] overflow-y-auto" style={{ borderBottom: line }}>
           <StoreNotify />
         </div>
       )}
       {!published && (
-        <div className="shrink-0 mx-4 md:mx-6 mt-3 rounded-xl px-4 py-3 text-[13px] flex flex-wrap items-center justify-between gap-2" style={{ background: "rgba(212,167,44,.12)", color: "#e8cf86", boxShadow: "0 0 0 1px rgba(212,167,44,.3)" }}>
+        <div className="shrink-0 px-5 md:px-6 py-2.5 text-[13px] text-[#a3a3a3] flex flex-wrap items-center gap-x-3 gap-y-1" style={{ borderBottom: line }}>
           <span>{t.draft}</span>
-          <button type="button" onClick={onStore} className="text-[12.5px] font-semibold underline">
+          <button type="button" onClick={onStore} className="text-white underline underline-offset-4 decoration-white/30 hover:decoration-white">
             {t.goStore}
           </button>
         </div>
       )}
 
       {list === null ? (
-        <div className="m-auto text-[13px] text-[#8e8e8e]">…</div>
+        <div className="flex-1" />
       ) : list.length === 0 ? (
-        <div className="m-auto max-w-[420px] text-center px-6">
-          <div className="text-[34px]">💬</div>
-          <p className="text-[14px] text-[#cfcfcf] mt-2">{t.empty}</p>
-          <p className="text-[12.5px] text-[#8e8e8e] mt-2">{t.sub}</p>
+        <div className="m-auto text-center px-6">
+          <p className="text-[15px] text-white">{t.empty}</p>
+          <p className="text-[13.5px] text-[#8a8a8a] mt-1.5">{t.emptySub}</p>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 grid md:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="flex-1 min-h-0 grid md:grid-cols-[300px_minmax(0,1fr)]">
           {/* List */}
-          <div className={`min-h-0 flex-col ${openId ? "hidden md:flex" : "flex"}`} style={{ borderRight: "1px solid rgba(255,255,255,.08)" }}>
-            <div className="shrink-0 flex gap-1 p-3">
-              <button type="button" className="h-8 px-3 rounded-full text-[12.5px] font-medium" style={tab(filter === "all")} onClick={() => setFilter("all")}>
-                {t.all} {list.length}
-              </button>
-              <button type="button" className="h-8 px-3 rounded-full text-[12.5px] font-medium" style={tab(filter === "needs")} onClick={() => setFilter("needs")}>
-                {t.needs} {needs || ""}
-              </button>
-              <button type="button" className="h-8 px-3 rounded-full text-[12.5px] font-medium" style={tab(filter === "unread")} onClick={() => setFilter("unread")}>
-                {t.unreadF} {unread || ""}
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-2 pb-3 flex flex-col gap-1">
-              {shown.length === 0 && <p className="text-[12.5px] text-[#8e8e8e] px-3 py-4">{t.noneFilter}</p>}
-              {shown.map((c) => (
+          <div className={`min-h-0 flex-col ${openId ? "hidden md:flex" : "flex"}`} style={{ borderRight: line }}>
+            <div className="shrink-0 flex gap-5 px-5 h-11 items-end" style={{ borderBottom: line }}>
+              {(
+                [
+                  ["all", t.all, list.length],
+                  ["needs", t.needs, needs],
+                  ["unread", t.unreadF, unread],
+                ] as const
+              ).map(([k, label, n]) => (
                 <button
-                  key={c.id}
+                  key={k}
                   type="button"
-                  onClick={() => setOpenId(c.id)}
-                  className="text-left rounded-xl px-3 py-3"
-                  style={{ background: c.id === openId ? "#1a1a1a" : "transparent", boxShadow: c.id === openId ? `inset 3px 0 0 ${ACCENT}` : "none" }}
+                  onClick={() => setFilter(k)}
+                  className="pb-2.5 text-[13px] -mb-px transition-colors"
+                  style={filter === k ? { color: "#fff", borderBottom: "1.5px solid #fff" } : { color: "#8a8a8a", borderBottom: "1.5px solid transparent" }}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-semibold shrink-0" style={{ background: "#262626", color: "#e5e5e5" }}>
-                      {(c.name || t.visitor).slice(0, 1).toUpperCase()}
+                  {label}
+                  {n ? <span className="ml-1.5 text-[#6b6b6b]">{n}</span> : null}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {shown.length === 0 && <p className="text-[13px] text-[#6b6b6b] px-5 py-5">{t.noneFilter}</p>}
+              {shown.map((c) => {
+                const on = c.id === openId;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setOpenId(c.id)}
+                    className="w-full text-left px-5 py-3.5 flex gap-3 transition-colors hover:bg-white/[0.03]"
+                    style={{ background: on ? "rgba(255,255,255,0.05)" : undefined, borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                  >
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-medium shrink-0 text-[#d4d4d4]" style={{ background: "#1c1c1c" }}>
+                      {initial(c.name || t.visitor)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`text-[14px] truncate ${c.ownerUnread ? "text-white font-semibold" : "text-[#e5e5e5] font-medium"}`}>{c.name || t.visitor}</span>
-                        <span className="text-[11px] text-[#8e8e8e] shrink-0">{when(c.lastMessageAt, lang)}</span>
+                        <span className={`text-[14px] truncate ${c.ownerUnread ? "text-white font-medium" : "text-[#d4d4d4]"}`}>{c.name || t.visitor}</span>
+                        <span className="text-[11.5px] text-[#6b6b6b] shrink-0">{when(c.lastMessageAt, lang)}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {c.handoff && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: "#ffd34d", color: "#3a2a00" }}>
-                            {t.needsYou}
-                          </span>
-                        )}
-                        <span className={`text-[12.5px] truncate ${c.ownerUnread ? "text-[#e5e5e5]" : "text-[#8e8e8e]"}`}>{c.lastMessage}</span>
-                        {c.ownerUnread > 0 && <span className="ml-auto w-2 h-2 rounded-full shrink-0" style={{ background: ACCENT }} />}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-[13px] truncate ${c.ownerUnread ? "text-[#bdbdbd]" : "text-[#737373]"}`}>{c.lastMessage}</span>
+                        {c.handoff && <span className="ml-auto shrink-0 text-[11px] text-[#e0b54a]">{t.needsYou}</span>}
+                        {!c.handoff && c.ownerUnread > 0 && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Thread */}
           <div className={`min-h-0 flex-col ${openId ? "flex" : "hidden md:flex"}`}>
             {!current ? (
-              <div className="m-auto text-center px-6">
-                <p className="text-[13.5px] text-[#8e8e8e]">{t.pick}</p>
-                <p className="text-[12px] text-[#6e6e6e] mt-2">
-                  {t.legendAi} · {t.legendYou}
-                </p>
-              </div>
+              <div className="m-auto text-[13.5px] text-[#6b6b6b]">{t.pick}</div>
             ) : (
               <>
-                <div className="shrink-0 px-4 py-3 flex flex-wrap items-center gap-2" style={{ borderBottom: "1px solid rgba(255,255,255,.08)" }}>
-                  <button type="button" className="md:hidden text-[13px] mr-1" style={{ color: ACCENT }} onClick={() => setOpenId(null)}>
-                    {t.back}
+                <div className="shrink-0 h-16 px-5 md:px-6 flex items-center gap-3" style={{ borderBottom: line }}>
+                  <button type="button" className="md:hidden -ml-1 text-[#a3a3a3]" onClick={() => setOpenId(null)} aria-label={t.back}>
+                    <Icon d={I.back} size={20} />
                   </button>
                   <div className="min-w-0 mr-auto">
-                    <div className="text-[15px] font-semibold text-white truncate">{current.name || t.visitor}</div>
-                    <div className="text-[12px] text-[#9a9a9a] truncate">{[current.phone ? formatPhone(current.phone) : "", current.email].filter(Boolean).join(" · ")}</div>
+                    <div className="text-[14.5px] font-medium text-white truncate">{current.name || t.visitor}</div>
+                    <div className="text-[12.5px] text-[#737373] truncate">
+                      {[current.phone ? formatPhone(current.phone) : "", current.email].filter(Boolean).join("  ·  ") || (current.aiEnabled ? t.aiOn : t.aiOff)}
+                    </div>
                   </div>
                   {current.phone && (
-                    <>
-                      <a href={`tel:${current.phone}`} className={pill} style={{ background: TINT, color: ACCENT }}>
-                        📞 {t.call}
-                      </a>
-                      <a href={`sms:${current.phone}`} className={pill} style={{ background: "rgba(255,255,255,.08)", color: "#e5e5e5" }}>
-                        💬 {t.text}
-                      </a>
-                    </>
-                  )}
-                  {current.email && (
-                    <a href={`mailto:${current.email}`} className={pill} style={{ background: "rgba(255,255,255,.08)", color: "#e5e5e5" }}>
-                      ✉️ {t.email}
+                    <a href={`tel:${current.phone}`} className={quiet}>
+                      <Icon d={I.phone} size={14} /> <span className="hidden sm:inline">{t.call}</span>
                     </a>
                   )}
-                  <button type="button" onClick={toggleAi} className={pill} style={{ background: "rgba(255,255,255,.08)", color: "#e5e5e5" }}>
-                    {current.aiEnabled ? `⏸ ${t.turnAiOff}` : `✨ ${t.turnAiOn}`}
+                  {current.email && (
+                    <a href={`mailto:${current.email}`} className={quiet}>
+                      <Icon d={I.mail} size={15} /> <span className="hidden sm:inline">{t.email}</span>
+                    </a>
+                  )}
+                  <button type="button" onClick={toggleAi} className="h-8 px-3 rounded-lg text-[13px] text-white inline-flex items-center transition-colors" style={{ border: "1px solid rgba(255,255,255,0.14)" }}>
+                    {current.aiEnabled ? t.turnAiOff : t.turnAiOn}
                   </button>
                 </div>
-                <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-4 flex flex-col gap-2.5">
-                  {msgs.map((m) => (
-                    <div
-                      key={m.seq}
-                      className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap break-words ${m.role === "visitor" ? "self-start" : "self-end"}`}
-                      style={
-                        m.role === "visitor"
-                          ? { background: "#232323", color: "#f1f1f1", borderBottomLeftRadius: 6 }
-                          : m.role === "owner"
-                            ? { background: ACCENT, color: "#04120a", borderBottomRightRadius: 6 }
-                            : { background: "rgba(46,122,85,.2)", color: "#e8f5ee", boxShadow: "inset 0 0 0 1px rgba(46,122,85,.45)", borderBottomRightRadius: 6 }
-                      }
-                    >
-                      <div className="text-[10.5px] font-semibold opacity-70 mb-0.5">{m.role === "visitor" ? current.name || t.customer : m.role === "owner" ? `${t.you}${me?.name ? ` (${me.name})` : ""}` : `✨ ${t.ai}`}</div>
-                      {m.content.replace(/\*\*(.+?)\*\*/g, "$1")}
-                    </div>
-                  ))}
-                </div>
-                <div className="shrink-0 px-3 md:px-6 pb-4 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,.08)" }}>
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                    <span className="text-[11.5px]" style={{ color: current.aiEnabled ? ACCENT : "#d4a72c" }}>
-                      {current.aiEnabled ? `✨ ${t.aiOn}` : `👤 ${t.aiOff}`}
-                    </span>
-                    {me && !editName && me.name && (
-                      <span className="flex items-center gap-2 text-[12px] text-[#a1a1a1]">
-                        {t.seenAs}:
-                        <span className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold" style={{ background: "#262626", color: "#e5e5e5" }}>
-                          {me.photo ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={me.photo} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            me.name.slice(0, 1).toUpperCase()
+
+                <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto">
+                  <div className="max-w-[720px] mx-auto px-5 md:px-8 py-6 flex flex-col gap-1">
+                    {msgs.map((m, i) => {
+                      const prev = msgs[i - 1];
+                      const mine = m.role !== "visitor";
+                      const head = !prev || prev.role !== m.role;
+                      return (
+                        <div key={m.seq} className={`flex flex-col ${mine ? "items-end" : "items-start"} ${head ? "mt-4" : ""}`}>
+                          {head && (
+                            <span className="text-[11.5px] text-[#6b6b6b] mb-1 px-1">
+                              {m.role === "visitor" ? current.name || t.visitor : m.role === "owner" ? (me?.name ? `${t.you} · ${me.name}` : t.you) : t.ai}
+                            </span>
                           )}
-                        </span>
-                        <strong className="text-white">{me.name}</strong>
-                        <span className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: TINT, color: ACCENT }}>
-                          ✓ {lang === "es" ? "Persona real" : "Real person"}
-                        </span>
-                        <button
-                          type="button"
-                          className="underline"
-                          onClick={() => {
-                            setNameDraft(me.name);
-                            setEditName(true);
-                          }}
-                        >
-                          {t.change}
-                        </button>
-                      </span>
-                    )}
+                          <div
+                            className="max-w-[78%] px-3.5 py-2 text-[14px] leading-[1.55] whitespace-pre-wrap break-words"
+                            style={
+                              m.role === "visitor"
+                                ? { background: "#1c1c1c", color: "#ededed", borderRadius: 14 }
+                                : m.role === "owner"
+                                  ? { background: "#f5f5f5", color: "#0a0a0a", borderRadius: 14 }
+                                  : { background: "transparent", color: "#d4d4d4", borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)" }
+                            }
+                          >
+                            {m.content.replace(/\*\*(.+?)\*\*/g, "$1")}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {me && editName && (
-                    <div className="rounded-xl p-3 mb-2" style={{ background: "#161616", boxShadow: "0 0 0 1px rgba(255,255,255,.08)" }}>
-                      <p className="text-[12.5px] text-[#cfcfcf]">{t.askName}</p>
-                      <div className="flex gap-2 mt-2">
-                        <input
-                          value={nameDraft}
-                          onChange={(e) => setNameDraft(e.target.value)}
-                          placeholder={t.namePh}
-                          maxLength={40}
-                          className="flex-1 h-9 rounded-full px-3 text-[13.5px] text-white outline-none"
-                          style={{ background: "#1f1f1f", boxShadow: "0 0 0 1px rgba(255,255,255,.1)" }}
-                        />
-                        <button type="button" onClick={saveName} disabled={nameDraft.trim().length < 2} className="h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-50" style={BRAND_BTN}>
-                          {t.save}
-                        </button>
+                </div>
+
+                <div className="shrink-0 px-5 md:px-6 pt-3 pb-4" style={{ borderTop: line }}>
+                  <div className="max-w-[720px] mx-auto">
+                    {me && editName ? (
+                      <div className="mb-3">
+                        <p className="text-[12.5px] text-[#a3a3a3] mb-2">{t.askName}</p>
+                        <div className="flex gap-2">
+                          <input
+                            value={nameDraft}
+                            onChange={(e) => setNameDraft(e.target.value)}
+                            placeholder={t.namePh}
+                            maxLength={40}
+                            className="flex-1 h-9 rounded-lg px-3 text-[13.5px] text-white outline-none bg-transparent placeholder:text-[#5c5c5c]"
+                            style={{ border: "1px solid rgba(255,255,255,0.14)" }}
+                          />
+                          <button type="button" onClick={saveName} disabled={nameDraft.trim().length < 2} className="h-9 px-4 rounded-lg text-[13px] font-medium bg-white text-black disabled:opacity-40">
+                            {t.save}
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-[11.5px] text-[#7a7a7a] mt-1.5">{t.photoHint}</p>
-                    </div>
-                  )}
-                  <form
-                    className="flex gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      reply();
-                    }}
-                  >
-                    <input
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      placeholder={t.placeholder}
-                      maxLength={2000}
-                      className="flex-1 h-11 rounded-full px-4 text-[14px] text-white outline-none"
-                      style={{ background: "#1a1a1a", boxShadow: "0 0 0 1px rgba(255,255,255,.1)" }}
-                    />
-                    <button type="submit" disabled={busy || !draft.trim()} className="h-11 px-5 rounded-full text-[14px] font-semibold disabled:opacity-50" style={BRAND_BTN}>
-                      {t.send}
-                    </button>
-                  </form>
-                  <p className="text-[11.5px] text-[#7a7a7a] mt-1.5">{t.hint}</p>
+                    ) : (
+                      <div className="flex items-center justify-between gap-3 mb-2 text-[12px] text-[#6b6b6b]">
+                        <span>{current.aiEnabled ? t.aiOn : t.aiOff}</span>
+                        {me?.name && (
+                          <span>
+                            {t.seenAs} <span className="text-[#bdbdbd]">{me.name}</span> ·{" "}
+                            <button
+                              type="button"
+                              className="hover:text-white"
+                              onClick={() => {
+                                setNameDraft(me.name);
+                                setEditName(true);
+                              }}
+                            >
+                              {t.change}
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <form
+                      className="flex items-end gap-2 rounded-xl px-3 py-2"
+                      style={{ background: "#141414", border: "1px solid rgba(255,255,255,0.08)" }}
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        reply();
+                      }}
+                    >
+                      <input
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        placeholder={t.placeholder}
+                        maxLength={2000}
+                        className="flex-1 h-9 bg-transparent text-[14px] text-white outline-none placeholder:text-[#5c5c5c]"
+                      />
+                      <button
+                        type="submit"
+                        disabled={busy || !draft.trim()}
+                        aria-label={t.send}
+                        className="h-8 w-8 rounded-lg flex items-center justify-center bg-white text-black disabled:bg-[#2a2a2a] disabled:text-[#6b6b6b] transition-colors"
+                      >
+                        <Icon d={I.send} size={16} />
+                      </button>
+                    </form>
+                  </div>
                 </div>
               </>
             )}

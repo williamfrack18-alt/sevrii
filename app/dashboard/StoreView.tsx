@@ -100,7 +100,7 @@ export default function StoreView({
           <div className="flex items-center gap-2">
             {business.site.chat && (
               <button type="button" onClick={onChats} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
-                💬 {lang === "es" ? "Conversaciones" : "Conversations"}
+                {lang === "es" ? "Conversaciones" : "Conversations"}
               </button>
             )}
             {business.published ? (
