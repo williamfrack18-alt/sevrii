@@ -239,7 +239,7 @@ export default function ChatWidget({
                       <span className="cw-real">✓ {t.realPerson}</span>
                     </div>
                   )}
-                  <div className={`cw-msg ${m.role}`}>{m.content}</div>
+                  <div className={`cw-msg ${m.role}`}>{m.content.replace(/\*\*(.+?)\*\*/g, "$1")}</div>
                 </div>
               );
             })}
@@ -280,7 +280,7 @@ export default function ChatWidget({
               </svg>
             </button>
           </form>
-          <div className="cw-note">{t.note(businessName)}</div>
+          <div className="cw-note">{ownerHere ? `${t.talkingWith(ownerLabel)} · ${t.ownerOf(businessName)}` : t.note(businessName)}</div>
         </div>
       )}
       {!open && teaser && (

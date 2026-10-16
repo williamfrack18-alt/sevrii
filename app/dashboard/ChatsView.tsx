@@ -331,7 +331,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
                       }
                     >
                       <div className="text-[10.5px] font-semibold opacity-70 mb-0.5">{m.role === "visitor" ? current.name || t.customer : m.role === "owner" ? `${t.you}${me?.name ? ` (${me.name})` : ""}` : `✨ ${t.ai}`}</div>
-                      {m.content}
+                      {m.content.replace(/\*\*(.+?)\*\*/g, "$1")}
                     </div>
                   ))}
                 </div>
