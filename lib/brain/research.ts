@@ -33,6 +33,7 @@ function task(kind: ResearchKind, plan: BusinessPlan, lang: Lang): string {
       return `Tarea: PRECIOS de "${service}" en ${place}, EE. UU.
 Busca guías de costos (HomeGuide, Angi, Thumbtack, Fixr) y precios publicados por negocios locales.
 Forma: {"low":"$…","mid":"$…","high":"$…","includes":"qué suele incluir ese precio","note":"unidad (por trabajo, por hora, por pie²) y diferencias entre fuentes","sources":[{"title":"…","url":"…"}]}
+"low", "mid" y "high" son solo el rango corto con su unidad, por ejemplo "$90–$130 por visita" (máximo 35 caracteres). Las explicaciones van en "note".
 ${out}`;
     case "competitors":
       return `Tarea: COMPETENCIA de "${service}" en ${place}, EE. UU.
@@ -59,7 +60,7 @@ Propón 5 servicios locales rentables que encajen con lo que ya sabe hacer o con
 Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
 Lo que dijo que prefiere o no quiere: ${plan.ideaPrefs}. Respétalo.` : ""}
 No propongas: reparación de crédito, asesoría legal o migratoria, préstamos ni servicios de salud.
-Forma: {"ideas":[{"title":"…","why":"por qué encaja con su experiencia","typicalPrice":"$… por trabajo/hora","startCost":"$… y en qué","license":"No (solo si una fuente oficial dice que ese servicio exige licencia en el estado, escribe cuál)","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
+Forma: {"ideas":[{"title":"…","why":"por qué encaja con su experiencia","typicalPrice":"rango corto, ej. '$15–$25 por hora' (máx. 40 caracteres)","startCost":"monto y en qué, en una frase corta (máx. 100 caracteres)","license":"No (solo si una fuente oficial dice que ese servicio exige licencia en el estado, escribe cuál)","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
 ${out}`;
   }
 }
@@ -103,7 +104,7 @@ function cleanResearch(kind: ResearchKind, d: Record<string, unknown>, seen: See
   };
   switch (kind) {
     case "prices":
-      return { low: str(d.low, 40), mid: str(d.mid, 40), high: str(d.high, 40), includes: str(d.includes, 300), note: str(d.note, 300) };
+      return { low: str(d.low, 2000), mid: str(d.mid, 2000), high: str(d.high, 2000), includes: str(d.includes, 2000), note: str(d.note, 2000) };
     case "competitors":
       return {
         competitors: (Array.isArray(d.competitors) ? d.competitors : []).slice(0, 5).map((c) => {
@@ -138,11 +139,11 @@ function cleanResearch(kind: ResearchKind, d: Record<string, unknown>, seen: See
             const o = (i ?? {}) as Record<string, unknown>;
             return {
               title: str(o.title, 100),
-              why: str(o.why, 300),
-              typicalPrice: str(o.typicalPrice, 120),
-              startCost: str(o.startCost, 120),
+              why: str(o.why, 2000),
+              typicalPrice: str(o.typicalPrice, 2000),
+              startCost: str(o.startCost, 2000),
               license: str(o.license, 160),
-              demand: str(o.demand, 300),
+              demand: str(o.demand, 2000),
               sources: seen.filter(o.sources, 3),
             };
           })

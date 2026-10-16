@@ -274,7 +274,7 @@ export function parseMarket(raw: unknown): Market {
   const pr = obj(m.prices);
   const prices =
     str(pr.low, 40) || str(pr.mid, 40) || str(pr.high, 40)
-      ? { low: str(pr.low, 40), mid: str(pr.mid, 40), high: str(pr.high, 40), includes: str(pr.includes, 300), note: str(pr.note, 300) }
+      ? { low: clip(pr.low, 40), mid: clip(pr.mid, 40), high: clip(pr.high, 40), includes: clip(pr.includes, 300), note: clip(pr.note, 300) }
       : null;
   return {
     prices,
@@ -322,17 +322,26 @@ function parseFaq(v: unknown): Faq[] {
     .slice(0, 8);
 }
 
+// Cut long text at a word boundary with an ellipsis instead of mid-word.
+function clip(v: unknown, max: number): string {
+  const t = str(v, 2000);
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  const sp = cut.lastIndexOf(" ");
+  return `${(sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[,;:(\s]+$/, "")}…`;
+}
+
 export function parseIdeas(v: unknown): Idea[] {
   return (Array.isArray(v) ? v : [])
     .map((x) => {
       const i = obj(x);
       return {
         title: str(i.title, 100),
-        why: str(i.why, 300),
-        typicalPrice: str(i.typicalPrice, 120),
-        startCost: str(i.startCost, 120),
+        why: clip(i.why, 300),
+        typicalPrice: clip(i.typicalPrice, 120),
+        startCost: clip(i.startCost, 120),
         license: str(i.license, 160),
-        demand: str(i.demand, 300),
+        demand: clip(i.demand, 300),
         pros: str(i.pros, 240),
         cons: str(i.cons, 240),
         score: num(i.score, 0, 25) ?? 0,

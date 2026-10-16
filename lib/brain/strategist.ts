@@ -22,7 +22,7 @@ Ideas (persona B), puntaje de 1 a 5 en cada punto:
 - Inversión inicial dentro de su dinero disponible.
 - Requisitos para arrancar: menos trámites y permisos, más puntos.
 - Rapidez para conseguir el primer cliente.
-Muestra las 3 mejores con pros y contras, sin prometer ingresos.
+Muestra las 3 mejores con pros y contras, sin prometer ingresos. En pros y contras no hables de licencias ni de "confirmar si pide licencia", salvo que la idea investigada diga que ese servicio la exige.
 
 Honestidad:
 - Solo hechos del expediente. Un diferenciador sin respaldo no va.
