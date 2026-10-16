@@ -38,6 +38,16 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
     lang: d.lang,
     fromPlan: planFingerprint(b.plan),
   };
+  // Where they work, from the Brain profile (only if the page doesn't say yet).
+  if (!cur.reachMode) {
+    const p = b.plan.profile;
+    if (p.serviceMode === "remote") Object.assign(site, { reachMode: "remote", reachScope: p.remoteScope === "world" ? "world" : "us" });
+    else if (p.city) {
+      const { lookupPlace } = await import("./geo");
+      const where = lookupPlace(`${p.city}${p.state ? `, ${p.state}` : ""}`);
+      if (where) Object.assign(site, { reachMode: "local", reachRadius: p.radiusMiles || 25, baseCity: where.city, baseState: where.state, baseLat: where.lat, baseLon: where.lon });
+    }
+  }
   // Never write the photo/video fields: an upload may be happening right now.
   const { coverUrl: _c, logoUrl: _l, gallery: _g, videoUrl: _v, ...text } = site;
   void _c; void _l; void _g; void _v;

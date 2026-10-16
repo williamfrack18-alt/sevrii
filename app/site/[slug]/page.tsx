@@ -6,6 +6,7 @@ import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
+import { reachLabel, resolveReach } from "@/lib/reach";
 import { activeOffer, contactChannels, formatPhone, normalizePhone, storeTheme } from "@/lib/site";
 import { BuyActions, ChannelIcon, ContactLink, Countdown, Gallery, Track, type MediaItem } from "./StoreParts";
 import ChatWidget from "./ChatWidget";
@@ -75,7 +76,9 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
   const phone = site.phone || null;
   const wa = normalizePhone(business.whatsapp);
   const offer = activeOffer(site);
-  const area = site.serviceArea || business.city || "";
+  // Where they work: their own words first, else the service area they set.
+  const reach = resolveReach(site, business.city, business.plan.profile);
+  const area = site.serviceArea || reachLabel(reach, site.lang) || business.city || "";
   const mainTitle = site.headline || business.category || business.name;
   const images = [site.coverUrl, ...site.gallery].filter(Boolean);
   const ordered = [...services].sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
@@ -109,6 +112,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
   if (site.insured) trust.push({ icon: "◇", text: t.insured });
   if (site.yearsInBusiness) trust.push({ icon: "★", text: t.years(site.yearsInBusiness) });
   if (site.spanish) trust.push({ icon: "ñ", text: t.spanish });
+  if (reach.mode === "remote") trust.push({ icon: "🌎", text: reachLabel(reach, site.lang) });
   for (const f of site.features) if (trust.length < 5) trust.push({ icon: "✓", text: f });
 
   const keyPoints = site.keyPoints.length > 0 ? site.keyPoints : site.highlights.map((h) => ({ title: "", text: h }));

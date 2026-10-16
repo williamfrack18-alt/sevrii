@@ -709,13 +709,14 @@ export type MarketplaceRow = {
   serviceName: string | null;
   servicePrice: string | null;
   category: string;
+  profile: { city: string; state: string; radiusMiles: number | null; serviceMode: string; remoteScope: string };
 };
 
 // Published pages for the marketplace, newest first, with their main service.
 export async function listMarketplaceRows(limit = 300): Promise<MarketplaceRow[]> {
   await ensureSchema();
   const rows = (await sql`
-    SELECT b.id, b.slug, b.name, b.city, b.site, b."marketCategory", b.category, u.email, u.plan, u."planStatus",
+    SELECT b.id, b.slug, b.name, b.city, b.site, b.plan AS "businessPlan", b."marketCategory", b.category, u.email, u.plan, u."planStatus",
            s.name AS "serviceName", s.price AS "servicePrice"
     FROM businesses b
     JOIN users u ON u.id = b."userId"
@@ -727,7 +728,21 @@ export async function listMarketplaceRows(limit = 300): Promise<MarketplaceRow[]
     ORDER BY b."createdAt" DESC
     LIMIT ${limit}
   `) as Record<string, unknown>[];
-  return rows.map((r) => ({ ...(r as unknown as MarketplaceRow), site: parseSite(r.site) }));
+  return rows.map((r) => {
+    const bp = (r.businessPlan && typeof r.businessPlan === "object" ? r.businessPlan : {}) as { profile?: Record<string, unknown> };
+    const p = bp.profile ?? {};
+    return {
+      ...(r as unknown as MarketplaceRow),
+      site: parseSite(r.site),
+      profile: {
+        city: typeof p.city === "string" ? p.city : "",
+        state: typeof p.state === "string" ? p.state : "",
+        radiusMiles: typeof p.radiusMiles === "number" ? p.radiusMiles : null,
+        serviceMode: typeof p.serviceMode === "string" ? p.serviceMode : "",
+        remoteScope: typeof p.remoteScope === "string" ? p.remoteScope : "",
+      },
+    };
+  });
 }
 
 export async function incrementContactClick(businessId: string, channel: "call" | "text" | "whatsapp"): Promise<void> {

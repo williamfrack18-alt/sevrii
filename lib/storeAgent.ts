@@ -49,6 +49,10 @@ const TOOLS: Tool[] = [
         whatsapp: { type: "string", description: "WhatsApp number with country code (optional; many US customers don't use WhatsApp)" },
         textEnabled: { type: "boolean", description: "Whether the phone accepts text messages (SMS)" },
         contactPref: { type: "string", enum: ["", "call", "text", "whatsapp", "chat"], description: "The owner's favorite way to be contacted; it becomes the main button. '' = automatic (call/text first)" },
+        reachMode: { type: "string", enum: ["local", "remote"], description: "local = done in person in an area (needs reachCity + reachRadiusMiles); remote = done online from anywhere" },
+        reachCity: { type: "string", description: "Local: base city with state, or a 5-digit ZIP, e.g. 'Miami, FL' or '33172'" },
+        reachRadiusMiles: { type: "number", description: "Local: how many miles they travel (1-300)" },
+        reachScope: { type: "string", enum: ["us", "world"], description: "Remote: customers in the whole US (us) or also other countries (world)" },
         ownerName: { type: "string", description: "The owner's first name (or how they want to be called). Customers see it in the page chat when the owner answers personally." },
         chat: { type: "boolean", description: "Show the chat on the page (an AI assistant answers visitors instantly with the page info and passes them to the owner). On by default." },
         licenseNumber: { type: "string", description: "ONLY a number the owner typed" },
@@ -130,6 +134,7 @@ How to work:
 - Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to tap the 📎 button. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
 - Video: if "page.videoUrl" is empty, recommend a short video of the owner talking about the service (30-60 s, phone, looking at the camera) — it builds the most trust and shows first in the gallery. They upload it in the "Fotos y video" / "Photos and video" box right below this chat (where the Brain's script is too). Photos can also be added and ordered there. Don't push the video more than once per conversation.
 - Contact: this is the US market and many customers don't use WhatsApp — they call, text or fill a form. Ask for the phone number for calls and texts first, and whether it receives text messages; then ask if they also use WhatsApp (optional). If the owner gives a single number, ask which apps it works with (calls, texts, WhatsApp) and save it in every field that applies (phone and/or whatsapp). Ask which they prefer customers use first and save contactPref. The page also has a chat: an AI assistant answers visitors instantly with the page info, collects their name and phone, and passes them to the owner (the owner gets an email and sees the conversations below this chat, in "Conversaciones"/"Conversations"). Mention it once. Ask the owner's first name once (if "page.ownerName" is empty) and save it as ownerName: when they answer a chat personally, customers see their name and photo, so they know they're talking with the real person.
+- Service area: if "page.reachMode" is empty, ask whether they do the work in person in an area (cleaning, moving, repairs…) or online from anywhere (video editing, design…). Local → ask their city (or ZIP) and how many miles they travel, save reachMode=local, reachCity, reachRadiusMiles. Online → ask if they take customers in the whole US or other countries too, save reachMode=remote and reachScope. The marketplace only shows them to customers they can really serve.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
 - When the essentials are done (services with prices, contact, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
@@ -190,6 +195,19 @@ async function runTool(
         const p = input.phone.trim() ? normalizePhone(input.phone) : "";
         if (p === null) notes.push("phone: invalid number, ask again (10 digits for US)");
         else patch.phone = p;
+      }
+      if (input.reachMode === "remote") {
+        patch.reachMode = "remote";
+        patch.reachScope = input.reachScope === "world" ? "world" : "us";
+      } else if (input.reachMode === "local" || typeof input.reachCity === "string" || typeof input.reachRadiusMiles === "number") {
+        const { lookupPlace } = await import("./geo");
+        const where = typeof input.reachCity === "string" && input.reachCity.trim() ? lookupPlace(input.reachCity, b.site.baseState || undefined) : null;
+        if (typeof input.reachCity === "string" && input.reachCity.trim() && !where) notes.push("reachCity: city not found, ask for their 5-digit ZIP code");
+        else {
+          if (where) Object.assign(patch, { baseCity: where.city, baseState: where.state, baseLat: where.lat, baseLon: where.lon });
+          if (input.reachMode === "local" || where) patch.reachMode = "local";
+          if (typeof input.reachRadiusMiles === "number") patch.reachRadius = Math.max(1, Math.min(300, Math.round(input.reachRadiusMiles)));
+        }
       }
       if (input.clearOffer) patch.offer = null;
       else if (input.offer) patch.offer = input.offer;

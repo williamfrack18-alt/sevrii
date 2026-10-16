@@ -9,6 +9,7 @@ import {
   type ServiceRow,
 } from "./db";
 import { effectivePlan } from "./billing";
+import { reachLabel, resolveReach, serves, type Visitor } from "./reach";
 import { PLANS } from "./plans";
 
 export { MARKET_CATEGORIES, MARKET_CATEGORY_EN, isMarketCategory, type MarketCategory } from "./marketCategories";
@@ -117,10 +118,19 @@ export type MarketListing = {
   logoUrl: string;
   coverUrl: string;
   spanish: boolean;
+  // Where they work and whether they can serve this visitor.
+  reach: "local" | "remote" | "unknown";
+  reachText: string;
+  miles: number | null;
+  serves: boolean;
 };
 
-export async function marketplaceListings(): Promise<MarketListing[]> {
-  const rows = await listMarketplaceRows();
+// The published pages change rarely; keep them a minute in memory.
+let cache: { at: number; rows: Awaited<ReturnType<typeof listMarketplaceRows>> } | null = null;
+
+export async function marketplaceListings(visitor: Visitor | null = null, lang: "es" | "en" = "es"): Promise<MarketListing[]> {
+  if (!cache || Date.now() - cache.at > 60_000) cache = { at: Date.now(), rows: await listMarketplaceRows() };
+  const rows = cache.rows;
   const out: MarketListing[] = [];
   for (const r of rows) {
     // Only owners whose plan still includes publishing (cancelled plans drop out).
@@ -132,6 +142,8 @@ export async function marketplaceListings(): Promise<MarketListing[]> {
       await setBusinessMarketCategory(r.id, category).catch(() => undefined);
     }
     const site = r.site;
+    const reach = resolveReach(site, r.city, r.profile);
+    const fit = serves(reach, visitor);
     out.push({
       slug: r.slug,
       name: r.name,
@@ -142,7 +154,13 @@ export async function marketplaceListings(): Promise<MarketListing[]> {
       logoUrl: site.logoUrl || "",
       coverUrl: site.coverUrl || site.gallery[0] || "",
       spanish: site.spanish,
+      reach: reach.mode,
+      reachText: reachLabel(reach, lang),
+      miles: fit.miles,
+      serves: fit.ok,
     });
   }
-  return out;
+  // Closest local services first, then online ones, then the rest.
+  const rank = (l: MarketListing) => (l.serves ? (l.reach === "local" ? 0 : 1) : 2);
+  return out.sort((a, b) => rank(a) - rank(b) || (a.miles ?? 9999) - (b.miles ?? 9999));
 }

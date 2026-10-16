@@ -26,18 +26,20 @@ Responde SOLO con un bloque \`\`\`json con la forma que pide tu tarea. Nada más
 function task(kind: ResearchKind, plan: BusinessPlan, lang: Lang): string {
   const p = plan.profile;
   const service = plan.service || p.mainService || "";
-  const place = `${p.city}${p.state ? ", " + p.state : ""}`;
+  const remote = p.serviceMode === "remote";
+  // Remote services compete nationally (online), local ones in their city.
+  const place = remote ? (p.remoteScope === "world" ? "EE. UU. (en línea, también clientes de otros países)" : "todo EE. UU. (en línea)") : `${p.city}${p.state ? ", " + p.state : ""}`;
   const out = lang === "es" ? "Escribe los textos en español neutro." : "Write the text fields in English.";
   switch (kind) {
     case "prices":
       return `Tarea: PRECIOS de "${service}" en ${place}, EE. UU.
-Busca guías de costos (HomeGuide, Angi, Thumbtack, Fixr) y precios publicados por negocios locales.
+${remote ? "Es un servicio que se hace a distancia: busca precios en plataformas y sitios que venden ese servicio en línea en EE. UU. (Fiverr, Upwork, Thumbtack, agencias y freelancers con precios publicados)." : "Busca guías de costos (HomeGuide, Angi, Thumbtack, Fixr) y precios publicados por negocios locales."}
 Forma: {"low":"$…","mid":"$…","high":"$…","includes":"qué suele incluir ese precio","note":"unidad (por trabajo, por hora, por pie²) y diferencias entre fuentes","sources":[{"title":"…","url":"…"}]}
 "low", "mid" y "high" son solo el rango corto con su unidad, por ejemplo "$90–$130 por visita" (máximo 35 caracteres). Las explicaciones van en "note".
 ${out}`;
     case "competitors":
       return `Tarea: COMPETENCIA de "${service}" en ${place}, EE. UU.
-Busca los 3 a 5 negocios que aparecen primero para ese servicio en esa ciudad (no directorios). Lee sus páginas.
+${remote ? "Busca los 3 a 5 negocios o freelancers que aparecen primero para ese servicio en línea en EE. UU. (no directorios). Lee sus páginas." : "Busca los 3 a 5 negocios que aparecen primero para ese servicio en esa ciudad (no directorios). Lee sus páginas."}
 Forma: {"competitors":[{"name":"…","url":"…","offer":"qué ofrecen, en una línea","price":"precio publicado o 'no publica'","guarantee":"garantía que anuncian o 'no menciona'","languages":"idiomas que anuncian"}],"gaps":["algo que ninguno ofrece o comunica bien"],"sources":[{"title":"…","url":"…"}]}
 ${out}`;
     case "requirements":
@@ -56,7 +58,7 @@ Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en
     case "ideas":
       return `Tarea: IDEAS de servicio para alguien que quiere independizarse en ${place}, EE. UU.
 Perfil: trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; no quiere: ${p.notWant || "-"}; meta: ${p.goal || "?"}.
-Propón 5 servicios locales rentables que encajen con lo que ya sabe hacer o con algo que pueda aprender rápido (en pocas semanas), con su dinero y su tiempo. Busca para cada uno el precio típico en su zona y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
+Propón 5 servicios rentables (locales en su ciudad o que se puedan hacer en línea desde casa; di cuál es cuál en "why") que encajen con lo que ya sabe hacer o con algo que pueda aprender rápido (en pocas semanas), con su dinero y su tiempo. Busca para cada uno el precio típico en su zona y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
 Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
 Lo que dijo que prefiere o no quiere: ${plan.ideaPrefs}. Respétalo.` : ""}
 No propongas: reparación de crédito, asesoría legal o migratoria, préstamos ni servicios de salud.

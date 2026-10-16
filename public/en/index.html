@@ -220,6 +220,16 @@ document.addEventListener('DOMContentLoaded', function(){
     padding-block:48px 90px;
   }
 
+  /* Location: show what really serves the visitor */
+  .loc-bar{display:flex; flex-direction:column; gap:10px; padding:14px 16px; margin:8px 0 4px; border:1px solid var(--s-border); border-radius:14px; background:var(--s-verified-bg);}
+  .loc-now{font-size:14.5px; color:var(--s-text); display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .loc-link{background:none; border:none; padding:0; color:var(--s-verified); font:inherit; font-weight:600; text-decoration:underline; text-underline-offset:3px; cursor:pointer;}
+  .loc-form{display:flex; gap:8px; flex-wrap:wrap;}
+  .loc-form input{flex:1; min-width:220px; height:42px; border-radius:999px; border:1px solid var(--s-border); padding:0 16px; font:inherit; font-size:15px; background:#fff; color:#111;}
+  .loc-form button{height:42px; border-radius:999px; border:none; padding:0 18px; font:inherit; font-weight:600; cursor:pointer; background:var(--s-verified); color:#04120a;}
+  .loc-form .loc-ghost{background:transparent; color:var(--s-text); border:1px solid var(--s-border);}
+  .loc-msg{font-size:13px; color:#e5484d;}
+  .result-reach{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--s-verified); margin-bottom:8px;}
   .toolbar{
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
     padding-block:18px; border-bottom:1px solid var(--s-border); margin-bottom:24px;
@@ -458,6 +468,16 @@ document.addEventListener('DOMContentLoaded', function(){
 <section class="services" id="explorar">
   <div class="wrap">
 
+    <div class="loc-bar" id="locBar">
+      <div class="loc-now">📍 <span id="locText">Finding services near you…</span> <button type="button" id="locChange" class="loc-link">Change</button></div>
+      <form class="loc-form" id="locForm" style="display:none;">
+        <input type="text" id="locInput" placeholder="Your city or ZIP code (e.g. Miami, FL or 33172)" maxlength="80" autocomplete="postal-code">
+        <button type="submit">See services</button>
+        <button type="button" id="locDevice" class="loc-ghost">Use my location</button>
+        <button type="button" id="locAll" class="loc-ghost">See the whole country</button>
+      </form>
+    </div>
+
     <div class="toolbar">
       <div class="result-count"><strong id="resultCount">1</strong> <span id="resultLabel">service found</span></div>
       <div class="sort">
@@ -472,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     <div class="results-grid">
 
-      <a class="result-card" href="matheus-credito.html" data-category="Finanzas y Crédito" data-search="matheus credito financiamiento rapido estados unidos finanzas y credito">
+      <a class="result-card" href="matheus-credito.html" data-serves="1" data-category="Finanzas y Crédito" data-search="matheus credito financiamiento rapido estados unidos finanzas y credito">
         <div class="result-thumb">
           <img src="../assets/matheus-credito-logo.png" alt="Matheus Crédito" style="width:72%;height:72%;object-fit:contain;">
           <span class="result-badge">✓ Verified</span>
@@ -684,8 +704,22 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <script>
 (function(){
-  // Marketplace: published Sevrii pages load from /api/marketplace and sit
-  // next to the cards written in this file. Category and search filter both.
+  // Marketplace: published Sevrii pages load from /api/marketplace, matched to
+  // where the visitor is. In-person services only show when the visitor is in
+  // their area; online services show everywhere. Category and search filter too.
+  var T = {
+    near: function(l){ return 'Services for <strong>' + l + '</strong>'; },
+    all: 'Showing <strong>the whole country</strong>',
+    unknown: 'Choose your city to see the services that serve you',
+    notFound: "We couldn't find that city. Try your ZIP code.",
+    by: 'by ', from: 'From ', spanish: 'Se habla español',
+    one: 'service found', many: 'services found',
+    miles: function(m){ return m < 1 ? 'Very close to you' : m + ' miles from you'; },
+    online: 'Online · serves you wherever you are',
+    noneNear: function(cat, where){ return 'There are no ' + (cat ? '<strong>' + cat + '</strong> ' : '') + 'services in <strong>' + where + '</strong> yet. Online services work from anywhere. <a href="#" data-all="1">See the whole country</a> · <a href="ofrecerservicios.html">Offer this service? List it on Sevrii</a>'; },
+    none: 'We could not find services matching your search. Do you offer this service? <a href="ofrecerservicios.html">List it on Sevrii</a>.',
+    lang: 'en'
+  };
   var categoryLinks = document.querySelectorAll('.category-item[data-category]');
   var input = document.getElementById('searchInput');
   var searchBtn = document.getElementById('searchBtn');
@@ -693,7 +727,12 @@ document.addEventListener('DOMContentLoaded', function(){
   var labelEl = document.getElementById('resultLabel');
   var noResultsEl = document.getElementById('noResults');
   var grid = document.querySelector('.results-grid');
+  var locText = document.getElementById('locText');
+  var locForm = document.getElementById('locForm');
+  var locInput = document.getElementById('locInput');
   var activeCategory = null;
+  var visitorLabel = '';
+  var showAll = false;
 
   function normalize(s){
     return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -708,11 +747,14 @@ document.addEventListener('DOMContentLoaded', function(){
   function initials(name){
     return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(function(w){ return w[0]; }).join('').toUpperCase();
   }
+  function store(k, v){ try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch(e) {} }
+  function read(k){ try { return localStorage.getItem(k) || ''; } catch(e) { return ''; } }
 
   function card(l){
-    var a = el('a', 'result-card');
+    var a = el('a', 'result-card dyn');
     a.href = '/site/' + encodeURIComponent(l.slug);
     a.setAttribute('data-category', l.category);
+    a.setAttribute('data-serves', l.serves ? '1' : '0');
     a.setAttribute('data-search', [l.title, l.name, l.location, l.category].join(' '));
     var thumb = el('div', 'result-thumb');
     var cover = safeImg(l.coverUrl), logo = safeImg(l.logoUrl);
@@ -726,10 +768,13 @@ document.addEventListener('DOMContentLoaded', function(){
     a.appendChild(thumb);
     var body = el('div', 'result-body');
     body.appendChild(el('p', 'result-title', l.title));
-    body.appendChild(el('div', 'result-by', 'by ' + l.name));
-    if (l.location) body.appendChild(el('div', 'result-loc', l.location));
-    if (l.price) body.appendChild(el('div', 'result-price', /^(desde|from)\b/i.test(l.price) ? l.price : 'From ' + l.price));
-    if (l.spanish) body.appendChild(el('span', 'result-tag', 'Se habla español'));
+    body.appendChild(el('div', 'result-by', T.by + l.name));
+    if (l.reach === 'remote') body.appendChild(el('div', 'result-reach', '💻 ' + T.online));
+    else if (l.serves && l.miles !== null && !showAll) body.appendChild(el('div', 'result-reach', '📍 ' + T.miles(l.miles)));
+    var where = l.reachText || l.location;
+    if (where && l.reach !== 'remote') body.appendChild(el('div', 'result-loc', where));
+    if (l.price) body.appendChild(el('div', 'result-price', /^(desde|from)\b/i.test(l.price) ? l.price : T.from + l.price));
+    if (l.spanish) body.appendChild(el('span', 'result-tag', T.spanish));
     a.appendChild(body);
     return a;
   }
@@ -740,17 +785,37 @@ document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.result-card[data-category]').forEach(function(c){
       var matchesCategory = !activeCategory || c.getAttribute('data-category') === activeCategory;
       var haystack = normalize((c.getAttribute('data-search') || '') + ' ' + c.textContent);
-      var show = matchesCategory && (!term || haystack.indexOf(term) !== -1);
+      var servesHere = showAll || c.getAttribute('data-serves') !== '0';
+      var show = matchesCategory && servesHere && (!term || haystack.indexOf(term) !== -1);
       c.style.display = show ? '' : 'none';
       if (show) visible++;
     });
     if (countEl) countEl.textContent = visible;
-    if (labelEl) labelEl.textContent = visible === 1 ? 'service found' : 'services found';
-    if (noResultsEl) noResultsEl.style.display = visible === 0 ? 'block' : 'none';
+    if (labelEl) labelEl.textContent = visible === 1 ? T.one : T.many;
+    if (noResultsEl) {
+      noResultsEl.innerHTML = (!showAll && visitorLabel) ? T.noneNear(activeCategory, visitorLabel) : T.none;
+      noResultsEl.style.display = visible === 0 ? 'block' : 'none';
+    }
     if (grid) grid.style.display = visible === 0 ? 'none' : '';
   }
 
-  if (noResultsEl) noResultsEl.innerHTML = 'We could not find services matching your search. Do you offer this service? <a href="ofrecerservicios.html">List it on Sevrii</a>.';
+  function load(params){
+    var q = 'lang=' + T.lang + (params ? '&' + params : '');
+    return fetch('/api/marketplace?' + q, { headers: { accept: 'application/json' } })
+      .then(function(r){ return r.ok ? r.json() : { listings: [] }; })
+      .then(function(data){
+        showAll = !!(data && data.all);
+        visitorLabel = (data && data.visitor && data.visitor.label) || '';
+        if (locText) locText.innerHTML = showAll ? T.all : visitorLabel ? T.near(visitorLabel) : T.unknown;
+        document.querySelectorAll('.result-card.dyn').forEach(function(c){ c.remove(); });
+        var list = (data && data.listings) || [];
+        var first = grid ? grid.firstChild : null;
+        list.forEach(function(l){ if (grid) grid.insertBefore(card(l), first); });
+        applyFilters();
+        return data;
+      })
+      .catch(function(){ applyFilters(); });
+  }
 
   categoryLinks.forEach(function(link){
     link.addEventListener('click', function(){
@@ -771,15 +836,44 @@ document.addEventListener('DOMContentLoaded', function(){
     if (e.key === 'Enter') { e.preventDefault(); applyFilters(); }
   });
 
-  fetch('/api/marketplace', { headers: { accept: 'application/json' } })
-    .then(function(r){ return r.ok ? r.json() : { listings: [] }; })
-    .then(function(data){
-      var list = (data && data.listings) || [];
-      var first = grid ? grid.firstChild : null;
-      list.forEach(function(l){ if (grid) grid.insertBefore(card(l), first); });
-      applyFilters();
-    })
-    .catch(function(){ applyFilters(); });
+  // Location controls
+  var changeBtn = document.getElementById('locChange');
+  if (changeBtn) changeBtn.addEventListener('click', function(){
+    if (!locForm) return;
+    locForm.style.display = locForm.style.display === 'none' ? 'flex' : 'none';
+    if (locInput) locInput.focus();
+  });
+  if (locForm) locForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var v = (locInput && locInput.value || '').trim();
+    if (!v) return;
+    load('loc=' + encodeURIComponent(v)).then(function(data){
+      var found = data && data.visitor && data.visitor.source === 'typed';
+      var old = locForm.querySelector('.loc-msg'); if (old) old.remove();
+      if (!found) { var m = el('div', 'loc-msg', T.notFound); m.style.width = '100%'; locForm.appendChild(m); return; }
+      store('sevrii_loc', v); store('sevrii_loc_all', null);
+      locForm.style.display = 'none';
+    });
+  });
+  var allBtn = document.getElementById('locAll');
+  function goAll(){ store('sevrii_loc_all', '1'); load('loc=all'); if (locForm) locForm.style.display = 'none'; }
+  if (allBtn) allBtn.addEventListener('click', goAll);
+  if (noResultsEl) noResultsEl.addEventListener('click', function(e){
+    var t = e.target;
+    if (t && t.getAttribute && t.getAttribute('data-all')) { e.preventDefault(); goAll(); }
+  });
+  var devBtn = document.getElementById('locDevice');
+  if (devBtn) devBtn.addEventListener('click', function(){
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(function(pos){
+      store('sevrii_loc', null); store('sevrii_loc_all', null);
+      load('lat=' + pos.coords.latitude.toFixed(3) + '&lon=' + pos.coords.longitude.toFixed(3));
+      if (locForm) locForm.style.display = 'none';
+    }, function(){}, { timeout: 8000, maximumAge: 600000 });
+  });
+
+  var saved = read('sevrii_loc');
+  load(read('sevrii_loc_all') ? 'loc=all' : saved ? 'loc=' + encodeURIComponent(saved) : '');
 })();
 </script>
 

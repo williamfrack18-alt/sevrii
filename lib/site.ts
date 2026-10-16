@@ -14,6 +14,14 @@ export type SiteData = {
   chat: boolean; // chat on the page (AI answers first, the owner any time)
   notifyEmail: boolean; // email the owner when someone writes in the chat
   ownerName: string; // how customers see the owner in the chat ("Carlos")
+  // Where the service is offered (the marketplace filters by it):
+  reachMode: "" | "local" | "remote"; // in person in an area, or online from anywhere
+  reachScope: "us" | "world"; // remote: the whole US, or other countries too
+  reachRadius: number; // local: miles around the base
+  baseCity: string; // local: "Miami"
+  baseState: string; // "FL"
+  baseLat: number | null;
+  baseLon: number | null;
   serviceArea: string;
   hours: string;
   licenseNumber: string;
@@ -66,6 +74,13 @@ export const EMPTY_SITE: SiteData = {
   chat: true,
   notifyEmail: true,
   ownerName: "",
+  reachMode: "",
+  reachScope: "us",
+  reachRadius: 25,
+  baseCity: "",
+  baseState: "",
+  baseLat: null,
+  baseLon: null,
   serviceArea: "",
   hours: "",
   licenseNumber: "",
@@ -175,6 +190,13 @@ export function parseSite(raw: unknown): SiteData {
     chat: obj.chat !== undefined ? Boolean(obj.chat) : obj.quoteForm !== undefined ? Boolean(obj.quoteForm) : true,
     notifyEmail: obj.notifyEmail === undefined ? true : Boolean(obj.notifyEmail),
     ownerName: str(obj.ownerName, 40),
+    reachMode: obj.reachMode === "local" || obj.reachMode === "remote" ? obj.reachMode : "",
+    reachScope: obj.reachScope === "world" ? "world" : "us",
+    reachRadius: typeof obj.reachRadius === "number" && obj.reachRadius >= 1 && obj.reachRadius <= 300 ? Math.round(obj.reachRadius) : 25,
+    baseCity: str(obj.baseCity, 60),
+    baseState: str(obj.baseState, 2).toUpperCase(),
+    baseLat: typeof obj.baseLat === "number" && Math.abs(obj.baseLat) <= 90 ? obj.baseLat : null,
+    baseLon: typeof obj.baseLon === "number" && Math.abs(obj.baseLon) <= 180 ? obj.baseLon : null,
     serviceArea: str(obj.serviceArea, LIMITS.serviceArea),
     hours: str(obj.hours, LIMITS.hours),
     licenseNumber: str(obj.licenseNumber, LIMITS.license),
@@ -262,7 +284,8 @@ export function missingForSales(opts: {
   if (s.gallery.length === 0 && !s.coverUrl) m.push("photos");
   if (s.keyPoints.length === 0) m.push("keyPoints");
   if (!s.offer) m.push("offer (ask; it's fine to have none)");
-  if (!s.serviceArea) m.push("serviceArea");
+  if (!s.reachMode) m.push("service area (in person in a city + miles, or online)");
+  if (!s.serviceArea && s.reachMode !== "remote") m.push("serviceArea");
   if (!s.hours) m.push("hours");
   if (s.steps.length === 0) m.push("steps (how they work)");
   if (s.faq.length === 0) m.push("faq");

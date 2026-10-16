@@ -300,6 +300,31 @@ export async function removeStoreVideoAction(): Promise<BusinessRow> {
   return fresh;
 }
 
+// Where the owner offers the service: in person around a city, or online.
+export type ReachInput = { mode: "local" | "remote"; scope?: "us" | "world"; radius?: number; place?: string };
+export async function setReachAction(input: ReachInput): Promise<{ ok: true; business: BusinessRow } | { ok: false; error: "place" | "invalid" }> {
+  const business = await requireBusiness();
+  const { lookupPlace } = await import("@/lib/geo");
+  if (input.mode === "remote") {
+    await patchBusinessSite(business.id, { reachMode: "remote", reachScope: input.scope === "world" ? "world" : "us" });
+  } else if (input.mode === "local") {
+    const place = lookupPlace(clip(input.place, 80), business.site.baseState || undefined);
+    if (!place) return { ok: false, error: "place" };
+    const radius = Math.max(1, Math.min(300, Math.round(Number(input.radius) || 25)));
+    await patchBusinessSite(business.id, {
+      reachMode: "local",
+      reachRadius: radius,
+      baseCity: place.city,
+      baseState: place.state,
+      baseLat: place.lat,
+      baseLon: place.lon,
+    });
+  } else return { ok: false, error: "invalid" };
+  const fresh = (await getBusinessById(business.id))!;
+  refresh(fresh.slug);
+  return { ok: true, business: fresh };
+}
+
 // ---------- Store chat (the whole Store tab is this conversation) ----------
 
 export type StoreChatResponse = {
