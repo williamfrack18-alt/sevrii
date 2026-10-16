@@ -34,7 +34,7 @@ const MAX_CHARS = 600;
 const MAX_AI_REPLIES_PER_CONV = 30;
 const MAX_AI_REPLIES_PER_BIZ_DAY = 300;
 
-export type ChatMsg = { seq: number; role: "visitor" | "ai" | "owner"; content: string };
+export type ChatMsg = { seq: number; role: "visitor" | "ai" | "owner"; content: string; at: string };
 export type VisitorChatResult =
   | { ok: true; token: string; messages: ChatMsg[]; waiting: boolean }
   | { ok: false; error: "closed" | "rate" | "long" | "empty" };
@@ -45,7 +45,7 @@ function hashToken(t: string): string {
 function clean(v: unknown, max: number): string {
   return typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, " ").trim().slice(0, max) : "";
 }
-const pub = (m: ConvMessageRow): ChatMsg => ({ seq: m.seq, role: m.role, content: m.content });
+const pub = (m: ConvMessageRow): ChatMsg => ({ seq: m.seq, role: m.role, content: m.content, at: m.createdAt });
 
 // Same rule as the page itself: only live pages chat (the owner can test a draft).
 async function openBusiness(slug: string): Promise<BusinessRow | null> {
@@ -242,6 +242,22 @@ export async function getNotifySettingsAction(): Promise<NotifySettings | null> 
     pushKey: pushPublicKey(),
     devices: (await listPushSubs(user.id)).length,
   };
+}
+
+// How customers see the owner when the owner answers in the chat.
+export async function setOwnerNameAction(name: string): Promise<string | null> {
+  const user = await getCurrentUser();
+  if (!user?.business) return null;
+  const v = clean(name, 40).replace(/\s+/g, " ");
+  if (v.length < 2) return null;
+  await updateBusinessSite(user.business.id, { ...user.business.site, ownerName: v });
+  return v;
+}
+
+export async function getOwnerProfileAction(): Promise<{ name: string; photo: string } | null> {
+  const user = await getCurrentUser();
+  if (!user?.business) return null;
+  return { name: user.business.site.ownerName, photo: user.business.site.coverUrl };
 }
 
 export async function setNotifyEmailAction(on: boolean): Promise<boolean> {

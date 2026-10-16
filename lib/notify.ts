@@ -169,14 +169,16 @@ export async function emailVisitorReply(business: BusinessRow, conv: Conversatio
   try {
     const owner = await getUserById(business.userId);
     const es = business.site.lang !== "en";
+    const who = business.site.ownerName ? (es ? `${business.site.ownerName}, de ${business.name},` : `${business.site.ownerName} from ${business.name}`) : business.name;
     const { html, text } = simpleEmail({
-      title: es ? `${business.name} te respondió` : `${business.name} replied`,
+      title: es ? `${who} te respondió` : `${who} replied`,
       intro: message.slice(0, 2000),
       button: es ? "Seguir la conversación" : "Continue the conversation",
       url: `${siteUrl()}/site/${business.slug}?chat=1`,
       outro: es ? "También puedes responder este correo." : "You can also reply to this email.",
     });
-    await sendEmail(conv.email, es ? `Respuesta de ${business.name}` : `Reply from ${business.name}`, html, text, owner?.email || undefined);
+    const from = business.site.ownerName ? `${business.site.ownerName} (${business.name})` : business.name;
+    await sendEmail(conv.email, es ? `Respuesta de ${from}` : `Reply from ${from}`, html, text, owner?.email || undefined);
   } catch (err) {
     console.error("[notify] visitor reply failed", (err as Error)?.message);
   }

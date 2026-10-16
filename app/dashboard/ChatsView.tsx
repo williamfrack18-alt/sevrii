@@ -7,6 +7,8 @@ import {
   openInboxConversationAction,
   ownerReplyAction,
   setConversationAiAction,
+  getOwnerProfileAction,
+  setOwnerNameAction,
   type ChatMsg,
   type InboxConversation,
 } from "@/app/chatActions";
@@ -45,6 +47,12 @@ const TEXT = {
     goStore: "Ir a Store",
     legendAi: "✨ IA = respuesta automática",
     legendYou: "Tú = tu respuesta",
+    seenAs: "Los clientes te ven como",
+    change: "Cambiar",
+    save: "Guardar",
+    namePh: "Tu nombre, ej. Carlos",
+    askName: "¿Cómo te llamas? Cuando respondas, el cliente verá tu nombre y tu foto con «Persona real», para que sepa que habla contigo.",
+    photoHint: "Tu foto es la foto principal de tu tienda.",
   },
   en: {
     title: "Conversations",
@@ -76,6 +84,12 @@ const TEXT = {
     goStore: "Go to Store",
     legendAi: "✨ AI = automatic answer",
     legendYou: "You = your reply",
+    seenAs: "Customers see you as",
+    change: "Change",
+    save: "Save",
+    namePh: "Your name, e.g. Carlos",
+    askName: "What's your name? When you reply, the customer sees your name and photo with “Real person”, so they know they're talking with you.",
+    photoHint: "Your photo is your store's main photo.",
   },
 };
 
@@ -95,6 +109,24 @@ export default function ChatsView({ businessId, published, onStore }: { business
   });
   const [filter, setFilter] = useState<"all" | "needs" | "unread">("all");
   const [showAlerts, setShowAlerts] = useState(false);
+  const [me, setMe] = useState<{ name: string; photo: string } | null>(null);
+  const [editName, setEditName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  useEffect(() => {
+    getOwnerProfileAction()
+      .then((p) => {
+        setMe(p);
+        if (p && !p.name) setEditName(true);
+      })
+      .catch(() => {});
+  }, [businessId]);
+  async function saveName() {
+    const v = await setOwnerNameAction(nameDraft);
+    if (v) {
+      setMe((m) => ({ name: v, photo: m?.photo ?? "" }));
+      setEditName(false);
+    }
+  }
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -298,15 +330,63 @@ export default function ChatsView({ businessId, published, onStore }: { business
                             : { background: "rgba(46,122,85,.2)", color: "#e8f5ee", boxShadow: "inset 0 0 0 1px rgba(46,122,85,.45)", borderBottomRightRadius: 6 }
                       }
                     >
-                      <div className="text-[10.5px] font-semibold opacity-70 mb-0.5">{m.role === "visitor" ? current.name || t.customer : m.role === "owner" ? t.you : `✨ ${t.ai}`}</div>
+                      <div className="text-[10.5px] font-semibold opacity-70 mb-0.5">{m.role === "visitor" ? current.name || t.customer : m.role === "owner" ? `${t.you}${me?.name ? ` (${me.name})` : ""}` : `✨ ${t.ai}`}</div>
                       {m.content}
                     </div>
                   ))}
                 </div>
                 <div className="shrink-0 px-3 md:px-6 pb-4 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,.08)" }}>
-                  <div className="text-[11.5px] mb-1.5" style={{ color: current.aiEnabled ? ACCENT : "#d4a72c" }}>
-                    {current.aiEnabled ? `✨ ${t.aiOn}` : `👤 ${t.aiOff}`}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <span className="text-[11.5px]" style={{ color: current.aiEnabled ? ACCENT : "#d4a72c" }}>
+                      {current.aiEnabled ? `✨ ${t.aiOn}` : `👤 ${t.aiOff}`}
+                    </span>
+                    {me && !editName && me.name && (
+                      <span className="flex items-center gap-2 text-[12px] text-[#a1a1a1]">
+                        {t.seenAs}:
+                        <span className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold" style={{ background: "#262626", color: "#e5e5e5" }}>
+                          {me.photo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={me.photo} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            me.name.slice(0, 1).toUpperCase()
+                          )}
+                        </span>
+                        <strong className="text-white">{me.name}</strong>
+                        <span className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: TINT, color: ACCENT }}>
+                          ✓ {lang === "es" ? "Persona real" : "Real person"}
+                        </span>
+                        <button
+                          type="button"
+                          className="underline"
+                          onClick={() => {
+                            setNameDraft(me.name);
+                            setEditName(true);
+                          }}
+                        >
+                          {t.change}
+                        </button>
+                      </span>
+                    )}
                   </div>
+                  {me && editName && (
+                    <div className="rounded-xl p-3 mb-2" style={{ background: "#161616", boxShadow: "0 0 0 1px rgba(255,255,255,.08)" }}>
+                      <p className="text-[12.5px] text-[#cfcfcf]">{t.askName}</p>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          value={nameDraft}
+                          onChange={(e) => setNameDraft(e.target.value)}
+                          placeholder={t.namePh}
+                          maxLength={40}
+                          className="flex-1 h-9 rounded-full px-3 text-[13.5px] text-white outline-none"
+                          style={{ background: "#1f1f1f", boxShadow: "0 0 0 1px rgba(255,255,255,.1)" }}
+                        />
+                        <button type="button" onClick={saveName} disabled={nameDraft.trim().length < 2} className="h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-50" style={BRAND_BTN}>
+                          {t.save}
+                        </button>
+                      </div>
+                      <p className="text-[11.5px] text-[#7a7a7a] mt-1.5">{t.photoHint}</p>
+                    </div>
+                  )}
                   <form
                     className="flex gap-2"
                     onSubmit={(e) => {

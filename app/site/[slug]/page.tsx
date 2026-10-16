@@ -515,7 +515,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
         </div>
       </footer>
 
-      {site.chat && <ChatWidget slug={business.slug} businessName={business.name} logoUrl={site.logoUrl} lang={site.lang} />}
+      {site.chat && <ChatWidget slug={business.slug} businessName={business.name} logoUrl={site.logoUrl} ownerName={site.ownerName} ownerPhoto={site.coverUrl} lang={site.lang} />}
 
       {primary && (
         <div className="sticky-cta">

@@ -16,6 +16,12 @@ const TEXT = {
     note: (biz: string) => `Asistente con IA. ${biz} confirma precios y citas.`,
     waiting: (biz: string) => `${biz} verá tu mensaje y te responderá aquí o por el medio que dejaste.`,
     owner: "Dueño",
+    realPerson: "Persona real",
+    assistant: (biz: string) => `Asistente virtual de ${biz}`,
+    joined: (who: string) => `${who} se unió a la conversación`,
+    talkingWith: (who: string) => `Hablas con ${who}`,
+    ownerOf: (biz: string) => `Dueño de ${biz}`,
+    online: "En línea ahora",
     errors: { closed: "El chat no está disponible ahora.", rate: "Vas muy rápido. Espera un momento.", long: "El mensaje es muy largo.", empty: "", failed: "No se pudo enviar. Inténtalo de nuevo." },
     close: "Cerrar",
   },
@@ -31,6 +37,12 @@ const TEXT = {
     note: (biz: string) => `AI assistant. ${biz} confirms prices and appointments.`,
     waiting: (biz: string) => `${biz} will see your message and reply here or using the contact you left.`,
     owner: "Owner",
+    realPerson: "Real person",
+    assistant: (biz: string) => `${biz}'s virtual assistant`,
+    joined: (who: string) => `${who} joined the conversation`,
+    talkingWith: (who: string) => `You're talking with ${who}`,
+    ownerOf: (biz: string) => `Owner of ${biz}`,
+    online: "Online now",
     errors: { closed: "Chat isn't available right now.", rate: "You're going fast. Wait a moment.", long: "That message is too long.", empty: "", failed: "Couldn't send. Please try again." },
     close: "Close",
   },
@@ -51,7 +63,34 @@ function storeSet(k: string, v: string) {
   }
 }
 
-export default function ChatWidget({ slug, businessName, logoUrl, lang }: { slug: string; businessName: string; logoUrl: string; lang: "es" | "en" }) {
+function Avatar({ src, name, className }: { src: string; name: string; className: string }) {
+  return (
+    <span className={className}>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" />
+      ) : (
+        name.slice(0, 1).toUpperCase()
+      )}
+    </span>
+  );
+}
+
+export default function ChatWidget({
+  slug,
+  businessName,
+  logoUrl,
+  ownerName,
+  ownerPhoto,
+  lang,
+}: {
+  slug: string;
+  businessName: string;
+  logoUrl: string;
+  ownerName: string;
+  ownerPhoto: string;
+  lang: "es" | "en";
+}) {
   const t = TEXT[lang];
   const key = `sevrii_chat_${slug}`;
   const [open, setOpen] = useState(false);
@@ -65,6 +104,12 @@ export default function ChatWidget({ slug, businessName, logoUrl, lang }: { slug
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastSeq = msgs.length ? msgs[msgs.length - 1].seq : 0;
+  // Once the owner answers, the chat shows the real person (name + photo).
+  const ownerLabel = ownerName || (lang === "es" ? "El dueño" : "The owner");
+  const ownerMsgs = msgs.filter((m) => m.role === "owner");
+  const ownerHere = ownerMsgs.length > 0;
+  const lastOwnerAt = ownerHere ? Date.parse(ownerMsgs[ownerMsgs.length - 1].at) : 0;
+  const ownerRecent = ownerHere && Date.now() - lastOwnerAt < 10 * 60 * 1000;
 
   // Resume an earlier conversation on this device.
   useEffect(() => {
@@ -124,7 +169,7 @@ export default function ChatWidget({ slug, businessName, logoUrl, lang }: { slug
     setError("");
     setSending(true);
     setDraft("");
-    setMsgs((cur) => [...cur, { seq: Number.MAX_SAFE_INTEGER, role: "visitor", content: text }]);
+    setMsgs((cur) => [...cur, { seq: Number.MAX_SAFE_INTEGER, role: "visitor", content: text, at: new Date().toISOString() }]);
     try {
       const res = await visitorChatSendAction({ slug, token: token || undefined, text });
       if (res.ok) {
@@ -158,19 +203,16 @@ export default function ChatWidget({ slug, businessName, logoUrl, lang }: { slug
     <div className="cw">
       {open && (
         <div className="cw-panel" role="dialog" aria-label={t.open}>
-          <div className="cw-head">
-            <div className="cw-avatar">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="" />
-              ) : (
-                businessName.slice(0, 1).toUpperCase()
-              )}
-            </div>
+          <div className={`cw-head ${ownerHere ? "owner" : ""}`}>
+            {ownerHere ? (
+              <Avatar src={ownerPhoto} name={ownerLabel} className="cw-avatar" />
+            ) : (
+              <Avatar src={logoUrl} name={businessName} className="cw-avatar" />
+            )}
             <div className="cw-head-text">
-              <div className="cw-name">{t.title(businessName)}</div>
+              <div className="cw-name">{ownerHere ? `${ownerLabel} · ${businessName}` : t.title(businessName)}</div>
               <div className="cw-status">
-                <span className="cw-dot" /> {t.status}
+                <span className="cw-dot" /> {ownerHere ? (ownerRecent ? t.online : t.talkingWith(ownerLabel)) : t.status}
               </div>
             </div>
             <button type="button" className="cw-x" aria-label={t.close} onClick={toggle}>
@@ -178,13 +220,29 @@ export default function ChatWidget({ slug, businessName, logoUrl, lang }: { slug
             </button>
           </div>
           <div className="cw-list" ref={listRef}>
+            <div className="cw-from">✨ {t.assistant(businessName)}</div>
             <div className="cw-msg ai">{t.hello(businessName)}</div>
-            {msgs.map((m, i) => (
-              <div key={`${m.seq}-${i}`} className={`cw-msg ${m.role}`}>
-                {m.role === "owner" && <span className="cw-tag">{businessName} · {t.owner}</span>}
-                {m.content}
-              </div>
-            ))}
+            {msgs.map((m, i) => {
+              const prev = msgs[i - 1];
+              const firstOwner = m.role === "owner" && !msgs.slice(0, i).some((x) => x.role === "owner");
+              const showFrom = m.role !== "visitor" && (!prev || prev.role !== m.role);
+              return (
+                <div key={`${m.seq}-${i}`} className="cw-row">
+                  {firstOwner && <div className="cw-joined">👋 {t.joined(ownerLabel)}</div>}
+                  {showFrom && m.role === "ai" && <div className="cw-from">✨ {t.assistant(businessName)}</div>}
+                  {showFrom && m.role === "owner" && (
+                    <div className="cw-from owner">
+                      <Avatar src={ownerPhoto} name={ownerLabel} className="cw-mini" />
+                      <span>
+                        <strong>{ownerLabel}</strong> · {t.ownerOf(businessName)}
+                      </span>
+                      <span className="cw-real">✓ {t.realPerson}</span>
+                    </div>
+                  )}
+                  <div className={`cw-msg ${m.role}`}>{m.content}</div>
+                </div>
+              );
+            })}
             {sending && (
               <div className="cw-msg ai cw-typing" aria-label="…">
                 <span />
@@ -192,7 +250,7 @@ export default function ChatWidget({ slug, businessName, logoUrl, lang }: { slug
                 <span />
               </div>
             )}
-            {waiting && !sending && <div className="cw-wait">{t.waiting(businessName)}</div>}
+            {waiting && !sending && !ownerHere && <div className="cw-wait">{t.waiting(businessName)}</div>}
           </div>
           {error && <div className="cw-error">{error}</div>}
           <form
