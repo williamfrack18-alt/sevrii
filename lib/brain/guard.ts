@@ -20,9 +20,13 @@ Marca como "warn":
 - Precios muy por debajo o por encima del rango de la zona.
 - Textos que preguntan por rasgos personales ("¿Estás divorciado?", "¿Tienes deudas?").
 
-Una oferta de bienvenida para clientes nuevos (forNewClients) no necesita fecha de fin. Una promoción por tiempo limitado sí, pero el dueño la pone antes de aprobar: no la marques por no tener fecha todavía.
+Ofertas: NUNCA marques una oferta por no tener fecha de fin. Una oferta de bienvenida para clientes nuevos (forNewClients = true) no lleva fecha, y en una promoción por tiempo limitado el dueño pone la fecha antes de aprobar.
 
-Cada punto: el campo y la razón en una línea. Si no hay problemas, listas vacías.`;
+Cómo escribes cada punto:
+- Para el dueño del negocio, en palabras sencillas, como se lo dirías en persona.
+- Nunca uses nombres técnicos de campos (nada de "offer.detail", "packages[0]", "forNewClients", "endsAt", "insured").
+- Una sola frase corta, máximo 180 caracteres.
+Si no hay problemas, listas vacías.`;
 
 const SCHEMA = {
   type: "object",
@@ -70,8 +74,11 @@ export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block
       ],
     });
     const d = JSON.parse(textOf(res.content)) as { block?: unknown; warn?: unknown };
-    const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).slice(0, 240)).filter(Boolean).slice(0, 6) : []);
-    return { block: [...fromCode.block, ...list(d.block)], warn: list(d.warn) };
+    const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim().slice(0, 240)).filter(Boolean).slice(0, 6) : []);
+    // Dates on offers are checked by code (codeChecks), never by the model:
+    // a welcome offer has none, and a time-limited one gets its date on approval.
+    const aboutOfferDate = (s: string) => /(fecha|date|endsAt|vencimiento|vence|expir|forNewClients)/i.test(s) && /(oferta|offer|descuento|discount|promo)/i.test(s);
+    return { block: [...fromCode.block, ...list(d.block).filter((s) => !aboutOfferDate(s))], warn: list(d.warn).filter((s) => !aboutOfferDate(s)) };
   } catch (err) {
     logAiError("guard", err);
     return fromCode;
