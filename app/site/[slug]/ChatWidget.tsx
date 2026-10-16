@@ -93,8 +93,7 @@ export default function ChatWidget({
 }) {
   const t = TEXT[lang];
   const key = `sevrii_chat_${slug}`;
-  const [open, setOpen] = useState(false);
-  const [teaser, setTeaser] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [token, setToken] = useState("");
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
@@ -115,21 +114,19 @@ export default function ChatWidget({
   useEffect(() => {
     const saved = storeGet(key);
     if (saved) setToken(saved);
-    if (new URLSearchParams(window.location.search).get("chat") === "1") setOpen(true);
-    const timer = setTimeout(() => {
-      if (!storeGet(`${key}_teased`)) setTeaser(true);
-    }, 9000);
-    return () => clearTimeout(timer);
+    if (new URLSearchParams(window.location.search).get("chat") === "1") {
+      setTimeout(() => rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+    }
   }, [key]);
 
-  // Buttons on the page ("Chat now", a service's chat button) open the chat.
+  // Buttons on the page ("Chat", a service's chat button, the floating button)
+  // bring the visitor to this chat with the service already written.
   useEffect(() => {
     const onOpen = (e: Event) => {
       const svc = (e as CustomEvent<string>).detail;
-      setOpen(true);
-      setTeaser(false);
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       if (svc) setDraft((d) => d || t.interest(svc));
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 450);
     };
     window.addEventListener("sevrii:chat", onOpen);
     return () => window.removeEventListener("sevrii:chat", onOpen);
@@ -151,17 +148,19 @@ export default function ChatWidget({
     }
   }, [slug, token, lastSeq]);
 
-  // While the window is open, check for the owner's replies.
+  // Check for the owner's replies while the page is open.
   useEffect(() => {
-    if (!open || !token) return;
+    if (!token) return;
     poll();
-    const id = setInterval(poll, 5000);
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") poll();
+    }, 6000);
     return () => clearInterval(id);
-  }, [open, token, poll]);
+  }, [token, poll]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [msgs, open, sending]);
+  }, [msgs, sending]);
 
   async function send() {
     const text = draft.trim();
@@ -193,16 +192,9 @@ export default function ChatWidget({
     }
   }
 
-  function toggle() {
-    setOpen((o) => !o);
-    setTeaser(false);
-    storeSet(`${key}_teased`, "1");
-  }
-
   return (
-    <div className="cw">
-      {open && (
-        <div className="cw-panel" role="dialog" aria-label={t.open}>
+    <div className="cw-inline" ref={rootRef} aria-label={t.open}>
+      <div className="cw-panel">
           <div className={`cw-head ${ownerHere ? "owner" : ""}`}>
             {ownerHere ? (
               <Avatar src={ownerPhoto} name={ownerLabel} className="cw-avatar" />
@@ -215,9 +207,6 @@ export default function ChatWidget({
                 <span className="cw-dot" /> {ownerHere ? (ownerRecent ? t.online : t.talkingWith(ownerLabel)) : t.status}
               </div>
             </div>
-            <button type="button" className="cw-x" aria-label={t.close} onClick={toggle}>
-              ×
-            </button>
           </div>
           <div className="cw-list" ref={listRef}>
             <div className="cw-row cw-hello">
@@ -283,25 +272,36 @@ export default function ChatWidget({
             </button>
           </form>
           {ownerHere && <div className="cw-note">{`${t.talkingWith(ownerLabel)} · ${t.ownerOf(businessName)}`}</div>}
-        </div>
-      )}
-      {!open && teaser && (
-        <button type="button" className="cw-teaser" onClick={toggle}>
-          {t.teaser}
-        </button>
-      )}
-      <button type="button" className={`cw-fab ${open ? "on" : ""}`} onClick={toggle} aria-label={t.open}>
-        {open ? (
-          <span className="cw-fab-x">×</span>
-        ) : (
-          <>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.6-5.4A8.4 8.4 0 1 1 21 11.5z" />
-            </svg>
-            <span className="cw-fab-label">{t.open}</span>
-          </>
-        )}
-      </button>
+      </div>
     </div>
+  );
+}
+
+// Floating button: takes the visitor to the chat (hidden while the chat is on screen).
+export function ChatJump({ lang }: { lang: "es" | "en" }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const target = document.getElementById("chat");
+    if (!target) return;
+    const io = new IntersectionObserver(([e]) => setShow(!e.isIntersecting && window.scrollY > 300), { threshold: 0.15 });
+    io.observe(target);
+    const onScroll = () => {
+      const r = target.getBoundingClientRect();
+      setShow(window.scrollY > 300 && (r.bottom < 0 || r.top > window.innerHeight * 0.85));
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+  if (!show) return null;
+  return (
+    <button type="button" className="cw-fab" onClick={() => window.dispatchEvent(new CustomEvent("sevrii:chat", { detail: "" }))}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.6-5.4A8.4 8.4 0 1 1 21 11.5z" />
+      </svg>
+      <span className="cw-fab-label">{TEXT[lang].open}</span>
+    </button>
   );
 }

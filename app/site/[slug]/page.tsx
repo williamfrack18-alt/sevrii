@@ -9,7 +9,7 @@ import { STORE_TEXT } from "@/lib/storeI18n";
 import { reachLabel, resolveReach } from "@/lib/reach";
 import { activeOffer, contactChannels, formatPhone, normalizePhone, storeTheme } from "@/lib/site";
 import { BuyActions, ChannelIcon, ContactLink, Countdown, Gallery, Track, type MediaItem } from "./StoreParts";
-import ChatWidget from "./ChatWidget";
+import ChatWidget, { ChatJump } from "./ChatWidget";
 import "./store.css";
 import { CHAT_HEAD, channelClass, type ContactChannel } from "@/lib/storeContact";
 
@@ -333,29 +333,9 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                 <span className="eyebrow">{CHAT_HEAD[site.lang].eyebrow}</span>
                 <h2>{CHAT_HEAD[site.lang].title}</h2>
                 <p>{CHAT_HEAD[site.lang].sub(business.name)}</p>
-                <div className="quote-alt">
-                  {link("chat", "btn chat", <><ChannelIcon c="chat" /> {CHAT_HEAD[site.lang].open}</>)}
-                  {channels.filter((c) => c !== "chat").map((c) => link(c, "btn ghost-light", <><ChannelIcon c={c} /> {c === "call" && phone ? formatPhone(phone) : short[c]}</>))}
-                </div>
                 {(area || site.hours) && <div className="quote-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
               </div>
-              {link(
-                "chat",
-                "chat-preview",
-                <>
-                  <span className="cp-head">
-                    <span className="cp-avatar">{business.name.slice(0, 1).toUpperCase()}</span>
-                    <span>
-                      <strong>{business.name}</strong>
-                      <em>● {site.lang === "en" ? "Replies instantly" : "Responde al instante"}</em>
-                    </span>
-                  </span>
-                  <span className="cp-bubble">
-                    {site.lang === "en" ? "Hi! 👋 Thanks for reaching out. How can we help you?" : "¡Hola! 👋 Gracias por escribirnos. ¿En qué te podemos ayudar?"}
-                  </span>
-                  <span className="cp-input">{site.lang === "en" ? "Type your message…" : "Escribe tu mensaje…"} <span className="cp-send">→</span></span>
-                </>
-              )}
+              <ChatWidget slug={business.slug} businessName={business.name} logoUrl={site.logoUrl} ownerName={site.ownerName} ownerPhoto={site.coverUrl} lang={site.lang} />
             </div>
           </section>
         )}
@@ -519,7 +499,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
         </div>
       </footer>
 
-      {site.chat && <ChatWidget slug={business.slug} businessName={business.name} logoUrl={site.logoUrl} ownerName={site.ownerName} ownerPhoto={site.coverUrl} lang={site.lang} />}
+      {site.chat && <ChatJump lang={site.lang} />}
 
       {primary && (
         <div className="sticky-cta">
