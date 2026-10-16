@@ -203,7 +203,7 @@ export function BuyActions({
           </a>
         )}
         {primary ? (
-          <Track href={primary.href} businessId={businessId} channel={primary.channel} className={`btn block ${svc?.payHref ? "ghost" : ""}`}>
+          <Track href={primary.href} businessId={businessId} channel={primary.channel} className={`btn block ${svc?.payHref ? "ghost" : primary.channel === "whatsapp" ? "wa" : ""}`}>
             {primary.label}
           </Track>
         ) : (

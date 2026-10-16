@@ -325,5 +325,8 @@ export function storeTheme(accent: string): Record<string, string> {
     "--accent-border": `rgba(${light[0]}, ${light[1]}, ${light[2]}, 0.4)`,
     "--surface": css(mixRgb(base, W, 0.94)),
     "--surface-2": css(mixRgb(base, W, 0.89)),
+    "--accent-soft": css(mixRgb(base, W, 0.8)),
+    "--accent-bright": css(mixRgb(base, W, 0.45)),
+    "--accent-ink": css(mixRgb(base, K, 0.35)),
   };
 }

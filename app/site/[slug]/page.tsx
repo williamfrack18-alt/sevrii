@@ -95,6 +95,8 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
   // Lowest price shown as "From $X" (only when prices are plain dollar amounts).
   const nums = ordered.map((x) => /\$\s?([\d,]+(?:\.\d+)?)/.exec(x.price || "")).filter(Boolean).map((m) => Number(m![1].replace(/,/g, "")));
   const fromPrice = nums.length ? Math.min(...nums) : null;
+  // Payment links that don't belong to a listed service get their own section.
+  const extraPayLinks = payLinks.filter((l) => !ordered.some((sv) => payFor(sv.name)?.id === l.id));
   const waFor = (svcName: string) => {
     const msg = t.msgService(business.name, svcName);
     return wa
@@ -323,76 +325,117 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
           </section>
         )}
 
-        {site.steps.length > 0 && (
-          <section className="block wrap">
-            <div className="section-head">
-              <span className="eyebrow grad-text">{t.howEyebrow}</span>
-              <h2>{t.howTitle}</h2>
-            </div>
-            <div className={`process-grid ${site.steps.length === 4 ? "n4" : ""}`}>
-              {site.steps.map((s, n) => (
-                <div key={n} className="process-card">
-                  <span className="process-num grad-text">{n + 1}</span>
-                  {s.title ? <h3>{s.title}</h3> : null}
-                  <p className={s.title ? undefined : "solo"}>{s.text}</p>
-                </div>
-              ))}
+        {offer && finalPrimary && (
+          <section className="offer-band">
+            <div className="wrap offer-row">
+              <div>
+                <span className="offer-kicker">
+                  <span className="deal-dot" /> {t.offer}
+                </span>
+                <div className="offer-title">{offer.label}</div>
+                {offer.endsAt && (
+                  <div className="offer-ends">
+                    {t.endsIn} <Countdown endsAt={offer.endsAt} />
+                  </div>
+                )}
+              </div>
+              <Track href={finalPrimary.href} businessId={business.id} channel={finalPrimary.channel} className="btn light">
+                {t.offerCta} →
+              </Track>
             </div>
           </section>
         )}
 
         {ordered.length > 0 && (
-          <section className="block wrap" id="servicios">
-            <div className="section-head">
-              <span className="eyebrow grad-text">{t.servicesEyebrow}</span>
-              <h2>{t.servicesTitle}</h2>
-            </div>
-            <div className={`services-grid ${ordered.length === 4 ? "n4" : ""}`}>
-              {ordered.map((s) => {
-                const msg = t.msgService(business.name, s.name);
-                const href = wa
-                  ? `https://wa.me/${wa.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`
-                  : phone && site.textEnabled
-                    ? `sms:${phone}?&body=${encodeURIComponent(msg)}`
-                    : phone
-                      ? `tel:${phone}`
-                      : null;
-                const channel = wa ? "whatsapp" : phone && site.textEnabled ? "text" : "call";
-                const body = (
-                  <>
-                    {s.featured && <span className="service-tag grad-text">{s.tag || t.featured}</span>}
-                    <h3>{s.name}</h3>
-                    {s.description && <p>{s.description}</p>}
-                    <span className="service-range grad-text">{s.price || t.priceOnRequest}</span>
-                  </>
-                );
-                return href ? (
-                  <Track key={s.id} href={href} businessId={business.id} channel={channel} className={`service-card ${s.featured ? "lead" : ""}`}>
-                    {body}
-                  </Track>
-                ) : (
-                  <div key={s.id} className={`service-card ${s.featured ? "lead" : ""}`}>
-                    {body}
-                  </div>
-                );
-              })}
+          <section className="block services-block" id="servicios">
+            <div className="wrap">
+              <div className="section-head">
+                <span className="eyebrow grad-text">{t.servicesEyebrow}</span>
+                <h2>{t.servicesTitle}</h2>
+              </div>
+              <div className={`services-grid ${ordered.length === 4 ? "n4" : ""}`}>
+                {ordered.map((s, n) => {
+                  const ask = waFor(s.name);
+                  const link = payFor(s.name);
+                  const img = images.length ? images[(n + 1) % images.length] : "";
+                  return (
+                    <article key={s.id} className={`service-card ${s.featured ? "lead" : ""}`}>
+                      <div className={`service-media ${img ? "" : "grad"}`} style={img ? { backgroundImage: `url("${img}")` } : undefined}>
+                        {s.featured && <span className="service-ribbon">★ {s.tag || t.featured}</span>}
+                        <span className="service-price-chip">{s.price || t.priceOnRequest}</span>
+                      </div>
+                      <div className="service-body">
+                        <h3>{s.name}</h3>
+                        {s.description && <p>{s.description}</p>}
+                        <div className="service-actions">
+                          {link && (
+                            <a href={`/pay/${link.id}`} className="btn pay">
+                              💳 {payText.button}
+                            </a>
+                          )}
+                          {ask && (
+                            <Track href={ask.href} businessId={business.id} channel={ask.channel} className={`btn ${ask.channel === "whatsapp" ? "wa" : ""} ${link ? "ghost" : ""}`}>
+                              {ask.channel === "whatsapp" ? `💬 ${t.askWhatsapp}` : ask.channel === "text" ? `✉️ ${t.text}` : `📞 ${t.callNow}`}
+                            </Track>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </div>
           </section>
         )}
 
-        {payLinks.length > 0 && (
+        {images.length >= 2 && (
+          <section className="block wrap">
+            <div className="section-head">
+              <span className="eyebrow grad-text">{t.workEyebrow}</span>
+              <h2>{t.workTitle}</h2>
+            </div>
+            <div className={`mosaic n${Math.min(images.length, 5)}`}>
+              {images.slice(0, 5).map((src, n) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={src} src={src} alt={t.photoAlt(business.name)} loading="lazy" className={n === 0 ? "big" : undefined} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {site.steps.length > 0 && (
+          <section className="block steps-block">
+            <div className="wrap">
+              <div className="section-head">
+                <span className="eyebrow grad-text">{t.howEyebrow}</span>
+                <h2>{t.howTitle}</h2>
+              </div>
+              <div className={`process-grid ${site.steps.length === 4 ? "n4" : ""}`}>
+                {site.steps.map((st, n) => (
+                  <div key={n} className="process-card">
+                    <span className="process-num">{n + 1}</span>
+                    {st.title ? <h3>{st.title}</h3> : null}
+                    <p className={st.title ? undefined : "solo"}>{st.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {extraPayLinks.length > 0 && (
           <section className="block wrap" id="pagar">
             <div className="section-head">
               <span className="eyebrow grad-text">{payText.eyebrow}</span>
               <h2>{payText.title}</h2>
             </div>
             <div className="services-grid">
-              {payLinks.map((l) => (
-                <a key={l.id} href={`/pay/${l.id}`} className="service-card pay-card-link">
+              {extraPayLinks.map((l) => (
+                <a key={l.id} href={`/pay/${l.id}`} className="pay-card-link">
                   <h3>{l.title}</h3>
                   {l.description && <p>{l.description}</p>}
-                  <span className="service-range grad-text">{usd(l.amountCents)}</span>
-                  <span className="btn pay-cta">{payText.button} →</span>
+                  <span className="pay-amount">{usd(l.amountCents)}</span>
+                  <span className="btn pay pay-cta">💳 {payText.button} →</span>
                 </a>
               ))}
             </div>
@@ -409,7 +452,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
               {site.faq.map((f, n) => (
                 <details key={n} open={n === 0}>
                   <summary>
-                    {f.q} <span className="plus grad-text">+</span>
+                    {f.q} <span className="plus">+</span>
                   </summary>
                   <p>{f.a}</p>
                 </details>
@@ -420,20 +463,22 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
       </main>
 
       {finalPrimary && (
-        <section className="final-cta block">
+        <section className="final-cta" style={site.coverUrl ? { ["--cta-img" as string]: `url("${site.coverUrl}")` } : undefined}>
           <div className="wrap">
+            {offer && <span className="final-offer">🎁 {offer.label}</span>}
             <h2>{site.ctaTitle || t.ctaDefaultTitle}</h2>
             <p>{site.ctaText || t.ctaDefaultText}</p>
             <div className="btns">
-              <Track href={finalPrimary.href} businessId={business.id} channel={finalPrimary.channel} className="btn">
+              <Track href={finalPrimary.href} businessId={business.id} channel={finalPrimary.channel} className={`btn ${finalPrimary.channel === "whatsapp" ? "wa" : "light"}`}>
                 {finalPrimary.label}
               </Track>
               {wa && phone && (
-                <Track href={`tel:${phone}`} businessId={business.id} channel="call" className="btn ghost">
+                <Track href={`tel:${phone}`} businessId={business.id} channel="call" className="btn ghost-light">
                   📞 {formatPhone(phone)}
                 </Track>
               )}
             </div>
+            {(area || site.hours) && <div className="final-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
           </div>
         </section>
       )}
@@ -453,7 +498,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
       {finalPrimary && (
         <div className="sticky-cta">
           <div className="row">
-            <Track href={finalPrimary.href} businessId={business.id} channel={finalPrimary.channel} className="btn">
+            <Track href={finalPrimary.href} businessId={business.id} channel={finalPrimary.channel} className={`btn ${finalPrimary.channel === "whatsapp" ? "wa" : ""}`}>
               {finalPrimary.label}
             </Track>
             {wa && phone && (
