@@ -75,7 +75,7 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   const es = lang === "es";
   const s = b.site;
   const missing: string[] = [];
-  if (!s.phone && !normalizePhone(b.whatsapp)) missing.push(es ? "tu teléfono para llamadas y textos (y WhatsApp si lo usas)" : "your phone for calls and texts (and WhatsApp if you use it)");
+  if (!s.chat && !s.phone && !normalizePhone(b.whatsapp)) missing.push(es ? "un teléfono de contacto" : "a contact phone");
   if (s.gallery.length === 0 && !s.coverUrl) missing.push(es ? "fotos de tus trabajos" : "photos of your work");
   if (!s.hours) missing.push(es ? "tu horario" : "your hours");
   if (!s.videoUrl) missing.push(es ? "un video corto tuyo" : "a short video of you");

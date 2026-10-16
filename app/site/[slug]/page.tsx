@@ -7,11 +7,11 @@ import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { reachLabel, resolveReach } from "@/lib/reach";
-import { activeOffer, contactChannels, formatPhone, normalizePhone, storeTheme } from "@/lib/site";
-import { BuyActions, ChannelIcon, ContactLink, Countdown, Gallery, Track, type MediaItem } from "./StoreParts";
-import ChatWidget, { ChatJump } from "./ChatWidget";
+import { activeOffer, contactChannels, normalizePhone, storeTheme } from "@/lib/site";
+import { BuyActions, ChannelIcon, ContactLink, Countdown, Gallery, type MediaItem } from "./StoreParts";
+import { ChatJump } from "./ChatWidget";
 import "./store.css";
-import { CHAT_HEAD, channelClass, type ContactChannel } from "@/lib/storeContact";
+import { channelClass, type ContactChannel } from "@/lib/storeContact";
 
 // A page is public only while it's published AND its owner's plan includes publishing
 // (if the subscription ends, the page goes offline until they subscribe again).
@@ -119,13 +119,15 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
 
   const keyPoints = site.keyPoints.length > 0 ? site.keyPoints : site.highlights.map((h) => ({ title: "", text: h }));
 
-  // Calls, texts, WhatsApp and the quote form, best first (US-friendly order).
-  const channels = contactChannels(site, business.whatsapp);
+  // Customers talk to the business through the page chat (no calls or texts).
+  const channels: ContactChannel[] = site.chat ? ["chat"] : [];
   const contact = { channels, wa, phone };
   const primary: ContactChannel | null = channels[0] ?? null;
+  void contactChannels;
   const msgs = { msgService: t.msgService("{biz}", "{svc}"), msgGeneric: t.msgGeneric("{biz}") };
-  const long: Record<ContactChannel, string> = { call: t.callNow, text: t.text, whatsapp: t.writeWhatsapp, chat: t.chatBtn };
-  const short: Record<ContactChannel, string> = { call: t.call, text: t.textShort, whatsapp: "WhatsApp", chat: t.chatShort };
+  const es = site.lang !== "en";
+  const long: Record<ContactChannel, string> = { call: t.callNow, text: t.text, whatsapp: t.writeWhatsapp, chat: es ? "Escríbenos ahora" : "Message us now" };
+  const short: Record<ContactChannel, string> = { call: t.call, text: t.textShort, whatsapp: "WhatsApp", chat: es ? "Pedir este servicio" : "Ask about this" };
   const link = (c: ContactChannel, className: string, children: React.ReactNode, service?: string) => (
     <ContactLink key={c} channel={c} businessId={business.id} businessName={business.name} service={service} contact={contact} labels={msgs} className={className}>
       {children}
@@ -146,13 +148,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             <span className="brand-name">{site.logoUrl ? "" : "Sevrii"}</span>
           </span>
           <div className="header-title">{business.name}</div>
-          {phone ? (
-            <Track href={`tel:${phone}`} businessId={business.id} channel="call" className="header-badge">
-              📞 {formatPhone(phone)}
-            </Track>
-          ) : (
-            <span className="header-badge">{area}</span>
-          )}
+          <span className="header-badge">{area}</span>
         </div>
       </header>
 
@@ -219,14 +215,6 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                     <span className="v">{site.hours}</span>
                   </div>
                 )}
-                {phone && (
-                  <div className="info-row">
-                    <span className="k">{t.phoneLabel}</span>
-                    <Track href={`tel:${phone}`} businessId={business.id} channel="call" className="v">
-                      {formatPhone(phone)}
-                    </Track>
-                  </div>
-                )}
                 {site.googleReviewsUrl && (
                   <a className="btn ghost" href={site.googleReviewsUrl} target="_blank" rel="noopener noreferrer nofollow" style={{ width: "fit-content" }}>
                     ★ {t.googleReviews}
@@ -290,23 +278,13 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             )}
 
             <BuyActions
-              businessId={business.id}
-              businessName={business.name}
               services={ordered.map((s) => {
                 const link = payFor(s.name);
                 return { id: s.id, name: s.name, price: s.price ?? "", payHref: link ? `/pay/${link.id}` : undefined };
               })}
-              contact={contact}
+              chat={site.chat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.coverUrl, lang: site.lang } : null}
               ctaNote={site.ctaNote}
-              labels={{
-                ...long,
-                ...msgs,
-                chooseLabel: t.chooseLabel,
-                selected: t.selected,
-                priceOnRequest: t.priceOnRequest,
-                noContact: t.noContact,
-                payNow: t.payNow,
-              }}
+              labels={{ chooseLabel: t.chooseLabel, selected: t.selected, priceOnRequest: t.priceOnRequest, payNow: t.payNow }}
             />
           </div>
         </section>
@@ -326,19 +304,6 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
           </section>
         )}
 
-        {site.chat && (
-          <section className="block quote-block" id="chat">
-            <div className="wrap quote-grid">
-              <div className="quote-side">
-                <span className="eyebrow">{CHAT_HEAD[site.lang].eyebrow}</span>
-                <h2>{CHAT_HEAD[site.lang].title}</h2>
-                <p>{CHAT_HEAD[site.lang].sub(business.name)}</p>
-                {(area || site.hours) && <div className="quote-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
-              </div>
-              <ChatWidget slug={business.slug} businessName={business.name} logoUrl={site.logoUrl} ownerName={site.ownerName} ownerPhoto={site.coverUrl} lang={site.lang} />
-            </div>
-          </section>
-        )}
 
         {offer && primary && (
           <section className="offer-band">
@@ -479,8 +444,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             <h2>{site.ctaTitle || t.ctaDefaultTitle}</h2>
             <p>{site.ctaText || t.ctaDefaultText}</p>
             <div className="btns">
-              {link(primary, `btn ${primary === "whatsapp" ? "wa" : "light"}`, <><ChannelIcon c={primary} /> {long[primary]}</>)}
-              {channels.slice(1, 3).map((c) => link(c, "btn ghost-light", <><ChannelIcon c={c} /> {c === "call" && phone ? formatPhone(phone) : short[c]}</>))}
+              {link(primary, "btn light", <><ChannelIcon c={primary} /> {long[primary]}</>)}
             </div>
             {(area || site.hours) && <div className="final-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
           </div>
@@ -504,8 +468,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
       {primary && (
         <div className="sticky-cta">
           <div className="row">
-            {link(primary, `btn ${channelClass(primary, true)}`, <><ChannelIcon c={primary} /> {short[primary]}</>)}
-            {channels.slice(1, 3).map((c) => link(c, "btn ghost", <><ChannelIcon c={c} /> {short[c]}</>))}
+            {link(primary, `btn ${channelClass(primary, true)}`, <><ChannelIcon c={primary} /> {long[primary]}</>)}
           </div>
         </div>
       )}

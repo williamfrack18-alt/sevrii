@@ -83,7 +83,9 @@ export default function ChatWidget({
   ownerName,
   ownerPhoto,
   lang,
+  pick,
 }: {
+  pick?: string; // a service the visitor just picked above the chat
   slug: string;
   businessName: string;
   logoUrl: string;
@@ -118,6 +120,13 @@ export default function ChatWidget({
       setTimeout(() => rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
     }
   }, [key]);
+
+  // Picking a service above the chat writes it in the box (unless they typed something else).
+  useEffect(() => {
+    if (!pick) return;
+    const prefix = t.interest("");
+    setDraft((d) => (!d.trim() || d.startsWith(prefix) ? t.interest(pick) : d));
+  }, [pick, t]);
 
   // Buttons on the page ("Chat", a service's chat button, the floating button)
   // bring the visitor to this chat with the service already written.

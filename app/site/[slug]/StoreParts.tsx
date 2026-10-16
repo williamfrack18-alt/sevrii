@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { trackContactClickAction } from "@/app/actions";
 import { channelClass } from "@/lib/storeContact";
+import ChatWidget from "./ChatWidget";
 
 type Channel = "call" | "text" | "whatsapp";
 
@@ -206,31 +207,22 @@ export function ContactLink({
 }
 
 
-// Service picker + price + contact buttons, like the Matheus buy box.
+// Service picker + price + the chat, like the Matheus buy box: customers talk
+// to the business right here (no calls or texts needed).
 export function BuyActions({
-  businessId,
-  businessName,
   services,
-  contact,
   labels,
+  chat,
   ctaNote,
 }: {
-  businessId: string;
-  businessName: string;
   services: ChoiceService[];
-  contact: ContactTargets;
-  labels: ContactLabels & {
-    chooseLabel: string;
-    selected: string;
-    priceOnRequest: string;
-    noContact: string;
-    payNow: string;
-  };
+  labels: { chooseLabel: string; selected: string; priceOnRequest: string; payNow: string };
+  chat: { slug: string; businessName: string; logoUrl: string; ownerName: string; ownerPhoto: string; lang: "es" | "en" } | null;
   ctaNote: string;
 }) {
   const [sel, setSel] = useState(0);
+  const [picked, setPicked] = useState<string | undefined>();
   const svc = services[sel];
-  const [first, ...rest] = contact.channels;
 
   return (
     <>
@@ -239,7 +231,15 @@ export function BuyActions({
           <div className="selector-label">{labels.chooseLabel}</div>
           <div className="chip-row">
             {services.map((s, n) => (
-              <button key={s.id} type="button" className={`chip ${n === sel ? "active" : ""}`} onClick={() => setSel(n)}>
+              <button
+                key={s.id}
+                type="button"
+                className={`chip ${n === sel ? "active" : ""}`}
+                onClick={() => {
+                  setSel(n);
+                  setPicked(s.name);
+                }}
+              >
                 {s.name}
                 {s.price ? <span className="chip-price"> · {shortPrice(s.price)}</span> : null}
               </button>
@@ -253,42 +253,21 @@ export function BuyActions({
           <div className="price-box-v grad-text">{svc.price || labels.priceOnRequest}</div>
         </div>
       )}
-      <div className="cta-block">
-        {svc?.payHref && (
-          <a href={svc.payHref} className="btn block pay">
-            💳 {labels.payNow}
-          </a>
-        )}
-        {first ? (
-          <ContactLink
-            channel={first}
-            businessId={businessId}
-            businessName={businessName}
-            service={svc?.name}
-            contact={contact}
-            labels={labels}
-            className={`btn block ${svc?.payHref ? "ghost" : channelClass(first, true)}`}
-          >
-            <ChannelIcon c={first} /> {labels[first]}
-          </ContactLink>
-        ) : (
-          <p className="micro">{labels.noContact}</p>
-        )}
-        {rest.length > 0 && (
-          <div className="alt-row">
-            {rest.map((c) => (
-              <ContactLink key={c} channel={c} businessId={businessId} businessName={businessName} service={svc?.name} contact={contact} labels={labels} className="btn ghost">
-                <ChannelIcon c={c} /> {labels[c]}
-              </ContactLink>
-            ))}
-          </div>
-        )}
-        {ctaNote && (
-          <div className="micro">
-            <span className="dot" /> {ctaNote}
-          </div>
-        )}
-      </div>
+      {svc?.payHref && (
+        <a href={svc.payHref} className="btn block pay">
+          💳 {labels.payNow}
+        </a>
+      )}
+      {chat && (
+        <div id="chat" className="buy-chat">
+          <ChatWidget {...chat} pick={picked} />
+        </div>
+      )}
+      {ctaNote && (
+        <div className="micro">
+          <span className="dot" /> {ctaNote}
+        </div>
+      )}
     </>
   );
 }

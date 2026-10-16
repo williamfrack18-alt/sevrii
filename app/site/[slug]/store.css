@@ -384,3 +384,8 @@
 .mt #chat .quote-side p { color: var(--ink-dim); }
 .mt #chat .quote-meta { color: var(--ink-faint); }
 .mt #chat .cw-inline .cw-panel { border: 1px solid var(--line); box-shadow: 0 24px 60px -28px rgba(0,0,0,0.35); }
+/* the chat in the buy box (customers talk to the business here) */
+.mt .buy-chat { scroll-margin-top: 90px; }
+.mt .buy-chat .cw-inline .cw-panel { height: 440px; border: 1px solid var(--line); box-shadow: 0 18px 40px -26px rgba(0,0,0,0.35); }
+@media (max-width: 760px) { .mt .buy-chat .cw-inline .cw-panel { height: 420px; } }
+.mt .product { grid-template-rows: auto 1fr; } .mt .below-gallery { align-self: start; }

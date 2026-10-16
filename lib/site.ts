@@ -280,7 +280,7 @@ export function missingForSales(opts: {
   const m: string[] = [];
   if (opts.serviceCount === 0) m.push("services");
   else if (opts.pricedServices === 0) m.push("prices");
-  if (!s.phone && !normalizePhone(opts.whatsapp)) m.push("contact");
+  if (!s.chat && !s.phone && !normalizePhone(opts.whatsapp)) m.push("contact");
   if (s.gallery.length === 0 && !s.coverUrl) m.push("photos");
   if (s.keyPoints.length === 0) m.push("keyPoints");
   if (!s.offer) m.push("offer (ask; it's fine to have none)");
@@ -354,7 +354,7 @@ export function publishGaps(opts: {
   serviceCount: number;
 }): PublishGap[] {
   const gaps: PublishGap[] = [];
-  if (!opts.site.phone && !normalizePhone(opts.whatsapp)) gaps.push("contact");
+  if (!opts.site.chat && !opts.site.phone && !normalizePhone(opts.whatsapp)) gaps.push("contact");
   if (opts.serviceCount === 0) gaps.push("services");
   return gaps;
 }
