@@ -13,6 +13,10 @@ import {
   listConversations,
   listServices,
   updateConversation,
+  updateBusinessSite,
+  savePushSub,
+  deletePushSub,
+  listPushSubs,
   type BusinessRow,
   type ConvMessageRow,
   type ConversationRow,
@@ -23,6 +27,7 @@ import { allow, clientIp } from "@/lib/guard";
 import { researchGate, runForUser } from "@/lib/usage";
 import { runVisitorAi } from "@/lib/visitorChat";
 import { emailVisitorReply, notifyChatOwner } from "@/lib/notify";
+import { pushPublicKey, pushToUser } from "@/lib/push";
 
 const MAX_CHARS = 600;
 const MAX_AI_REPLIES_PER_CONV = 30;
@@ -59,12 +64,30 @@ function fallback(b: BusinessRow, conv: ConversationRow): string {
     : `Thanks for your message! ${b.name} will reply very soon. Can you leave your name and phone (or email) so they can reach you?`;
 }
 
-// Emails the owner at most once every 20 minutes per conversation, plus every handoff.
-async function maybeNotify(b: BusinessRow, conv: ConversationRow, why: "contact" | "handoff" | "message", detail: string) {
-  const recent = conv.notifiedAt && Date.now() - Date.parse(conv.notifiedAt) < 20 * 60 * 1000;
-  if (recent && why !== "handoff") return;
-  await updateConversation(conv.id, { notified: true });
-  after(() => notifyChatOwner(b, conv, why, detail));
+// Tells the owner someone wrote: push to their phone/computer and email.
+// new chat / contact left / wants to book → always. Other messages: push at
+// most every 3 minutes per chat; email only if the AI isn't answering (every 20 min).
+type Why = "new" | "contact" | "handoff" | "message";
+async function notifyOwner(b: BusinessRow, conv: ConversationRow, why: Why, detail: string, aiAnswering: boolean) {
+  const important = why !== "message";
+  const push = important || (await allow(`push:conv:${conv.id}`, 1, 3 * 60));
+  const mail = b.site.notifyEmail && (important || (!aiAnswering && (await allow(`mail:conv:${conv.id}`, 1, 20 * 60))));
+  if (!push && !mail) return;
+  if (mail) await updateConversation(conv.id, { notified: true });
+  const es = b.site.lang !== "en";
+  const who = conv.name || (es ? "Un cliente" : "A customer");
+  const title =
+    why === "handoff"
+      ? es ? `🔔 ${who} quiere agendar` : `🔔 ${who} wants to book`
+      : why === "contact"
+        ? es ? `📇 ${who} dejó sus datos` : `📇 ${who} left their contact`
+        : why === "new"
+          ? es ? `💬 Nuevo chat en ${b.name}` : `💬 New chat on ${b.name}`
+          : es ? `💬 ${who} te escribió` : `💬 ${who} wrote you`;
+  after(async () => {
+    if (push) await pushToUser(b.userId, { title, body: detail, url: "/dashboard?view=store#inbox", tag: `chat-${conv.id}` });
+    if (mail) await notifyChatOwner(b, conv, why === "new" ? "message" : why, detail);
+  });
 }
 
 export async function visitorChatSendAction(input: { slug: string; token?: string; text: string }): Promise<VisitorChatResult> {
@@ -79,6 +102,7 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
 
   let token = clean(input.token, 100);
   let conv = token ? await getConversationByToken(b.id, hashToken(token)) : null;
+  const isNew = !conv;
   if (!conv) {
     if (!(await allow(`vchat:new:${ip}`, 6, 60 * 60))) return { ok: false, error: "rate" };
     token = randomBytes(24).toString("hex");
@@ -98,6 +122,7 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
       Boolean(await researchGate(b.userId, undefined, { budgetOnly: true }));
     const services = await listServices(b.id);
     const ai = capped ? null : await runForUser(b.userId, () => runVisitorAi(b, services, conv!, history)).catch(() => null);
+    const hadContact = Boolean(conv.phone || conv.email);
     if (ai?.contact) {
       const c = ai.contact;
       await updateConversation(conv.id, { name: c.name, phone: c.phone, email: c.email });
@@ -109,15 +134,17 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
       // The AI can't answer right now: the owner takes this one.
       await updateConversation(conv.id, { aiEnabled: false, handoff: true });
       waiting = true;
-      await maybeNotify(b, conv, "message", text);
+      await notifyOwner(b, conv, isNew ? "new" : "message", text, false);
     } else if (ai.handoff) {
       await updateConversation(conv.id, { handoff: true });
-      await maybeNotify(b, { ...conv }, "handoff", ai.handoff);
-    } else if (ai.contact && (ai.contact.phone || ai.contact.email)) {
-      await maybeNotify(b, conv, "contact", text);
+      await notifyOwner(b, conv, "handoff", ai.handoff, true);
+    } else if (!hadContact && (conv.phone || conv.email)) {
+      await notifyOwner(b, conv, "contact", text, true);
+    } else {
+      await notifyOwner(b, conv, isNew ? "new" : "message", text, true);
     }
   } else {
-    await maybeNotify(b, conv, "message", text);
+    await notifyOwner(b, conv, isNew ? "new" : "message", text, false);
   }
 
   history = await listConvMessages(conv.id, 0, 60);
@@ -193,4 +220,59 @@ export async function setConversationAiAction(id: string, on: boolean): Promise<
   if (!conv) return false;
   await updateConversation(conv.id, { aiEnabled: Boolean(on) });
   return true;
+}
+
+// ---------- Owner notification settings ----------
+
+export type NotifySettings = { email: boolean; ownerEmail: string; pushKey: string; devices: number };
+
+export async function getNotifySettingsAction(): Promise<NotifySettings | null> {
+  const user = await getCurrentUser();
+  if (!user?.business) return null;
+  return {
+    email: user.business.site.notifyEmail,
+    ownerEmail: user.email,
+    pushKey: pushPublicKey(),
+    devices: (await listPushSubs(user.id)).length,
+  };
+}
+
+export async function setNotifyEmailAction(on: boolean): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user?.business) return false;
+  await updateBusinessSite(user.business.id, { ...user.business.site, notifyEmail: Boolean(on) });
+  return true;
+}
+
+export async function savePushSubAction(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, label: string): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  const endpoint = clean(sub?.endpoint, 1000);
+  if (!/^https:\/\//.test(endpoint)) return false;
+  const p256dh = clean(sub?.keys?.p256dh, 200);
+  const auth = clean(sub?.keys?.auth, 100);
+  if (!p256dh || !auth) return false;
+  if (!(await allow(`pushsub:${user.id}`, 20, 60 * 60))) return false;
+  await savePushSub({ endpoint, userId: user.id, p256dh, auth, label: clean(label, 60) });
+  return true;
+}
+
+export async function deletePushSubAction(endpoint: string): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  await deletePushSub(clean(endpoint, 1000), user.id);
+  return true;
+}
+
+export async function testPushAction(): Promise<number> {
+  const user = await getCurrentUser();
+  if (!user?.business) return 0;
+  if (!(await allow(`pushtest:${user.id}`, 6, 10 * 60))) return 0;
+  const es = user.business.site.lang !== "en";
+  return pushToUser(user.id, {
+    title: es ? "✅ Notificaciones activadas" : "✅ Notifications are on",
+    body: es ? `Así te avisaremos cuando alguien escriba en ${user.business.name}.` : `This is how we'll tell you when someone writes to ${user.business.name}.`,
+    url: "/dashboard?view=store#inbox",
+    tag: "test",
+  });
 }

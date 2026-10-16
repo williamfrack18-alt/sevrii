@@ -12,6 +12,7 @@ export type SiteData = {
   textEnabled: boolean; // the phone number accepts SMS
   contactPref: ContactPref; // the owner's favorite way to be contacted ("" = automatic)
   chat: boolean; // chat on the page (AI answers first, the owner any time)
+  notifyEmail: boolean; // email the owner when someone writes in the chat
   serviceArea: string;
   hours: string;
   licenseNumber: string;
@@ -62,6 +63,7 @@ export const EMPTY_SITE: SiteData = {
   textEnabled: true,
   contactPref: "",
   chat: true,
+  notifyEmail: true,
   serviceArea: "",
   hours: "",
   licenseNumber: "",
@@ -169,6 +171,7 @@ export function parseSite(raw: unknown): SiteData {
     textEnabled: obj.textEnabled === undefined ? true : Boolean(obj.textEnabled),
     contactPref: obj.contactPref === "form" ? "chat" : ((["call", "text", "whatsapp", "chat"] as const).find((x) => x === obj.contactPref) ?? ""),
     chat: obj.chat !== undefined ? Boolean(obj.chat) : obj.quoteForm !== undefined ? Boolean(obj.quoteForm) : true,
+    notifyEmail: obj.notifyEmail === undefined ? true : Boolean(obj.notifyEmail),
     serviceArea: str(obj.serviceArea, LIMITS.serviceArea),
     hours: str(obj.hours, LIMITS.hours),
     licenseNumber: str(obj.licenseNumber, LIMITS.license),

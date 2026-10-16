@@ -6,7 +6,12 @@ import LangProvider from "@/components/LangProvider";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = getDict(await getLang());
-  return { title: t.meta.title, description: t.meta.description };
+  return {
+    title: t.meta.title,
+    description: t.meta.description,
+    icons: { apple: "/apple-touch-icon.png" },
+    appleWebApp: { capable: true, title: "Sevrii", statusBarStyle: "black-translucent" },
+  };
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

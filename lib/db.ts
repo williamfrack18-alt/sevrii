@@ -297,6 +297,18 @@ function ensureSchema(): Promise<void> {
         )
       `;
       await sql`CREATE INDEX IF NOT EXISTS conv_messages_conv_idx ON conv_messages ("conversationId", seq)`;
+      // Phones/computers where the owner turned on push notifications.
+      await sql`
+        CREATE TABLE IF NOT EXISTS push_subs (
+          endpoint TEXT PRIMARY KEY,
+          "userId" TEXT NOT NULL,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          label TEXT NOT NULL DEFAULT '',
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS push_subs_user_idx ON push_subs ("userId")`;
     })().catch((err) => {
       // Don't cache a failed setup forever — let the next request retry.
       schemaReady = null;
@@ -1276,6 +1288,7 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
   await sql`DELETE FROM password_resets WHERE "userId" = ${userId}`;
   await sql`DELETE FROM plan_waitlist WHERE "userId" = ${userId}`;
   await sql`DELETE FROM ai_usage WHERE "userId" = ${userId}`;
+  await sql`DELETE FROM push_subs WHERE "userId" = ${userId}`;
   await sql`DELETE FROM users WHERE id = ${userId}`;
   return photos.filter(Boolean);
 }
@@ -1430,4 +1443,26 @@ export async function updateConversation(
   if (patch.read) await sql`UPDATE conversations SET "ownerUnread" = 0 WHERE id = ${id}`;
   if (patch.seen) await sql`UPDATE conversations SET "visitorSeenAt" = now() WHERE id = ${id}`;
   if (patch.notified) await sql`UPDATE conversations SET "notifiedAt" = now() WHERE id = ${id}`;
+}
+
+// ---------- Push notifications (owner devices) ----------
+export type PushSubRow = { endpoint: string; userId: string; p256dh: string; auth: string; label: string };
+
+export async function savePushSub(sub: PushSubRow): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO push_subs (endpoint, "userId", p256dh, auth, label) VALUES (${sub.endpoint}, ${sub.userId}, ${sub.p256dh}, ${sub.auth}, ${sub.label})
+    ON CONFLICT (endpoint) DO UPDATE SET "userId" = EXCLUDED."userId", p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, label = EXCLUDED.label
+  `;
+}
+
+export async function listPushSubs(userId: string): Promise<PushSubRow[]> {
+  await ensureSchema();
+  return (await sql`SELECT endpoint, "userId", p256dh, auth, label FROM push_subs WHERE "userId" = ${userId} LIMIT 20`) as PushSubRow[];
+}
+
+export async function deletePushSub(endpoint: string, userId?: string): Promise<void> {
+  await ensureSchema();
+  if (userId) await sql`DELETE FROM push_subs WHERE endpoint = ${endpoint} AND "userId" = ${userId}`;
+  else await sql`DELETE FROM push_subs WHERE endpoint = ${endpoint}`;
 }
