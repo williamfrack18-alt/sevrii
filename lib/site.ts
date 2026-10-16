@@ -32,6 +32,7 @@ export type SiteData = {
   logoUrl: string;
   coverUrl: string;
   gallery: string[];
+  videoUrl: string; // the owner's own video (Sevrii storage only)
   lang: "es" | "en";
   fromPlan: string; // fingerprint of the Brain plan the page was last built from ("" = never)
 };
@@ -62,6 +63,7 @@ export const EMPTY_SITE: SiteData = {
   logoUrl: "",
   coverUrl: "",
   gallery: [],
+  videoUrl: "",
   lang: "en",
   fromPlan: "",
 };
@@ -111,6 +113,11 @@ export function safeUrl(v: unknown): string {
   } catch {
     return "";
   }
+}
+
+// Files uploaded through Sevrii live in our Vercel Blob store.
+export function isOurBlob(url: string): boolean {
+  return /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/stores\//i.test(url);
 }
 
 export function parseSite(raw: unknown): SiteData {
@@ -166,6 +173,7 @@ export function parseSite(raw: unknown): SiteData {
       .map((g) => safeUrl(g))
       .filter(Boolean)
       .slice(0, LIMITS.gallery),
+    videoUrl: isOurBlob(safeUrl(obj.videoUrl)) ? safeUrl(obj.videoUrl) : "",
     lang: obj.lang === "en" ? "en" : "es",
     fromPlan: str(obj.fromPlan, 20),
   };

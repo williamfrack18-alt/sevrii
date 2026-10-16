@@ -9,6 +9,7 @@ import LangToggle from "@/components/LangToggle";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { ACCENT } from "@/lib/brand";
+import { logoutAction } from "@/app/actions";
 
 export default async function StartPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
   const user = await getCurrentUser();
@@ -21,12 +22,21 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   return (
     <div className="theme-dark bg-cream flex flex-col items-center py-14 px-6">
       <div className="w-full max-w-[980px] flex items-center justify-between mb-14">
-        <Link href={isNew ? "/dashboard?view=projects" : "/signup"} className="text-[14px] text-muted flex items-center gap-1.5">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-          {isNew ? t.start.backToProjects : t.start.back}
-        </Link>
+        {isNew ? (
+          <Link href="/dashboard?view=projects" className="text-[14px] text-muted flex items-center gap-1.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            {t.start.backToProjects}
+          </Link>
+        ) : (
+          // Signed in with no project yet: there's nothing to go back to.
+          <form action={logoutAction}>
+            <button type="submit" className="text-[14px] text-muted hover:text-ink">
+              {t.start.back}
+            </button>
+          </form>
+        )}
         <div className="flex items-center gap-4">
           <LangToggle />
           <BrandMark />

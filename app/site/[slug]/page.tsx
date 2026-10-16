@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { activeOffer, formatPhone, normalizePhone, storeTheme } from "@/lib/site";
-import { BuyActions, Countdown, Gallery, Track } from "./StoreParts";
+import { BuyActions, Countdown, Gallery, Track, type MediaItem } from "./StoreParts";
 import "./store.css";
 
 // A page is public only while it's published AND its owner's plan includes publishing
@@ -78,6 +78,34 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
   const images = [site.coverUrl, ...site.gallery].filter(Boolean);
   const ordered = [...services].sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
 
+  // A service with an active payment link of the same name gets "Book and pay".
+  const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const payFor = (name: string) => payLinks.find((l) => norm(l.title) === norm(name) || norm(l.title).includes(norm(name)));
+
+  // Gallery: the owner's video first, then their photos, then a card per
+  // package with its price (so the gallery is never empty or bare).
+  const media: MediaItem[] = [];
+  if (site.videoUrl) media.push({ kind: "video", src: site.videoUrl, poster: site.coverUrl, label: t.videoLabel(business.name) });
+  for (const src of images) media.push({ kind: "photo", src });
+  if (offer) media.push({ kind: "slide", tone: "offer", kicker: t.offerKicker, title: offer.label, price: offer.newPrice, text: business.name });
+  for (const sv of ordered.slice(0, 4)) {
+    media.push({ kind: "slide", tone: "service", kicker: sv.featured ? sv.tag || t.featured : t.packageKicker, title: sv.name, price: sv.price || t.priceOnRequest, text: sv.description || "" });
+  }
+
+  // Lowest price shown as "From $X" (only when prices are plain dollar amounts).
+  const nums = ordered.map((x) => /\$\s?([\d,]+(?:\.\d+)?)/.exec(x.price || "")).filter(Boolean).map((m) => Number(m![1].replace(/,/g, "")));
+  const fromPrice = nums.length ? Math.min(...nums) : null;
+  const waFor = (svcName: string) => {
+    const msg = t.msgService(business.name, svcName);
+    return wa
+      ? { href: `https://wa.me/${wa.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`, channel: "whatsapp" as const }
+      : phone && site.textEnabled
+        ? { href: `sms:${phone}?&body=${encodeURIComponent(msg)}`, channel: "text" as const }
+        : phone
+          ? { href: `tel:${phone}`, channel: "call" as const }
+          : null;
+  };
+
   // Trust bar: only things the owner declared.
   const trust: { icon: string; text: string }[] = [];
   if (site.licenseNumber) trust.push({ icon: "✓", text: `${t.license} #${site.licenseNumber}${site.licenseState ? ` (${site.licenseState})` : ""}` });
@@ -129,7 +157,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
           <div className="gallery-col">
             <div className="gallery-title">{business.name}</div>
             <Gallery
-              images={images}
+              items={media}
               alt={t.photoAlt(business.name)}
               empty={
                 <div className="stage-empty">
@@ -140,8 +168,36 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             />
           </div>
 
-          {(area || site.hours || phone || site.googleReviewsUrl) && (
+          {(ordered.length > 0 || area || site.hours || phone || site.googleReviewsUrl) && (
             <div className="below-gallery">
+              {ordered.length > 0 && (
+                <div className="pkg-card">
+                  <div className="eyebrow grad-text">{t.packagesTitle}</div>
+                  <ul className="pkg-list">
+                    {ordered.map((sv) => {
+                      const link = payFor(sv.name);
+                      const ask = waFor(sv.name);
+                      return (
+                        <li key={sv.id} className={sv.featured ? "lead" : undefined}>
+                          <div className="pkg-main">
+                            <span className="pkg-name">{sv.name}</span>
+                            {sv.description && <span className="pkg-desc">{sv.description}</span>}
+                          </div>
+                          <span className="pkg-price grad-text">{sv.price || t.priceOnRequest}</span>
+                          {link ? (
+                            <a href={`/pay/${link.id}`} className="pkg-btn">{payText.button}</a>
+                          ) : ask ? (
+                            <Track href={ask.href} businessId={business.id} channel={ask.channel} className="pkg-btn">
+                              {t.packagesAsk}
+                            </Track>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+              {(area || site.hours || phone || site.googleReviewsUrl) && (
               <div className="info-card">
                 <div className="eyebrow grad-text">{t.infoTitle}</div>
                 {area && (
@@ -170,6 +226,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                   </a>
                 )}
               </div>
+              )}
             </div>
           )}
 
@@ -208,6 +265,11 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             )}
 
             <h1>{mainTitle}</h1>
+            {fromPrice !== null && (
+              <div className="from-price">
+                {t.fromPrice} <strong className="grad-text">{usd(fromPrice * 100).replace(/\.00$/, "")}</strong>
+              </div>
+            )}
             <p className="lede">{business.pitch}</p>
 
             {keyPoints.length > 0 && (
@@ -223,7 +285,10 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             <BuyActions
               businessId={business.id}
               businessName={business.name}
-              services={ordered.map((s) => ({ id: s.id, name: s.name, price: s.price ?? "" }))}
+              services={ordered.map((s) => {
+                const link = payFor(s.name);
+                return { id: s.id, name: s.name, price: s.price ?? "", payHref: link ? `/pay/${link.id}` : undefined };
+              })}
               contact={{ wa, phone, textEnabled: site.textEnabled }}
               ctaNote={site.ctaNote}
               labels={{
@@ -236,6 +301,8 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                 msgService: t.msgService("{biz}", "{svc}"),
                 msgGeneric: t.msgGeneric("{biz}"),
                 noContact: t.noContact,
+                price: t.price,
+                payNow: t.payNow,
               }}
             />
           </div>
@@ -280,7 +347,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
               <span className="eyebrow grad-text">{t.servicesEyebrow}</span>
               <h2>{t.servicesTitle}</h2>
             </div>
-            <div className="services-grid">
+            <div className={`services-grid ${ordered.length === 4 ? "n4" : ""}`}>
               {ordered.map((s) => {
                 const msg = t.msgService(business.name, s.name);
                 const href = wa

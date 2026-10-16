@@ -148,7 +148,7 @@ export default function ChatPanel({
           </svg>
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/*"
             className="hidden"
             onChange={(e) => {
               upload(e.target.files?.[0]);

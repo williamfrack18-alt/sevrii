@@ -4,6 +4,7 @@ import { useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { sendStoreChatAction, uploadStoreImageAction } from "@/app/storeActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
+import { prepareImage } from "@/lib/clientImage";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
 
 export default function StoreChat({
@@ -45,7 +46,8 @@ export default function StoreChat({
         );
         return res.messages;
       }}
-      onUpload={async (file) => {
+      onUpload={async (picked) => {
+        const file = await prepareImage(picked);
         if (file.size > 4 * 1024 * 1024) return { error: t.photos.tooBig };
         if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return { error: t.photos.badType };
         const fd = new FormData();

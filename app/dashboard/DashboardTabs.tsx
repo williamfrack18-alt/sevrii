@@ -113,6 +113,11 @@ export default function DashboardTabs({
   const bt = PLANS_TEXT[lang];
   const limits = PLANS[plan.id].limits;
   const [view, setViewState] = useState<DashboardView>(initialView);
+  // A link to /dashboard?view=… while the dashboard is already open keeps this
+  // component mounted, so follow the new section from the URL.
+  useEffect(() => {
+    setViewState(initialView);
+  }, [initialView]);
   const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
   const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);

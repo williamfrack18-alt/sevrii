@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { getCurrentUser } from "@/lib/session";
 import {
   addService,
@@ -17,7 +17,7 @@ import {
   type BusinessRow,
   type ServiceRow,
 } from "@/lib/db";
-import { LIMITS, normalizePhone, parseSite, publishGaps, type PublishGap, type SiteData } from "@/lib/site";
+import { isOurBlob, LIMITS, normalizePhone, parseSite, publishGaps, type PublishGap, type SiteData } from "@/lib/site";
 import { allow, LIMITS as RATE } from "@/lib/guard";
 import { addChatMessage, listChatMessages } from "@/lib/db";
 import { runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
@@ -215,9 +215,67 @@ export async function removeStoreImageAction(kind: "logo" | "cover" | "gallery",
   const business = await requireBusiness();
   const site = { ...business.site };
   if (kind === "logo") site.logoUrl = "";
-  else if (kind === "cover") site.coverUrl = "";
-  else site.gallery = site.gallery.filter((g) => g !== url);
+  else if (kind === "cover") {
+    // The next photo becomes the main one, so the page never loses its photo.
+    site.coverUrl = site.gallery[0] || "";
+    site.gallery = site.gallery.slice(1);
+  } else site.gallery = site.gallery.filter((g) => g !== url);
   await updateBusinessSite(business.id, site);
+  const gone = kind === "logo" ? business.site.logoUrl : kind === "cover" ? business.site.coverUrl : url || "";
+  if (gone && ![site.logoUrl, site.coverUrl, ...site.gallery].includes(gone)) await dropBlob(gone);
+  const fresh = (await getBusinessById(business.id))!;
+  refresh(fresh.slug);
+  return fresh;
+}
+
+// Makes one of the gallery photos the main (first) photo of the page.
+export async function setStoreCoverAction(url: string): Promise<BusinessRow> {
+  const business = await requireBusiness();
+  const site = { ...business.site };
+  if (site.coverUrl === url) return business;
+  if (!site.gallery.includes(url)) return business;
+  site.gallery = site.gallery.filter((g) => g !== url);
+  if (site.coverUrl) site.gallery = [site.coverUrl, ...site.gallery];
+  site.coverUrl = url;
+  await updateBusinessSite(business.id, parseSite(site));
+  const fresh = (await getBusinessById(business.id))!;
+  refresh(fresh.slug);
+  return fresh;
+}
+
+async function dropBlob(url: string) {
+  if (!url || !isOurBlob(url) || !process.env.BLOB_READ_WRITE_TOKEN) return;
+  try {
+    await del(url);
+  } catch {
+    // The page no longer uses it; a leftover file is harmless.
+  }
+}
+
+// The browser uploads the video straight to storage (app/api/upload); this
+// saves it on the page. Only videos in this project's own folder are accepted.
+export async function setStoreVideoAction(url: string): Promise<{ ok: boolean; business: BusinessRow }> {
+  const business = await requireBusiness();
+  let path = "";
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return { ok: false, business };
+  }
+  if (!isOurBlob(url) || !path.startsWith(`/stores/${business.id}/video-`)) return { ok: false, business };
+  const old = business.site.videoUrl;
+  await updateBusinessSite(business.id, parseSite({ ...business.site, videoUrl: url }));
+  if (old && old !== url) await dropBlob(old);
+  const fresh = (await getBusinessById(business.id))!;
+  refresh(fresh.slug);
+  return { ok: true, business: fresh };
+}
+
+export async function removeStoreVideoAction(): Promise<BusinessRow> {
+  const business = await requireBusiness();
+  const old = business.site.videoUrl;
+  await updateBusinessSite(business.id, { ...business.site, videoUrl: "" });
+  await dropBlob(old);
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return fresh;

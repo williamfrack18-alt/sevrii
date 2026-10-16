@@ -1167,7 +1167,7 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM payment_links WHERE "businessId" = ${id}`;
   await sql`DELETE FROM payment_notices WHERE "businessId" = ${id}`;
   await sql`DELETE FROM businesses WHERE id = ${id} AND "userId" = ${userId}`;
-  return [site.logoUrl, site.coverUrl, ...site.gallery].filter(Boolean);
+  return [site.logoUrl, site.coverUrl, site.videoUrl, ...site.gallery].filter(Boolean);
 }
 
 export async function deleteUserEverything(userId: string): Promise<string[]> {
@@ -1176,7 +1176,7 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
   const photos: string[] = [];
   for (const b of businesses) {
     const site = parseSite(b.site);
-    photos.push(site.logoUrl, site.coverUrl, ...site.gallery);
+    photos.push(site.logoUrl, site.coverUrl, site.videoUrl, ...site.gallery);
   }
   const ids = businesses.map((b) => b.id);
   if (ids.length) {

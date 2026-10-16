@@ -34,29 +34,66 @@ export function Track({
   );
 }
 
-export function Gallery({ images, alt, empty }: { images: string[]; alt: string; empty: React.ReactNode }) {
+export type MediaItem =
+  | { kind: "video"; src: string; poster: string; label: string }
+  | { kind: "photo"; src: string }
+  | { kind: "slide"; tone: "service" | "offer"; kicker: string; title: string; price: string; text: string };
+
+function shortPrice(p: string): string {
+  const m = /\$\s?[\d,.]+/.exec(p);
+  return m ? m[0].replace(/\s/g, "") : p.slice(0, 8);
+}
+
+// Main stage + small squares below it (video, the owner's photos and cards
+// with each package and its price), like the Matheus page.
+export function Gallery({ items, alt, empty }: { items: MediaItem[]; alt: string; empty: React.ReactNode }) {
   const [i, setI] = useState(0);
-  if (images.length === 0) return <div className="gallery"><div className="stage">{empty}</div></div>;
+  if (items.length === 0) return <div className="gallery"><div className="stage">{empty}</div></div>;
+  const cur = items[Math.min(i, items.length - 1)];
+  const go = (d: number) => setI((n) => (n + d + items.length) % items.length);
   return (
     <div className="gallery">
-      {images.length > 1 && (
+      <div className="stage">
+        {cur.kind === "video" ? (
+          <>
+            <video key={cur.src} src={cur.src} poster={cur.poster || undefined} controls playsInline preload="metadata" />
+            <span className="stage-chip">▶ {cur.label}</span>
+          </>
+        ) : cur.kind === "photo" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cur.src} alt={alt} />
+        ) : (
+          <div className={`slide ${cur.tone}`}>
+            <span className="stage-kicker">{cur.kicker}</span>
+            <div className="slide-title">{cur.title}</div>
+            {cur.price && <div className="slide-price">{cur.price}</div>}
+            {cur.text && <p className="slide-text">{cur.text}</p>}
+          </div>
+        )}
+        {items.length > 1 && (
+          <>
+            <button type="button" className="stage-nav prev" aria-label="‹" onClick={() => go(-1)}>‹</button>
+            <button type="button" className="stage-nav next" aria-label="›" onClick={() => go(1)}>›</button>
+            <span className="stage-count tabular">{Math.min(i, items.length - 1) + 1} / {items.length}</span>
+          </>
+        )}
+      </div>
+      {items.length > 1 && (
         <div className="thumbs">
-          {images.map((src, n) => (
+          {items.map((m, n) => (
             <button
-              key={src}
+              key={n}
               type="button"
               aria-label={`${n + 1}`}
-              className={`thumb ${n === i ? "active" : ""}`}
-              style={{ backgroundImage: `url("${src}")` }}
+              className={`thumb ${m.kind} ${m.kind === "slide" ? m.tone : ""} ${n === i ? "active" : ""}`}
+              style={m.kind === "photo" ? { backgroundImage: `url("${m.src}")` } : m.kind === "video" && m.poster ? { backgroundImage: `url("${m.poster}")` } : undefined}
               onClick={() => setI(n)}
-            />
+            >
+              {m.kind === "video" ? <span className="thumb-play">▶</span> : m.kind === "slide" ? <span className="thumb-price">{m.tone === "offer" ? "%" : shortPrice(m.price) || "•"}</span> : null}
+            </button>
           ))}
         </div>
       )}
-      <div className="stage">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={images[i]} alt={alt} />
-      </div>
     </div>
   );
 }
@@ -80,7 +117,7 @@ export function Countdown({ endsAt }: { endsAt: string }) {
   return <span className="tabular">{d > 0 ? `${d}d ` : ""}{pad(h)}:{pad(m)}:{pad(s)}</span>;
 }
 
-export type ChoiceService = { id: string; name: string; price: string };
+export type ChoiceService = { id: string; name: string; price: string; payHref?: string };
 
 export type ContactTargets = {
   wa: string | null; // E.164
@@ -118,6 +155,8 @@ export function BuyActions({
     msgService: string; // template with {biz} and {svc}
     msgGeneric: string;
     noContact: string;
+    price: string;
+    payNow: string;
   };
   ctaNote: string;
 }) {
@@ -145,22 +184,26 @@ export function BuyActions({
             {services.map((s, n) => (
               <button key={s.id} type="button" className={`chip ${n === sel ? "active" : ""}`} onClick={() => setSel(n)}>
                 {s.name}
+                {s.price ? <span className="chip-price"> · {shortPrice(s.price)}</span> : null}
               </button>
             ))}
           </div>
         </div>
       )}
       {svc && (
-        <div className="price-note">
-          <span>{labels.selected}</span>
-          <strong>
-            {svc.name} — {svc.price || labels.priceOnRequest}
-          </strong>
+        <div className="price-box">
+          <div className="price-box-k">{labels.selected}: <strong>{svc.name}</strong></div>
+          <div className="price-box-v grad-text">{svc.price || labels.priceOnRequest}</div>
         </div>
       )}
       <div className="cta-block">
+        {svc?.payHref && (
+          <a href={svc.payHref} className="btn block pay">
+            💳 {labels.payNow}
+          </a>
+        )}
         {primary ? (
-          <Track href={primary.href} businessId={businessId} channel={primary.channel} className="btn block">
+          <Track href={primary.href} businessId={businessId} channel={primary.channel} className={`btn block ${svc?.payHref ? "ghost" : ""}`}>
             {primary.label}
           </Track>
         ) : (

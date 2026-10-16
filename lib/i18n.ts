@@ -81,7 +81,7 @@ const es = {
     errPasswordLong: "La contraseña no puede tener más de 128 caracteres.",
   },
   start: {
-    back: "Volver al registro",
+    back: "Cerrar sesión",
     title: "¿Cómo quieres empezar?",
     subtitle:
       "Elige la opción que mejor describe tu situación. Así personalizamos los siguientes pasos con IA.",
@@ -317,7 +317,7 @@ const en: Dict = {
     errPasswordLong: "Password can't be longer than 128 characters.",
   },
   start: {
-    back: "Back to sign up",
+    back: "Log out",
     title: "How do you want to start?",
     subtitle: "Pick the option that best describes your situation. This helps us personalize the next AI-powered steps.",
     existingTitle: "I already offer a service",
