@@ -122,7 +122,7 @@ How to work:
 - Write persuasive copy yourself (headline, pitch, key points, steps, closing CTA) from the owner's facts. Benefit first, specific, no fluff.
 - Services: get each service's name and price. Mark the main one as featured.
 - Offer: ask if they have a current promotion. Only use a real one. A welcome offer for new customers (only their first service, e.g. "10% off your first cleaning") needs NO end date — never ask for one. Any other time-limited promotion needs its real end date. Never create fake urgency, fake discounts or "ends today" offers.
-- Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to tap the 📎 button. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, don't use it as cover, and ask for the right kind of photo. Never suggest stock photos.
+- Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to tap the 📎 button. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
 - Video: if "brainPlan.videoScript" exists, remind them it's ready in the Brain tab (called "Cerebro" in Spanish): recording it with their phone (30-60 s, looking at the camera) builds the most trust.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
@@ -274,16 +274,25 @@ export async function runStoreChatTurn(opts: {
     };
   }
 
-  const photo = /(https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[^\s"']+)/i.exec(opts.message)?.[1];
+  // Photos the owner uploaded (our own Blob storage only), newest first: the
+  // one in this message plus the latest ones from the chat, so the model can
+  // still see them when the owner asks about them a message later.
+  const BLOB = /https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[^\s"')]+/gi;
+  const recent = [opts.message, ...opts.history.filter((h) => h.role === "user").map((h) => h.content).reverse()]
+    .flatMap((t) => t.match(BLOB) ?? []);
+  const photos = [...new Set(recent)].slice(0, 2);
+  const justUploaded = (opts.message.match(BLOB) ?? []).length > 0;
   const system = `${SYSTEM}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}. Page text goes in the page's language (page.lang) unless the owner asks otherwise.`;
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
     {
       role: "user",
       content: [
-        // A photo the owner just uploaded (our own Blob storage only): let the model see it.
-        ...(photo ? [{ type: "image" as const, source: { type: "url" as const, url: photo } }] : []),
-        { type: "text" as const, text: `Page state (JSON):\n${JSON.stringify(pageState(business, services))}\n\nOwner: ${opts.message}` },
+        ...photos.map((url) => ({ type: "image" as const, source: { type: "url" as const, url } })),
+        {
+          type: "text" as const,
+          text: `${photos.length ? `Attached: the owner's latest uploaded photo${photos.length > 1 ? "s, newest first" : ""} (${photos.join(" , ")}).${justUploaded ? " The first one was JUST uploaded: describe it in a few words and decide where it goes." : ""}\n\n` : ""}Page state (JSON):\n${JSON.stringify(pageState(business, services))}\n\nOwner: ${opts.message}`,
+        },
       ],
     },
   ];
