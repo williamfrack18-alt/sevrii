@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StoreChat from "./StoreChat";
 import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
@@ -39,6 +39,73 @@ export default function StoreView({
   const st = STORE_TEXT[lang].editor;
   const lk = PLANS_TEXT[lang].lock;
   const [previewKey, setPreviewKey] = useState(0);
+  const [frameH, setFrameH] = useState(1100);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+
+  // The preview shows the whole page at its real height (no scroll inside the
+  // frame), so one scroll moves everything and the top of the page is never skipped.
+  function fitFrame() {
+    const f = frameRef.current;
+    try {
+      const doc = f?.contentDocument;
+      if (!f || !doc) return;
+      const measure = () => {
+        const h = Math.max(doc.body?.scrollHeight ?? 0, doc.documentElement?.scrollHeight ?? 0);
+        if (h > 200) setFrameH((cur) => (Math.abs(cur - h) > 4 ? h : cur));
+      };
+      measure();
+      const ro = new ResizeObserver(measure);
+      if (doc.body) ro.observe(doc.body);
+      f.addEventListener("load", () => ro.disconnect(), { once: true });
+      [400, 1200, 3000].forEach((ms) => setTimeout(measure, ms));
+    } catch {
+      // never block the preview
+    }
+  }
+
+  // Scrolling down from the chat stops for a moment at the top of the page,
+  // so the owner sees its beginning before moving on.
+  useEffect(() => {
+    const page = document.getElementById("store-page");
+    if (!page) return;
+    const pageTop = () => page.getBoundingClientRect().top + window.scrollY;
+    let lockUntil = 0;
+    let paused = false;
+    let lastY = window.scrollY;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY <= 0) return;
+      if (Date.now() < lockUntil) {
+        e.preventDefault();
+        return;
+      }
+      const t = pageTop();
+      const y = window.scrollY;
+      if (!paused && y < t - 2 && y + e.deltaY > t - 2) {
+        e.preventDefault();
+        window.scrollTo({ top: t });
+        paused = true;
+        lockUntil = Date.now() + 700;
+      }
+    };
+    // Touch / momentum: if the scroll jumps past the top of the page, bring it back once.
+    const onScroll = () => {
+      const t = pageTop();
+      const y = window.scrollY;
+      if (y < t - 60) paused = false;
+      if (!paused && lastY < t - 2 && y > t + 2) {
+        paused = true;
+        lockUntil = Date.now() + 700;
+        window.scrollTo({ top: t });
+      }
+      lastY = window.scrollY;
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "gaps"; gaps: PublishGap[] } | { kind: "ok" } | { kind: "error" } | null>(null);
 
@@ -246,7 +313,16 @@ export default function StoreView({
             </a>
           </div>
           <div className="rounded-2xl overflow-hidden" style={{ background: "#fff", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
-            <iframe key={`${business.slug}-${previewKey}`} src={liveUrl} title={t.dashboard.livePageTitle} className="w-full border-0 block" style={{ height: "1100px" }} />
+            <iframe
+              ref={frameRef}
+              key={`${business.slug}-${previewKey}`}
+              src={liveUrl}
+              title={t.dashboard.livePageTitle}
+              scrolling="no"
+              onLoad={fitFrame}
+              className="w-full border-0 block"
+              style={{ height: `${frameH}px` }}
+            />
           </div>
         </div>
       </section>
