@@ -55,7 +55,9 @@ Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en
     case "ideas":
       return `Tarea: IDEAS de servicio para alguien que quiere independizarse en ${place}, EE. UU.
 Perfil: trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; no quiere: ${p.notWant || "-"}; meta: ${p.goal || "?"}.
-Propón 5 servicios locales que encajen con su experiencia y su dinero, y busca para cada uno el precio típico en su zona y cuánto cuesta arrancar.
+Propón 5 servicios locales rentables que encajen con lo que ya sabe hacer o con algo que pueda aprender rápido (en pocas semanas), con su dinero y su tiempo. Busca para cada uno el precio típico en su zona y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
+Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
+Lo que dijo que prefiere o no quiere: ${plan.ideaPrefs}. Respétalo.` : ""}
 No propongas: reparación de crédito, asesoría legal o migratoria, préstamos ni servicios de salud.
 Forma: {"ideas":[{"title":"…","why":"por qué encaja con su experiencia","typicalPrice":"$… por trabajo/hora","startCost":"$… y en qué","license":"No (solo si una fuente oficial dice que ese servicio exige licencia en el estado, escribe cuál)","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
 ${out}`;

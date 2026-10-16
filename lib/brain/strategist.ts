@@ -8,7 +8,7 @@ import { textOf } from "./common";
 
 const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, servicio, cliente, mercado y requisitos) armas la propuesta comercial de un servicio local en EE. UU.
 
-Persona A: entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, una oferta de lanzamiento opcional y el tipo de campaña.
+Persona A: entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, una oferta de bienvenida, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
 Persona B: primero entrega 3 ideas (de las 5 investigadas). Cuando escoja una, entrega la misma propuesta que la persona A.
 
 Precios:
@@ -27,7 +27,17 @@ Muestra las 3 mejores con pros y contras, sin prometer ingresos.
 Honestidad:
 - Solo hechos del expediente. Un diferenciador sin respaldo no va.
 - Nada de reseñas, cifras de clientes, "el número 1", "garantizado" ni urgencia falsa.
-- La oferta es solo una sugerencia: el usuario decide si la quiere y pone la fecha de fin.
+- No inventes datos del dueño en el guion ni en las fotos.
+
+Oferta de bienvenida (ayuda mucho a convertir):
+- Propón siempre una oferta para clientes nuevos que el margen aguante: un % en el primer servicio (10 % a 20 %) o un extra sin costo.
+- Es solo para el primer servicio de cada cliente nuevo, así que no necesita fecha de fin (forNewClients = true). Nada de "solo hoy" ni urgencia falsa.
+- El dueño decide si la quiere.
+
+Su cara vende (es un servicio, no un producto):
+- La página y los anuncios llevan fotos y un video de la persona, nunca fotos de stock.
+- videoScript: guion de 30 a 60 segundos, en primera persona, para grabarlo con el celular mirando a la cámara: quién es, qué hace y dónde, por qué elegirlo (solo hechos del expediente), la oferta de bienvenida y cómo contactarlo. Frases cortas y naturales. Usa [tu nombre] donde va su nombre.
+- photoIdeas: 4 a 6 fotos concretas que puede tomarse con el celular para su servicio (por ejemplo: retrato sonriendo con ropa de trabajo, trabajando, sus herramientas, el antes y después). Si apenas empieza, fotos practicando o preparando su equipo.
 
 Tipo de campaña: Facebook e Instagram "Llamar ahora" para trabajos urgentes o locales; Google Search cuando la gente busca el servicio y el presupuesto llega a unos $15 al día; WhatsApp cuando el dueño lo usa y sus clientes prefieren escribir. Suma siempre los canales gratis: perfil de Google Business y referidos.`;
 
@@ -50,10 +60,16 @@ const PROPOSAL_SCHEMA = obj({
     items: obj({ name: S("Package name"), price: S("e.g. '$450' or 'from $120'"), includes: S("What it includes"), note: S("Who it's for / why this price") }),
   },
   pricingNote: S("How the prices were set: cost, margin, comparison with the local range. Mark estimates as estimates."),
-  offerSuggestion: obj({ label: S("Suggested launch offer, or empty string for none"), detail: S("Conditions, one line, or empty") }),
+  offerSuggestion: obj({
+    label: S("Welcome offer for new customers, short (e.g. '15% off your first cleaning'), or empty string for none"),
+    detail: S("Conditions, one line, or empty"),
+    forNewClients: { type: "boolean", description: "true: only for a customer's first service, no end date needed" },
+  }),
   campaignType: S("Recommended campaign in one line"),
   channels: { type: "array", items: obj({ channel: S("Channel"), why: S("Why, one line") }), description: "Up to 4 channels in priority order, include free ones" },
   faq: { type: "array", items: obj({ q: S("Question"), a: S("Answer, honest, max 300 chars") }), description: "6 FAQs for the page" },
+  videoScript: S("30-60 second first-person video script to record with a phone, using [tu nombre]/[your name] for the name"),
+  photoIdeas: { type: "array", items: { type: "string" }, description: "4-6 concrete photos of the owner and their work to take with a phone" },
   message: S("4-5 short lines for the owner explaining the proposal and asking them to review the cards below"),
 });
 
@@ -133,7 +149,9 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
     }),
     pricingNote: str(d.pricingNote, 500),
     // A suggestion only: no end date until the owner sets a real one.
-    offer: label ? { label, detail: str(offer.detail, 200), endsAt: "" } : null,
+    offer: label ? { label, detail: str(offer.detail, 200), endsAt: "", forNewClients: offer.forNewClients === true } : null,
+    videoScript: typeof d.videoScript === "string" ? d.videoScript.trim().slice(0, 1200) : "",
+    photoIdeas: (Array.isArray(d.photoIdeas) ? d.photoIdeas : []).map((x) => str(x, 160)).filter(Boolean).slice(0, 6),
     campaignType: str(d.campaignType, 200),
     channels: (Array.isArray(d.channels) ? d.channels : []).slice(0, 4).map((x) => {
       const c = (x ?? {}) as Record<string, unknown>;
@@ -150,7 +168,7 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
 export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: Lang): Promise<{ ideas: Idea[]; message: string }> {
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
-    `Perfil (JSON):\n${JSON.stringify(plan.profile)}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\nEscoge las 3 mejores con su puntaje.`,
+    `Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\nEscoge las 3 mejores con su puntaje.`,
     IDEAS_SCHEMA
   );
   const picked: Idea[] = [];

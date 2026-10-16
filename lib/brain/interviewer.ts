@@ -10,6 +10,9 @@ import {
   missingProfile,
   parsePlan,
   parseProfile,
+  requestMoreIdeas,
+  MAX_IDEA_ROUNDS,
+  str,
   type ApprovalBlock,
   type BusinessPlan,
   type PlanStage,
@@ -39,13 +42,17 @@ Qué no haces:
 
 Cuando save_profile responda que el perfil está completo, dile en una o dos líneas que ahora vas a investigar su zona (1 a 2 minutos) y que verá el avance abajo.`;
 
-const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las 3 ideas de servicio que aparecen en el estado ("ideas"). Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos. Si dice cuál quiere, llama a choose_idea con su número (1, 2 o 3). Máximo 70 palabras.`;
+const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las 3 ideas de servicio que aparecen en el estado ("ideas"). Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
+- Si dice cuál quiere, llama a choose_idea con su número (1, 2 o 3).
+- Si ninguna le convence ("no me gusta", "dame otras", "no me siento cómoda con eso"), pregúntale en una línea qué no le gustó o qué preferiría, si no lo dijo ya. Con su respuesta llama a more_ideas con ese feedback. No insistas en las ideas que rechazó.
+- Si "roundsLeft" es 0, no puedes buscar más: ayúdale a escoger entre las actuales o a describir un servicio concreto que quiera ofrecer.
+Máximo 70 palabras.`;
 
 const EDITOR = `Eres el Cerebro de Sevrii. El dueño está revisando su propuesta (servicio, presentación, paquetes, oferta, campaña y preguntas frecuentes), que se ve debajo del chat en tarjetas con botones de Aprobar.
 - Si pide un cambio, hazlo con update_proposal (solo los campos que cambian) y confírmalo en una línea. Cambiar un bloque le quita la aprobación a ese bloque.
 - Usa solo hechos que él da o que están en el expediente. Nada de reseñas, "el mejor", "garantizado" ni cifras inventadas.
 - Precios: si los cambia, explica en una línea cómo queda el margen frente a sus costos y al rango de la zona.
-- Oferta: solo si él la quiere. Pide una fecha de fin real y guárdala como YYYY-MM-DD (hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true.
+- Oferta: solo si él la quiere. Una oferta de bienvenida para clientes nuevos (solo su primer servicio) no necesita fecha: guárdala con forNewClients=true. Cualquier otra promoción necesita una fecha de fin real (YYYY-MM-DD, hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true.
 - Si dice que aprueba uno o varios bloques, llama a approve_blocks.
 - Máximo 70 palabras. Sin títulos.`;
 
@@ -87,6 +94,15 @@ const CHOOSE_IDEA: Tool = {
   description: "The person picked one of the 3 ideas.",
   input_schema: { type: "object", properties: { number: { type: "integer", enum: [1, 2, 3] } }, required: ["number"] },
 };
+const MORE_IDEAS: Tool = {
+  name: "more_ideas",
+  description: "None of the 3 ideas convinces the person: search for different ones, taking their feedback into account.",
+  input_schema: {
+    type: "object",
+    properties: { feedback: { type: "string", description: "What they didn't like and what they'd prefer, in their words" } },
+    required: ["feedback"],
+  },
+};
 const UPDATE_PROPOSAL: Tool = {
   name: "update_proposal",
   description: "Change parts of the proposal. Send only the fields that change; lists replace the previous list.",
@@ -112,7 +128,12 @@ const UPDATE_PROPOSAL: Tool = {
       pricingNote: { type: "string" },
       offer: {
         type: "object",
-        properties: { label: { type: "string" }, detail: { type: "string" }, endsAt: { type: "string", description: "YYYY-MM-DD, a real date the owner gave" } },
+        properties: {
+          label: { type: "string" },
+          detail: { type: "string" },
+          endsAt: { type: "string", description: "YYYY-MM-DD, a real date the owner gave (not needed for a new-customer offer)" },
+          forNewClients: { type: "boolean", description: "Only for each customer's first service (no end date needed)" },
+        },
         required: ["label"],
       },
       noOffer: { type: "boolean", description: "true if the owner doesn't want an offer" },
@@ -155,7 +176,7 @@ export const LOCKED_STAGES: PlanStage[] = ["ideas_research", "research"];
 function stageOf(plan: BusinessPlan): { system: string; tools: Tool[] } {
   if (plan.stage === "interview" || plan.stage === "ready_check") return { system: INTERVIEWER, tools: [SAVE_PROFILE] };
   if (LOCKED_STAGES.includes(plan.stage)) return { system: INTERVIEWER, tools: [SAVE_PROFILE] };
-  if (plan.stage === "choose") return { system: CHOOSER, tools: [CHOOSE_IDEA] };
+  if (plan.stage === "choose") return { system: CHOOSER, tools: [CHOOSE_IDEA, MORE_IDEAS] };
   return { system: EDITOR.replace("{TODAY}", today()), tools: [UPDATE_PROPOSAL, APPROVE_BLOCKS] };
 }
 
@@ -166,7 +187,8 @@ function state(b: BusinessRow) {
     const idea = p.chosenIdea !== null ? p.ideas[p.chosenIdea] : null;
     return { ...base, missing: missingProfile(p), profile: p.profile, ...(idea ? { chosenIdea: idea } : {}) };
   }
-  if (p.stage === "choose") return { ...base, ideas: p.ideas.map((i, n) => ({ number: n + 1, ...i })) };
+  if (p.stage === "choose")
+    return { ...base, ideas: p.ideas.map((i, n) => ({ number: n + 1, ...i })), rejectedBefore: p.rejectedIdeas, roundsLeft: Math.max(0, MAX_IDEA_ROUNDS - p.ideaRounds) };
   return {
     ...base,
     profile: p.profile,
@@ -199,7 +221,7 @@ export function applyApprovals(plan: BusinessPlan, blocks: ApprovalBlock[], lang
   let next = { ...plan };
   for (const blk of blocks) {
     if (blk === "offer" && !plan.offer) next = { ...next, noOffer: true };
-    if (blk === "offer" && plan.offer && !plan.offer.endsAt) {
+    if (blk === "offer" && plan.offer && !plan.offer.endsAt && !plan.offer.forNewClients) {
       refused.push(lang === "es" ? "La oferta necesita una fecha de fin. Dímela en el chat o quita la oferta." : "The offer needs an end date. Tell me in the chat or remove the offer.");
       continue;
     }
@@ -257,6 +279,12 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (!idea) return { out: "error: unknown idea" };
       await updateBusinessPlan(b.id, parsePlan(chooseIdea(plan, i)));
       return { out: `chosen: ${idea.title}. Now ask the remaining readiness questions (see missing).` };
+    }
+    case "more_ideas": {
+      if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
+      if (plan.ideaRounds >= MAX_IDEA_ROUNDS) return { out: "error: no more idea rounds; help them pick or describe a service they want" };
+      await updateBusinessPlan(b.id, requestMoreIdeas(plan, str(input.feedback, 300)));
+      return { out: "searching new ideas. Tell them in one line you're looking for different options with what they said (1-2 minutes) and they'll see them below.", startPipeline: true };
     }
     case "update_proposal": {
       if (plan.stage !== "proposal" && plan.stage !== "approved") return { out: "error: no proposal yet" };

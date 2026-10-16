@@ -9,7 +9,8 @@ import { addChatMessage, getBusinessById, listChatMessages, listServices, update
 import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
-import { APPROVAL_BLOCKS, type ApprovalBlock } from "@/lib/plan";
+import { APPROVAL_BLOCKS, MAX_IDEA_ROUNDS, requestMoreIdeas, type ApprovalBlock } from "@/lib/plan";
+import { PLAN_TEXT } from "@/lib/planI18n";
 import { applyApprovals, chooseIdea, planGreeting, runPlanChatTurn } from "@/lib/brain/interviewer";
 
 const CHANNEL = "plan";
@@ -144,4 +145,21 @@ export async function noOfferAction(): Promise<PlanChatResponse> {
   await updateBusinessPlan(business.id, next);
   revalidatePath("/dashboard");
   return respond(business, refused.length ? { notice: refused.join(" ") } : {});
+}
+
+// B: none of the 3 ideas convinces the person. Search for different ones.
+export async function moreIdeasAction(feedback: string): Promise<PlanChatResponse> {
+  const business = await requireBusiness();
+  const lang = await getLang();
+  const t = PLAN_TEXT[lang];
+  const plan = business.plan;
+  if (plan.stage !== "choose") return respond(business);
+  if (plan.ideaRounds >= MAX_IDEA_ROUNDS) return respond(business, { notice: t.moreNoLeft });
+  if (!(await allow(`brain:more:${business.id}`, 6, 60 * 60))) return respond(business, { notice: getDict(lang).auth.errTooMany });
+  const note = String(feedback || "").trim().replace(/\s+/g, " ").slice(0, 300);
+  await updateBusinessPlan(business.id, requestMoreIdeas(plan, note));
+  await addChatMessage(business.id, CHANNEL, "user", t.moreUser(note));
+  await addChatMessage(business.id, CHANNEL, "ai", t.moreAi);
+  revalidatePath("/dashboard");
+  return respond(business, { startPipeline: true });
 }

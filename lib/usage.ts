@@ -81,9 +81,12 @@ export async function chatGate(userId: string, limits?: PlanLimits): Promise<Gat
 }
 
 // One check before starting a Brain research run (the expensive part).
-export async function researchGate(userId: string, limits?: PlanLimits): Promise<GateReason | null> {
+// budgetOnly: "show me other ideas" rounds don't use up a research run; they
+// still count toward the AI budget (and are capped per project in the plan).
+export async function researchGate(userId: string, limits?: PlanLimits, opts: { budgetOnly?: boolean } = {}): Promise<GateReason | null> {
   const l = limits ?? (await limitsForUserId(userId));
   if ((await monthSpendUsd(userId)) >= l.aiBudgetUsd) return "budget";
+  if (opts.budgetOnly) return null;
   if (!(await allow(`brain:run:u:${userId}:${month()}`, l.researchPerMonth, 32 * 24 * 60 * 60))) return "month";
   return null;
 }

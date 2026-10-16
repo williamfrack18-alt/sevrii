@@ -49,18 +49,19 @@ export async function advancePipeline(businessId: string, userId: string, lang: 
   let plan = b.plan;
   if (plan.stage !== "ideas_research" && plan.stage !== "research") return { more: false };
   const spec = STEPS[plan.stage];
+  const ideaRefresh = plan.stage === "ideas_research" && plan.ideaRounds > 0;
 
   let jobs = await latestResearchRun(businessId);
   if (!plan.runId || jobs.length === 0 || jobs[0].runId !== plan.runId) {
     // Each new run counts against the plan's monthly runs and AI budget.
-    if (await researchGate(userId)) return { more: false, error: "limit" };
+    if (await researchGate(userId, undefined, { budgetOnly: ideaRefresh })) return { more: false, error: "limit" };
     const runId = await createResearchRun(businessId, [...spec.parallel, ...spec.then]);
     plan = { ...plan, runId };
     await savePlan(businessId, plan);
     jobs = await latestResearchRun(businessId);
   } else if (retry) {
     // A retry re-runs paid research, so it counts like a new run.
-    if (await researchGate(userId)) return { more: false, error: "limit" };
+    if (await researchGate(userId, undefined, { budgetOnly: ideaRefresh })) return { more: false, error: "limit" };
     await requeueFailedJobs(plan.runId);
     jobs = await latestResearchRun(businessId);
   }
@@ -120,7 +121,19 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     if (ideas.length === 0) throw new Error("no ideas picked");
     plan = { ...plan, ideas, chosenIdea: null, stage: "choose" };
     await savePlan(businessId, plan);
-    await addChatMessage(businessId, "plan", "ai", message || (es ? "Encontré 3 opciones para ti. Míralas abajo y escoge la que más te guste." : "I found 3 options for you. See them below and pick one."));
+    await addChatMessage(
+      businessId,
+      "plan",
+      "ai",
+      message ||
+        (plan.ideaRounds > 0
+          ? es
+            ? "Encontré 3 opciones nuevas, distintas a las anteriores. Míralas abajo y escoge la que más te guste."
+            : "I found 3 new options, different from the ones before. See them below and pick one."
+          : es
+            ? "Encontré 3 opciones para ti. Míralas abajo y escoge la que más te guste."
+            : "I found 3 options for you. See them below and pick one.")
+    );
     return;
   }
 

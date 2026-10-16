@@ -12,7 +12,7 @@ const GUARDIAN = `Eres el Guardián de Sevrii. Revisas una propuesta antes de mo
 Marca como "block":
 - Afirmaciones sin respaldo en el expediente: licencia, seguro, años, garantías, "el mejor", cifras de clientes o reseñas.
 - Promesas de ingresos, resultados o tiempos que nadie puede asegurar.
-- Urgencia falsa u ofertas sin fecha real.
+- Urgencia falsa ("solo hoy", "últimos cupos" sin prueba).
 - Servicios de alto riesgo: reparación de crédito, asesoría legal o migratoria ("notario"), préstamos, servicios médicos.
 
 Marca como "warn":
@@ -20,7 +20,7 @@ Marca como "warn":
 - Precios muy por debajo o por encima del rango de la zona.
 - Textos que preguntan por rasgos personales ("¿Estás divorciado?", "¿Tienes deudas?").
 
-La oferta todavía es una sugerencia sin fecha: el dueño pondrá la fecha de fin real antes de aprobar. No la marques por no tener fecha.
+Una oferta de bienvenida para clientes nuevos (forNewClients) no necesita fecha de fin. Una promoción por tiempo limitado sí, pero el dueño la pone antes de aprobar: no la marques por no tener fecha todavía.
 
 Cada punto: el campo y la razón en una línea. Si no hay problemas, listas vacías.`;
 

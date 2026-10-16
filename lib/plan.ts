@@ -94,13 +94,22 @@ export type BusinessPlan = {
   differentiators: string[];
   packages: PlanPackage[];
   pricingNote: string;
-  offer: { label: string; detail: string; endsAt: string } | null; // endsAt YYYY-MM-DD, real
+  // endsAt YYYY-MM-DD, real. forNewClients: a welcome offer for first-time
+  // customers (e.g. "15% off your first cleaning") — honest without an end date.
+  offer: { label: string; detail: string; endsAt: string; forNewClients: boolean } | null;
   noOffer: boolean;
   campaignType: string;
   channels: PlanChannel[];
   faq: Faq[];
   approvals: Partial<Record<ApprovalBlock, boolean>>;
   guard: { block: string[]; warn: string[] };
+  // B: ideas the person turned down, and what they said they'd prefer.
+  rejectedIdeas: string[];
+  ideaPrefs: string;
+  ideaRounds: number;
+  // How the owner shows up on the page: a video script and photos to take.
+  videoScript: string;
+  photoIdeas: string[];
   // legacy (first Brain version) — still shown if present
   marketResearch: string;
   researchSources: PlanSource[];
@@ -167,6 +176,11 @@ export const EMPTY_PLAN: BusinessPlan = {
   faq: [],
   approvals: {},
   guard: { block: [], warn: [] },
+  rejectedIdeas: [],
+  ideaPrefs: "",
+  ideaRounds: 0,
+  videoScript: "",
+  photoIdeas: [],
   marketResearch: "",
   researchSources: [],
   researchedAt: "",
@@ -364,7 +378,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
       .filter((p) => p.name)
       .slice(0, 4),
     pricingNote: str(o.pricingNote, 500),
-    offer: offerLabel ? { label: offerLabel, detail: str(offer.detail, 200), endsAt: isoDate(offer.endsAt) } : null,
+    offer: offerLabel ? { label: offerLabel, detail: str(offer.detail, 200), endsAt: isoDate(offer.endsAt), forNewClients: offer.forNewClients === true } : null,
     noOffer: o.noOffer === true,
     campaignType: str(o.campaignType, 200),
     channels: (Array.isArray(o.channels) ? o.channels : [])
@@ -377,6 +391,11 @@ export function parsePlan(raw: unknown): BusinessPlan {
     faq: parseFaq(o.faq),
     approvals,
     guard: { block: list(g.block, 8, 240), warn: list(g.warn, 8, 240) },
+    rejectedIdeas: list(o.rejectedIdeas, 20, 120),
+    ideaPrefs: typeof o.ideaPrefs === "string" ? o.ideaPrefs.trim().slice(0, 600) : "",
+    ideaRounds: num(o.ideaRounds, 0, 50) ?? 0,
+    videoScript: typeof o.videoScript === "string" ? o.videoScript.trim().slice(0, 1200) : "",
+    photoIdeas: list(o.photoIdeas, 6, 160),
     marketResearch: str(o.marketResearch, 600),
     researchSources: sources(o.researchSources, 6),
     researchedAt: isoDate(o.researchedAt),
@@ -472,9 +491,30 @@ export function codeChecks(p: BusinessPlan, today: string, final = true): { bloc
   const warn: string[] = [];
   const texts = [p.promise, ...p.differentiators, ...p.packages.map((x) => `${x.name} ${x.includes}`), p.offer?.label ?? "", p.offer?.detail ?? ""];
   for (const t of texts) if (t && BANNED_CLAIMS.test(t)) block.push(`claim: "${t.slice(0, 80)}" uses a claim that needs proof`);
-  if (final && p.offer && !p.offer.endsAt) block.push("offer: the offer needs a real end date");
+  if (final && p.offer && !p.offer.endsAt && !p.offer.forNewClients) block.push("offer: the offer needs a real end date");
   if (final && p.offer && p.offer.endsAt && p.offer.endsAt < today) block.push("offer: the end date already passed");
   if (/\b(credit repair|reparaci[oó]n de cr[eé]dito|notari|immigration|inmigraci[oó]n|migratori|loan|pr[eé]stamo)/i.test(`${p.service} ${p.profile.mainService}`))
     block.push("restricted: this kind of service needs a manual review by Sevrii before publishing");
   return { block, warn };
+}
+
+// ---------- B: "show me other ideas" ----------
+export const MAX_IDEA_ROUNDS = 5;
+
+// Sends the person back to idea research, remembering what they turned down
+// and what they said they'd prefer, so the next ideas are different.
+export function requestMoreIdeas(plan: BusinessPlan, feedback: string): BusinessPlan {
+  const rejected = [...new Set([...plan.rejectedIdeas, ...plan.ideas.map((i) => i.title)])].slice(-20);
+  const note = feedback.trim().replace(/\s+/g, " ").slice(0, 300);
+  const prefs = [plan.ideaPrefs, note].filter(Boolean).join(" | ").slice(-600);
+  return parsePlan({
+    ...plan,
+    rejectedIdeas: rejected,
+    ideaPrefs: prefs,
+    ideaRounds: plan.ideaRounds + 1,
+    ideas: [],
+    chosenIdea: null,
+    stage: "ideas_research",
+    runId: "",
+  });
 }

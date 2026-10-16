@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
-import { approveBlockAction, chooseIdeaAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
+import { approveBlockAction, chooseIdeaAction, moreIdeasAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
+import { MAX_IDEA_ROUNDS } from "@/lib/plan";
 import ChatPanel, { type Msg } from "./ChatPanel";
 import { toClientBusiness, type ClientBusiness, type ClientService, type DashboardView } from "./types";
 import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
@@ -49,6 +50,7 @@ export default function PlanView({
   const [notice, setNotice] = useState("");
   const [busy, startAction] = useTransition();
   const [retryKey, setRetryKey] = useState(0);
+  const [moreText, setMoreText] = useState("");
 
   // Latest values for the polling loop.
   const bizRef = useRef(business);
@@ -239,6 +241,39 @@ export default function PlanView({
                   </div>
                 ))}
               </div>
+              <div className="rounded-2xl p-5 flex flex-col gap-3" style={CARD}>
+                <div>
+                  <div className="text-[16px] font-semibold text-white">{t.moreTitle}</div>
+                  <p className="text-[13.5px] text-[#a1a1aa] mt-0.5">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.moreSub}</p>
+                </div>
+                {plan.ideaRounds < MAX_IDEA_ROUNDS && (
+                  <form
+                    className="flex flex-col sm:flex-row gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const text = moreText;
+                      act(async () => {
+                        const res = await moreIdeasAction(text);
+                        setMoreText("");
+                        return res;
+                      });
+                    }}
+                  >
+                    <input
+                      id="more-ideas"
+                      value={moreText}
+                      onChange={(e) => setMoreText(e.target.value)}
+                      maxLength={300}
+                      placeholder={t.morePlaceholder}
+                      className="flex-1 min-w-0 h-11 rounded-full px-4 text-[14px] text-white placeholder:text-[#6b6b6b] outline-none focus:ring-2"
+                      style={{ background: "rgba(255,255,255,0.06)", boxShadow: "0 0 0 1px rgba(255,255,255,0.1)" }}
+                    />
+                    <button type="submit" disabled={busy} className="h-11 px-5 rounded-full text-[14px] font-semibold shrink-0 disabled:opacity-60" style={BRAND_BTN}>
+                      {busy ? t.moreBusy : t.moreButton}
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           )}
 
@@ -319,7 +354,7 @@ export default function PlanView({
                   busy={busy}
                   onApprove={(b) => act(() => approveBlockAction(b, true))}
                   onChange={change}
-                  canApprove={!plan.offer || Boolean(plan.offer.endsAt)}
+                  canApprove={!plan.offer || Boolean(plan.offer.endsAt) || plan.offer.forNewClients}
                   extra={
                     plan.offer && !plan.approvals.offer ? (
                       <button type="button" disabled={busy} onClick={() => act(() => noOfferAction())} className="h-9 px-4 rounded-full text-[13px] text-[#d4d4d4]" style={{ background: "rgba(255,255,255,0.06)" }}>
@@ -332,8 +367,8 @@ export default function PlanView({
                     <>
                       <span className="text-[16px] font-semibold text-white">{plan.offer.label}</span>
                       {plan.offer.detail && <span className="text-[13.5px] text-[#a1a1aa]">{plan.offer.detail}</span>}
-                      <span className="text-[12.5px]" style={{ color: plan.offer.endsAt ? GREEN : AMBER }}>
-                        {plan.offer.endsAt ? t.endsOn(plan.offer.endsAt) : `${t.offerSuggested} ${t.offerNeedsDate}`}
+                      <span className="text-[12.5px]" style={{ color: plan.offer.endsAt || plan.offer.forNewClients ? GREEN : AMBER }}>
+                        {plan.offer.endsAt ? t.endsOn(plan.offer.endsAt) : plan.offer.forNewClients ? t.forNewClients : `${t.offerSuggested} ${t.offerNeedsDate}`}
                       </span>
                     </>
                   ) : (
@@ -366,6 +401,38 @@ export default function PlanView({
                   ))}
                 </div>
               </Block>
+
+              {(plan.videoScript || plan.photoIdeas.length > 0) && (
+                <div className="rounded-2xl p-5 flex flex-col gap-4" style={CARD}>
+                  <div>
+                    <div className="text-[16px] font-semibold text-white">{t.mediaTitle}</div>
+                    <p className="text-[13.5px] text-[#a1a1aa] mt-0.5">{t.mediaSub}</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {plan.videoScript && (
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <span className="text-[13px] font-medium text-[#d4d4d4]">🎥 {t.videoScript}</span>
+                        <p className="text-[14px] text-white leading-relaxed whitespace-pre-line rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)" }}>
+                          {plan.videoScript}
+                        </p>
+                      </div>
+                    )}
+                    {plan.photoIdeas.length > 0 && (
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <span className="text-[13px] font-medium text-[#d4d4d4]">📷 {t.photoIdeas}</span>
+                        <ul className="flex flex-col gap-1.5">
+                          {plan.photoIdeas.map((p, i) => (
+                            <li key={i} className="text-[14px] text-[#ececec] leading-relaxed flex gap-2">
+                              <span style={{ color: GREEN }}>✓</span>
+                              <span>{p}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {plan.stage === "approved" && (
                 <div className="flex flex-wrap gap-3 pt-2">
