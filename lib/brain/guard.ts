@@ -10,13 +10,14 @@ import { textOf, today } from "./common";
 const GUARDIAN = `Eres el Guardián de Sevrii. Revisas una propuesta antes de mostrarla. No reescribes nada: marcas problemas.
 
 Marca como "block":
-- Afirmaciones sin respaldo en el expediente: licencia, seguro, años, garantías, "el mejor", cifras de clientes o reseñas.
+- Afirmaciones sin respaldo en el expediente: licencia, seguro, años, garantías, "el mejor", cifras de clientes o reseñas. Lo que dice la investigación del mercado (competencia y huecos) SÍ cuenta como respaldo.
+- No marques plazos de entrega o de trabajo que el dueño se compromete a cumplir con su propio trabajo; solo marca promesas de resultados que nadie controla (ingresos, clientes, "garantizado").
 - Promesas de ingresos, resultados o tiempos que nadie puede asegurar.
 - Urgencia falsa ("solo hoy", "últimos cupos" sin prueba).
 - Servicios de alto riesgo: reparación de crédito, asesoría legal o migratoria ("notario"), préstamos, servicios médicos.
 
 Marca como "warn":
-- Categorías especiales de anuncios de Meta: crédito, empleo, vivienda, productos financieros.
+- Categorías especiales de anuncios de Meta: SOLO crédito, préstamos o productos financieros; empleo; vivienda (venta o alquiler de casas, hipotecas); temas sociales o política. Los servicios para el hogar (limpieza, lavandería, reparaciones, jardinería, mudanzas) NO son categoría especial.
 - Precios muy por debajo o por encima del rango de la zona.
 - Textos que preguntan por rasgos personales ("¿Estás divorciado?", "¿Tienes deudas?").
 
@@ -61,7 +62,15 @@ export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block
       messages: [
         {
           role: "user",
-          content: `Expediente (JSON):\n${JSON.stringify({ profile: plan.profile, market: { prices: plan.market.prices, requirements: plan.market.requirements } })}\n\nPropuesta (JSON):\n${JSON.stringify({
+          content: `Expediente (JSON):\n${JSON.stringify({
+            profile: plan.profile,
+            market: {
+              prices: plan.market.prices,
+              requirements: plan.market.requirements,
+              gaps: plan.market.gaps,
+              competitors: plan.market.competitors.map((c) => ({ name: c.name, offer: c.offer, price: c.price, guarantee: c.guarantee, languages: c.languages })),
+            },
+          })}\n\nPropuesta (JSON):\n${JSON.stringify({
             service: plan.service,
             promise: plan.promise,
             differentiators: plan.differentiators,
