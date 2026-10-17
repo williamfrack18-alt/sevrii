@@ -168,8 +168,7 @@ async function businessFacts(b: BusinessRow) {
           fears: p.fears,
           promise: p.promise,
           differentiators: p.differentiators,
-          packages: p.packages,
-          offer: p.offer,
+          // Prices/offer for ads come from the page (page.services / page.offer).
           campaignType: p.campaignType,
           channels: p.channels,
           photoIdeas: p.photoIdeas,
@@ -182,6 +181,7 @@ async function businessFacts(b: BusinessRow) {
 
 const RULES = `Rules (always):
 - Customers reach the business ONLY through the AI chat on its Sevrii page. Every ad sends people to that page ("Learn more"). Say "write to us through the chat on our page", never "call", "text", "WhatsApp" or "the number below".
+- Prices and offers come ONLY from page.services and page.offer (what customers actually see on the page). The Brain plan's packages/prices may be outdated: never quote them.
 - Use ONLY facts given (services, prices, offer, area, key points, Brain plan). NEVER invent prices, discounts, guarantees, licenses, insurance, years, reviews, customer counts or results. No "#1", no "guaranteed", no fake urgency.
 - Never promise leads, calls, chats, cost per lead or ROI.
 - Meta policy: never assert or imply personal attributes ("Are you divorced?", "Do you have debt?", "Struggling with your weight?"). Target only by location and ad language, never by ethnicity, religion or other personal attributes.
@@ -325,6 +325,10 @@ function launchTexts(b: BusinessRow, title: string, spec: CampaignSpec, audience
         ? " Por el tipo de negocio, Facebook pide mostrar el anuncio a todas las edades y en 15 millas o más."
         : " Because of the type of business, Facebook requires showing the ad to all ages and in 15 miles or more."
       : "";
+  // The AI's sentences may already end with a period: never print "..".
+  const clip = (x: string) => x.trim().replace(/[.\s]+$/, "");
+  audience = clip(audience);
+  why = clip(why);
   return {
     title: es ? `Lanzar ${quote(title, lang)} — ${money(d)} al día por ${spec.durationDays} días` : `Launch ${quote(title, lang)} — ${money(d)} a day for ${spec.durationDays} days`,
     detail: es
