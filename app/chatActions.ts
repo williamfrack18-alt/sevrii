@@ -4,6 +4,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { after } from "next/server";
 import {
   addConvMessage,
+  addAiMessageIfStillAi,
+  claimAiReply,
+  setHandoffOnce,
+  patchBusinessSite,
   createConversation,
   getBusinessBySlug,
   getConversationByToken,
@@ -14,7 +18,6 @@ import {
   countUnreadConversations,
   listServices,
   updateConversation,
-  updateBusinessSite,
   savePushSub,
   deletePushSub,
   listPushSubs,
@@ -25,14 +28,16 @@ import {
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
-import { researchGate, runForUser } from "@/lib/usage";
+import { runForUser, visitorAiAccount, visitorAiGate } from "@/lib/usage";
+import { normalizePhone } from "@/lib/site";
 import { runVisitorAi } from "@/lib/visitorChat";
-import { emailVisitorReply, notifyChatOwner } from "@/lib/notify";
+import { defang, emailVisitorReply, notifyChatOwner } from "@/lib/notify";
 import { pushPublicKey, pushToUser } from "@/lib/push";
 
 const MAX_CHARS = 600;
 const MAX_AI_REPLIES_PER_CONV = 30;
 const MAX_AI_REPLIES_PER_BIZ_DAY = 300;
+const MAX_AI_REPLIES_PER_IP_DAY = 40;
 
 export type ChatMsg = { seq: number; role: "visitor" | "ai" | "owner"; content: string; at: string };
 export type VisitorChatResult =
@@ -57,36 +62,58 @@ async function openBusiness(slug: string): Promise<BusinessRow | null> {
   return viewer?.id === b.userId ? b : null;
 }
 
-function fallback(b: BusinessRow, conv: ConversationRow): string {
+function fallback(b: BusinessRow, hasContact: boolean): string {
   const es = b.site.lang !== "en";
-  if (conv.phone || conv.email) return es ? `¡Gracias! ${b.name} te responde muy pronto.` : `Thanks! ${b.name} will get back to you very soon.`;
+  if (hasContact) return es ? `¡Gracias! ${b.name} te responde muy pronto.` : `Thanks! ${b.name} will get back to you very soon.`;
   return es
     ? `¡Gracias por escribir! ${b.name} te responde muy pronto. ¿Me dejas tu nombre y tu teléfono (o correo) para que te contacten?`
     : `Thanks for your message! ${b.name} will reply very soon. Can you leave your name and phone (or email) so they can reach you?`;
 }
+const isFallback = (b: BusinessRow, text: string) => text === fallback(b, true) || text === fallback(b, false);
+
+// When the assistant isn't answering, still catch a phone or email the
+// customer types, so the owner can reach them.
+const EMAIL_IN_TEXT = /[^\s@<>()]{1,64}@[^\s@<>()]{1,200}\.[a-z]{2,24}/i;
+const PHONE_IN_TEXT = /(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
+function sniffContact(text: string): { name?: string; phone?: string; email?: string } {
+  const out: { name?: string; phone?: string; email?: string } = {};
+  const e = EMAIL_IN_TEXT.exec(text)?.[0]?.toLowerCase().replace(/[.,;:]+$/, "");
+  if (e && e.length <= 254) out.email = e;
+  const p = PHONE_IN_TEXT.exec(text)?.[0];
+  const n = p ? normalizePhone(p) : "";
+  if (n) out.phone = n;
+  return out;
+}
 
 // Tells the owner someone wrote: push to their phone/computer and email.
-// new chat / contact left / wants to book → always. Other messages: push at
-// most every 3 minutes per chat; email only if the AI isn't answering (every 20 min).
+// New chat, contact left, wants to book: right away (each at most once per
+// chat, by the caller). Other messages: push at most every 3 minutes per chat;
+// email only when the assistant isn't answering (every 20 min). Every alert is
+// also capped per business, so a script can't flood the owner's phone or inbox.
 type Why = "new" | "contact" | "handoff" | "message";
 async function notifyOwner(b: BusinessRow, conv: ConversationRow, why: Why, detail: string, aiAnswering: boolean) {
   const important = why !== "message";
-  const push = important || (await allow(`push:conv:${conv.id}`, 1, 3 * 60));
-  const mail = b.site.notifyEmail && (important || (!aiAnswering && (await allow(`mail:conv:${conv.id}`, 1, 20 * 60))));
+  const push =
+    (important || (await allow(`push:conv:${conv.id}`, 1, 3 * 60))) && (await allow(`push:biz:${b.id}`, 40, 60 * 60));
+  const mail =
+    b.site.notifyEmail &&
+    (important ? await allow(`mail:conv:imp:${conv.id}`, 4, 24 * 60 * 60) : !aiAnswering && (await allow(`mail:conv:${conv.id}`, 1, 20 * 60))) &&
+    (await allow(`mail:biz:${b.id}`, 15, 60 * 60));
   if (!push && !mail) return;
   if (mail) await updateConversation(conv.id, { notified: true });
   const es = b.site.lang !== "en";
-  const who = conv.name || (es ? "Un cliente" : "A customer");
+  const who = conv.name ? defang(conv.name).slice(0, 40) : es ? "Un cliente" : "A customer";
   const title =
     why === "handoff"
-      ? es ? `🔔 ${who} quiere agendar` : `🔔 ${who} wants to book`
+      ? es ? `${who} quiere agendar` : `${who} wants to book`
       : why === "contact"
-        ? es ? `📇 ${who} dejó sus datos` : `📇 ${who} left their contact`
+        ? es ? `${who} dejó sus datos` : `${who} left their contact`
         : why === "new"
-          ? es ? `💬 Nuevo chat en ${b.name}` : `💬 New chat on ${b.name}`
-          : es ? `💬 ${who} te escribió` : `💬 ${who} wrote you`;
+          ? es ? `Nuevo chat en ${b.name}` : `New chat on ${b.name}`
+          : es ? `${who} te escribió` : `${who} wrote you`;
+  const body = defang(detail).slice(0, 180);
   after(async () => {
-    if (push) await pushToUser(b.userId, { title, body: detail, url: `/dashboard?view=chats&c=${conv.id}`, tag: `chat-${conv.id}` });
+    if (push) await pushToUser(b.userId, { title, body, url: `/dashboard?view=chats&c=${conv.id}`, tag: `chat-${conv.id}` });
     if (mail) await notifyChatOwner(b, conv, why === "new" ? "message" : why, detail);
   });
 }
@@ -110,46 +137,60 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
     conv = await createConversation(b.id, hashToken(token));
   }
 
-  await addConvMessage(conv.id, "visitor", text);
-  let history = await listConvMessages(conv.id, 0, 40);
+  const visitorMsg = await addConvMessage(conv.id, "visitor", text);
+  const history = await listConvMessages(conv.id, 0, 40);
+  const hadContact = Boolean(conv.phone || conv.email);
 
-  let reply = "";
-  let waiting = !conv.aiEnabled;
+  // The assistant answers while it's on and within limits. Its cost comes out
+  // of the visitors' own pot (never the owner's AI), capped per chat, per
+  // business per day and per visitor per business per day.
+  let ai: Awaited<ReturnType<typeof runVisitorAi>> = null;
   if (conv.aiEnabled) {
-    const capped =
-      conv.aiReplies >= MAX_AI_REPLIES_PER_CONV ||
-      !(await allow(`vchat:ai:${b.id}`, MAX_AI_REPLIES_PER_BIZ_DAY, 24 * 60 * 60)) ||
-      // Visitors only spend the owner's monthly AI budget (not the owner's own chat limits).
-      Boolean(await researchGate(b.userId, undefined, { budgetOnly: true }));
-    const services = await listServices(b.id);
-    const ai = capped ? null : await runForUser(b.userId, () => runVisitorAi(b, services, conv!, history)).catch(() => null);
-    const hadContact = Boolean(conv.phone || conv.email);
-    if (ai?.contact) {
-      const c = ai.contact;
-      await updateConversation(conv.id, { name: c.name, phone: c.phone, email: c.email });
-      conv = { ...conv, name: c.name ?? conv.name, phone: c.phone ?? conv.phone, email: c.email ?? conv.email };
+    const canAi =
+      (await allow(`vchat:ai:${b.id}`, MAX_AI_REPLIES_PER_BIZ_DAY, 24 * 60 * 60)) &&
+      (await allow(`vchat:ai:ip:${b.id}:${ip}`, MAX_AI_REPLIES_PER_IP_DAY, 24 * 60 * 60)) &&
+      (await visitorAiGate(b.userId)) &&
+      (await claimAiReply(conv.id, MAX_AI_REPLIES_PER_CONV));
+    if (canAi) {
+      const services = await listServices(b.id);
+      const c = conv;
+      ai = await runForUser(visitorAiAccount(b.userId), () => runVisitorAi(b, services, c, history)).catch(() => null);
     }
-    reply = ai?.reply || fallback(b, conv);
-    await addConvMessage(conv.id, "ai", reply);
-    if (!ai) {
-      // The AI can't answer right now: the owner takes this one.
-      await updateConversation(conv.id, { aiEnabled: false, handoff: true });
-      waiting = true;
-      await notifyOwner(b, conv, isNew ? "new" : "message", text, false);
-    } else if (ai.handoff) {
-      await updateConversation(conv.id, { handoff: true });
-      await notifyOwner(b, conv, "handoff", ai.handoff, true);
-    } else if (!hadContact && (conv.phone || conv.email)) {
-      await notifyOwner(b, conv, "contact", text, true);
-    } else {
-      await notifyOwner(b, conv, isNew ? "new" : "message", text, true);
-    }
-  } else {
-    await notifyOwner(b, conv, isNew ? "new" : "message", text, false);
   }
 
-  history = await listConvMessages(conv.id, 0, 60);
-  return { ok: true, token, messages: history.map(pub), waiting };
+  const found = ai ? ai.contact : sniffContact(text);
+  if (found && (found.name || found.phone || found.email)) {
+    const patch = { name: found.name || undefined, phone: found.phone || undefined, email: found.email || undefined };
+    await updateConversation(conv.id, patch);
+    conv = { ...conv, name: patch.name ?? conv.name, phone: patch.phone ?? conv.phone, email: patch.email ?? conv.email };
+  }
+
+  let waiting = !conv.aiEnabled;
+  let aiAnswered = false;
+  let wantsOwner = "";
+  if (conv.aiEnabled) {
+    if (ai?.reply) {
+      // Dropped if the owner jumped in while it was being written.
+      aiAnswered = Boolean(await addAiMessageIfStillAi(conv.id, ai.reply, visitorMsg.seq));
+      if (!aiAnswered) waiting = true;
+      if (ai.handoff) wantsOwner = ai.handoff;
+    } else {
+      // The assistant can't answer right now (a limit or an error). It stays on
+      // for the next messages; this one goes to the owner, with a short holding
+      // reply (not repeated on every message).
+      const repeated = history.slice(-8).some((m) => m.role === "ai" && isFallback(b, m.content));
+      if (!repeated) await addAiMessageIfStillAi(conv.id, fallback(b, Boolean(conv.phone || conv.email)), visitorMsg.seq);
+      waiting = true;
+      wantsOwner = text;
+    }
+  }
+
+  if (wantsOwner && (await setHandoffOnce(conv.id))) await notifyOwner(b, conv, "handoff", wantsOwner, aiAnswered);
+  else if (!hadContact && (conv.phone || conv.email)) await notifyOwner(b, conv, "contact", text, aiAnswered);
+  else await notifyOwner(b, conv, isNew ? "new" : "message", text, aiAnswered);
+
+  const latest = await listConvMessages(conv.id, 0, 60);
+  return { ok: true, token, messages: latest.map(pub), waiting };
 }
 
 // The open chat window asks for new messages (the owner's replies) every few seconds.
@@ -170,6 +211,12 @@ export async function visitorChatPollAction(input: { slug: string; token: string
 async function ownerBusiness(): Promise<BusinessRow | null> {
   const user = await getCurrentUser();
   return user?.business ?? null;
+}
+
+async function pageIsLive(b: BusinessRow): Promise<boolean> {
+  if (!b.published) return false;
+  const owner = await getUserById(b.userId);
+  return Boolean(owner && limitsFor(owner).canPublish);
 }
 
 export async function unreadChatsAction(): Promise<number> {
@@ -212,11 +259,20 @@ export async function ownerReplyAction(id: string, text: string): Promise<{ ok: 
   const body = clean(text, 2000);
   if (!conv || !body) return { ok: false, messages: [] };
   if (!(await allow(`ochat:${b.id}`, 120, 10 * 60))) return { ok: false, messages: [] };
-  await addConvMessage(conv.id, "owner", body);
-  // The owner took over: the AI stops answering in this conversation.
+  // The owner takes over first, so an answer the assistant is still writing is dropped.
   await updateConversation(conv.id, { aiEnabled: false, handoff: false });
-  // If the customer isn't looking at the chat right now, the answer goes to their email.
-  if (conv.email && Date.now() - Date.parse(conv.visitorSeenAt) > 90 * 1000) after(() => emailVisitorReply(b, conv, body));
+  await addConvMessage(conv.id, "owner", body);
+  // If the customer isn't looking at the chat right now, the answer goes to the
+  // email they left. That address isn't verified, so it's kept tight: live
+  // (paid) pages only, one email per chat every 10 minutes, at most 3 a day
+  // per chat and 30 a day per business, and links are removed.
+  if (conv.email && Date.now() - Date.parse(conv.visitorSeenAt) > 90 * 1000 && (await pageIsLive(b))) {
+    const okToMail =
+      (await allow(`vmail:conv10:${conv.id}`, 1, 10 * 60)) &&
+      (await allow(`vmail:conv:${conv.id}`, 3, 24 * 60 * 60)) &&
+      (await allow(`vmail:biz:${b.id}`, 30, 24 * 60 * 60));
+    if (okToMail) after(() => emailVisitorReply(b, conv, body));
+  }
   return { ok: true, messages: (await listConvMessages(conv.id, 0, 200)).map(pub) };
 }
 
@@ -250,7 +306,7 @@ export async function setOwnerNameAction(name: string): Promise<string | null> {
   if (!user?.business) return null;
   const v = clean(name, 40).replace(/\s+/g, " ");
   if (v.length < 2) return null;
-  await updateBusinessSite(user.business.id, { ...user.business.site, ownerName: v });
+  await patchBusinessSite(user.business.id, { ownerName: v });
   return v;
 }
 
@@ -263,7 +319,7 @@ export async function getOwnerProfileAction(): Promise<{ name: string; photo: st
 export async function setNotifyEmailAction(on: boolean): Promise<boolean> {
   const user = await getCurrentUser();
   if (!user?.business) return false;
-  await updateBusinessSite(user.business.id, { ...user.business.site, notifyEmail: Boolean(on) });
+  await patchBusinessSite(user.business.id, { notifyEmail: Boolean(on) });
   return true;
 }
 

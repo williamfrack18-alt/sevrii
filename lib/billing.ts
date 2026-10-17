@@ -21,8 +21,12 @@ const ADMIN_EMAILS = (process.env.SEVRII_ADMIN_EMAILS || "")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
-export function isAdmin(email: string): boolean {
-  return ADMIN_EMAILS.includes(email.toLowerCase());
+type Who = Pick<UserRow, "email"> & { googleSub?: string | null; emailVerifiedAt?: string | null };
+
+// Only once the email is proven theirs (Google or a reset link): anyone can
+// sign up typing an admin's address before the admin does.
+export function isAdmin(user: Who): boolean {
+  return Boolean(user.googleSub || user.emailVerifiedAt) && ADMIN_EMAILS.includes(user.email.toLowerCase());
 }
 
 export function billingReady(): boolean {
@@ -42,14 +46,14 @@ export function siteUrl(): string {
 const PAID_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 // The plan an account is really on right now.
-export function effectivePlan(user: Pick<UserRow, "email" | "plan" | "planStatus">): PlanId {
-  if (isAdmin(user.email)) return "team";
+export function effectivePlan(user: Who & Pick<UserRow, "plan" | "planStatus">): PlanId {
+  if (isAdmin(user)) return "team";
   const plan = (user.plan || "free") as PlanId;
   if (plan === "free" || !PLANS[plan]) return "free";
   return PAID_STATUSES.has(user.planStatus || "") ? plan : "free";
 }
 
-export function limitsFor(user: Pick<UserRow, "email" | "plan" | "planStatus">): PlanLimits {
+export function limitsFor(user: Who & Pick<UserRow, "plan" | "planStatus">): PlanLimits {
   return PLANS[effectivePlan(user)].limits;
 }
 
@@ -63,7 +67,7 @@ export async function clientPlan(user: UserRow): Promise<ClientPlan> {
     billingReady: billingReady(),
     yearlyReady: yearlyReady(),
     waitlist: (await listUserWaitlists(user.id)).filter((p): p is PlanId => p in PLANS),
-    admin: isAdmin(user.email),
+    admin: isAdmin(user),
   };
 }
 
@@ -123,6 +127,40 @@ export async function findLiveSubscription(customerId: string): Promise<Sub | nu
   return list.data.find((s) => LIVE.has(s.status)) ?? null;
 }
 
+export async function listLiveSubscriptions(customerId: string): Promise<Sub[]> {
+  const list = await stripe<{ data: Sub[] }>("GET", "subscriptions", { customer: customerId, status: "all", limit: "20" });
+  return list.data.filter((s) => LIVE.has(s.status));
+}
+
+async function expireOpenCheckouts(customerId: string): Promise<void> {
+  try {
+    const open = await stripe<{ data: { id: string }[] }>("GET", "checkout/sessions", { customer: customerId, status: "open", limit: "10" });
+    for (const s of open.data) await stripe("POST", `checkout/sessions/${encodeURIComponent(s.id)}/expire`).catch(() => null);
+  } catch (err) {
+    console.error("[billing] could not expire open checkouts", (err as Error)?.message);
+  }
+}
+
+// A second subscription slipped through (two checkouts paid at once): stop it
+// now and give that money back, so nobody pays twice for one account.
+async function cancelDuplicate(sub: Sub & { latest_invoice?: string | null }): Promise<void> {
+  try {
+    await stripe("DELETE", `subscriptions/${encodeURIComponent(sub.id)}`);
+  } catch (err) {
+    console.error("[billing] could not cancel duplicate", sub.id, (err as Error)?.message);
+    return;
+  }
+  try {
+    const invoiceId = typeof sub.latest_invoice === "string" ? sub.latest_invoice : null;
+    const inv = invoiceId ? await stripe<{ payment_intent?: string | null; charge?: string | null; amount_paid?: number }>("GET", `invoices/${encodeURIComponent(invoiceId)}`) : null;
+    const target: Record<string, string> | null = inv?.payment_intent ? { payment_intent: inv.payment_intent } : inv?.charge ? { charge: inv.charge } : null;
+    if (target && (inv?.amount_paid ?? 0) > 0) await stripe("POST", "refunds", { ...target, reason: "duplicate" }, `refund-dup-${sub.id}`);
+    else if ((inv?.amount_paid ?? 0) > 0) console.error("[billing] duplicate subscription canceled; refund it by hand in Stripe", sub.id);
+  } catch (err) {
+    console.error("[billing] duplicate subscription canceled; refund it by hand in Stripe", sub.id, (err as Error)?.message);
+  }
+}
+
 export class AlreadySubscribed extends Error {}
 
 export async function createCheckoutUrl(user: UserRow, interval: "month" | "year"): Promise<string> {
@@ -136,6 +174,8 @@ export async function createCheckoutUrl(user: UserRow, interval: "month" | "year
     await applySubscription(live);
     throw new AlreadySubscribed();
   }
+  // Only one checkout page at a time: an older tab left open can't be paid too.
+  await expireOpenCheckouts(customer);
   const origin = siteUrl();
   const tax: Record<string, string> =
     process.env.STRIPE_AUTOMATIC_TAX === "1" ? { "automatic_tax[enabled]": "true", "customer_update[address]": "auto" } : {};
@@ -219,7 +259,7 @@ function planFromPrice(priceId: string | undefined): PlanId | null {
 // out-of-order webhook deliveries can't give or take away a plan by mistake.
 export async function applySubscription(subOrId: Sub | string): Promise<void> {
   const id = typeof subOrId === "string" ? subOrId : subOrId.id;
-  const sub = await stripe<Sub>("GET", `subscriptions/${id}`);
+  const sub = await stripe<Sub & { created?: number; latest_invoice?: string | null }>("GET", `subscriptions/${id}`);
   const user = (sub.metadata?.userId && (await getUserById(sub.metadata.userId))) || (await getUserByStripeCustomer(sub.customer));
   if (!user) {
     console.warn("[billing] subscription for unknown customer", sub.customer);
@@ -230,6 +270,21 @@ export async function applySubscription(subOrId: Sub | string): Promise<void> {
   if (!live && user.stripeSubscriptionId && user.stripeSubscriptionId !== sub.id) {
     console.info("[billing] ignoring end of an old subscription", sub.id);
     return;
+  }
+  if (live && user.stripeSubscriptionId && user.stripeSubscriptionId !== sub.id) {
+    // Two running subscriptions for one account: keep the older one.
+    const current = await stripe<Sub & { created?: number }>("GET", `subscriptions/${encodeURIComponent(user.stripeSubscriptionId)}`).catch(() => null);
+    if (current && LIVE.has(current.status)) {
+      const keep = (current.created ?? 0) <= (sub.created ?? 0) ? current : sub;
+      const drop = keep === current ? sub : current;
+      await cancelDuplicate(drop as Sub & { latest_invoice?: string | null });
+      if (keep === current) return;
+    }
+  }
+  if (!live) {
+    // The one on file ended, but another may still be running: use that one.
+    const other = (await listLiveSubscriptions(sub.customer).catch(() => [])).find((x) => x.id !== sub.id);
+    if (other) return applySubscription(other.id);
   }
   const item = sub.items?.data?.[0];
   const end = item?.current_period_end ?? sub.current_period_end;

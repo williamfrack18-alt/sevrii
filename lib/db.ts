@@ -208,6 +208,8 @@ function ensureSchema(): Promise<void> {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "stripeSubscriptionId" TEXT`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "googleSub" TEXT`;
+      // Set once the person proved they own the email (Google sign-in or a reset link).
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "emailVerifiedAt" TIMESTAMPTZ`;
       await sql`CREATE INDEX IF NOT EXISTS users_stripe_customer_idx ON users ("stripeCustomerId")`;
       await sql`
         CREATE TABLE IF NOT EXISTS plan_waitlist (
@@ -358,6 +360,13 @@ export async function hitRateCounter(key: string, windowSeconds: number): Promis
   return rows[0]?.count ?? 1;
 }
 
+// Reads a counter without bumping it (0 when its window is over).
+export async function peekRateCounter(key: string): Promise<number> {
+  await ensureSchema();
+  const rows = (await sql`SELECT count FROM rate_counters WHERE key = ${key} AND "windowEndsAt" > now()`) as { count: number }[];
+  return rows[0]?.count ?? 0;
+}
+
 export async function resetRateCounter(key: string): Promise<void> {
   await ensureSchema();
   await sql`DELETE FROM rate_counters WHERE key = ${key}`;
@@ -377,6 +386,7 @@ export type UserRow = {
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   googleSub?: string | null;
+  emailVerifiedAt?: string | null;
 };
 
 export async function createUser(
@@ -396,9 +406,17 @@ export async function createUser(
 }
 
 // Google sign-in: links the Google account to the user (first sign-in only).
+// Google proved the email is theirs. If the account was made with a password
+// before (anyone can type any email at signup), that password and every open
+// session are dropped, so whoever created it can't keep a way in.
 export async function setUserGoogleSub(userId: string, sub: string): Promise<void> {
   await ensureSchema();
-  await sql`UPDATE users SET "googleSub" = ${sub} WHERE id = ${userId} AND "googleSub" IS NULL`;
+  const rows = (await sql`
+    UPDATE users SET "googleSub" = ${sub}, "passwordHash" = '', salt = '', "emailVerifiedAt" = COALESCE("emailVerifiedAt", now())
+    WHERE id = ${userId} AND "googleSub" IS NULL
+    RETURNING id
+  `) as unknown[];
+  if (rows.length) await sql`DELETE FROM sessions WHERE "userId" = ${userId}`;
 }
 
 export async function getUserByGoogleSub(sub: string): Promise<UserRow | undefined> {
@@ -661,6 +679,42 @@ export async function mergeBusinessSite(businessId: string, current: SiteData, p
   await patchBusinessSite(businessId, out as Partial<SiteData>);
 }
 
+// Removes the logo, the main photo (the next gallery photo takes its place)
+// or one gallery photo, in a single statement. Returns the page's photos after.
+export async function removeSitePhoto(businessId: string, kind: "logo" | "cover" | "gallery", url: string): Promise<{ logoUrl: string; coverUrl: string; gallery: string[] } | null> {
+  await ensureSchema();
+  const rows = (kind === "logo"
+    ? await sql`UPDATE businesses SET site = site || '{"logoUrl":""}'::jsonb WHERE id = ${businessId} RETURNING site`
+    : kind === "cover"
+      ? await sql`
+          UPDATE businesses SET site = site || jsonb_build_object(
+            'coverUrl', COALESCE(site->'gallery'->>0, ''),
+            'gallery', COALESCE((site->'gallery') - 0, '[]'::jsonb))
+          WHERE id = ${businessId} RETURNING site`
+      : await sql`
+          UPDATE businesses SET site = site || jsonb_build_object('gallery', COALESCE(
+            (SELECT jsonb_agg(e) FROM jsonb_array_elements(site->'gallery') e WHERE e <> to_jsonb(${url}::text)), '[]'::jsonb))
+          WHERE id = ${businessId} AND site->'gallery' @> jsonb_build_array(${url}::text) RETURNING site`) as { site: unknown }[];
+  if (!rows[0]) return null;
+  const s = parseSite(rows[0].site);
+  return { logoUrl: s.logoUrl, coverUrl: s.coverUrl, gallery: s.gallery };
+}
+
+// A gallery photo becomes the main one (the old main photo moves to the
+// front of the gallery), in a single statement.
+export async function promoteSiteCover(businessId: string, url: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE businesses SET site = site || jsonb_build_object(
+      'coverUrl', ${url}::text,
+      'gallery', (CASE WHEN COALESCE(site->>'coverUrl', '') <> '' THEN jsonb_build_array(site->'coverUrl') ELSE '[]'::jsonb END)
+        || COALESCE((SELECT jsonb_agg(e) FROM jsonb_array_elements(site->'gallery') e WHERE e <> to_jsonb(${url}::text)), '[]'::jsonb))
+    WHERE id = ${businessId} AND site->'gallery' @> jsonb_build_array(${url}::text)
+    RETURNING id
+  `) as unknown[];
+  return rows.length > 0;
+}
+
 // Adds one photo to the end of the gallery in a single statement.
 export async function appendGalleryPhoto(businessId: string, url: string, max: number): Promise<boolean> {
   await ensureSchema();
@@ -706,6 +760,8 @@ export type MarketplaceRow = {
   email: string;
   plan: string | null;
   planStatus: string | null;
+  googleSub: string | null;
+  emailVerifiedAt: string | null;
   serviceName: string | null;
   servicePrice: string | null;
   category: string;
@@ -716,7 +772,7 @@ export type MarketplaceRow = {
 export async function listMarketplaceRows(limit = 300): Promise<MarketplaceRow[]> {
   await ensureSchema();
   const rows = (await sql`
-    SELECT b.id, b.slug, b.name, b.city, b.site, b.plan AS "businessPlan", b."marketCategory", b.category, u.email, u.plan, u."planStatus",
+    SELECT b.id, b.slug, b.name, b.city, b.site, b.plan AS "businessPlan", b."marketCategory", b.category, u.email, u.plan, u."planStatus", u."googleSub", u."emailVerifiedAt",
            s.name AS "serviceName", s.price AS "servicePrice"
     FROM businesses b
     JOIN users u ON u.id = b."userId"
@@ -1246,7 +1302,8 @@ export async function consumePasswordReset(tokenHash: string): Promise<string | 
 
 export async function setUserPassword(userId: string, passwordHash: string, salt: string): Promise<void> {
   await ensureSchema();
-  await sql`UPDATE users SET "passwordHash" = ${passwordHash}, salt = ${salt} WHERE id = ${userId}`;
+  // Only reachable through a link sent to the account's email: it's theirs.
+  await sql`UPDATE users SET "passwordHash" = ${passwordHash}, salt = ${salt}, "emailVerifiedAt" = COALESCE("emailVerifiedAt", now()) WHERE id = ${userId}`;
 }
 
 // ---------- Account deletion ----------
@@ -1302,7 +1359,7 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
   await sql`DELETE FROM sessions WHERE "userId" = ${userId}`;
   await sql`DELETE FROM password_resets WHERE "userId" = ${userId}`;
   await sql`DELETE FROM plan_waitlist WHERE "userId" = ${userId}`;
-  await sql`DELETE FROM ai_usage WHERE "userId" = ${userId}`;
+  await sql`DELETE FROM ai_usage WHERE "userId" = ${userId} OR "userId" = ${`visitors:${userId}`}`;
   await sql`DELETE FROM push_subs WHERE "userId" = ${userId}`;
   await sql`DELETE FROM users WHERE id = ${userId}`;
   return photos.filter(Boolean);
@@ -1433,6 +1490,44 @@ export async function addConvMessage(conversationId: string, role: "visitor" | "
   }
   const r = rows[0];
   return { seq: Number(r.seq), role: r.role, content: r.content, createdAt: new Date(r.createdAt).toISOString() };
+}
+
+// Reserves one AI reply for this conversation, atomically (two tabs sending at
+// once can't both slip past the cap).
+export async function claimAiReply(conversationId: string, max: number): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE conversations SET "aiReplies" = "aiReplies" + 1
+    WHERE id = ${conversationId} AND "aiEnabled" AND "aiReplies" < ${max}
+    RETURNING id
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+// Saves the assistant's answer only if the owner hasn't taken the chat over
+// while it was being written (AI turned off, or an owner message after the
+// visitor's). Returns null when it was dropped.
+export async function addAiMessageIfStillAi(conversationId: string, content: string, visitorSeq: number): Promise<ConvMessageRow | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO conv_messages ("conversationId", role, content)
+    SELECT ${conversationId}, 'ai', ${content}
+    WHERE EXISTS (SELECT 1 FROM conversations WHERE id = ${conversationId} AND "aiEnabled")
+      AND NOT EXISTS (SELECT 1 FROM conv_messages WHERE "conversationId" = ${conversationId} AND role = 'owner' AND seq > ${visitorSeq})
+    RETURNING seq, role, content, "createdAt"
+  `) as { seq: string | number; role: ConvMessageRow["role"]; content: string; createdAt: string }[];
+  const r = rows[0];
+  if (!r) return null;
+  await sql`UPDATE conversations SET "lastMessage" = ${content.slice(0, 140)}, "lastMessageAt" = now() WHERE id = ${conversationId}`;
+  return { seq: Number(r.seq), role: r.role, content: r.content, createdAt: new Date(r.createdAt).toISOString() };
+}
+
+// Flags a chat as waiting for the owner. True only the first time (so the
+// owner gets one "wants to book" alert, not one per message).
+export async function setHandoffOnce(conversationId: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`UPDATE conversations SET handoff = true WHERE id = ${conversationId} AND NOT handoff RETURNING id`) as unknown[];
+  return rows.length > 0;
 }
 
 export async function listConvMessages(conversationId: string, afterSeq = 0, limit = 80): Promise<ConvMessageRow[]> {

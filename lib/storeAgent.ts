@@ -9,7 +9,6 @@ import {
   mergeBusinessSite,
   updateBusinessAccent,
   updateBusinessDetails,
-  updateBusinessSite,
   updateBusinessWhatsapp,
   updateService,
   type BusinessRow,
@@ -307,9 +306,11 @@ export async function runStoreChatTurn(opts: {
   // still see them when the owner asks about them a message later.
   const BLOB = /https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[^\s"')]+/gi;
   const recent = [opts.message, ...opts.history.filter((h) => h.role === "user").map((h) => h.content).reverse()]
-    .flatMap((t) => t.match(BLOB) ?? []);
+    .flatMap((t) => t.match(BLOB) ?? [])
+    // Only photos go to the model as images (a video link would make it fail).
+    .filter((u) => !/\/video-|\.(mp4|mov|m4v|webm|qt)(\?|$)/i.test(u));
   const photos = [...new Set(recent)].slice(0, 2);
-  const justUploaded = (opts.message.match(BLOB) ?? []).length > 0;
+  const justUploaded = (opts.message.match(BLOB) ?? []).some((u) => photos[0] === u);
   const system = `${SYSTEM}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}. Page text goes in the page's language (page.lang) unless the owner asks otherwise.`;
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),

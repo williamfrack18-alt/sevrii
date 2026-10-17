@@ -119,7 +119,15 @@ export async function notifyPaymentReceived(business: BusinessRow, sessionId: st
 }
 
 // Visitor text can't carry clickable links into an email sent from Sevrii.
-function defang(s: string): string {
+// Owner text sent to a customer: links only to Sevrii pages (pay links, the
+// owner's page) survive; anything else becomes [link].
+function keepSevriiLinks(s: string): string {
+  const keep: string[] = [];
+  const marked = s.replace(/\bhttps:\/\/(?:www\.)?sevrii\.com\/[^\s<>"']*/gi, (m) => `\u0000${keep.push(m) - 1}\u0000`);
+  return defang(marked).replace(/\u0000(\d+)\u0000/g, (_, i) => keep[Number(i)] ?? "");
+}
+
+export function defang(s: string): string {
   return s
     .replace(/\b(?:https?:\/\/|www\.)\S+/gi, "[link]")
     .replace(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|xyz|info|biz|app|link|site|top|ru|cn)\b\S*/gi, "[link]");
@@ -170,15 +178,20 @@ export async function emailVisitorReply(business: BusinessRow, conv: Conversatio
     const owner = await getUserById(business.userId);
     const es = business.site.lang !== "en";
     const who = business.site.ownerName ? (es ? `${business.site.ownerName}, de ${business.name},` : `${business.site.ownerName} from ${business.name}`) : business.name;
+    // The address was typed by the visitor (not verified): no links in the
+    // owner's text, and the email says plainly who wrote it and that Sevrii
+    // never asks for passwords or card numbers.
     const { html, text } = simpleEmail({
       title: es ? `${who} te respondió` : `${who} replied`,
-      intro: message.slice(0, 2000),
+      intro: keepSevriiLinks(message).slice(0, 2000),
       button: es ? "Seguir la conversación" : "Continue the conversation",
       url: `${siteUrl()}/site/${business.slug}?chat=1`,
-      outro: es ? "También puedes responder este correo." : "You can also reply to this email.",
+      outro: es
+        ? `Recibes esto porque dejaste este correo en el chat de ${business.name} en Sevrii. También puedes responder este correo. Sevrii nunca te pedirá contraseñas ni datos de tarjeta por correo.`
+        : `You're getting this because you left this email in the ${business.name} chat on Sevrii. You can also reply to this email. Sevrii will never ask for passwords or card details by email.`,
     });
     const from = business.site.ownerName ? `${business.site.ownerName} (${business.name})` : business.name;
-    await sendEmail(conv.email, es ? `Respuesta de ${from}` : `Reply from ${from}`, html, text, owner?.email || undefined);
+    await sendEmail(conv.email, es ? `Respuesta de ${from} · vía Sevrii` : `Reply from ${from} · via Sevrii`, html, text, owner?.email || undefined);
   } catch (err) {
     console.error("[notify] visitor reply failed", (err as Error)?.message);
   }

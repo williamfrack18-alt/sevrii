@@ -190,6 +190,7 @@ type Session = {
   created: number;
   amount_total: number | null;
   payment_status: string;
+  status?: string;
   metadata?: Record<string, string>;
   customer_details?: { email?: string | null; name?: string | null } | null;
 };
@@ -232,6 +233,21 @@ export async function getPaidSession(business: BusinessRow, sessionId: string): 
       name: s.customer_details?.name ?? null,
       createdAt: new Date(s.created * 1000).toISOString(),
     };
+  } catch {
+    return null;
+  }
+}
+
+// What the "back from Stripe" page may say: only what Stripe itself confirms
+// for this exact link (a "?paid=1" typed into the address bar proves nothing).
+export async function paySessionState(business: BusinessRow, sessionId: string, linkId: string): Promise<"paid" | "processing" | null> {
+  if (!business.stripeAccountId || !/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) return null;
+  try {
+    const s = await stripe<Session>("GET", `checkout/sessions/${encodeURIComponent(sessionId)}`, {}, { account: business.stripeAccountId });
+    if (s.metadata?.sevriiBusinessId !== business.id || s.metadata?.sevriiLinkId !== linkId) return null;
+    if (s.payment_status === "paid" || s.payment_status === "no_payment_required") return "paid";
+    if (s.status === "complete") return "processing"; // bank payments settle later
+    return null;
   } catch {
     return null;
   }

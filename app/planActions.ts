@@ -4,12 +4,13 @@ import { revalidatePath } from "next/cache";
 import { fillStoreFromPlan } from "@/lib/storeFill";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { chatGate, gateMessage, runForUser } from "@/lib/usage";
+import { chatGate, gateMessage, researchWouldStart, runForUser } from "@/lib/usage";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
+import type { Lang } from "@/lib/i18n";
 import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
-import { APPROVAL_BLOCKS, MAX_IDEA_ROUNDS, requestMoreIdeas, type ApprovalBlock } from "@/lib/plan";
+import { APPROVAL_BLOCKS, MAX_IDEA_ROUNDS, allApproved, requestMoreIdeas, type ApprovalBlock } from "@/lib/plan";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { applyApprovals, chooseIdea, planGreeting, runPlanChatTurn } from "@/lib/brain/interviewer";
 
@@ -116,21 +117,39 @@ export async function approveBlockAction(block: string, approved: boolean): Prom
   if (plan.stage !== "proposal") return respond(business);
   const { plan: next, refused } = applyApprovals(plan, [block as ApprovalBlock], lang);
   await updateBusinessPlan(business.id, next);
-  if (next.stage === "approved") {
-    const { filled } = await fillStoreFromPlan(business.id, lang, { onlyIfEmpty: true });
-    await addChatMessage(
-      business.id,
-      CHANNEL,
-      "ai",
-      filled
-        ? lang === "es"
-          ? "¡Tu expediente está aprobado! Ya armé tu página en Store con todo lo que aprobaste. Entra a Store para verla y completar lo que falta."
-          : "Your expediente is approved! I already built your page in Store with everything you approved. Open Store to see it and finish what's missing."
-        : lang === "es"
-          ? "¡Tu expediente está aprobado! En Store puedes actualizar tu página con todo lo que aprobaste. Si quieres cambiar algo después, escríbeme aquí."
-          : "Your expediente is approved! In Store you can update your page with everything you approved. If you want to change something later, write to me here."
-    );
-  }
+  if (next.stage === "approved") await afterApproved(business, lang);
+  revalidatePath("/dashboard");
+  return respond(business, refused.length ? { notice: refused.join(" ") } : {});
+}
+
+// The last approval (from any card, "no offer" or "finish"): build the page
+// and tell the owner, always the same way.
+async function afterApproved(business: BusinessRow, lang: Lang) {
+  const { filled } = await fillStoreFromPlan(business.id, lang, { onlyIfEmpty: true });
+  await addChatMessage(
+    business.id,
+    CHANNEL,
+    "ai",
+    filled
+      ? lang === "es"
+        ? "¡Tu expediente está aprobado! Ya armé tu página en Store con todo lo que aprobaste. Entra a Store para verla y completar lo que falta."
+        : "Your plan is approved! I already built your page in Store with everything you approved. Open Store to see it and finish what's missing."
+      : lang === "es"
+        ? "¡Tu expediente está aprobado! En Store puedes actualizar tu página con todo lo que aprobaste. Si quieres cambiar algo después, escríbeme aquí."
+        : "Your plan is approved! In Store you can update your page with everything you approved. If you want to change something later, write to me here."
+  );
+}
+
+// Every block is approved but the plan is still open (a final check stopped
+// it, or an edit reopened it): try to finish it again.
+export async function finishPlanAction(): Promise<PlanChatResponse> {
+  const business = await requireBusiness();
+  const lang = await getLang();
+  const plan = business.plan;
+  if (plan.stage !== "proposal" || !allApproved(plan)) return respond(business);
+  const { plan: next, refused } = applyApprovals(plan, [], lang);
+  await updateBusinessPlan(business.id, next);
+  if (next.stage === "approved") await afterApproved(business, lang);
   revalidatePath("/dashboard");
   return respond(business, refused.length ? { notice: refused.join(" ") } : {});
 }
@@ -143,6 +162,7 @@ export async function noOfferAction(): Promise<PlanChatResponse> {
   if (plan.stage !== "proposal") return respond(business);
   const { plan: next, refused } = applyApprovals({ ...plan, offer: null, noOffer: true }, ["offer"], lang);
   await updateBusinessPlan(business.id, next);
+  if (next.stage === "approved") await afterApproved(business, lang);
   revalidatePath("/dashboard");
   return respond(business, refused.length ? { notice: refused.join(" ") } : {});
 }
@@ -156,6 +176,8 @@ export async function moreIdeasAction(feedback: string): Promise<PlanChatRespons
   if (plan.stage !== "choose") return respond(business);
   if (plan.ideaRounds >= MAX_IDEA_ROUNDS) return respond(business, { notice: t.moreNoLeft });
   if (!(await allow(`brain:more:${business.id}`, 6, 60 * 60))) return respond(business, { notice: getDict(lang).auth.errTooMany });
+  // Checked before anything changes: over the budget, the 3 ideas stay.
+  if (!(await researchWouldStart(business.userId, { budgetOnly: true }))) return respond(business, { notice: getDict(lang).dashboard.aiMonthlyLimit });
   const note = String(feedback || "").trim().replace(/\s+/g, " ").slice(0, 300);
   await updateBusinessPlan(business.id, requestMoreIdeas(plan, note));
   await addChatMessage(business.id, CHANNEL, "user", t.moreUser(note));

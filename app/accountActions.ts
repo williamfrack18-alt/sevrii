@@ -20,7 +20,7 @@ import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { ACCOUNT_TEXT } from "@/lib/accountI18n";
 import { emailReady, sendEmail, simpleEmail } from "@/lib/email";
-import { siteUrl, cancelSubscriptionNow } from "@/lib/billing";
+import { siteUrl, cancelSubscriptionNow, listLiveSubscriptions } from "@/lib/billing";
 import { getCurrentUser, PROJECT_COOKIE } from "@/lib/session";
 
 const RESET_MINUTES = 60;
@@ -108,10 +108,19 @@ export async function deleteAccountAction(_prev: DeleteState, formData: FormData
     if (!verifyPassword(password, user.passwordHash, user.salt)) return { error: a.errPassword };
   }
 
-  // Stop billing first; if that fails, keep the account so we never charge a deleted user.
-  if (user.stripeSubscriptionId) {
+  // Stop billing first (every running subscription of this customer, not only
+  // the one on file); if that fails, keep the account so we never charge a deleted user.
+  if (user.stripeSubscriptionId || user.stripeCustomerId) {
     try {
-      await cancelSubscriptionNow(user.stripeSubscriptionId);
+      const ids = new Set<string>(user.stripeSubscriptionId ? [user.stripeSubscriptionId] : []);
+      if (user.stripeCustomerId && process.env.STRIPE_SECRET_KEY) {
+        const live = await listLiveSubscriptions(user.stripeCustomerId).catch((err: Error) => {
+          if (/No such customer/i.test(err?.message || "")) return []; // a customer from other keys
+          throw err;
+        });
+        for (const s of live) ids.add(s.id);
+      }
+      for (const id of ids) await cancelSubscriptionNow(id);
     } catch (err) {
       console.error("[account] cancel failed", (err as Error)?.message);
       return { error: a.errBilling };

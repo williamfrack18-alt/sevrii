@@ -20,6 +20,7 @@ import {
 import { codeGuard } from "./guard";
 import { fillStoreFromPlan } from "../storeFill";
 import { textOf, today } from "./common";
+import { researchWouldStart } from "../usage";
 
 // The Brain's chat. The code decides the stage; in each stage the model only
 // talks and saves through the tools that stage allows.
@@ -276,6 +277,10 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         return { out: `saved. still missing: ${left.join(", ")}` };
       }
       const stage: PlanStage = plan.stage === "interview" && plan.mode === "new" ? "ideas_research" : "research";
+      if (!(await researchWouldStart(b.userId))) {
+        await updateBusinessPlan(b.id, parsePlan(next));
+        return { out: "saved. profile complete, BUT the research can't start: the owner reached this month's research limit (or AI budget) of their plan. Tell them kindly: everything is saved; they can upgrade in Plans to continue now, or continue next month right where they left off." };
+      }
       next = { ...next, stage, runId: "" };
       await updateBusinessPlan(b.id, parsePlan(next));
       return { out: `saved. profile complete: stage moved to ${stage}. Tell the owner you will now research their area (1-2 minutes) and they will see the progress below.`, startPipeline: true };
@@ -291,6 +296,8 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     case "more_ideas": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
       if (plan.ideaRounds >= MAX_IDEA_ROUNDS) return { out: "error: no more idea rounds; help them pick or describe a service they want" };
+      if (!(await researchWouldStart(b.userId, { budgetOnly: true })))
+        return { out: "error: the plan's AI budget for this month is used up, so no new search now. Their 3 ideas are still here: help them pick one, or they can upgrade in Plans." };
       await updateBusinessPlan(b.id, requestMoreIdeas(plan, str(input.feedback, 300)));
       return { out: "searching new ideas. Tell them in one line you're looking for different options with what they said (1-2 minutes) and they'll see them below.", startPipeline: true };
     }
@@ -303,9 +310,14 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       const patch: Record<string, unknown> = { ...input };
       if (input.offer) patch.noOffer = false;
       if (input.noOffer === true) patch.offer = null;
-      let next = parsePlan({ ...plan, ...patch, approvals, stage: "proposal", ready: false });
+      // Only an edit to an approval block reopens the proposal; anything else
+      // (video script, photo ideas…) keeps the stage as it was.
+      const reopen = touched.size > 0;
+      let next = parsePlan({ ...plan, ...patch, approvals, ...(reopen ? { stage: "proposal", ready: false } : {}) });
       const g = codeGuard(next, lang, false);
       next = { ...next, guard: { block: g.block, warn: plan.guard.warn } };
+      // Everything still approved (nothing to re-approve): finish it again.
+      if (next.stage === "proposal" && allApproved(next)) next = applyApprovals(next, [], lang).plan;
       await updateBusinessPlan(b.id, next);
       return { out: `saved. blocks that need approval again: ${[...touched].join(", ") || "none"}${g.block.length ? `; problems: ${g.block.join(" ")}` : ""}` };
     }

@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { addAiUsage, getAiSpendMicros } from "./db";
+import { addAiUsage, getAiSpendMicros, peekRateCounter } from "./db";
 import { allow } from "./guard";
 import { limitsForUserId } from "./billing";
 import type { PlanLimits } from "./plans";
@@ -89,6 +89,32 @@ export async function researchGate(userId: string, limits?: PlanLimits, opts: { 
   if (opts.budgetOnly) return null;
   if (!(await allow(`brain:run:u:${userId}:${month()}`, l.researchPerMonth, 32 * 24 * 60 * 60))) return "month";
   return null;
+}
+
+// Customers chatting on an owner's page spend their own pot, not the owner's:
+// a stranger (or a script) can never use up the owner's AI for Plan/Store/Brain.
+// The pot is a share of the plan's budget, tracked under its own key.
+export const VISITOR_AI_SHARE = 0.4;
+export function visitorAiAccount(ownerId: string): string {
+  return `visitors:${ownerId}`;
+}
+export async function visitorAiGate(ownerId: string): Promise<boolean> {
+  const l = await limitsForUserId(ownerId);
+  return (await monthSpendUsd(visitorAiAccount(ownerId))) < Math.max(1, l.aiBudgetUsd * VISITOR_AI_SHARE);
+}
+
+// Would a research run start right now? Same rules as researchGate, but it
+// uses nothing up: checked BEFORE moving the plan to a research stage, so an
+// owner over the limit is told so instead of getting stuck "researching".
+export async function researchWouldStart(userId: string, opts: { budgetOnly?: boolean } = {}): Promise<boolean> {
+  const l = await limitsForUserId(userId);
+  if ((await monthSpendUsd(userId)) >= l.aiBudgetUsd) return false;
+  if (opts.budgetOnly) return true;
+  try {
+    return (await peekRateCounter(`brain:run:u:${userId}:${month()}`)) < l.researchPerMonth;
+  } catch {
+    return true;
+  }
 }
 
 export function gateMessage(reason: GateReason, t: { aiSlowDown: string; aiDailyLimit: string; aiMonthlyLimit: string }): string {

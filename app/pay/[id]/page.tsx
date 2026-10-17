@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { allow, clientIp } from "@/lib/guard";
 import { notifyPaymentReceived } from "@/lib/notify";
 import { getBusinessById, getPaymentLink } from "@/lib/db";
+import { paySessionState } from "@/lib/payments";
 import { payAction } from "./actions";
 import "./pay.css";
 
@@ -14,6 +15,8 @@ const TEXT = {
     paidTitle: "¡Pago recibido!",
     paidText: (biz: string) => `Gracias. ${biz} ya recibió tu pago. Stripe te envió el recibo a tu correo.`,
     payAgain: "Volver",
+    processingTitle: "Tu pago se está procesando",
+    processingText: (biz: string) => `Stripe está confirmando tu pago. Te llegará el recibo a tu correo cuando se complete, y ${biz} recibirá el aviso.`,
     offTitle: "Este link de pago no está disponible",
     offText: "Puede que el negocio lo haya desactivado. Escríbele directamente para pagar.",
     error: "No pudimos abrir el pago. Inténtalo de nuevo en un momento.",
@@ -27,6 +30,8 @@ const TEXT = {
     paidTitle: "Payment received!",
     paidText: (biz: string) => `Thank you. ${biz} has received your payment. Stripe emailed you the receipt.`,
     payAgain: "Back",
+    processingTitle: "Your payment is processing",
+    processingText: (biz: string) => `Stripe is confirming your payment. You'll get the receipt by email once it's done, and ${biz} will be notified.`,
     offTitle: "This payment link isn't available",
     offText: "The business may have turned it off. Contact them directly to pay.",
     error: "We couldn't open the payment. Please try again in a moment.",
@@ -77,12 +82,17 @@ export default async function PayPage({
   const accent = accentOf(business?.accentColor || "");
   const logo = business?.site.logoUrl || "";
 
-  // Back from Stripe after paying: email the owner (once per payment).
+  // Back from Stripe: "received" only when Stripe confirms this payment for
+  // this link. Then email the owner (once per payment).
   const sessionId = String(sp.s || "");
-  if (sp.paid === "1" && business && /^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) {
+  let state: "paid" | "processing" | null = null;
+  if (sp.paid === "1" && business && link && /^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) {
     if (await allow(`paynotice:ip:${await clientIp()}`, 30, 60 * 60)) {
-      const biz = business;
-      after(() => notifyPaymentReceived(biz, sessionId));
+      state = await paySessionState(business, sessionId, link.id);
+      if (state === "paid") {
+        const biz = business;
+        after(() => notifyPaymentReceived(biz, sessionId));
+      }
     }
   }
 
@@ -101,11 +111,11 @@ export default async function PayPage({
           </div>
         )}
 
-        {sp.paid === "1" && link && business ? (
+        {state && link && business ? (
           <div className="pay-done">
-            <div className="pay-check">✓</div>
-            <h1>{t.paidTitle}</h1>
-            <p>{t.paidText(business.name)}</p>
+            {state === "paid" && <div className="pay-check">✓</div>}
+            <h1>{state === "paid" ? t.paidTitle : t.processingTitle}</h1>
+            <p>{state === "paid" ? t.paidText(business.name) : t.processingText(business.name)}</p>
             <div className="pay-amount small">
               {link.title} · {money(link.amountCents)}
             </div>

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
-import { approveBlockAction, chooseIdeaAction, moreIdeasAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
+import { approveBlockAction, chooseIdeaAction, finishPlanAction, moreIdeasAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
 import { MAX_IDEA_ROUNDS } from "@/lib/plan";
 import ChatPanel, { type Msg } from "./ChatPanel";
 import { toClientBusiness, type ClientBusiness, type ClientService, type DashboardView } from "./types";
@@ -287,6 +287,17 @@ export default function PlanView({
                 <ApprovalMeter plan={plan} />
               </div>
               {plan.guard.block.length > 0 && <Notes title={t.guardBlock} items={plan.guard.block} color={RED} />}
+              {plan.stage === "proposal" && APPROVAL_BLOCKS.every((x) => plan.approvals[x]) && (
+                <div className="rounded-2xl p-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
+                  <div>
+                    <div className="text-[15px] font-semibold text-white">{t.finishTitle}</div>
+                    <p className="text-[13px] text-[#8e8e8e] mt-0.5 max-w-[560px]">{t.finishSub}</p>
+                  </div>
+                  <button type="button" disabled={busy} onClick={() => act(() => finishPlanAction())} className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
+                    {t.finishButton}
+                  </button>
+                </div>
+              )}
               {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

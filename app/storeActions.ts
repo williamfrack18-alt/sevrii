@@ -11,16 +11,17 @@ import {
   listServices,
   updateBusinessAccent,
   updateBusinessDetails,
-  updateBusinessSite,
   updateBusinessWhatsapp,
   appendGalleryPhoto,
   patchBusinessSite,
   mergeBusinessSite,
+  removeSitePhoto,
+  promoteSiteCover,
   updateService,
   type BusinessRow,
   type ServiceRow,
 } from "@/lib/db";
-import { isOurBlob, ownsBlob, LIMITS, normalizePhone, parseSite, publishGaps, type PublishGap, type SiteData } from "@/lib/site";
+import { isOurBlob, ownsBlob, LIMITS, normalizePhone, publishGaps, type PublishGap, type SiteData } from "@/lib/site";
 import { allow, LIMITS as RATE } from "@/lib/guard";
 import { addChatMessage, listChatMessages } from "@/lib/db";
 import { runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
@@ -89,8 +90,9 @@ export async function saveStoreAction(input: StoreFormInput): Promise<StoreSaveR
   const wa = waRaw ? normalizePhone(waRaw) : "";
   if (waRaw && !wa) return { ok: false, error: "whatsapp" };
 
-  const site: SiteData = parseSite({
-    ...business.site,
+  // Only the fields this form edits are written, so photos or a video that
+  // finished uploading meanwhile are never erased by this save.
+  const formPatch: Partial<SiteData> = {
     headline: input.headline,
     phone: phone || "",
     textEnabled: input.textEnabled,
@@ -106,7 +108,7 @@ export async function saveStoreAction(input: StoreFormInput): Promise<StoreSaveR
     highlights: input.highlights,
     faq: input.faq,
     lang: input.lang,
-  });
+  } as unknown as Partial<SiteData>;
 
   await updateBusinessDetails(business.id, {
     name,
@@ -116,7 +118,7 @@ export async function saveStoreAction(input: StoreFormInput): Promise<StoreSaveR
   });
   await updateBusinessWhatsapp(business.id, wa || "");
   if (/^#[0-9a-fA-F]{6}$/.test(input.accentColor)) await updateBusinessAccent(business.id, input.accentColor);
-  await updateBusinessSite(business.id, site);
+  await mergeBusinessSite(business.id, business.site, formPatch);
 
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
@@ -223,17 +225,14 @@ export async function uploadStoreImageAction(formData: FormData): Promise<Upload
 
 export async function removeStoreImageAction(kind: "logo" | "cover" | "gallery", url?: string): Promise<BusinessRow> {
   const business = await requireBusiness();
-  const site = { ...business.site };
-  if (kind === "gallery" && (!url || !site.gallery.includes(url))) return business;
-  if (kind === "logo") site.logoUrl = "";
-  else if (kind === "cover") {
-    // The next photo becomes the main one, so the page never loses its photo.
-    site.coverUrl = site.gallery[0] || "";
-    site.gallery = site.gallery.slice(1);
-  } else site.gallery = site.gallery.filter((g) => g !== url);
-  await patchBusinessSite(business.id, { logoUrl: site.logoUrl, coverUrl: site.coverUrl, gallery: site.gallery });
-  const gone = kind === "logo" ? business.site.logoUrl : kind === "cover" ? business.site.coverUrl : url || "";
-  if (gone && ![site.logoUrl, site.coverUrl, ...site.gallery].includes(gone)) await dropBlob(gone, business.id);
+  if (kind === "gallery" && !url) return business;
+  // One statement each (on the page as it is now, not as it was when this
+  // started), so an upload finishing at the same moment is never lost.
+  const before = business.site;
+  const after = await removeSitePhoto(business.id, kind, url || "");
+  if (!after) return business;
+  const gone = kind === "logo" ? before.logoUrl : kind === "cover" ? before.coverUrl : url || "";
+  if (gone && ![after.logoUrl, after.coverUrl, ...after.gallery].includes(gone)) await dropBlob(gone, business.id);
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return fresh;
@@ -242,13 +241,8 @@ export async function removeStoreImageAction(kind: "logo" | "cover" | "gallery",
 // Makes one of the gallery photos the main (first) photo of the page.
 export async function setStoreCoverAction(url: string): Promise<BusinessRow> {
   const business = await requireBusiness();
-  const site = { ...business.site };
-  if (site.coverUrl === url) return business;
-  if (!site.gallery.includes(url)) return business;
-  site.gallery = site.gallery.filter((g) => g !== url);
-  if (site.coverUrl) site.gallery = [site.coverUrl, ...site.gallery];
-  site.coverUrl = url;
-  await patchBusinessSite(business.id, { coverUrl: site.coverUrl, gallery: site.gallery });
+  if (!url || business.site.coverUrl === url) return business;
+  if (!(await promoteSiteCover(business.id, url))) return business;
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return fresh;

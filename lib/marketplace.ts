@@ -134,7 +134,7 @@ export async function marketplaceListings(visitor: Visitor | null = null, lang: 
   const out: MarketListing[] = [];
   for (const r of rows) {
     // Only owners whose plan still includes publishing (cancelled plans drop out).
-    if (!PLANS[effectivePlan({ email: r.email, plan: r.plan ?? undefined, planStatus: r.planStatus ?? undefined })].limits.canPublish) continue;
+    if (!PLANS[effectivePlan({ email: r.email, plan: r.plan ?? undefined, planStatus: r.planStatus ?? undefined, googleSub: r.googleSub, emailVerifiedAt: r.emailVerifiedAt })].limits.canPublish) continue;
     let category = r.marketCategory;
     if (!isMarketCategory(category)) {
       // Pages published before the marketplace existed: place them once by keywords.
