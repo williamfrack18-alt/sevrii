@@ -85,9 +85,22 @@ export default function ChatPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill?.key]);
 
+  // Always open on the latest message (instantly the first time, so a long
+  // history isn't left showing its oldest part), then follow new ones.
+  const firstScroll = useRef(true);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    if (!el) return;
+    const first = firstScroll.current;
+    firstScroll.current = false;
+    const go = () => el.scrollTo({ top: el.scrollHeight, behavior: first ? "auto" : "smooth" });
+    const raf = requestAnimationFrame(go);
+    // Fonts and cards below can still shift the layout right after opening.
+    const late = first ? setTimeout(() => el.scrollTo({ top: el.scrollHeight }), 400) : undefined;
+    return () => {
+      cancelAnimationFrame(raf);
+      if (late) clearTimeout(late);
+    };
   }, [messages, pending]);
 
   // Grow the composer with the text.

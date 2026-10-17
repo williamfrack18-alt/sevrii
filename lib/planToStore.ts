@@ -129,7 +129,7 @@ export function storeFromPlan(plan: BusinessPlan, lang: Lang): StoreDraft {
       faq: plan.faq.slice(0, LIMITS.faq).map((f) => ({ q: cut(f.q, LIMITS.faqQ), a: cut(f.a, LIMITS.faqA) })).filter((f) => f.q && f.a),
       offer,
       ctaTitle: cut(es ? `¿Necesitas ${service.charAt(0).toLowerCase()}${service.slice(1)}?` : `Need ${service.charAt(0).toLowerCase()}${service.slice(1)}?`, LIMITS.ctaTitle),
-      ctaText: es ? "Escríbenos o llámanos para agendar." : "Message or call us to book.",
+      ctaText: es ? "Escríbenos aquí para agendar." : "Message us here to book.",
       lang: pageLang,
     },
     services: plan.packages

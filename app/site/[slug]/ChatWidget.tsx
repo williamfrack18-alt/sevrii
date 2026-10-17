@@ -168,8 +168,10 @@ export default function ChatWidget({
   }, [token, poll]);
 
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [msgs, sending]);
+    // After the new bubbles are laid out, show the newest one.
+    const raf = requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }));
+    return () => cancelAnimationFrame(raf);
+  }, [msgs, sending, waiting]);
 
   async function send() {
     const text = draft.trim();
