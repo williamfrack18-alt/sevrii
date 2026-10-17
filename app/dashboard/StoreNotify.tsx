@@ -8,6 +8,7 @@ import {
   savePushSubAction,
   setNotifyEmailAction,
   testPushAction,
+  testPushDetailedAction,
   type NotifySettings,
 } from "@/app/chatActions";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
@@ -102,6 +103,7 @@ export default function StoreNotify() {
   const [push, setPush] = useState<PushState>("loading");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  const [results, setResults] = useState<{ label: string; host: string; ok: boolean; status: number }[]>([]);
 
   useEffect(() => {
     const settings = getNotifySettingsAction().catch(() => null);
@@ -184,8 +186,9 @@ export default function StoreNotify() {
   async function test() {
     setBusy(true);
     try {
-      const n = await testPushAction();
-      setNote(n > 0 ? t.testSent : t.testNone);
+      const r = await testPushDetailedAction();
+      setResults(r);
+      setNote(r.some((x) => x.ok) ? t.testSent : t.testNone);
     } finally {
       setBusy(false);
     }
@@ -240,6 +243,16 @@ export default function StoreNotify() {
             )}
           </div>
           {note && <p className="text-[12.5px]" style={{ color: ACCENT }}>{note}</p>}
+          {results.length > 0 && (
+            <ul className="text-[12px] text-[#a1a1a1] flex flex-col gap-0.5">
+              {results.map((r, i) => (
+                <li key={i}>
+                  {(r.label || r.host || "?") + " · "}
+                  {r.ok ? (lang === "es" ? "enviada" : "sent") : `${lang === "es" ? "falló" : "failed"} (${r.status || "?"})`}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Email */}

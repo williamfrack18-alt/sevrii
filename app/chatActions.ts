@@ -32,7 +32,7 @@ import { runForUser, visitorAiAccount, visitorAiGate } from "@/lib/usage";
 import { normalizePhone } from "@/lib/site";
 import { runVisitorAi } from "@/lib/visitorChat";
 import { defang, emailVisitorReply, notifyChatOwner } from "@/lib/notify";
-import { pushPublicKey, pushToUser } from "@/lib/push";
+import { pushPublicKey, pushToUser, pushToUserDetailed, type PushResult } from "@/lib/push";
 
 const MAX_CHARS = 600;
 const MAX_AI_REPLIES_PER_CONV = 30;
@@ -369,11 +369,16 @@ export async function deletePushSubAction(endpoint: string): Promise<boolean> {
 }
 
 export async function testPushAction(): Promise<number> {
+  return (await testPushDetailedAction()).filter((r) => r.ok).length;
+}
+
+// The test, with what happened on each device (shown under the button).
+export async function testPushDetailedAction(): Promise<PushResult[]> {
   const user = await getCurrentUser();
-  if (!user?.business) return 0;
-  if (!(await allow(`pushtest:${user.id}`, 6, 10 * 60))) return 0;
+  if (!user?.business) return [];
+  if (!(await allow(`pushtest:${user.id}`, 6, 10 * 60))) return [];
   const es = user.business.site.lang !== "en";
-  return pushToUser(user.id, {
+  return pushToUserDetailed(user.id, {
     title: es ? "✅ Notificaciones activadas" : "✅ Notifications are on",
     body: es ? `Así te avisaremos cuando alguien escriba en ${user.business.name}.` : `This is how we'll tell you when someone writes to ${user.business.name}.`,
     url: "/dashboard?view=chats",
