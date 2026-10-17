@@ -42,6 +42,9 @@ export default function StoreChat({
         thinking: t.thinking,
         attach: t.attach,
         failed: t.saveFailed,
+        uploadingPhoto: t.photos.uploading,
+        uploadingVideo: t.video.uploading,
+        uploadFailed: t.photos.failed,
       }}
       onSend={async (text) => {
         const res = await sendStoreChatAction(text);
@@ -52,35 +55,40 @@ export default function StoreChat({
         );
         return res.messages;
       }}
-      onUpload={async (picked) => {
+      onUpload={async (picked, onProgress) => {
         // A video goes straight to storage (it can be big), then onto the page.
         if (picked.type.startsWith("video/") || /\.(mov|mp4|webm)$/i.test(picked.name)) {
-          if (picked.size > 200 * 1024 * 1024) return { error: lang === "es" ? "El video pesa más de 200 MB. Grábalo más corto." : "The video is over 200 MB. Record a shorter one." };
+          if (picked.size > 200 * 1024 * 1024) return { error: t.video.tooBig };
           try {
             const ext = /\.mov$/i.test(picked.name) || picked.type === "video/quicktime" ? "mov" : picked.type === "video/webm" ? "webm" : "mp4";
             const blob = await upload(`stores/${business.id}/video-${Date.now()}.${ext}`, picked, {
               access: "public",
               handleUploadUrl: "/api/upload",
               multipart: picked.size > 30 * 1024 * 1024,
+              onUploadProgress: ({ percentage }) => onProgress(percentage),
             });
             const res = await setStoreVideoAction(blob.url);
             if (!res.ok) throw new Error("save");
             onBusiness(toClientBusiness(res.business));
             return { send: `🎥 ${blob.url}` };
           } catch {
-            return { error: lang === "es" ? "No se pudo subir el video. Inténtalo de nuevo." : "The video couldn't be uploaded. Try again." };
+            return { error: t.video.failed };
           }
         }
-        const file = await prepareImage(picked);
-        if (file.size > 4 * 1024 * 1024) return { error: t.photos.tooBig };
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return { error: t.photos.badType };
-        const fd = new FormData();
-        fd.set("kind", "gallery");
-        fd.set("file", file);
-        const res = await uploadStoreImageAction(fd);
-        if (!res.ok) return { error: t.photos[res.error === "rate" ? "failed" : res.error] };
-        const url = res.business.site.gallery[res.business.site.gallery.length - 1];
-        return url ? { send: `📷 ${url}` } : { error: t.photos.failed };
+        try {
+          const file = await prepareImage(picked);
+          if (file.size > 4 * 1024 * 1024) return { error: t.photos.tooBig };
+          if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return { error: t.photos.badType };
+          const fd = new FormData();
+          fd.set("kind", "gallery");
+          fd.set("file", file);
+          const res = await uploadStoreImageAction(fd);
+          if (!res.ok) return { error: t.photos[res.error === "rate" ? "failed" : res.error] };
+          const url = res.business.site.gallery[res.business.site.gallery.length - 1];
+          return url ? { send: `📷 ${url}` } : { error: t.photos.failed };
+        } catch {
+          return { error: t.photos.failed };
+        }
       }}
     />
   );

@@ -159,7 +159,9 @@ export default function StoreView({
   return (
     <div style={{ background: "#000" }}>
       {/* Chat: fills the screen, composer pinned at the bottom */}
-      <section className="h-[calc(100dvh-118px-52px)] md:h-[calc(100vh-52px)] flex flex-col">
+      <section
+        className={`${business.published ? "h-[calc(100dvh-var(--hdr))] md:h-screen" : "h-[calc(100dvh-var(--hdr)-44px)] md:h-[calc(100vh-44px)]"} flex flex-col`}
+      >
         <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between">
           <span className="text-[17px] font-semibold text-white">
             Sevrii <span className="text-[#8e8e8e] font-normal">· Store</span>
@@ -245,7 +247,7 @@ export default function StoreView({
                 <span>{st.publishFailed}</span>
               )}
             </div>
-            <button type="button" onClick={() => setNotice(null)} className="text-[#8e8e8e] text-[16px] leading-none" aria-label="close">
+            <button type="button" onClick={() => setNotice(null)} className="text-[#8e8e8e] text-[16px] leading-none" aria-label={st.close} title={st.close}>
               ×
             </button>
           </div>
@@ -292,16 +294,17 @@ export default function StoreView({
         />
       </section>
 
-      {/* Always visible under the chat: the page is being built right below. */}
-      <a
-        href="#store-page"
-        className="h-[52px] flex items-center justify-center gap-2 text-[14px] font-semibold text-white"
-        style={{ background: "linear-gradient(90deg, rgba(46,122,85,.35), rgba(46,122,85,.15), rgba(46,122,85,.35))", borderTop: "1px solid rgba(61,220,132,.35)" }}
-      >
-        <span className="animate-bounce">↓</span>
-        {lang === "es" ? "Tu página se está armando aquí abajo — desliza para verla en vivo" : "Your page is being built right below — scroll to see it live"}
-        <span className="animate-bounce">↓</span>
-      </a>
+      {/* While it's a draft: a quiet pointer to the page being built below. */}
+      {!business.published && (
+        <a
+          href="#store-page"
+          className="h-[44px] px-4 flex items-center justify-center gap-2 text-[13px] font-medium text-[#d4d4d4] hover:text-white transition-colors truncate"
+          style={{ background: "rgba(46,122,85,.12)", borderTop: "1px solid rgba(46,122,85,.3)" }}
+        >
+          <span className="truncate">{st.belowHint}</span>
+          <span aria-hidden="true" className="text-[#8e8e8e]">↓</span>
+        </a>
+      )}
 
       {/* The page, below the chat */}
       <section id="store-page" className="px-3 md:px-8 pt-6 pb-10" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
@@ -309,7 +312,7 @@ export default function StoreView({
           <div className="flex items-center justify-between gap-3 mb-4">
             <h2 className="text-[15px] font-semibold text-white">{st.yourPage}</h2>
             <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] text-muted hover:text-ink">
-              {t.dashboard.openLive} ↗
+              {business.published ? t.dashboard.openLive : st.viewDraft} ↗
             </a>
           </div>
           <div className="rounded-2xl overflow-hidden" style={{ background: "#fff", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>

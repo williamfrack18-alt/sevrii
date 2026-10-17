@@ -130,7 +130,7 @@ export default function PlanView({
 
   return (
     <div style={{ background: "#000" }}>
-      <section className="h-[calc(100dvh-118px)] md:h-screen flex flex-col">
+      <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
         <div className="shrink-0 px-4 md:px-6 pt-3 pb-2 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
             <span className="text-[17px] font-semibold text-white truncate">
@@ -422,7 +422,7 @@ export default function PlanView({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {plan.videoScript && (
                       <div className="flex flex-col gap-1.5 min-w-0">
-                        <span className="text-[13px] font-medium text-[#d4d4d4]">🎥 {t.videoScript}</span>
+                        <span className="text-[13px] font-medium text-[#d4d4d4]">{t.videoScript}</span>
                         <p className="text-[14px] text-white leading-relaxed whitespace-pre-line rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)" }}>
                           {plan.videoScript}
                         </p>
@@ -430,7 +430,7 @@ export default function PlanView({
                     )}
                     {plan.photoIdeas.length > 0 && (
                       <div className="flex flex-col gap-1.5 min-w-0">
-                        <span className="text-[13px] font-medium text-[#d4d4d4]">📷 {t.photoIdeas}</span>
+                        <span className="text-[13px] font-medium text-[#d4d4d4]">{t.photoIdeas}</span>
                         <ul className="flex flex-col gap-1.5">
                           {plan.photoIdeas.map((p, i) => (
                             <li key={i} className="text-[14px] text-[#ececec] leading-relaxed flex gap-2">

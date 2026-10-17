@@ -236,7 +236,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
   const initial = (n: string) => (n || "?").trim().slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-118px)] md:h-screen bg-black text-[#ededed]">
+    <div className="flex flex-col h-[calc(100dvh-var(--hdr))] md:h-screen bg-black text-[#ededed]">
       {/* Header */}
       <div className="shrink-0 h-14 px-5 md:px-6 flex items-center justify-between" style={{ borderBottom: line }}>
         <div className="flex items-baseline gap-2">

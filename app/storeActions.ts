@@ -15,8 +15,6 @@ import {
   appendGalleryPhoto,
   patchBusinessSite,
   mergeBusinessSite,
-  removeSitePhoto,
-  promoteSiteCover,
   updateService,
   type BusinessRow,
   type ServiceRow,
@@ -223,31 +221,6 @@ export async function uploadStoreImageAction(formData: FormData): Promise<Upload
   return { ok: true, business: fresh };
 }
 
-export async function removeStoreImageAction(kind: "logo" | "cover" | "gallery", url?: string): Promise<BusinessRow> {
-  const business = await requireBusiness();
-  if (kind === "gallery" && !url) return business;
-  // One statement each (on the page as it is now, not as it was when this
-  // started), so an upload finishing at the same moment is never lost.
-  const before = business.site;
-  const after = await removeSitePhoto(business.id, kind, url || "");
-  if (!after) return business;
-  const gone = kind === "logo" ? before.logoUrl : kind === "cover" ? before.coverUrl : url || "";
-  if (gone && ![after.logoUrl, after.coverUrl, ...after.gallery].includes(gone)) await dropBlob(gone, business.id);
-  const fresh = (await getBusinessById(business.id))!;
-  refresh(fresh.slug);
-  return fresh;
-}
-
-// Makes one of the gallery photos the main (first) photo of the page.
-export async function setStoreCoverAction(url: string): Promise<BusinessRow> {
-  const business = await requireBusiness();
-  if (!url || business.site.coverUrl === url) return business;
-  if (!(await promoteSiteCover(business.id, url))) return business;
-  const fresh = (await getBusinessById(business.id))!;
-  refresh(fresh.slug);
-  return fresh;
-}
-
 // Deletes a file, but only one inside this business's own folder.
 async function dropBlob(url: string, businessId: string) {
   if (!url || !ownsBlob(url, businessId) || !process.env.BLOB_READ_WRITE_TOKEN) return;
@@ -282,41 +255,6 @@ export async function setStoreVideoAction(url: string): Promise<{ ok: boolean; b
   const old = business.site.videoUrl;
   await patchBusinessSite(business.id, { videoUrl: url });
   if (old && old !== url) await dropBlob(old, business.id);
-  const fresh = (await getBusinessById(business.id))!;
-  refresh(fresh.slug);
-  return { ok: true, business: fresh };
-}
-
-export async function removeStoreVideoAction(): Promise<BusinessRow> {
-  const business = await requireBusiness();
-  const old = business.site.videoUrl;
-  await patchBusinessSite(business.id, { videoUrl: "" });
-  await dropBlob(old, business.id);
-  const fresh = (await getBusinessById(business.id))!;
-  refresh(fresh.slug);
-  return fresh;
-}
-
-// Where the owner offers the service: in person around a city, or online.
-export type ReachInput = { mode: "local" | "remote"; scope?: "us" | "world"; radius?: number; place?: string };
-export async function setReachAction(input: ReachInput): Promise<{ ok: true; business: BusinessRow } | { ok: false; error: "place" | "invalid" }> {
-  const business = await requireBusiness();
-  const { lookupPlace } = await import("@/lib/geo");
-  if (input.mode === "remote") {
-    await patchBusinessSite(business.id, { reachMode: "remote", reachScope: input.scope === "world" ? "world" : "us" });
-  } else if (input.mode === "local") {
-    const place = lookupPlace(clip(input.place, 80), business.site.baseState || undefined);
-    if (!place) return { ok: false, error: "place" };
-    const radius = Math.max(1, Math.min(300, Math.round(Number(input.radius) || 25)));
-    await patchBusinessSite(business.id, {
-      reachMode: "local",
-      reachRadius: radius,
-      baseCity: place.city,
-      baseState: place.state,
-      baseLat: place.lat,
-      baseLon: place.lon,
-    });
-  } else return { ok: false, error: "invalid" };
   const fresh = (await getBusinessById(business.id))!;
   refresh(fresh.slug);
   return { ok: true, business: fresh };

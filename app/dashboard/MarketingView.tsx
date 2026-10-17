@@ -58,7 +58,7 @@ export default function MarketingView({
 
   return (
     <div style={{ background: "#000" }}>
-      <section className="h-[calc(100dvh-118px)] md:h-screen flex flex-col">
+      <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
         <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between">
           <span className="text-[17px] font-semibold text-white">
             Sevrii <span className="text-[#8e8e8e] font-normal">· Marketing</span>

@@ -201,9 +201,36 @@ export default function DashboardTabs({
     );
   }
 
+  // Projects come from the server once; keep the open one in step with what
+  // changed since (name, published, services…) so the cards aren't stale.
+  const liveProjects = projects.map((p) =>
+    p.id === currentBusiness.id
+      ? {
+          ...p,
+          name: currentBusiness.name,
+          slug: currentBusiness.slug,
+          category: currentBusiness.category,
+          city: currentBusiness.city,
+          accentColor: currentBusiness.accentColor,
+          published: currentBusiness.published,
+          pageViews: currentBusiness.pageViews,
+          contacts: currentBusiness.callClicks + currentBusiness.textClicks + currentBusiness.whatsappClicks,
+          services: currentServices.length,
+          campaigns: currentCampaigns.filter((c) => c.spec).length,
+          planService: currentBusiness.plan.service || p.planService,
+          planReady: currentBusiness.plan.ready,
+        }
+      : p
+  );
+
+  // Views that fill the screen below the mobile header (their own chat scrolls).
+  const fullHeight = view === "plan" || view === "store" || view === "chats" || view === "marketing";
+
   return (
-    <div className="theme-dark bg-cream flex flex-col md:flex-row">
-      {/* Mobile top bar + section pills */}
+    // --hdr = height of the mobile top bar below: 64px bar + 34px pills + 12px
+    // padding + 1px border. Full-height views use calc(100dvh - var(--hdr)).
+    <div className="theme-dark bg-cream flex flex-col md:flex-row" style={{ "--hdr": "111px" } as React.CSSProperties}>
+      {/* Mobile top bar + section pills (keep --hdr above in sync) */}
       <div className="md:hidden sticky top-0 z-30 bg-cream border-b border-border">
         <div className="h-[64px] px-4 flex items-center justify-between">
           <BrandMark />
@@ -399,7 +426,7 @@ export default function DashboardTabs({
       {/* Main content */}
       <main className="grow min-w-0">
         {view === "projects" && (
-          <ProjectsView projects={projects} activeId={currentBusiness.id} onNavigate={setView} projectLimit={limits.projects} />
+          <ProjectsView projects={liveProjects} activeId={currentBusiness.id} onNavigate={setView} projectLimit={limits.projects} />
         )}
         {view === "plans" && <PlansView plan={plan} notice={planNotice} />}
         {view === "plan" && (
@@ -452,7 +479,9 @@ export default function DashboardTabs({
         {view === "payments" && <PaymentsView business={currentBusiness} services={currentServices} />}
         {view === "capital" && <ComingSoonView pillar="capital" onBack={() => setView("projects")} onPlans={() => setView("plans")} />}
 
-        {/* Log out on mobile (the rail with it is hidden there) */}
+        {/* Log out on mobile (the rail with it is hidden there). Not under the
+            full-height views, where it would add a second scroll. */}
+        {!fullHeight && (
         <div className="md:hidden px-5 py-6 border-t border-border flex items-center justify-between gap-3">
           <a href="/account" className="text-[12px] text-muted truncate">{userEmail}</a>
           <form action={logoutAction}>
@@ -461,6 +490,7 @@ export default function DashboardTabs({
             </button>
           </form>
         </div>
+        )}
       </main>
     </div>
   );

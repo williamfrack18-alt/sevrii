@@ -6,16 +6,13 @@ import { visitorChatPollAction, visitorChatSendAction, type ChatMsg } from "@/ap
 const TEXT = {
   es: {
     open: "Chatea con nosotros",
-    teaser: "¿Tienes preguntas? Escríbenos 👋",
     title: (biz: string) => biz,
     status: "En línea · asistente que responde al instante",
     hello: (_biz: string) => `¡Hola! 👋 Gracias por escribirnos. ¿En qué te podemos ayudar?`,
     placeholder: "Escribe tu mensaje…",
     send: "Enviar",
     interest: (svc: string) => `Hola, me interesa: ${svc}`,
-    note: (biz: string) => `Asistente con IA. ${biz} confirma precios y citas.`,
     waiting: (biz: string) => `${biz} verá tu mensaje y te responderá aquí o por el medio que dejaste.`,
-    owner: "Dueño",
     realPerson: "Persona real",
     assistant: (biz: string) => `Asistente virtual de ${biz}`,
     joined: (who: string) => `${who} se unió a la conversación`,
@@ -23,20 +20,18 @@ const TEXT = {
     ownerOf: (biz: string) => `Dueño de ${biz}`,
     online: "En línea ahora",
     errors: { closed: "El chat no está disponible ahora.", rate: "Vas muy rápido. Espera un momento.", long: "El mensaje es muy largo.", empty: "", failed: "No se pudo enviar. Inténtalo de nuevo." },
-    close: "Cerrar",
+    message: "Tu mensaje",
+    typing: "Escribiendo…",
   },
   en: {
     open: "Chat with us",
-    teaser: "Got questions? Message us 👋",
     title: (biz: string) => biz,
     status: "Online · assistant that replies instantly",
     hello: (_biz: string) => `Hi! 👋 Thanks for reaching out. How can we help you?`,
     placeholder: "Type your message…",
     send: "Send",
     interest: (svc: string) => `Hi, I'm interested in: ${svc}`,
-    note: (biz: string) => `AI assistant. ${biz} confirms prices and appointments.`,
     waiting: (biz: string) => `${biz} will see your message and reply here or using the contact you left.`,
-    owner: "Owner",
     realPerson: "Real person",
     assistant: (biz: string) => `${biz}'s virtual assistant`,
     joined: (who: string) => `${who} joined the conversation`,
@@ -44,7 +39,8 @@ const TEXT = {
     ownerOf: (biz: string) => `Owner of ${biz}`,
     online: "Online now",
     errors: { closed: "Chat isn't available right now.", rate: "You're going fast. Wait a moment.", long: "That message is too long.", empty: "", failed: "Couldn't send. Please try again." },
-    close: "Close",
+    message: "Your message",
+    typing: "Typing…",
   },
 };
 
@@ -217,7 +213,7 @@ export default function ChatWidget({
   }
 
   return (
-    <div className="cw-inline" ref={rootRef} aria-label={t.open}>
+    <div className="cw-inline" ref={rootRef} role="region" aria-label={t.open}>
       <div className="cw-panel">
           <div className={`cw-head ${ownerHere ? "owner" : ""}`}>
             {ownerHere ? (
@@ -232,7 +228,7 @@ export default function ChatWidget({
               </div>
             </div>
           </div>
-          <div className="cw-list" ref={listRef}>
+          <div className="cw-list" ref={listRef} aria-live="polite">
             <div className="cw-row cw-hello">
               <Avatar src={logoUrl} name={businessName} className="cw-mini" />
               <div className="cw-msg ai">{t.hello(businessName)}</div>
@@ -265,10 +261,10 @@ export default function ChatWidget({
               );
             })}
             {sending && (
-              <div className="cw-msg ai cw-typing" aria-label="…">
-                <span />
-                <span />
-                <span />
+              <div className="cw-msg ai cw-typing" role="img" aria-label={t.typing}>
+                <span aria-hidden />
+                <span aria-hidden />
+                <span aria-hidden />
               </div>
             )}
             {waiting && !sending && !ownerMsgs.length && <div className="cw-wait">{t.waiting(businessName)}</div>}
@@ -287,6 +283,7 @@ export default function ChatWidget({
               rows={1}
               maxLength={600}
               placeholder={t.placeholder}
+              aria-label={t.message}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -327,11 +324,11 @@ export function ChatJump({ lang }: { lang: "es" | "en" }) {
   }, []);
   if (!show) return null;
   return (
-    <button type="button" className="cw-fab" onClick={() => window.dispatchEvent(new CustomEvent("sevrii:chat", { detail: "" }))}>
+    <button type="button" className="cw-fab" aria-label={TEXT[lang].open} onClick={() => window.dispatchEvent(new CustomEvent("sevrii:chat", { detail: "" }))}>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.6-5.4A8.4 8.4 0 1 1 21 11.5z" />
       </svg>
-      <span className="cw-fab-label">{TEXT[lang].open}</span>
+      <span className="cw-fab-label" aria-hidden>{TEXT[lang].open}</span>
     </button>
   );
 }

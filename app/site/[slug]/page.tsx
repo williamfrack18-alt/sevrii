@@ -9,11 +9,10 @@ import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { reachLabel, resolveReach } from "@/lib/reach";
-import { activeOffer, contactChannels, normalizePhone, storeTheme } from "@/lib/site";
-import { BuyActions, ChannelIcon, ContactLink, Countdown, Gallery, type MediaItem } from "./StoreParts";
+import { activeOffer, storeTheme } from "@/lib/site";
+import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, type MediaItem } from "./StoreParts";
 import { ChatJump } from "./ChatWidget";
 import "./store.css";
-import { channelClass, type ContactChannel } from "@/lib/storeContact";
 
 // A page is public only while it's published AND its owner's plan includes publishing
 // (if the subscription ends, the page goes offline until they subscribe again).
@@ -27,6 +26,23 @@ async function isLive(b: BusinessRow): Promise<boolean> {
   return Boolean(owner && limitsFor(owner).canPublish);
 }
 
+const SITE_URL = "https://www.sevrii.com";
+
+// Cut at a word boundary so titles/descriptions stay within search limits.
+function clip(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max - 1);
+  const sp = cut.lastIndexOf(" ");
+  return `${(sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s·,.;:-]+$/, "")}…`;
+}
+
+// Plain dollar amount ("$1,200", "$120.50", "$99/hr") → number. Anything else
+// ("$1.5k", "$2M") → null, so we never show a wrong "From $X".
+function plainDollars(price: string): number | null {
+  const m = /\$\s?((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?)(?![\w.,])/.exec(price);
+  return m ? Number(m[1].replace(/,/g, "")) : null;
+}
+
 const BOT_UA = /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|slack|discord|telegram|preview|vercel|lighthouse|headless/i;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -35,12 +51,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!business || !(await isLive(business))) return { title: "Sevrii", robots: { index: false } };
   const site = business.site;
   const where = site.serviceArea || business.city || "";
-  const title = `${business.name}${site.headline ? ` · ${site.headline}` : business.category ? ` · ${business.category}` : ""}${where ? ` · ${where}` : ""}`;
-  const description = business.pitch.slice(0, 300);
+  const title = clip(`${business.name}${site.headline ? ` · ${site.headline}` : business.category ? ` · ${business.category}` : ""}${where ? ` · ${where}` : ""}`, 70);
+  const fallback = [business.category, where].filter(Boolean).join(site.lang === "en" ? " in " : " en ");
+  const description = clip(business.pitch.trim() || (fallback ? `${business.name} · ${fallback}` : business.name), 300);
   const image = site.coverUrl || site.gallery[0] || site.logoUrl || undefined;
   return {
     title,
     description,
+    alternates: { canonical: `${SITE_URL}/site/${business.slug}` },
     openGraph: { title, description, images: image ? [image] : undefined, type: "website" },
     twitter: { card: image ? "summary_large_image" : "summary", title, description },
   };
@@ -86,8 +104,6 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
     }
   }
 
-  const phone = site.phone || null;
-  const wa = normalizePhone(business.whatsapp);
   const offer = activeOffer(site);
   // Where they work: their own words first, else the service area they set.
   const reach = resolveReach(site, business.city, business.plan.profile);
@@ -115,9 +131,11 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
     media.push({ kind: "slide", tone: "service", kicker: sv.featured ? sv.tag || t.featured : t.packageKicker, title: sv.name, price: sv.price || t.priceOnRequest, text: sv.description || "" });
   }
 
-  // Lowest price shown as "From $X" (only when prices are plain dollar amounts).
-  const nums = ordered.map((x) => /\$\s?([\d,]+(?:\.\d+)?)/.exec(x.price || "")).filter(Boolean).map((m) => Number(m![1].replace(/,/g, "")));
-  const fromPrice = nums.length ? Math.min(...nums) : null;
+  // Lowest price shown as "From $X": only with several services and only when
+  // every dollar price is a plain amount (else it could be wrong).
+  const dollarPrices = ordered.map((x) => x.price || "").filter((p) => p.includes("$"));
+  const nums = dollarPrices.map(plainDollars);
+  const fromPrice = !single && nums.length > 0 && nums.every((n) => n !== null) ? Math.min(...(nums as number[])) : null;
   // Payment links that don't belong to a listed service get their own section.
   const extraPayLinks = payLinks.filter((l) => !ordered.some((sv) => payFor(sv.name)?.id === l.id));
 
@@ -132,23 +150,41 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
 
   const keyPoints = site.keyPoints.length > 0 ? site.keyPoints : site.highlights.map((h) => ({ title: "", text: h }));
 
-  // Customers talk to the business through the page chat (no calls or texts).
-  const channels: ContactChannel[] = site.chat ? ["chat"] : [];
-  const contact = { channels, wa, phone };
-  const primary: ContactChannel | null = channels[0] ?? null;
-  void contactChannels;
-  const msgs = { msgService: t.msgService("{biz}", "{svc}"), msgGeneric: t.msgGeneric("{biz}") };
+  // Customers talk to the business only through the page chat.
+  const hasChat = site.chat;
   const es = site.lang !== "en";
-  const long: Record<ContactChannel, string> = { call: t.callNow, text: t.text, whatsapp: t.writeWhatsapp, chat: es ? "Escríbenos ahora" : "Message us now" };
-  const short: Record<ContactChannel, string> = { call: t.call, text: t.textShort, whatsapp: "WhatsApp", chat: es ? "Pedir este servicio" : "Ask about this" };
-  const link = (c: ContactChannel, className: string, children: React.ReactNode, service?: string) => (
-    <ContactLink key={c} channel={c} businessId={business.id} businessName={business.name} service={service} contact={contact} labels={msgs} className={className}>
+  const chatLong = es ? "Escríbenos ahora" : "Message us now";
+  const chatShort = es ? "Pedir este servicio" : "Ask about this";
+  const chatLink = (className: string, children: React.ReactNode, service?: string) => (
+    <ChatLink service={service} className={className}>
       {children}
-    </ContactLink>
+    </ChatLink>
   );
+
+  // Structured data for search engines: only what the owner actually entered.
+  const pageUrl = `${SITE_URL}/site/${business.slug}`;
+  const ldImage = site.coverUrl || site.gallery[0] || site.logoUrl || "";
+  const ld: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    name: business.name,
+    url: pageUrl,
+  };
+  if (business.pitch.trim()) ld.description = business.pitch.trim().slice(0, 500);
+  if (ldImage) ld.image = ldImage;
+  if (site.logoUrl) ld.logo = site.logoUrl;
+  if (area) ld.areaServed = area;
+  if (fromPrice !== null) {
+    const hi = Math.max(...(nums as number[]));
+    ld.priceRange = hi > fromPrice ? `$${fromPrice}-$${hi}` : `$${fromPrice}`;
+  } else if (single && ordered[0].price && plainDollars(ordered[0].price) !== null) {
+    ld.priceRange = `$${plainDollars(ordered[0].price)}`;
+  }
+  const ldJson = JSON.stringify(ld).replace(/</g, "\\u003c");
 
   return (
     <div className="mt" lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
+      {live && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson }} />}
       {!live && <div className="draft-bar">{t.draftBanner}</div>}
 
       <header className="mt-header">
@@ -168,8 +204,12 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
       <main>
         <div className="wrap breadcrumb">
           <span>{business.name}</span>
-          <span className="sep">›</span>
-          <span className="current">{business.category}</span>
+          {business.category && (
+            <>
+              <span className="sep" aria-hidden>›</span>
+              <span className="current">{business.category}</span>
+            </>
+          )}
         </div>
 
         <section className="product wrap">
@@ -178,9 +218,10 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             <Gallery
               items={media}
               alt={t.photoAlt(business.name)}
+              lang={site.lang}
               empty={
                 <div className="stage-empty">
-                  <span className="stage-kicker">{business.category}{area ? ` · ${area}` : ""}</span>
+                  {(business.category || area) && <span className="stage-kicker">{[business.category, area].filter(Boolean).join(" · ")}</span>}
                   <div className="stage-title">{mainTitle}</div>
                 </div>
               }
@@ -204,8 +245,8 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                           <span className="pkg-price grad-text">{sv.price || t.priceOnRequest}</span>
                           {pay ? (
                             <a href={`/pay/${pay.id}`} className="pkg-btn">{payText.button}</a>
-                          ) : primary ? (
-                            link(primary, "pkg-btn", t.packagesAsk, sv.name)
+                          ) : hasChat ? (
+                            chatLink("pkg-btn", t.packagesAsk, sv.name)
                           ) : null}
                         </li>
                       );
@@ -248,6 +289,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             )}
 
             {offer && (
+              <UntilOfferEnds endsAt={offer.endsAt}>
               <div className="deal">
                 <span className="deal-dot" />
                 <strong>{t.offer}</strong> · {offer.label}
@@ -270,6 +312,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                   </span>
                 )}
               </div>
+              </UntilOfferEnds>
             )}
 
             <h1>{mainTitle}</h1>
@@ -297,6 +340,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
               })}
               chat={site.chat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang } : null}
               ctaNote={site.ctaNote}
+              lang={site.lang}
               labels={{ chooseLabel: t.chooseLabel, selected: t.selected, priceOnRequest: t.priceOnRequest, payNow: t.payNow }}
             />
           </div>
@@ -318,7 +362,8 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
         )}
 
 
-        {offer && primary && (
+        {offer && hasChat && (
+          <UntilOfferEnds endsAt={offer.endsAt}>
           <section className="offer-band">
             <div className="wrap offer-row">
               <div>
@@ -332,9 +377,10 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                   </div>
                 )}
               </div>
-              {link(primary, "btn light", `${t.offerCta} →`)}
+              {chatLink("btn light", `${t.offerCta} →`)}
             </div>
           </section>
+          </UntilOfferEnds>
         )}
 
         {ordered.length > 0 && (
@@ -344,10 +390,9 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                 <span className="eyebrow grad-text">{t.servicesEyebrow}</span>
                 <h2>{single ? (site.lang === "en" ? "What you get" : "Lo que recibes") : t.servicesTitle}</h2>
               </div>
-              <div className={`services-grid ${ordered.length === 4 ? "n4" : ""} ${single ? "single" : ""}`}>
+              <div className={`services-grid ${ordered.length === 2 ? "n2" : ""} ${ordered.length === 4 ? "n4" : ""} ${single ? "single" : ""}`}>
                 {ordered.map((s, n) => {
                   const pay = payFor(s.name);
-                  const [c1, c2] = channels;
                   const img = images.length ? images[(n + 1) % images.length] : "";
                   return (
                     <article key={s.id} className={`service-card ${s.featured ? "lead" : ""}`}>
@@ -364,8 +409,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                               💳 {payText.button}
                             </a>
                           )}
-                          {c1 && link(c1, `btn ${pay ? "ghost" : channelClass(c1, true)}`, <><ChannelIcon c={c1} /> {short[c1]}</>, s.name)}
-                          {c2 && !pay && link(c2, "btn ghost", <><ChannelIcon c={c2} /> {short[c2]}</>, s.name)}
+                          {hasChat && chatLink(`btn ${pay ? "ghost" : "chat"}`, <><ChatIcon /> {chatShort}</>, s.name)}
                         </div>
                       </div>
                     </article>
@@ -417,7 +461,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
               <span className="eyebrow grad-text">{payText.eyebrow}</span>
               <h2>{payText.title}</h2>
             </div>
-            <div className="services-grid">
+            <div className={`services-grid ${extraPayLinks.length === 2 ? "n2" : ""} ${extraPayLinks.length === 4 ? "n4" : ""}`}>
               {extraPayLinks.map((l) => (
                 <a key={l.id} href={`/pay/${l.id}`} className="pay-card-link">
                   <h3>{l.title}</h3>
@@ -440,7 +484,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
               {site.faq.map((f, n) => (
                 <details key={n} open={n === 0}>
                   <summary>
-                    {f.q} <span className="plus">+</span>
+                    {f.q} <span className="plus" aria-hidden>+</span>
                   </summary>
                   <p>{f.a}</p>
                 </details>
@@ -450,14 +494,18 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
         )}
       </main>
 
-      {primary && (
+      {hasChat && (
         <section className="final-cta" style={site.coverUrl ? { ["--cta-img" as string]: `url("${site.coverUrl}")` } : undefined}>
           <div className="wrap">
-            {offer && <span className="final-offer">🎁 {offer.label}</span>}
+            {offer && (
+              <UntilOfferEnds endsAt={offer.endsAt}>
+                <span className="final-offer">🎁 {offer.label}</span>
+              </UntilOfferEnds>
+            )}
             <h2>{site.ctaTitle || t.ctaDefaultTitle}</h2>
             <p>{site.ctaText || t.ctaDefaultText}</p>
             <div className="btns">
-              {link(primary, "btn light", <><ChannelIcon c={primary} /> {long[primary]}</>)}
+              {chatLink("btn light", <><ChatIcon /> {chatLong}</>)}
             </div>
             {(area || site.hours) && <div className="final-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
           </div>
@@ -478,10 +526,10 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
 
       {site.chat && <ChatJump lang={site.lang} />}
 
-      {primary && (
+      {hasChat && (
         <div className="sticky-cta">
           <div className="row">
-            {link(primary, `btn ${channelClass(primary, true)}`, <><ChannelIcon c={primary} /> {long[primary]}</>)}
+            {chatLink("btn chat", <><ChatIcon /> {chatLong}</>)}
           </div>
         </div>
       )}

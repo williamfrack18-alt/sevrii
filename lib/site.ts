@@ -379,6 +379,16 @@ function mixRgb(c: RGB, target: RGB, t: number): RGB {
   return [0, 1, 2].map((i) => Math.round(c[i] + (target[i] - c[i]) * t)) as RGB;
 }
 const css = (c: RGB) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+const toHex = (c: RGB) => `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+
+// WCAG relative luminance (0 = black, 1 = white).
+function luminance(c: RGB): number {
+  const lin = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+}
 
 export function storeTheme(accent: string): Record<string, string> {
   const hex = /^#[0-9a-f]{6}$/i.test(accent) && accent.toLowerCase() !== "#122118" ? accent : "#234f36";
@@ -386,8 +396,31 @@ export function storeTheme(accent: string): Record<string, string> {
   const W: RGB = [255, 255, 255];
   const K: RGB = [0, 0, 0];
   const light = mixRgb(base, W, 0.35);
+  // Text on the accent gradient: white for dark/medium colors, near-black for
+  // light ones (yellow, lime, sky…). Judged on the color where labels sit.
+  const on = readableTextOn(toHex(mixRgb(base, K, 0.2)));
+  const darkOn = on !== "#ffffff";
+  // With dark text, the gradient's outer stops can't go so dark that the text
+  // disappears there (keeps ≥ 4.5:1 against #111).
+  const stop = (t: number): RGB => {
+    let k = t;
+    while (darkOn && k > 0 && luminance(mixRgb(base, K, k)) < 0.2) k = Math.max(0, k - 0.05);
+    return mixRgb(base, K, k);
+  };
+  const stops: RGB[] = [mixRgb(base, W, 0.1), stop(0.45), stop(0.85)];
+  // Same stops for text on white (prices, eyebrows), darkened only as far as
+  // needed to stay readable (≥ 4.5:1 on white).
+  const onWhite = (c: RGB): RGB => {
+    let k = 0;
+    while (k < 1 && luminance(mixRgb(c, K, k)) > 0.18) k = Math.min(1, k + 0.05);
+    return mixRgb(c, K, k);
+  };
+  const textStops = [stops[0], mixRgb(base, K, 0.45), mixRgb(base, K, 0.85)].map(onWhite);
+  const radial = (s: RGB[]) => `radial-gradient(ellipse 70% 300% at 50% 50%, ${css(s[0])} 0%, ${css(s[1])} 55%, ${css(s[2])} 100%)`;
   return {
-    "--accent-grad": `radial-gradient(ellipse 70% 300% at 50% 50%, ${css(mixRgb(base, W, 0.1))} 0%, ${css(mixRgb(base, K, 0.45))} 55%, ${css(mixRgb(base, K, 0.85))} 100%)`,
+    "--accent-grad": radial(stops),
+    "--accent-text-grad": radial(textStops),
+    "--accent-on": on,
     "--accent-grad-solid": css(base),
     "--header-grad": `radial-gradient(ellipse 70% 300% at 50% 50%, ${css(mixRgb(base, K, 0.55))} 0%, ${css(mixRgb(base, K, 0.75))} 55%, ${css(mixRgb(base, K, 0.95))} 100%)`,
     "--accent-bg": `rgba(${light[0]}, ${light[1]}, ${light[2]}, 0.13)`,
@@ -396,6 +429,6 @@ export function storeTheme(accent: string): Record<string, string> {
     "--surface-2": css(mixRgb(base, W, 0.89)),
     "--accent-soft": css(mixRgb(base, W, 0.8)),
     "--accent-bright": css(mixRgb(base, W, 0.45)),
-    "--accent-ink": css(mixRgb(base, K, 0.35)),
+    "--accent-ink": css(onWhite(mixRgb(base, K, 0.35))),
   };
 }
