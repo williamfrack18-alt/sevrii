@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { cache } from "react";
-import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, type BusinessRow } from "@/lib/db";
+import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, addCampaignEvent, campaignBelongs, type BusinessRow } from "@/lib/db";
+import { cleanCampaignId } from "@/lib/campaignLink";
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
@@ -64,8 +65,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function PublicBusinessPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PublicBusinessPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { slug } = await params;
+  const rawC = (await searchParams).c;
   const business = await businessBySlug(slug);
   if (!business) notFound();
 
@@ -85,6 +93,9 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
     site.lang === "en"
       ? { eyebrow: "Pay online", title: "Book and pay here", button: "Pay" }
       : { eyebrow: "Paga en línea", title: "Reserva y paga aquí", button: "Pagar" };
+  // A campaign tracking link (?c=<campaignId>): only a campaign of this business counts.
+  const campaignParam = cleanCampaignId(Array.isArray(rawC) ? rawC[0] : rawC);
+  const campaign = campaignParam && (await campaignBelongs(business.id, campaignParam).catch(() => false)) ? campaignParam : "";
   const usd = (c: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(c / 100);
 
   // Count real visitors only: not the owner, not link-preview bots, once per IP per hour.
@@ -98,6 +109,11 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
         after(async () => {
           if (await allow(`view:${ip}:${id}`, 1, 60 * 60)) await incrementPageViews(id);
         });
+        if (campaign) {
+          after(async () => {
+            if (await allow(`cview:${ip}:${campaign}`, 1, 60 * 60)) await addCampaignEvent(id, campaign, "view");
+          });
+        }
       }
     } catch {
       // Never let analytics failures break the visitor's page.
@@ -338,7 +354,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                 const link = payFor(s.name);
                 return { id: s.id, name: s.name, price: s.price ?? "", payHref: link ? `/pay/${link.id}` : undefined };
               })}
-              chat={site.chat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang } : null}
+              chat={site.chat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang, campaign: campaign || undefined } : null}
               ctaNote={site.ctaNote}
               lang={site.lang}
               labels={{ chooseLabel: t.chooseLabel, selected: t.selected, priceOnRequest: t.priceOnRequest, payNow: t.payNow }}

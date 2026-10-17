@@ -2,7 +2,7 @@
 // Both are best-effort: if email isn't set up or sending fails, nothing breaks.
 import { emailReady, sendEmail, simpleEmail } from "./email";
 import { siteUrl } from "./billing";
-import { claimPaymentNotice, getUserById, hasPaymentNotice, releasePaymentNotice, type BusinessRow, type ConversationRow } from "./db";
+import { claimPaymentNotice, getUserById, hasPaymentNotice, releasePaymentNotice, type BusinessRow, type CampaignStats, type ConversationRow } from "./db";
 import { getPaidSession } from "./payments";
 
 type Lang = "es" | "en";
@@ -206,5 +206,100 @@ export async function emailVisitorReply(business: BusinessRow, conv: Conversatio
     await sendEmail(conv.email, es ? `Respuesta de ${from} · vía Sevrii` : `Reply from ${from} · via Sevrii`, html, text, owner?.email || undefined);
   } catch (err) {
     console.error("[notify] visitor reply failed", (err as Error)?.message);
+  }
+}
+
+// ---------- Weekly summary (Monday email to the owner) ----------
+
+export type WeeklyNumbers = { chats: number; contacts: number };
+export type WeeklyCampaign = { title: string; week: CampaignStats; prev: CampaignStats };
+export type WeeklySummary = {
+  week: WeeklyNumbers; // last 7 days
+  prev: WeeklyNumbers; // the 7 days before
+  campaigns: WeeklyCampaign[]; // campaigns with activity in the last 14 days
+  campaignCount: number; // all campaigns of the business
+};
+
+// 1–3 short tips from simple rules (no AI).
+export function weeklyTips(d: WeeklySummary, lang: Lang): string[] {
+  const es = lang === "es";
+  const tips: string[] = [];
+  if (d.week.chats === 0) {
+    tips.push(
+      es
+        ? "Nadie escribió esta semana: suma tu video o una oferta de bienvenida a tu página."
+        : "No one wrote this week: add your video or a welcome offer to your page."
+    );
+  } else if (d.week.contacts === 0) {
+    tips.push(
+      es
+        ? "Te escribieron pero nadie dejó su teléfono: pide el teléfono antes en la conversación."
+        : "People wrote but no one left a phone number: ask for the phone number earlier in the chat."
+    );
+  }
+  const weak = d.campaigns.find((c) => c.week.views >= 10 && c.week.chats === 0);
+  if (weak) {
+    const name = defang(weak.title).slice(0, 60);
+    tips.push(
+      es
+        ? `"${name}" trae visitas pero nadie escribe: cambia la imagen o el texto de ese anuncio.`
+        : `"${name}" brings visits but no one writes: change the image or the text of that ad.`
+    );
+  }
+  if (d.campaignCount === 0) {
+    tips.push(es ? "Lanza tu primera campaña en Marketing: Sevrii te la deja lista." : "Launch your first campaign in Marketing: Sevrii gets it ready for you.");
+  }
+  if (tips.length === 0) {
+    tips.push(es ? "Vas bien: responde cada chat rápido, quien contesta primero se queda con el cliente." : "Going well: answer every chat fast, whoever replies first usually gets the job.");
+  }
+  return tips.slice(0, 3);
+}
+
+function trend(now: number, before: number, es: boolean): string {
+  if (now === before) return es ? "igual que la semana pasada" : "same as last week";
+  const diff = now - before;
+  return es ? `${diff > 0 ? "+" : "−"}${Math.abs(diff)} vs. la semana pasada` : `${diff > 0 ? "+" : "−"}${Math.abs(diff)} vs. last week`;
+}
+
+// Sends the weekly summary. Every value goes through simpleEmail, which
+// escapes it; owner/AI-written titles are also defanged (no links).
+export async function sendWeeklySummary(business: BusinessRow, ownerEmail: string, d: WeeklySummary): Promise<boolean> {
+  if (!emailReady() || !ownerEmail) return false;
+  try {
+    const lang: Lang = business.site.lang === "en" ? "en" : "es";
+    const es = lang === "es";
+    const name = defang(business.name).slice(0, 80);
+    const items = [
+      `${es ? "Chats" : "Chats"}: ${d.week.chats} (${trend(d.week.chats, d.prev.chats, es)})`,
+      `${es ? "Contactos (teléfono o correo)" : "Contacts (phone or email)"}: ${d.week.contacts} (${trend(d.week.contacts, d.prev.contacts, es)})`,
+      ...d.campaigns.slice(0, 5).map((c) => {
+        const w = c.week;
+        const title = defang(c.title).slice(0, 60);
+        return es
+          ? `${title}: ${w.views} visitas · ${w.chats} chats · ${w.contacts} contactos`
+          : `${title}: ${w.views} visits · ${w.chats} chats · ${w.contacts} contacts`;
+      }),
+      ...weeklyTips(d, lang).map((tip) => `${es ? "Consejo" : "Tip"}: ${tip}`),
+    ];
+    const { html, text } = simpleEmail({
+      title: es ? `Tu semana en ${name}` : `Your week at ${name}`,
+      highlight: es
+        ? `${d.week.contacts} ${d.week.contacts === 1 ? "contacto" : "contactos"}`
+        : `${d.week.contacts} ${d.week.contacts === 1 ? "contact" : "contacts"}`,
+      intro: es
+        ? "Esto es lo que trajo tu página en los últimos 7 días, comparado con la semana anterior."
+        : "Here's what your page brought in the last 7 days, compared with the week before.",
+      items,
+      button: es ? "Ver mis resultados" : "See my results",
+      url: `${siteUrl()}/dashboard?view=marketing`,
+      outro: es
+        ? "Recibes este resumen una vez por semana. Puedes apagar los correos de avisos en tu panel."
+        : "You get this summary once a week. You can turn off email alerts in your dashboard.",
+    });
+    const subject = es ? `Tu semana: ${d.week.chats} chats, ${d.week.contacts} contactos · ${name}` : `Your week: ${d.week.chats} chats, ${d.week.contacts} contacts · ${name}`;
+    return await sendEmail(ownerEmail, subject, html, text);
+  } catch (err) {
+    console.error("[notify] weekly summary failed", (err as Error)?.message);
+    return false;
   }
 }

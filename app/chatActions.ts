@@ -21,6 +21,10 @@ import {
   savePushSub,
   deletePushSub,
   listPushSubs,
+  addCampaignEvent,
+  campaignBelongs,
+  setConversationCampaign,
+  getConversationCampaign,
   type BusinessRow,
   type ConvMessageRow,
   type ConversationRow,
@@ -33,6 +37,7 @@ import { normalizePhone } from "@/lib/site";
 import { runVisitorAi } from "@/lib/visitorChat";
 import { defang, emailVisitorReply, notifyChatOwner } from "@/lib/notify";
 import { pushPublicKey, pushToUser, pushToUserDetailed, type PushResult } from "@/lib/push";
+import { cleanCampaignId } from "@/lib/campaignLink";
 
 const MAX_CHARS = 600;
 const MAX_AI_REPLIES_PER_CONV = 30;
@@ -118,7 +123,7 @@ async function notifyOwner(b: BusinessRow, conv: ConversationRow, why: Why, deta
   });
 }
 
-export async function visitorChatSendAction(input: { slug: string; token?: string; text: string }): Promise<VisitorChatResult> {
+export async function visitorChatSendAction(input: { slug: string; token?: string; text: string; campaign?: string }): Promise<VisitorChatResult> {
   const b = await openBusiness(input.slug);
   if (!b) return { ok: false, error: "closed" };
   const text = clean(input.text, MAX_CHARS + 1);
@@ -135,6 +140,25 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
     if (!(await allow(`vchat:new:${ip}`, 6, 60 * 60))) return { ok: false, error: "rate" };
     token = randomBytes(24).toString("hex");
     conv = await createConversation(b.id, hashToken(token));
+  }
+
+  // A chat started from a campaign's link counts for that campaign (only a
+  // campaign of this business; never breaks the chat).
+  let campaignId: string | null = null;
+  if (isNew) {
+    const c = cleanCampaignId(input.campaign);
+    if (c) {
+      try {
+        if (await campaignBelongs(b.id, c)) {
+          await setConversationCampaign(conv.id, c);
+          campaignId = c;
+          const bid = b.id;
+          after(() => addCampaignEvent(bid, c, "chat").catch(() => {}));
+        }
+      } catch {
+        // tracking is best-effort
+      }
+    }
   }
 
   const visitorMsg = await addConvMessage(conv.id, "visitor", text);
@@ -182,6 +206,19 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
       if (!repeated) await addAiMessageIfStillAi(conv.id, fallback(b, Boolean(conv.phone || conv.email)), visitorMsg.seq);
       waiting = true;
       wantsOwner = text;
+    }
+  }
+
+  // First phone or email in this chat: a contact for its campaign, if any.
+  if (!hadContact && (conv.phone || conv.email)) {
+    try {
+      const c = isNew ? campaignId : await getConversationCampaign(conv.id);
+      if (c) {
+        const bid = b.id;
+        after(() => addCampaignEvent(bid, c, "contact").catch(() => {}));
+      }
+    } catch {
+      // tracking is best-effort
     }
   }
 

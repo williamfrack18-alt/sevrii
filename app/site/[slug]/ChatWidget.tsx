@@ -59,6 +59,32 @@ function storeSet(k: string, v: string) {
   }
 }
 
+// The campaign (ad link) that brought this visitor, kept 30 days on this device
+// so a chat started later still counts for it.
+const REF_DAYS = 30;
+function refGet(k: string): string {
+  try {
+    const raw = localStorage.getItem(k);
+    if (!raw) return "";
+    const v = JSON.parse(raw) as { c?: unknown; at?: unknown };
+    if (typeof v?.c !== "string" || typeof v?.at !== "number") return "";
+    if (Date.now() - v.at > REF_DAYS * 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(k);
+      return "";
+    }
+    return /^[A-Za-z0-9_-]{1,64}$/.test(v.c) ? v.c : "";
+  } catch {
+    return "";
+  }
+}
+function refSet(k: string, c: string) {
+  try {
+    localStorage.setItem(k, JSON.stringify({ c, at: Date.now() }));
+  } catch {
+    // private mode: the visit still counts, just not a later chat
+  }
+}
+
 function Avatar({ src, name, className }: { src: string; name: string; className: string }) {
   return (
     <span className={className}>
@@ -80,8 +106,10 @@ export default function ChatWidget({
   ownerPhoto,
   lang,
   pick,
+  campaign,
 }: {
   pick?: string; // a service the visitor just picked above the chat
+  campaign?: string; // the campaign whose link brought the visitor (already checked by the page)
   slug: string;
   businessName: string;
   logoUrl: string;
@@ -91,6 +119,7 @@ export default function ChatWidget({
 }) {
   const t = TEXT[lang];
   const key = `sevrii_chat_${slug}`;
+  const refKey = `sevrii_ref_${slug}`;
   const rootRef = useRef<HTMLDivElement>(null);
   const [token, setToken] = useState("");
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
@@ -120,6 +149,11 @@ export default function ChatWidget({
       setTimeout(() => rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
     }
   }, [key]);
+
+  // Remember the campaign that brought them (the latest ad link wins).
+  useEffect(() => {
+    if (campaign) refSet(refKey, campaign);
+  }, [campaign, refKey]);
 
   // Picking a service above the chat writes it in the box (unless they typed something else).
   useEffect(() => {
@@ -190,7 +224,10 @@ export default function ChatWidget({
     setDraft("");
     setMsgs((cur) => [...cur, { seq: Number.MAX_SAFE_INTEGER, role: "visitor", content: text, at: new Date().toISOString() }]);
     try {
-      const res = await visitorChatSendAction({ slug, token: token || undefined, text });
+      // The campaign only counts for the message that starts a conversation (the
+      // server ignores it on later ones; sent anyway in case the old chat expired).
+      const ref = campaign || refGet(refKey) || undefined;
+      const res = await visitorChatSendAction({ slug, token: token || undefined, text, campaign: ref });
       if (res.ok) {
         if (res.token !== token) {
           setToken(res.token);

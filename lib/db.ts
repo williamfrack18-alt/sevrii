@@ -343,6 +343,36 @@ async function migrate(): Promise<void> {
       await sql`CREATE INDEX IF NOT EXISTS businesses_stripe_account_idx ON businesses ("stripeAccountId")`;
       await sql`CREATE INDEX IF NOT EXISTS chat_messages_channel_time_idx ON chat_messages ("businessId", channel, "createdAt")`;
       await sql`CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets ("userId")`;
+      // Marketing results: what each campaign's link brought (page visits, chats, contacts).
+      await sql`
+        CREATE TABLE IF NOT EXISTS campaign_events (
+          id BIGSERIAL PRIMARY KEY,
+          "campaignId" TEXT NOT NULL,
+          "businessId" TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS campaign_events_biz_idx ON campaign_events ("businessId", "createdAt")`;
+      await sql`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "campaignId" TEXT`;
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "weeklySentAt" TIMESTAMPTZ`;
+      // Campaigns launched on Meta by the marketing agent (ids, status, latest numbers).
+      await sql`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS meta JSONB`;
+      // The owner's Facebook connection (token stored encrypted).
+      await sql`
+        CREATE TABLE IF NOT EXISTS meta_connections (
+          "businessId" TEXT PRIMARY KEY,
+          "userId" TEXT NOT NULL,
+          "tokenEnc" TEXT NOT NULL,
+          "expiresAt" TIMESTAMPTZ,
+          "fbUserName" TEXT NOT NULL DEFAULT '',
+          "adAccountId" TEXT NOT NULL DEFAULT '',
+          "adAccountName" TEXT NOT NULL DEFAULT '',
+          "pageId" TEXT NOT NULL DEFAULT '',
+          "pageName" TEXT NOT NULL DEFAULT '',
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
     }
   }
 }
@@ -949,7 +979,19 @@ export async function listReviews(businessId: string): Promise<ReviewRow[]> {
 // `variations` stores a JSON-stringified array of {headline, body} pairs —
 // same "plain TEXT column, parse where it's displayed" approach as the rest
 // of this file, rather than a JSON column type.
+// What Sevrii knows about a campaign launched on Meta.
+export type CampaignMeta = {
+  campaignId: string;
+  adSetId: string;
+  adId: string;
+  status: "paused" | "active" | "error";
+  error?: string;
+  launchedAt: string;
+  stats?: { spend: number; impressions: number; clicks: number; at: string };
+};
+
 export type CampaignRow = {
+  meta?: CampaignMeta | null;
   id: string;
   businessId: string;
   title: string;
@@ -1366,6 +1408,8 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM services WHERE "businessId" = ${id}`;
   await sql`DELETE FROM reviews WHERE "businessId" = ${id}`;
   await sql`DELETE FROM campaigns WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM campaign_events WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM meta_connections WHERE "businessId" = ${id}`;
   await sql`DELETE FROM chat_messages WHERE "businessId" = ${id}`;
   await sql`DELETE FROM page_reports WHERE "businessId" = ${id}`;
   await sql`DELETE FROM research_jobs WHERE "businessId" = ${id}`;
@@ -1392,6 +1436,8 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM services WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM reviews WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM campaigns WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM campaign_events WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM meta_connections WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM chat_messages WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM page_reports WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM research_jobs WHERE "businessId" = ANY(${ids})`;
@@ -1621,4 +1667,130 @@ export async function deletePushSub(endpoint: string, userId?: string): Promise<
   await ensureSchema();
   if (userId) await sql`DELETE FROM push_subs WHERE endpoint = ${endpoint} AND "userId" = ${userId}`;
   else await sql`DELETE FROM push_subs WHERE endpoint = ${endpoint}`;
+}
+
+
+// ---------- Marketing results ----------
+export type CampaignEventKind = "view" | "chat" | "contact";
+
+export async function addCampaignEvent(businessId: string, campaignId: string, kind: CampaignEventKind): Promise<void> {
+  await ensureSchema();
+  await sql`INSERT INTO campaign_events ("campaignId", "businessId", kind) VALUES (${campaignId}, ${businessId}, ${kind})`;
+}
+
+// Is this a campaign of this business? (A link someone edited can't count for another.)
+export async function campaignBelongs(businessId: string, campaignId: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`SELECT 1 FROM campaigns WHERE id = ${campaignId} AND "businessId" = ${businessId}`) as unknown[];
+  return rows.length > 0;
+}
+
+export type CampaignStats = { views: number; chats: number; contacts: number };
+
+// Totals per campaign since a date (all time when omitted).
+export async function campaignStats(businessId: string, since?: Date): Promise<Record<string, CampaignStats>> {
+  await ensureSchema();
+  const from = (since ?? new Date(0)).toISOString();
+  const rows = (await sql`
+    SELECT "campaignId", kind, count(*)::int AS n FROM campaign_events
+    WHERE "businessId" = ${businessId} AND "createdAt" >= ${from}
+    GROUP BY "campaignId", kind
+  `) as { campaignId: string; kind: CampaignEventKind; n: number }[];
+  const out: Record<string, CampaignStats> = {};
+  for (const r of rows) {
+    const s = (out[r.campaignId] ??= { views: 0, chats: 0, contacts: 0 });
+    if (r.kind === "view") s.views = r.n;
+    else if (r.kind === "chat") s.chats = r.n;
+    else if (r.kind === "contact") s.contacts = r.n;
+  }
+  return out;
+}
+
+export async function setConversationCampaign(conversationId: string, campaignId: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE conversations SET "campaignId" = ${campaignId} WHERE id = ${conversationId} AND "campaignId" IS NULL`;
+}
+
+export async function getConversationCampaign(conversationId: string): Promise<string | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT "campaignId" FROM conversations WHERE id = ${conversationId}`) as { campaignId: string | null }[];
+  return rows[0]?.campaignId ?? null;
+}
+
+// Page-wide numbers for a period (for the weekly summary).
+export async function businessWeekNumbers(businessId: string, from: Date, to: Date): Promise<{ chats: number; contacts: number }> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT count(*)::int AS chats, count(*) FILTER (WHERE phone <> '' OR email <> '')::int AS contacts
+    FROM conversations WHERE "businessId" = ${businessId} AND "createdAt" >= ${from.toISOString()} AND "createdAt" < ${to.toISOString()}
+  `) as { chats: number; contacts: number }[];
+  return rows[0] ?? { chats: 0, contacts: 0 };
+}
+
+// Published pages whose weekly summary is due (none in the last 6 days).
+export async function listWeeklyDue(limit = 200): Promise<{ id: string; userId: string }[]> {
+  await ensureSchema();
+  return (await sql`
+    SELECT id, "userId" FROM businesses
+    WHERE published = 1 AND ("weeklySentAt" IS NULL OR "weeklySentAt" < now() - interval '6 days')
+    ORDER BY "weeklySentAt" NULLS FIRST LIMIT ${limit}
+  `) as { id: string; userId: string }[];
+}
+
+// Claims this week's summary for a business (true only once per 6 days).
+export async function claimWeekly(businessId: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE businesses SET "weeklySentAt" = now()
+    WHERE id = ${businessId} AND ("weeklySentAt" IS NULL OR "weeklySentAt" < now() - interval '6 days')
+    RETURNING id
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+export async function setCampaignMeta(businessId: string, campaignId: string, meta: CampaignMeta | null): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE campaigns SET meta = ${meta ? JSON.stringify(meta) : null}::jsonb WHERE id = ${campaignId} AND "businessId" = ${businessId}`;
+}
+
+// ---------- Meta (Facebook) connection ----------
+export type MetaConnectionRow = {
+  businessId: string;
+  userId: string;
+  tokenEnc: string;
+  expiresAt: string | null;
+  fbUserName: string;
+  adAccountId: string;
+  adAccountName: string;
+  pageId: string;
+  pageName: string;
+};
+
+export async function getMetaConnection(businessId: string): Promise<MetaConnectionRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM meta_connections WHERE "businessId" = ${businessId}`) as MetaConnectionRow[];
+  return rows[0] ?? null;
+}
+
+export async function saveMetaConnection(c: Pick<MetaConnectionRow, "businessId" | "userId" | "tokenEnc" | "expiresAt" | "fbUserName">): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO meta_connections ("businessId", "userId", "tokenEnc", "expiresAt", "fbUserName")
+    VALUES (${c.businessId}, ${c.userId}, ${c.tokenEnc}, ${c.expiresAt}, ${c.fbUserName})
+    ON CONFLICT ("businessId") DO UPDATE SET "userId" = EXCLUDED."userId", "tokenEnc" = EXCLUDED."tokenEnc",
+      "expiresAt" = EXCLUDED."expiresAt", "fbUserName" = EXCLUDED."fbUserName"
+  `;
+}
+
+export async function setMetaAssets(businessId: string, a: { adAccountId: string; adAccountName: string; pageId: string; pageName: string }): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE meta_connections SET "adAccountId" = ${a.adAccountId}, "adAccountName" = ${a.adAccountName}, "pageId" = ${a.pageId}, "pageName" = ${a.pageName}
+    WHERE "businessId" = ${businessId}
+  `;
+}
+
+export async function deleteMetaConnection(businessId: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM meta_connections WHERE "businessId" = ${businessId}`;
 }

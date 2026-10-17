@@ -1,6 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getCampaignResultsAction } from "@/app/marketingResultsActions";
+import type { CampaignStats } from "@/lib/db";
+import CampaignResults from "./CampaignResults";
+import AdImages from "./AdImages";
+import MetaConnect from "./MetaConnect";
+import MetaLaunch from "./MetaLaunch";
 import { useLang } from "@/components/LangProvider";
 import { MK_TEXT } from "@/lib/marketingI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
@@ -37,6 +43,22 @@ export default function MarketingView({
   const t = MK_TEXT[lang];
   const lk = PLANS_TEXT[lang].lock;
   const strategy = business.marketing.strategy;
+  // What each campaign's link brought (visits, chats, contacts).
+  const [results, setResults] = useState<Record<string, { link: string; stats: CampaignStats; week: CampaignStats }>>({});
+  const campaignKey = campaigns.map((c) => c.id).join(",");
+  useEffect(() => {
+    if (locked) return;
+    let alive = true;
+    getCampaignResultsAction()
+      .then((r) => {
+        if (!alive || !r) return;
+        setResults(Object.fromEntries(r.campaigns.map((c) => [c.id, { link: c.link, stats: c.stats, week: c.week }])));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [campaignKey, locked]);
   if (locked) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#000" }}>
@@ -132,9 +154,12 @@ export default function MarketingView({
           {withSpec.length > 0 && (
             <div>
               <h2 className="text-[20px] font-semibold text-white mb-4">{t.campaigns}</h2>
+              <div className="mb-5">
+                <MetaConnect lang={lang} />
+              </div>
               <div className="flex flex-col gap-5">
                 {withSpec.map((c) => (
-                  <CampaignCard key={c.id} campaign={c} spec={c.spec as CampaignSpec} business={business} />
+                  <CampaignCard key={c.id} campaign={c} spec={c.spec as CampaignSpec} business={business} result={results[c.id]} />
                 ))}
               </div>
             </div>
@@ -168,8 +193,20 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function CampaignCard({ campaign, spec, business }: { campaign: ClientCampaign; spec: CampaignSpec; business: ClientBusiness }) {
-  const t = MK_TEXT[useLang()];
+function CampaignCard({
+  campaign,
+  spec,
+  business,
+  result,
+}: {
+  campaign: ClientCampaign;
+  spec: CampaignSpec;
+  business: ClientBusiness;
+  result?: { link: string; stats: CampaignStats; week: CampaignStats };
+}) {
+  const lang = useLang();
+  const t = MK_TEXT[lang];
+  const photoCount = [business.site.coverUrl, ...business.site.gallery].filter(Boolean).length;
   const image = business.site.coverUrl || business.site.gallery[0] || "";
   const total = spec.dailyBudgetUsd * spec.durationDays;
   const cta = t.cta[spec.destination];
@@ -199,6 +236,9 @@ function CampaignCard({ campaign, spec, business }: { campaign: ClientCampaign; 
         <Fact k={t.total} v={usd(total)} />
       </div>
       {spec.platform === "meta" && <p className="text-[12.5px] text-[#8e8e8e] -mt-2">{t.maxDay(usd(maxDailySpend(spec.dailyBudgetUsd)))}</p>}
+
+      {result && <CampaignResults campaignId={campaign.id} link={result.link} stats={result.stats} week={result.week} lang={lang} />}
+      <MetaLaunch campaign={{ id: campaign.id, platform: spec.platform }} lang={lang} />
       {spec.specialCategory !== "none" && (
         <p className="text-[13px] rounded-xl px-3.5 py-2.5" style={{ background: "rgba(255,196,0,0.1)", color: "#ffd75e" }}>
           {t.special(t.specialNames[spec.specialCategory])}
@@ -268,6 +308,8 @@ function CampaignCard({ campaign, spec, business }: { campaign: ClientCampaign; 
           </div>
         </div>
       )}
+
+      {spec.platform === "meta" && <AdImages campaignId={campaign.id} photoCount={photoCount} lang={lang} />}
 
       {spec.notes && (
         <p className="text-[13.5px] text-[#d4d4d4]">
