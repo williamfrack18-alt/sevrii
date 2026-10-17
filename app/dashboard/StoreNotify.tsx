@@ -253,6 +253,13 @@ export default function StoreNotify() {
               ))}
             </ul>
           )}
+          {results.some((r) => r.ok) && (
+            <p className="text-[12px] text-[#8e8e8e] leading-relaxed">
+              {lang === "es"
+                ? "¿No te apareció? Revisa en tu celular Ajustes → Notificaciones → Sevrii (que esté permitido) y que no tengas el modo Enfoque o No molestar prendido."
+                : "Didn't see it? On your phone check Settings → Notifications → Sevrii (allowed) and that Focus / Do Not Disturb is off."}
+            </p>
+          )}
         </div>
 
         {/* Email */}
