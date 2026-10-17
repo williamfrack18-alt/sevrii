@@ -126,7 +126,8 @@ export function parseMarketing(raw: unknown): MarketingData {
 // ---------- Special ad categories (mandatory for US audiences on Meta) ----------
 const SPECIAL: [CampaignSpec["specialCategory"], RegExp][] = [
   ["credit", /(cr[eé]dit|loan|pr[eé]stamo|lending|financ|mortgage|hipotec|debt|deuda)/i],
-  ["housing", /(real estate|realtor|bienes ra[ií]ces|inmobiliar|rent(al)?s?\b|alquiler|apartment|apartamento|housing|vivienda)/i],
+  // Housing = selling or renting homes (not services done in a home, like cleaning or repairs).
+  ["housing", /(real estate|realtor|bienes ra[ií]ces|inmobiliar|property management|administraci[oó]n de propiedades|(homes?|houses?|apartments?|rooms?) for (rent|sale)|for rent\b|(casas?|apartamentos?|viviendas?|cuartos?|habitaciones?) en (renta|alquiler|venta)|alquiler de (casas?|apartamentos?|viviendas?|cuartos?)|venta de (casas?|propiedades|viviendas?)|compra de vivienda|home buying)/i],
   ["employment", /(staffing|recruit|reclut|hiring agency|job (agency|placement)|agencia de empleo|bolsa de (trabajo|empleo))/i],
   ["financial", /(insurance|seguro de vida|tax prep|taxes|impuestos|invest|inversi)/i],
 ];
