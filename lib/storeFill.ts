@@ -55,7 +55,9 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
 
   const det = draft.details;
   await updateBusinessDetails(b.id, {
-    ...(det.category ? { category: det.category } : {}),
+    // The business type the owner already has stays (the plan's service title is
+    // long, e.g. "Limpieza de casas… (estándar y profunda)"); only fill it if empty.
+    ...(det.category && !b.category?.trim() ? { category: det.category } : {}),
     ...(det.city ? { city: det.city } : {}),
     ...(det.pitch ? { pitch: det.pitch } : {}),
   });

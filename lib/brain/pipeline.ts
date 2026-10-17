@@ -175,7 +175,12 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     }
     plan = { ...plan, guard, stage: "proposal", approvals: {} };
     await savePlan(businessId, plan);
-    await updateBusinessDetails(businessId, { category: plan.service.slice(0, 60) || b.category, city: plan.profile.city || b.city });
+    // A business type the owner already has stays (the proposal's service title
+    // is long); new projects take the short service name.
+    await updateBusinessDetails(businessId, {
+      category: b.category?.trim() ? b.category : (plan.profile.mainService || plan.service).slice(0, 60),
+      city: b.city || plan.profile.city || null,
+    });
     const strategyMsg = ((jobOf(jobs, "strategy")?.result ?? {}) as { message?: string }).message;
     const base =
       strategyMsg ||
