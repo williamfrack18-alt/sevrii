@@ -358,6 +358,37 @@ async function migrate(): Promise<void> {
       await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "weeklySentAt" TIMESTAMPTZ`;
       // Campaigns launched on Meta by the marketing agent (ids, status, latest numbers).
       await sql`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS meta JSONB`;
+      // The marketing agent: what it proposes (waiting for the owner's OK) and what it did.
+      await sql`
+        CREATE TABLE IF NOT EXISTS agent_items (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          status TEXT NOT NULL,
+          title TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '',
+          "campaignId" TEXT,
+          payload JSONB,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "resolvedAt" TIMESTAMPTZ
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS agent_items_biz_idx ON agent_items ("businessId", "createdAt")`;
+      // Free posts the agent prepares for Facebook, Instagram and Google Business.
+      await sql`
+        CREATE TABLE IF NOT EXISTS marketing_posts (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          channel TEXT NOT NULL,
+          day TEXT NOT NULL,
+          text TEXT NOT NULL,
+          photo INTEGER NOT NULL DEFAULT 0,
+          status TEXT NOT NULL DEFAULT 'ready',
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS marketing_posts_biz_idx ON marketing_posts ("businessId", day)`;
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "agentRanAt" TIMESTAMPTZ`;
       // The owner's Facebook connection (token stored encrypted).
       await sql`
         CREATE TABLE IF NOT EXISTS meta_connections (
@@ -1409,6 +1440,8 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM reviews WHERE "businessId" = ${id}`;
   await sql`DELETE FROM campaigns WHERE "businessId" = ${id}`;
   await sql`DELETE FROM campaign_events WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM agent_items WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM marketing_posts WHERE "businessId" = ${id}`;
   await sql`DELETE FROM meta_connections WHERE "businessId" = ${id}`;
   await sql`DELETE FROM chat_messages WHERE "businessId" = ${id}`;
   await sql`DELETE FROM page_reports WHERE "businessId" = ${id}`;
@@ -1437,6 +1470,8 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM reviews WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM campaigns WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM campaign_events WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM agent_items WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM marketing_posts WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM meta_connections WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM chat_messages WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM page_reports WHERE "businessId" = ANY(${ids})`;
@@ -1793,4 +1828,101 @@ export async function setMetaAssets(businessId: string, a: { adAccountId: string
 export async function deleteMetaConnection(businessId: string): Promise<void> {
   await ensureSchema();
   await sql`DELETE FROM meta_connections WHERE "businessId" = ${businessId}`;
+}
+
+
+// ---------- Marketing agent ----------
+export type AgentItemRow = {
+  id: string;
+  businessId: string;
+  kind: string;
+  status: string;
+  title: string;
+  detail: string;
+  campaignId: string | null;
+  payload: Record<string, unknown> | null;
+  createdAt: string;
+  resolvedAt: string | null;
+};
+
+const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : null);
+
+export async function addAgentItem(i: { businessId: string; kind: string; status: string; title: string; detail?: string; campaignId?: string | null; payload?: Record<string, unknown> | null }): Promise<string> {
+  await ensureSchema();
+  const id = newId();
+  await sql`
+    INSERT INTO agent_items (id, "businessId", kind, status, title, detail, "campaignId", payload, "resolvedAt")
+    VALUES (${id}, ${i.businessId}, ${i.kind}, ${i.status}, ${i.title.slice(0, 200)}, ${(i.detail ?? "").slice(0, 2000)}, ${i.campaignId ?? null},
+            ${i.payload ? JSON.stringify(i.payload) : null}::jsonb, ${i.status === "pending" ? null : new Date().toISOString()})
+  `;
+  return id;
+}
+
+export async function listAgentItems(businessId: string, limit = 60): Promise<AgentItemRow[]> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM agent_items WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT ${limit}`) as Record<string, unknown>[];
+  return rows.map((r) => ({ ...(r as unknown as AgentItemRow), createdAt: iso(r.createdAt) ?? "", resolvedAt: iso(r.resolvedAt) }));
+}
+
+export async function getAgentItem(businessId: string, id: string): Promise<AgentItemRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM agent_items WHERE id = ${id} AND "businessId" = ${businessId}`) as Record<string, unknown>[];
+  const r = rows[0];
+  return r ? { ...(r as unknown as AgentItemRow), createdAt: iso(r.createdAt) ?? "", resolvedAt: iso(r.resolvedAt) } : null;
+}
+
+// Moves a pending item to a final status, once (two clicks can't approve twice).
+export async function resolveAgentItem(businessId: string, id: string, status: "approved" | "done" | "dismissed"): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE agent_items SET status = ${status}, "resolvedAt" = now()
+    WHERE id = ${id} AND "businessId" = ${businessId} AND status = 'pending' RETURNING id
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+export async function setAgentItemStatus(businessId: string, id: string, status: string, detail?: string): Promise<void> {
+  await ensureSchema();
+  if (detail !== undefined) await sql`UPDATE agent_items SET status = ${status}, detail = ${detail.slice(0, 2000)}, "resolvedAt" = now() WHERE id = ${id} AND "businessId" = ${businessId}`;
+  else await sql`UPDATE agent_items SET status = ${status}, "resolvedAt" = now() WHERE id = ${id} AND "businessId" = ${businessId}`;
+}
+
+export type MarketingPostRow = { id: string; businessId: string; channel: string; day: string; text: string; photo: number; status: string; createdAt: string };
+
+export async function addMarketingPosts(businessId: string, posts: { channel: string; day: string; text: string; photo: number }[]): Promise<void> {
+  await ensureSchema();
+  for (const p of posts.slice(0, 30)) {
+    await sql`INSERT INTO marketing_posts (id, "businessId", channel, day, text, photo) VALUES (${newId()}, ${businessId}, ${p.channel}, ${p.day}, ${p.text.slice(0, 2200)}, ${Math.max(0, Math.min(20, Math.round(p.photo || 0)))})`;
+  }
+}
+
+export async function listMarketingPosts(businessId: string, fromDay: string, limit = 40): Promise<MarketingPostRow[]> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM marketing_posts WHERE "businessId" = ${businessId} AND day >= ${fromDay} ORDER BY day ASC, channel ASC LIMIT ${limit}`) as Record<string, unknown>[];
+  return rows.map((r) => ({ ...(r as unknown as MarketingPostRow), createdAt: iso(r.createdAt) ?? "" }));
+}
+
+export async function setMarketingPostStatus(businessId: string, id: string, status: "ready" | "used"): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE marketing_posts SET status = ${status} WHERE id = ${id} AND "businessId" = ${businessId}`;
+}
+
+export async function setCampaignStatus(businessId: string, campaignId: string, status: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE campaigns SET status = ${status} WHERE id = ${campaignId} AND "businessId" = ${businessId}`;
+}
+
+export async function markAgentRan(businessId: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET "agentRanAt" = now() WHERE id = ${businessId}`;
+}
+
+// Businesses whose agent works on its own every day (it was started, with Marketing in their plan).
+export async function listAgentBusinesses(limit = 200): Promise<{ id: string; userId: string; agentRanAt: string | null }[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT id, "userId", "agentRanAt" FROM businesses
+    WHERE "agentRanAt" IS NOT NULL ORDER BY "agentRanAt" ASC LIMIT ${limit}
+  `) as Record<string, unknown>[];
+  return rows.map((r) => ({ id: r.id as string, userId: r.userId as string, agentRanAt: iso(r.agentRanAt) }));
 }

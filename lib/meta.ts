@@ -8,7 +8,8 @@ import { isOurBlob } from "./site";
 // OFF until the founder creates a Meta app and sets, in Vercel:
 //   META_APP_ID, META_APP_SECRET, optional META_GRAPH_VERSION (default v23.0)
 // Rules: tokens are stored only encrypted and never logged; everything is
-// created PAUSED and only turned on when the owner taps "Activar".
+// created PAUSED and only turned on when the owner taps "Activar" (or approves
+// the marketing agent's launch, which is the same OK to spend).
 
 export const META_STATE_COOKIE = "sevrii_meta_state";
 export const META_STATE_MAX_AGE = 10 * 60;
@@ -243,6 +244,34 @@ async function uploadImage(token: string, act: string, imageUrl: string): Promis
   }
 }
 
+// One ad creative (text + photo + "Learn more" to the page) on the owner's page.
+async function createCreative(
+  token: string,
+  act: string,
+  pageId: string,
+  ad: { primaryText: string; headline: string; description: string },
+  title: string,
+  name: string,
+  link: string,
+  imageUrl?: string | null
+): Promise<string> {
+  const hash = imageUrl ? await uploadImage(token, act, imageUrl) : null;
+  const linkData: Record<string, unknown> = {
+    link,
+    message: ad.primaryText.slice(0, 600),
+    name: (ad.headline || title).slice(0, 80),
+    description: ad.description ? ad.description.slice(0, 120) : undefined,
+    call_to_action: { type: "LEARN_MORE", value: { link } },
+  };
+  if (hash) linkData.image_hash = hash;
+  else if (imageUrl && isOurBlob(imageUrl)) linkData.picture = imageUrl;
+  const cr = await graph<{ id: string }>("POST", `${act}/adcreatives`, {
+    name: `${name} · Creative`,
+    object_story_spec: { page_id: pageId, link_data: linkData },
+  }, token);
+  return cr.id;
+}
+
 export async function launchCampaign(
   conn: MetaConnectionRow,
   business: BusinessRow,
@@ -308,27 +337,12 @@ export async function launchCampaign(
       status: "PAUSED",
     }, token);
 
-    const hash = imageUrl ? await uploadImage(token, act, imageUrl) : null;
-    const linkData: Record<string, unknown> = {
-      link,
-      message: ad.primaryText.slice(0, 600),
-      name: (ad.headline || campaign.title).slice(0, 80),
-      description: ad.description ? ad.description.slice(0, 120) : undefined,
-      call_to_action: { type: "LEARN_MORE", value: { link } },
-    };
-    if (hash) linkData.image_hash = hash;
-    else if (imageUrl && isOurBlob(imageUrl)) linkData.picture = imageUrl;
-
-    const cr = await graph<{ id: string }>("POST", `${act}/adcreatives`, {
-      name: `${name} · Creative`,
-      object_story_spec: { page_id: conn.pageId, link_data: linkData },
-    }, token);
-    creativeId = cr.id;
+    creativeId = await createCreative(token, act, conn.pageId, ad, campaign.title, name, link, imageUrl);
 
     const a = await graph<{ id: string }>("POST", `${act}/ads`, {
       name: `${name} · Ad`,
       adset_id: s.id,
-      creative: { creative_id: cr.id },
+      creative: { creative_id: creativeId },
       status: "PAUSED",
     }, token);
 
@@ -379,4 +393,47 @@ export async function fetchStats(conn: MetaConnectionRow, meta: CampaignMeta): P
     at: new Date().toISOString(),
     review,
   };
+}
+
+// ---------- Changes the marketing agent makes (never more spend without the owner's OK) ----------
+
+// New daily budget for a live campaign's ad set (only after the owner approves it).
+export async function setDailyBudget(conn: MetaConnectionRow, meta: CampaignMeta, dailyUsd: number): Promise<void> {
+  const token = connectionToken(conn);
+  if (!token) throw new MetaError("reconnect");
+  if (!meta.adSetId) throw new MetaError("Not on Meta.");
+  const cents = Math.round(clamp(Number(dailyUsd) || 1, 1, 10_000) * 100);
+  await graph("POST", meta.adSetId, { daily_budget: cents }, token);
+}
+
+// Swap the text of a live ad for a new variation (same budget, same audience).
+// Meta reviews the ad again before it shows the new text.
+export async function replaceAdCreative(
+  conn: MetaConnectionRow,
+  campaign: CampaignRow,
+  meta: CampaignMeta,
+  link: string,
+  imageUrl?: string | null
+): Promise<void> {
+  const token = connectionToken(conn);
+  if (!token) throw new MetaError("reconnect");
+  const ad = campaign.spec?.ads[0];
+  if (!ad || !meta.adId || !conn.adAccountId || !conn.pageId) throw new MetaError("Not on Meta.");
+  const act = `act_${conn.adAccountId}`;
+  const name = (campaign.title || "Sevrii").slice(0, 200);
+  const creativeId = await createCreative(token, act, conn.pageId, ad, campaign.title, name, link, imageUrl);
+  try {
+    await graph("POST", meta.adId, { creative: { creative_id: creativeId } }, token);
+  } catch (err) {
+    await graph("DELETE", creativeId, {}, token).catch(() => {});
+    throw err;
+  }
+}
+
+// What a campaign spent between two days (YYYY-MM-DD, both included, ad account time).
+export async function fetchSpend(conn: MetaConnectionRow, meta: CampaignMeta, since: string, until: string): Promise<number> {
+  const token = connectionToken(conn);
+  if (!token) throw new MetaError("reconnect");
+  const r = await graph<{ data?: Record<string, unknown>[] }>("GET", `${meta.campaignId}/insights`, { fields: "spend", time_range: { since, until } }, token);
+  return Math.round((r.data ?? []).reduce((sum, row) => sum + (Number(row.spend) || 0), 0) * 100) / 100;
 }

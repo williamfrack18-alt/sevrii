@@ -13,6 +13,7 @@ import { PLANS_TEXT } from "@/lib/plansI18n";
 import { maxDailySpend, type CampaignSpec } from "@/lib/marketing";
 import { sendMarketingChatAction } from "@/app/marketingActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
+import AgentPanel from "./AgentPanel";
 import { toClientBusiness, type ClientBusiness, type ClientCampaign } from "./types";
 import { ACCENT, BRAND_BTN } from "@/lib/brand";
 
@@ -78,8 +79,33 @@ export default function MarketingView({
   }
   const withSpec = campaigns.filter((c) => c.spec);
 
+  const applyUpdate = (res: Awaited<ReturnType<typeof sendMarketingChatAction>>) =>
+    onUpdated(
+      toClientBusiness(res.business),
+      res.campaigns.map((c) => ({
+        id: c.id,
+        title: c.title,
+        goal: c.goal,
+        status: c.status,
+        adCopy: c.adCopy,
+        budgetNote: c.budgetNote,
+        audience: c.audience,
+        platforms: c.platforms,
+        variations: c.variations,
+        spec: c.spec ?? null,
+      }))
+    );
+  // The agent changed the strategy or campaigns: reload them without sending
+  // anything to the chat (an empty message only reads).
+  const refresh = () => {
+    sendMarketingChatAction("")
+      .then(applyUpdate)
+      .catch(() => {});
+  };
+
   return (
     <div style={{ background: "#000" }}>
+      <AgentPanel business={business} lang={lang} onChanged={refresh} />
       <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
         <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between">
           <span className="text-[17px] font-semibold text-white">
@@ -98,21 +124,7 @@ export default function MarketingView({
           onSend={async (text) => {
             const res = await sendMarketingChatAction(text);
             onMessages?.(res.messages);
-            onUpdated(
-              toClientBusiness(res.business),
-              res.campaigns.map((c) => ({
-                id: c.id,
-                title: c.title,
-                goal: c.goal,
-                status: c.status,
-                adCopy: c.adCopy,
-                budgetNote: c.budgetNote,
-                audience: c.audience,
-                platforms: c.platforms,
-                variations: c.variations,
-                spec: c.spec ?? null,
-              }))
-            );
+            applyUpdate(res);
             return res.messages;
           }}
         />
