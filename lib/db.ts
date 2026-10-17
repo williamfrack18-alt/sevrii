@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { ownsBlob, parseSite, type SiteData } from "./site";
 import { parseMarketing, parseCampaignSpec, type MarketingData, type CampaignSpec } from "./marketing";
 import { parsePlan, type BusinessPlan } from "./plan";
@@ -28,10 +28,36 @@ export function nowISO(): string {
 // on Vercel's read-only serverless filesystem. Column names are quoted
 // wherever they use camelCase so they round-trip exactly like the old
 // SQLite schema did (Postgres folds unquoted identifiers to lowercase).
+//
+// The setup below runs once per schema version, not on every cold start: a
+// fingerprint of the setup code is stored in sevrii_meta, and a new server
+// only re-runs it when the code changed (a deploy with new tables/columns).
 let schemaReady: Promise<void> | null = null;
 function ensureSchema(): Promise<void> {
   if (!schemaReady) {
     schemaReady = (async () => {
+      const version = createHash("sha1").update(migrate.toString()).digest("hex").slice(0, 16);
+      try {
+        const rows = (await sql`SELECT value FROM sevrii_meta WHERE key = 'schema'`) as { value: string }[];
+        if (rows[0]?.value === version) return;
+      } catch {
+        // First run: the table doesn't exist yet.
+      }
+      await migrate();
+      await sql`CREATE TABLE IF NOT EXISTS sevrii_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`;
+      await sql`INSERT INTO sevrii_meta (key, value) VALUES ('schema', ${version}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+    })().catch((err) => {
+      // Don't cache a failed setup forever — let the next request retry.
+      schemaReady = null;
+      throw err;
+    });
+  }
+  return schemaReady;
+}
+
+async function migrate(): Promise<void> {
+  {
+    {
       await sql`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
@@ -311,13 +337,14 @@ function ensureSchema(): Promise<void> {
         )
       `;
       await sql`CREATE INDEX IF NOT EXISTS push_subs_user_idx ON push_subs ("userId")`;
-    })().catch((err) => {
-      // Don't cache a failed setup forever — let the next request retry.
-      schemaReady = null;
-      throw err;
-    });
+      // Lookups that used to scan whole tables.
+      await sql`CREATE INDEX IF NOT EXISTS research_jobs_run_idx ON research_jobs ("runId", kind)`;
+      await sql`CREATE INDEX IF NOT EXISTS users_google_sub_idx ON users ("googleSub")`;
+      await sql`CREATE INDEX IF NOT EXISTS businesses_stripe_account_idx ON businesses ("stripeAccountId")`;
+      await sql`CREATE INDEX IF NOT EXISTS chat_messages_channel_time_idx ON chat_messages ("businessId", channel, "createdAt")`;
+      await sql`CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets ("userId")`;
+    }
   }
-  return schemaReady;
 }
 
 // ---------- Sessions ----------
@@ -357,6 +384,14 @@ export async function hitRateCounter(key: string, windowSeconds: number): Promis
       "windowEndsAt" = CASE WHEN rate_counters."windowEndsAt" <= now() THEN EXCLUDED."windowEndsAt" ELSE rate_counters."windowEndsAt" END
     RETURNING count
   `) as { count: number }[];
+  // Now and then, clear what has expired (old counters, sessions and reset
+  // links), so these tables don't grow forever.
+  if (Math.random() < 0.01) {
+    sql`DELETE FROM rate_counters WHERE "windowEndsAt" < now() - interval '1 day'`
+      .then(() => sql`DELETE FROM sessions WHERE "expiresAt" < now()`)
+      .then(() => sql`DELETE FROM password_resets WHERE "expiresAt" < now() - interval '1 day'`)
+      .catch(() => {});
+  }
   return rows[0]?.count ?? 1;
 }
 
@@ -762,6 +797,7 @@ export type MarketplaceRow = {
   planStatus: string | null;
   googleSub: string | null;
   emailVerifiedAt: string | null;
+  planRenewsAt: string | null;
   serviceName: string | null;
   servicePrice: string | null;
   category: string;
@@ -772,7 +808,8 @@ export type MarketplaceRow = {
 export async function listMarketplaceRows(limit = 300): Promise<MarketplaceRow[]> {
   await ensureSchema();
   const rows = (await sql`
-    SELECT b.id, b.slug, b.name, b.city, b.site, b.plan AS "businessPlan", b."marketCategory", b.category, u.email, u.plan, u."planStatus", u."googleSub", u."emailVerifiedAt",
+    SELECT b.id, b.slug, b.name, b.city, b.site, jsonb_build_object('profile', b.plan->'profile') AS "businessPlan", b."marketCategory", b.category,
+           u.email, u.plan, u."planStatus", u."planRenewsAt", u."googleSub", u."emailVerifiedAt",
            s.name AS "serviceName", s.price AS "servicePrice"
     FROM businesses b
     JOIN users u ON u.id = b."userId"
@@ -1162,6 +1199,15 @@ export async function listUserWaitlists(userId: string): Promise<string[]> {
 // ---------- Payments (Stripe Connect) ----------
 export type PayStatus = "none" | "pending" | "review" | "ready";
 
+// Swaps a saved account that no longer exists in Stripe for a new one. Only
+// replaces that exact old id, so two clicks at once still end with one account.
+export async function replaceBusinessStripeAccount(businessId: string, oldId: string, newId: string): Promise<string> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET "stripeAccountId" = ${newId}, "payStatus" = 'pending' WHERE id = ${businessId} AND "stripeAccountId" = ${oldId}`;
+  const rows = (await sql`SELECT "stripeAccountId" FROM businesses WHERE id = ${businessId}`) as { stripeAccountId: string | null }[];
+  return rows[0]?.stripeAccountId || newId;
+}
+
 export async function setBusinessStripeAccount(businessId: string, accountId: string): Promise<string> {
   await ensureSchema();
   // Only the first account sticks, so two clicks at once can't leave two accounts.
@@ -1330,7 +1376,7 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM conversations WHERE "businessId" = ${id}`;
   await sql`DELETE FROM businesses WHERE id = ${id} AND "userId" = ${userId}`;
   // Only this project's own files (a logo carried over from another project stays).
-  return [site.logoUrl, site.coverUrl, site.videoUrl, ...site.gallery].filter((u) => u && ownsBlob(u, id));
+  return [site.logoUrl, site.ownerPhotoUrl, site.coverUrl, site.videoUrl, ...site.gallery].filter((u) => u && ownsBlob(u, id));
 }
 
 export async function deleteUserEverything(userId: string): Promise<string[]> {
@@ -1339,7 +1385,7 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
   const photos: string[] = [];
   for (const b of businesses) {
     const site = parseSite(b.site);
-    photos.push(site.logoUrl, site.coverUrl, site.videoUrl, ...site.gallery);
+    photos.push(site.logoUrl, site.ownerPhotoUrl, site.coverUrl, site.videoUrl, ...site.gallery);
   }
   const ids = businesses.map((b) => b.id);
   if (ids.length) {

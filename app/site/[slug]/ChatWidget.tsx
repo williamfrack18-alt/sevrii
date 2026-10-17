@@ -108,7 +108,10 @@ export default function ChatWidget({
   // Once the owner answers, the chat shows the real person (name + photo).
   const ownerLabel = ownerName || (lang === "es" ? "El dueño" : "The owner");
   const ownerMsgs = msgs.filter((m) => m.role === "owner");
-  const ownerHere = ownerMsgs.length > 0;
+  // The header shows the owner only while they're the one answering: if they
+  // hand the chat back to the assistant, the assistant is shown again.
+  const lastReply = [...msgs].reverse().find((m) => m.role !== "visitor");
+  const ownerHere = ownerMsgs.length > 0 && lastReply?.role === "owner";
   const lastOwnerAt = ownerHere ? Date.parse(ownerMsgs[ownerMsgs.length - 1].at) : 0;
   const ownerRecent = ownerHere && Date.now() - lastOwnerAt < 10 * 60 * 1000;
 
@@ -241,6 +244,12 @@ export default function ChatWidget({
                       <span className="cw-real">✓ {t.realPerson}</span>
                     </div>
                   )}
+                  {showFrom && m.role === "ai" && msgs.slice(0, i).some((x) => x.role === "owner") && (
+                    <div className="cw-from">
+                      <Avatar src={logoUrl} name={businessName} className="cw-mini" />
+                      <span>{t.assistant(businessName)}</span>
+                    </div>
+                  )}
                   <div className={`cw-msg ${m.role}`}>{m.content.replace(/\*\*(.+?)\*\*/g, "$1")}</div>
                 </div>
               );
@@ -252,7 +261,7 @@ export default function ChatWidget({
                 <span />
               </div>
             )}
-            {waiting && !sending && !ownerHere && <div className="cw-wait">{t.waiting(businessName)}</div>}
+            {waiting && !sending && !ownerMsgs.length && <div className="cw-wait">{t.waiting(businessName)}</div>}
           </div>
           {error && <div className="cw-error">{error}</div>}
           <form

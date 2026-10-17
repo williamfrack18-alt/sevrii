@@ -308,6 +308,9 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       const approvals = { ...plan.approvals };
       for (const t of touched) delete approvals[t];
       const patch: Record<string, unknown> = { ...input };
+      // "Make it 20%" sends only the changed offer field: keep the rest
+      // (who it's for, the detail, the end date) instead of losing it.
+      if (input.offer && typeof input.offer === "object" && plan.offer) patch.offer = { ...plan.offer, ...(input.offer as Record<string, unknown>) };
       if (input.offer) patch.noOffer = false;
       if (input.noOffer === true) patch.offer = null;
       // Only an edit to an approval block reopens the proposal; anything else

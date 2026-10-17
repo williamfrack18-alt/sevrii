@@ -35,6 +35,8 @@ const GUIDE: Record<MarketCategory, string> = {
 };
 
 // Fallback when the AI isn't available. Text is lowercased without accents.
+// Order matters (first match wins): Automotriz and Tecnología come before
+// Reparaciones so "auto repair" or "phone repair" don't land in Reparaciones.
 const KEYWORDS: [MarketCategory, RegExp][] = [
   ["Mascotas", /\b(pets?|dogs?|cats?|perros?|gatos?|mascotas?|canin[oa]s?|felin[oa]s?|grooming)\b/],
   ["Finanzas y Crédito", /\b(credito|credit|loans?|prestamos?|financ\w*|tax(es)?|impuestos?|contab\w*|bookkeep\w*|seguros?|insurance)\b/],
@@ -42,11 +44,11 @@ const KEYWORDS: [MarketCategory, RegExp][] = [
   ["Fotografía", /\b(foto\w*|photo\w*|video\w*|drones?|filmacion\w*)\b/],
   ["Mudanzas", /\b(mudanzas?|moving|movers?|hauling|junk|acarreos?)\b/],
   ["Belleza y Cuidado", /\b(hair|barber\w*|unas|nails?|makeup|maquillaje|lash\w*|pestanas|spa|estetica|belleza|beauty|skin\w*|peluqueria)\b/],
-  ["Reparaciones", /\b(plumb\w*|plomer\w*|electric\w*|electricista|hvac|aire acondicionado|roof\w*|techos?|handyman|reparacion\w*|repairs?|remodel\w*|construc\w*|cargador\w*|chargers?|locksmith|cerrajer\w*)\b/],
   ["Automotriz", /\b(autos?|cars?|carros?|coches?|mecanic\w*|mechanic\w*|detailing|towing|gruas?|llantas?|tires?)\b/],
+  ["Tecnología", /\b(web design\w*|web develop\w*|websites?|diseno web|desarrollo web|paginas? web|sitios? web|software|it support|computer\w*|computador\w*|celulares?|cell ?phones?|smartphones?|laptops?|tablets?|phone repair|phone screens?|reparacion de (telefonos|moviles)|redes sociales|social media|tecnologia)\b/],
+  ["Reparaciones", /\b(plumb\w*|plomer\w*|electric\w*|electricista|hvac|aire acondicionado|roof\w*|techos?|handyman|reparacion\w*|repairs?|remodel\w*|construc\w*|cargador\w*|chargers?|locksmith|cerrajer\w*)\b/],
   ["Hogar y Limpieza", /\b(clean\w*|limpieza|landscap\w*|jardin\w*|lawn|pest|plagas?|pools?|piscinas?|pressure|pintura|painting)\b/],
   ["Eventos", /\b(events?|eventos?|bodas?|weddings?|catering|dj|fiestas?|party|parties|decoracion\w*|quinceaneras?)\b/],
-  ["Tecnología", /\b(web|software|it support|computer\w*|computador\w*|celulares?|phone repair|redes sociales|social media|tecnologia)\b/],
   ["Salud y Bienestar", /\b(fitness|trainer|entrenador\w*|nutri\w*|masajes?|massage|therap\w*|terapia\w*|home care|cuidado de adultos|yoga|salud|health)\b/],
   ["Educación", /\b(tutor\w*|clases?|lessons?|cursos?|courses?|idiomas?|languages?|music|musica|escuelas?|school)\b/],
 ];
@@ -129,17 +131,20 @@ export type MarketListing = {
 let cache: { at: number; rows: Awaited<ReturnType<typeof listMarketplaceRows>> } | null = null;
 
 export async function marketplaceListings(visitor: Visitor | null = null, lang: "es" | "en" = "es"): Promise<MarketListing[]> {
-  if (!cache || Date.now() - cache.at > 60_000) cache = { at: Date.now(), rows: await listMarketplaceRows() };
+  if (!cache || Date.now() - cache.at > 60_000) cache = { at: Date.now(), rows: await listMarketplaceRows(2000) };
   const rows = cache.rows;
   const out: MarketListing[] = [];
+  const saves: Promise<void>[] = [];
   for (const r of rows) {
     // Only owners whose plan still includes publishing (cancelled plans drop out).
-    if (!PLANS[effectivePlan({ email: r.email, plan: r.plan ?? undefined, planStatus: r.planStatus ?? undefined, googleSub: r.googleSub, emailVerifiedAt: r.emailVerifiedAt })].limits.canPublish) continue;
+    if (!PLANS[effectivePlan({ email: r.email, plan: r.plan ?? undefined, planStatus: r.planStatus ?? undefined, googleSub: r.googleSub, emailVerifiedAt: r.emailVerifiedAt, planRenewsAt: r.planRenewsAt })].limits.canPublish) continue;
     let category = r.marketCategory;
     if (!isMarketCategory(category)) {
       // Pages published before the marketplace existed: place them once by keywords.
+      // Kept on the cached row so the next requests don't redo it; saved in the background.
       category = keywordCategory([r.name, r.category, r.site.headline, r.serviceName].filter(Boolean).join(" "));
-      await setBusinessMarketCategory(r.id, category).catch(() => undefined);
+      r.marketCategory = category;
+      saves.push(setBusinessMarketCategory(r.id, category));
     }
     const site = r.site;
     const reach = resolveReach(site, r.city, r.profile);
@@ -160,6 +165,7 @@ export async function marketplaceListings(visitor: Visitor | null = null, lang: 
       serves: fit.ok,
     });
   }
+  if (saves.length) void Promise.allSettled(saves);
   // Closest local services first, then online ones, then the rest.
   const rank = (l: MarketListing) => (l.serves ? (l.reach === "local" ? 0 : 1) : 2);
   return out.sort((a, b) => rank(a) - rank(b) || (a.miles ?? 9999) - (b.miles ?? 9999));

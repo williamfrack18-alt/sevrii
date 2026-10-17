@@ -30,7 +30,7 @@ const TEXT = {
     otherDevices: (n: number) => `Activadas en ${n} dispositivo${n === 1 ? "" : "s"}.`,
     denied: "Bloqueaste las notificaciones para Sevrii en este navegador. Actívalas en la configuración del navegador (el candado junto a la dirección).",
     unsupported: "Este navegador no permite notificaciones. Prueba con Chrome, Edge, Firefox o Safari.",
-    ios: "En iPhone: toca Compartir (el cuadro con la flecha) → «Agregar a pantalla de inicio». Abre Sevrii desde ese ícono, entra a Store y activa aquí las notificaciones.",
+    ios: "En iPhone: toca Compartir (el cuadro con la flecha) → «Agregar a pantalla de inicio». Abre Sevrii desde ese ícono, entra a Conversaciones → Avisos y actívalas ahí.",
     sms: "Mensaje de texto (SMS)",
     smsSoon: "Próximamente.",
     on: "Activado",
@@ -54,7 +54,7 @@ const TEXT = {
     otherDevices: (n: number) => `On for ${n} device${n === 1 ? "" : "s"}.`,
     denied: "You blocked notifications for Sevrii in this browser. Turn them on in the browser settings (the lock next to the address).",
     unsupported: "This browser doesn't support notifications. Try Chrome, Edge, Firefox or Safari.",
-    ios: "On iPhone: tap Share (the square with the arrow) → “Add to Home Screen”. Open Sevrii from that icon, go to Store and turn notifications on here.",
+    ios: "On iPhone: tap Share (the square with the arrow) → “Add to Home Screen”. Open Sevrii from that icon, go to Conversations → Alerts and turn them on there.",
     sms: "Text message (SMS)",
     smsSoon: "Coming soon.",
     on: "On",
@@ -69,9 +69,24 @@ function keyBytes(b64: string): Uint8Array {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
+// iPads report themselves as a Mac; touch gives them away.
+function isIos(): boolean {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+}
+
+// Does this subscription use Sevrii's current key? (If the key changed, the
+// old subscription can no longer receive anything.)
+function sameKey(sub: PushSubscription, key: string): boolean {
+  const k = sub.options?.applicationServerKey;
+  if (!k) return true;
+  const a = new Uint8Array(k);
+  const b = keyBytes(key);
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
 function deviceLabel(): string {
   const ua = navigator.userAgent;
-  if (/iPhone|iPad/.test(ua)) return "iPhone";
+  if (isIos()) return /iPad|Macintosh/.test(ua) ? "iPad" : "iPhone";
   if (/Android/.test(ua)) return "Android";
   if (/Mac/.test(ua)) return "Mac";
   if (/Windows/.test(ua)) return "Windows";
@@ -89,9 +104,10 @@ export default function StoreNotify() {
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    getNotifySettingsAction().then(setS).catch(() => setS(null));
+    const settings = getNotifySettingsAction().catch(() => null);
+    settings.then(setS);
     (async () => {
-      const ios = /iPhone|iPad/.test(navigator.userAgent);
+      const ios = isIos();
       const standalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
         setPush(ios && !standalone ? "ios" : "unsupported");
@@ -100,7 +116,16 @@ export default function StoreNotify() {
       if (Notification.permission === "denied") return setPush("denied");
       try {
         const reg = await navigator.serviceWorker.getRegistration("/");
-        const sub = await reg?.pushManager.getSubscription();
+        let sub = await reg?.pushManager.getSubscription();
+        const conf = await settings;
+        if (sub && reg && conf?.pushKey && Notification.permission === "granted") {
+          // Keep Sevrii's record in step with this browser, so "On" really means on.
+          if (!sameKey(sub, conf.pushKey)) {
+            await sub.unsubscribe().catch(() => {});
+            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(conf.pushKey) as BufferSource });
+          }
+          await savePushSubAction(sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }, deviceLabel()).catch(() => false);
+        }
         setPush(sub ? "on" : "off");
       } catch {
         setPush("off");
@@ -120,7 +145,11 @@ export default function StoreNotify() {
       }
       const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       await navigator.serviceWorker.ready;
-      const existing = await reg.pushManager.getSubscription();
+      let existing = await reg.pushManager.getSubscription();
+      if (existing && !sameKey(existing, s.pushKey)) {
+        await existing.unsubscribe().catch(() => {});
+        existing = null;
+      }
       const sub = existing ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(s.pushKey) as BufferSource }));
       const ok = await savePushSubAction(sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }, deviceLabel());
       if (!ok) throw new Error("save");

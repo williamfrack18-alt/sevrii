@@ -243,12 +243,14 @@ export async function listInboxAction(): Promise<InboxConversation[]> {
   }));
 }
 
-export async function openInboxConversationAction(id: string, afterSeq = 0): Promise<{ ok: boolean; messages: ChatMsg[] }> {
+// markRead: only when the owner is really looking (tab visible), so messages
+// that arrive while the dashboard sits in a background tab stay unread.
+export async function openInboxConversationAction(id: string, afterSeq = 0, markRead = true): Promise<{ ok: boolean; messages: ChatMsg[] }> {
   const b = await ownerBusiness();
   if (!b) return { ok: false, messages: [] };
   const conv = await getConversationForBusiness(b.id, clean(id, 64));
   if (!conv) return { ok: false, messages: [] };
-  if (conv.ownerUnread) await updateConversation(conv.id, { read: true });
+  if (markRead && conv.ownerUnread) await updateConversation(conv.id, { read: true });
   return { ok: true, messages: (await listConvMessages(conv.id, Math.max(0, afterSeq), 200)).map(pub) };
 }
 
@@ -281,7 +283,18 @@ export async function setConversationAiAction(id: string, on: boolean): Promise<
   if (!b) return false;
   const conv = await getConversationForBusiness(b.id, clean(id, 64));
   if (!conv) return false;
-  await updateConversation(conv.id, { aiEnabled: Boolean(on) });
+  // Handing the chat back to the assistant also means it's no longer waiting for the owner.
+  await updateConversation(conv.id, on ? { aiEnabled: true, handoff: false } : { aiEnabled: false });
+  return true;
+}
+
+// The owner took care of it (by phone, email, in person…): no longer pending.
+export async function resolveConversationAction(id: string): Promise<boolean> {
+  const b = await ownerBusiness();
+  if (!b) return false;
+  const conv = await getConversationForBusiness(b.id, clean(id, 64));
+  if (!conv) return false;
+  await updateConversation(conv.id, { handoff: false, read: true });
   return true;
 }
 
@@ -323,11 +336,23 @@ export async function setNotifyEmailAction(on: boolean): Promise<boolean> {
   return true;
 }
 
+// Only the browsers' real push services (so the server never sends requests
+// to an address someone typed).
+const PUSH_HOSTS = [/\.googleapis\.com$/, /\.mozilla\.com$/, /\.mozaws\.net$/, /\.notify\.windows\.com$/, /^web\.push\.apple\.com$/, /\.push\.apple\.com$/];
+function isPushEndpoint(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && PUSH_HOSTS.some((re) => re.test(u.hostname));
+  } catch {
+    return false;
+  }
+}
+
 export async function savePushSubAction(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, label: string): Promise<boolean> {
   const user = await getCurrentUser();
   if (!user) return false;
   const endpoint = clean(sub?.endpoint, 1000);
-  if (!/^https:\/\//.test(endpoint)) return false;
+  if (!isPushEndpoint(endpoint)) return false;
   const p256dh = clean(sub?.keys?.p256dh, 200);
   const auth = clean(sub?.keys?.auth, 100);
   if (!p256dh || !auth) return false;

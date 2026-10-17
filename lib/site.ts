@@ -42,6 +42,7 @@ export type SiteData = {
   disclaimer: string;
   faq: FaqItem[];
   logoUrl: string;
+  ownerPhotoUrl: string; // the owner's face, shown when they answer chats
   coverUrl: string;
   gallery: string[];
   videoUrl: string; // the owner's own video (Sevrii storage only)
@@ -101,6 +102,7 @@ export const EMPTY_SITE: SiteData = {
   disclaimer: "",
   faq: [],
   logoUrl: "",
+  ownerPhotoUrl: "",
   coverUrl: "",
   gallery: [],
   videoUrl: "",
@@ -187,7 +189,8 @@ export function parseSite(raw: unknown): SiteData {
     phone: normalizePhone(str(obj.phone, 30)) ?? "",
     textEnabled: obj.textEnabled === undefined ? true : Boolean(obj.textEnabled),
     contactPref: obj.contactPref === "form" ? "chat" : ((["call", "text", "whatsapp", "chat"] as const).find((x) => x === obj.contactPref) ?? ""),
-    chat: obj.chat !== undefined ? Boolean(obj.chat) : obj.quoteForm !== undefined ? Boolean(obj.quoteForm) : true,
+    // Customers reach the business only through the page chat, so it's always on.
+    chat: true,
     notifyEmail: obj.notifyEmail === undefined ? true : Boolean(obj.notifyEmail),
     ownerName: str(obj.ownerName, 40),
     reachMode: obj.reachMode === "local" || obj.reachMode === "remote" ? obj.reachMode : "",
@@ -229,6 +232,7 @@ export function parseSite(raw: unknown): SiteData {
       .filter((f) => f.q && f.a)
       .slice(0, LIMITS.faq),
     logoUrl: safeUrl(obj.logoUrl),
+    ownerPhotoUrl: safeUrl(obj.ownerPhotoUrl),
     coverUrl: safeUrl(obj.coverUrl),
     gallery: (Array.isArray(obj.gallery) ? obj.gallery : [])
       .map((g) => safeUrl(g))
@@ -257,7 +261,11 @@ function parseOffer(raw: unknown): Offer | null {
   const label = str(o.label, LIMITS.offerLabel);
   if (!label) return null;
   const ends = str(o.endsAt, 40);
-  const endsAt = ends && !Number.isNaN(Date.parse(ends)) ? new Date(ends).toISOString() : "";
+  // A plain date ("2026-10-20", or one saved as midnight UTC) means the whole
+  // day in the US: it ends at 11:59 pm Pacific, never the evening before.
+  const day = /^(\d{4}-\d{2}-\d{2})(?:T00:00:00(?:\.000)?Z)?$/.exec(ends);
+  const when = day ? `${day[1]}T23:59:59-07:00` : ends;
+  const endsAt = when && !Number.isNaN(Date.parse(when)) ? new Date(when).toISOString() : "";
   return { label, oldPrice: str(o.oldPrice, LIMITS.offerPrice), newPrice: str(o.newPrice, LIMITS.offerPrice), endsAt };
 }
 
@@ -280,12 +288,11 @@ export function missingForSales(opts: {
   const m: string[] = [];
   if (opts.serviceCount === 0) m.push("services");
   else if (opts.pricedServices === 0) m.push("prices");
-  if (!s.chat && !s.phone && !normalizePhone(opts.whatsapp)) m.push("contact");
+  if (!s.ownerName) m.push("ownerName (the owner's first name, shown when they answer chats)");
   if (s.gallery.length === 0 && !s.coverUrl) m.push("photos");
   if (s.keyPoints.length === 0) m.push("keyPoints");
   if (!s.offer) m.push("offer (ask; it's fine to have none)");
   if (!s.reachMode) m.push("service area (in person in a city + miles, or online)");
-  if (!s.serviceArea && s.reachMode !== "remote") m.push("serviceArea");
   if (!s.hours) m.push("hours");
   if (s.steps.length === 0) m.push("steps (how they work)");
   if (s.faq.length === 0) m.push("faq");

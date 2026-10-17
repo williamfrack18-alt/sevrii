@@ -29,11 +29,32 @@ self.addEventListener("notificationclick", (event) => {
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       for (const c of list) {
         if (c.url.startsWith(self.location.origin) && "focus" in c) {
-          c.navigate(url);
-          return c.focus();
+          return c.focus().then((w) => (w && "navigate" in w ? w.navigate(url).catch(() => w) : w)).catch(() => self.clients.openWindow(url));
         }
       }
       return self.clients.openWindow(url);
     })
+  );
+});
+
+// The browser replaced the subscription: tell Sevrii the new one so alerts keep arriving.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const old = event.oldSubscription ? event.oldSubscription.endpoint : "";
+        let sub = event.newSubscription;
+        if (!sub && event.oldSubscription && event.oldSubscription.options) {
+          sub = await self.registration.pushManager.subscribe(event.oldSubscription.options);
+        }
+        if (!sub) return;
+        await fetch("/api/push", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ old, sub: sub.toJSON() }),
+        });
+      } catch (e) {}
+    })()
   );
 });

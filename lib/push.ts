@@ -52,7 +52,9 @@ export async function pushToUser(userId: string, msg: PushMessage): Promise<numb
         sent++;
       } catch (err) {
         const code = (err as { statusCode?: number })?.statusCode;
-        if (code === 404 || code === 410) await deletePushSub(s.endpoint);
+        // 404/410: the subscription is gone. 401/403: it was made with other
+        // keys; the browser makes a fresh one next time the owner opens Sevrii.
+        if (code === 404 || code === 410 || code === 401 || code === 403) await deletePushSub(s.endpoint);
         else console.error("[push] send failed", code, (err as Error)?.message);
       }
     }

@@ -35,7 +35,7 @@ const TOOLS: Tool[] = [
     input_schema: {
       type: "object",
       properties: {
-        goal: { type: "string", description: "What they want, e.g. 'more calls for AC repair'" },
+        goal: { type: "string", description: "What they want, e.g. 'more chats and bookings for AC repair'" },
         monthlyBudgetUsd: { type: "number" },
         avgTicketUsd: { type: "number", description: "Average sale per customer, if they said it" },
         mainService: { type: "string" },
@@ -64,7 +64,7 @@ const TOOLS: Tool[] = [
             properties: {
               stage: { type: "string", enum: ["awareness", "consideration", "conversion", "retention"] },
               title: { type: "string" },
-              channel: { type: "string", description: "e.g. 'Facebook + Instagram ads', 'Google Search', 'WhatsApp Status', 'Google Business Profile'" },
+              channel: { type: "string", description: "e.g. 'Facebook + Instagram ads', 'Google Search', 'Google Business Profile', 'referrals'" },
               message: { type: "string", description: "What to say at this stage" },
               action: { type: "string", description: "The concrete thing to do" },
             },
@@ -86,8 +86,8 @@ const TOOLS: Tool[] = [
         title: { type: "string" },
         goal: { type: "string" },
         platform: { type: "string", enum: ["meta", "google"] },
-        objective: { type: "string", enum: ["calls", "messages", "leads", "traffic"] },
-        destination: { type: "string", enum: ["call", "whatsapp", "messenger", "website"] },
+        objective: { type: "string", enum: ["leads", "traffic"] },
+        destination: { type: "string", enum: ["website"] },
         specialCategory: { type: "string", enum: ["none", "credit", "employment", "housing", "financial"] },
         city: { type: "string" },
         radiusMiles: { type: "number" },
@@ -120,8 +120,8 @@ How to work:
 - Save each answer right away with save_profile, confirm in a few words, ask the next thing.
 - When you know goal, main service, monthly budget, area, ideal customer and customers' language: write the strategy with save_strategy and explain it in 3-4 short lines.
 - Then build the first campaign with save_campaign. Defaults for US local services:
-  · Meta (Facebook + Instagram) "Call now" ad (objective calls, destination call) when they have a phone — calls convert best for local services.
-  · Messages to WhatsApp when the owner uses WhatsApp and their customers prefer to text; Messenger otherwise.
+  · Every ad sends people to the owner's Sevrii page, where customers write through the page chat (objective traffic or leads, destination website). The page has no phone or WhatsApp buttons: never propose call or WhatsApp ads.
+  · Meta (Facebook + Instagram) ad with "Más información"/"Learn more" to the page, for local services in their area; online services target the whole US.
   · Google Search when people actively search for the service and the budget allows (≥ ~$15/day).
   · Small budgets: ONE campaign, ONE ad set. Daily budget = monthly budget / 30, rounded.
   · Ad copy in the customers' language, benefit first, mention the real price or offer from the store if there is one.
@@ -284,6 +284,6 @@ export function marketingGreeting(lang: Lang, b: BusinessRow): string {
       : `Hi! I have your Brain strategy for "${b.plan.service}" and the campaign type: ${b.plan.campaignType}. I only need a few things to get it ready. First: how much do you want to spend on ads per month?`;
   }
   return lang === "es"
-    ? `¡Hola! Soy el cerebro de marketing de Sevrii. Voy a entender tu negocio, armar tu estrategia y dejarte las campañas listas para ${b.name}. Para empezar: ¿qué quieres lograr con tus anuncios? Por ejemplo, más llamadas, más mensajes o más citas.`
-    : `Hi! I'm Sevrii's marketing brain. I'll understand your business, build your strategy and leave ${b.name}'s campaigns ready. To start: what do you want your ads to achieve? For example more calls, more messages or more bookings.`;
+    ? `¡Hola! Soy el cerebro de marketing de Sevrii. Voy a entender tu negocio, armar tu estrategia y dejarte las campañas listas para ${b.name}. Para empezar: ¿qué quieres lograr con tus anuncios? Por ejemplo, más mensajes de clientes o más citas.`
+    : `Hi! I'm Sevrii's marketing brain. I'll understand your business, build your strategy and leave ${b.name}'s campaigns ready. To start: what do you want your ads to achieve? For example more customer messages or more bookings.`;
 }

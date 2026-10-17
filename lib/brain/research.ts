@@ -28,22 +28,25 @@ function task(kind: ResearchKind, plan: BusinessPlan, lang: Lang): string {
   const service = plan.service || p.mainService || "";
   const remote = p.serviceMode === "remote";
   // Remote services compete nationally (online), local ones in their city.
-  const place = remote ? (p.remoteScope === "world" ? "EE. UU. (en línea, también clientes de otros países)" : "todo EE. UU. (en línea)") : `${p.city}${p.state ? ", " + p.state : ""}`;
+  const place = remote ? (p.remoteScope === "world" ? "línea (clientes de EE. UU. y de otros países)" : "línea, para clientes de todo EE. UU.") : `${p.city}${p.state ? ", " + p.state : ""}`;
+  const where = remote ? `en ${place}` : `en ${place}, EE. UU.`;
+  // Permits and registration depend on the owner's state even for online work.
+  const reqWhere = remote ? `en ${p.state || "su estado"}, EE. UU. (servicio en línea)` : where;
   const out = lang === "es" ? "Escribe los textos en español neutro." : "Write the text fields in English.";
   switch (kind) {
     case "prices":
-      return `Tarea: PRECIOS de "${service}" en ${place}, EE. UU.
+      return `Tarea: PRECIOS de "${service}" ${where}.
 ${remote ? "Es un servicio que se hace a distancia: busca precios en plataformas y sitios que venden ese servicio en línea en EE. UU. (Fiverr, Upwork, Thumbtack, agencias y freelancers con precios publicados)." : "Busca guías de costos (HomeGuide, Angi, Thumbtack, Fixr) y precios publicados por negocios locales."}
 Forma: {"low":"$…","mid":"$…","high":"$…","includes":"qué suele incluir ese precio","note":"unidad (por trabajo, por hora, por pie²) y diferencias entre fuentes","sources":[{"title":"…","url":"…"}]}
 "low", "mid" y "high" son solo el rango corto con su unidad, por ejemplo "$90–$130 por visita" (máximo 35 caracteres). Las explicaciones van en "note".
 ${out}`;
     case "competitors":
-      return `Tarea: COMPETENCIA de "${service}" en ${place}, EE. UU.
+      return `Tarea: COMPETENCIA de "${service}" ${where}.
 ${remote ? "Busca los 3 a 5 negocios o freelancers que aparecen primero para ese servicio en línea en EE. UU. (no directorios). Lee sus páginas." : "Busca los 3 a 5 negocios que aparecen primero para ese servicio en esa ciudad (no directorios). Lee sus páginas."}
 Forma: {"competitors":[{"name":"…","url":"…","offer":"qué ofrecen, en una línea","price":"precio publicado o 'no publica'","guarantee":"garantía que anuncian o 'no menciona'","languages":"idiomas que anuncian"}],"gaps":["algo que ninguno ofrece o comunica bien"],"sources":[{"title":"…","url":"…"}]}
 ${out}`;
     case "requirements":
-      return `Tarea: REQUISITOS para ofrecer "${service}" en ${place}, EE. UU.
+      return `Tarea: REQUISITOS para ofrecer "${service}" ${reqWhere}.
 Revisa lo básico para operar: registro del negocio (ciudad, condado o estado), seguro que se acostumbra y permisos del trabajo. Muchos servicios NO necesitan licencia: menciona una licencia solo si una fuente oficial dice que ese servicio la exige en ese estado; si no, no la incluyas.
 "applies": "yes" solo si una fuente oficial lo dice; "no" si una fuente oficial dice que no aplica; si no estás seguro, "check".
 "link": la página oficial que lo dice (o la más confiable que encontraste).
@@ -56,7 +59,7 @@ Las respuestas son una base general y honesta; no prometas nada en nombre del du
 Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en una línea","sources":[{"title":"…","url":"…"}]}
 6 a 8 preguntas. ${out}`;
     case "ideas":
-      return `Tarea: IDEAS de servicio para alguien que quiere independizarse en ${place}, EE. UU.
+      return `Tarea: IDEAS de servicio para alguien que quiere independizarse ${where}.
 Perfil: trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; no quiere: ${p.notWant || "-"}; meta: ${p.goal || "?"}.
 Propón 5 servicios rentables (locales en su ciudad o que se puedan hacer en línea desde casa; di cuál es cuál en "why") que encajen con lo que ya sabe hacer o con algo que pueda aprender rápido (en pocas semanas), con su dinero y su tiempo. Busca para cada uno el precio típico en su zona y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
 Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
@@ -73,9 +76,13 @@ export async function runResearch(kind: ResearchKind, plan: BusinessPlan, lang: 
   const client = getClaude(130_000);
   if (!client) throw new Error("ANTHROPIC_API_KEY is not set");
   const p = plan.profile;
-  const location = p.city
-    ? { type: "approximate" as const, city: p.city.slice(0, 60), ...(p.state ? { region: p.state } : {}), country: "US" }
-    : { type: "approximate" as const, country: "US" };
+  // Online services compete across the country: no city bias in the search.
+  // (Requirements still depend on their state, which the task text names.)
+  const local = p.serviceMode !== "remote";
+  const location =
+    local && p.city
+      ? { type: "approximate" as const, city: p.city.slice(0, 60), ...(p.state ? { region: p.state } : {}), country: "US" }
+      : { type: "approximate" as const, ...(!local && p.state && kind === "requirements" ? { region: p.state } : {}), country: "US" };
   const search: ToolUnion = { type: "web_search_20260318", name: "web_search", max_uses: 3, allowed_callers: ["direct"], user_location: location };
   const fetchTool: ToolUnion = { type: "web_fetch_20260318", name: "web_fetch", max_uses: 4, max_content_tokens: 6000, allowed_callers: ["direct"] };
   const seen = new SeenPages();

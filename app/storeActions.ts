@@ -251,6 +251,9 @@ export async function setStoreCoverAction(url: string): Promise<BusinessRow> {
 // Deletes a file, but only one inside this business's own folder.
 async function dropBlob(url: string, businessId: string) {
   if (!url || !ownsBlob(url, businessId) || !process.env.BLOB_READ_WRITE_TOKEN) return;
+  // Never delete a file the page still shows somewhere (e.g. it's also the owner's photo).
+  const s = (await getBusinessById(businessId))?.site;
+  if (s && [s.logoUrl, s.ownerPhotoUrl, s.coverUrl, s.videoUrl, ...s.gallery].includes(url)) return;
   try {
     await del(url);
   } catch {

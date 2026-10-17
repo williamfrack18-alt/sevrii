@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function(){
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sevrii | All Your Services in One Place</title>
-<link rel="icon" type="image/png" href="../assets/favicon.png">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
 <style>
   :root{
     --bg:#000;
@@ -410,14 +410,14 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <header>
   <nav class="wrap">
-    <div class="logo"><img src="../assets/sevrii-logo.png" alt="Sevrii">Sevrii</div>
+    <div class="logo"><img src="/assets/sevrii-logo.png" alt="Sevrii">Sevrii</div>
     <div class="nav-links">
       <a href="#explorar">Explore</a>
-      <a href="terminos.html">Terms & Conditions</a>
+      <a href="/en/terminos">Terms & Conditions</a>
       <a href="/" onclick="try{localStorage.setItem('sevrii_lang','es')}catch(e){}" style="color:var(--muted);">ES</a>
     </div>
     <div style="display:flex;gap:14px;align-items:center;">
-      <a href="ofrecerservicios.html" class="btn btn-primary">Offer a Service</a>
+      <a href="/en/ofrecerservicios" class="btn btn-primary">Offer a Service</a>
     </div>
   </nav>
 </header>
@@ -480,21 +480,13 @@ document.addEventListener('DOMContentLoaded', function(){
 
     <div class="toolbar">
       <div class="result-count"><strong id="resultCount">1</strong> <span id="resultLabel">service found</span></div>
-      <div class="sort">
-        Sort by
-        <select>
-          <option>Featured</option>
-          <option>Top rated</option>
-          <option>Most recent</option>
-        </select>
-      </div>
     </div>
 
     <div class="results-grid">
 
-      <a class="result-card" href="matheus-credito.html" data-serves="1" data-category="Finanzas y Crédito" data-search="matheus credito financiamiento rapido estados unidos finanzas y credito">
+      <a class="result-card" href="/en/matheus-credito" data-reach="remote-us" data-category="Finanzas y Crédito" data-search="matheus credito financiamiento rapido estados unidos finanzas y credito">
         <div class="result-thumb">
-          <img src="../assets/matheus-credito-logo.png" alt="Matheus Crédito" style="width:72%;height:72%;object-fit:contain;">
+          <img src="/assets/matheus-credito-logo.png" alt="Matheus Crédito" style="width:72%;height:72%;object-fit:contain;">
           <span class="result-badge">✓ Verified</span>
         </div>
         <div class="result-body">
@@ -537,7 +529,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="sx-label sx-wide">Sevrii Robotics</div>
       <h3 class="sx-h sx-wide">Real professionals today. Robots tomorrow.</h3>
       <p class="sx-p">Every business on Sevrii uses our intelligence to serve you better. The next step is giving that intelligence hands.</p>
-      <a class="sx-btn" href="ofrecerservicios.html">Offer a service <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
+      <a class="sx-btn" href="/en/ofrecerservicios">Offer a service <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
     </div>
     <span class="sx-cap sx-wide">Concept · Sevrii Robotics</span>
   </div>
@@ -550,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <div class="sx-keep">
           <h3>Do you offer a service?</h3>
           <p>List your business on Sevrii and grow with everything that comes next.</p>
-          <a class="sx-dark" href="ofrecerservicios.html">Offer a service <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
+          <a class="sx-dark" href="/en/ofrecerservicios">Offer a service <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
           <p class="sx-note">Sevrii Robotics is our vision for the future. It is not an available service yet.</p>
         </div>
       </div>
@@ -582,17 +574,17 @@ document.addEventListener('DOMContentLoaded', function(){
   <div class="footer-grid">
     <div>
       <h4>Sevrii Main</h4>
-      <a href="index.html">Home</a>
-      <a href="ofrecerservicios.html">Get Started</a>
+      <a href="/en">Home</a>
+      <a href="/en/ofrecerservicios">Get Started</a>
     </div>
     <div>
       <h4>For Businesses</h4>
-      <a href="ofrecerservicios.html">Business Solutions</a>
+      <a href="/en/ofrecerservicios">Business Solutions</a>
     </div>
     <div>
       <h4>For Professionals</h4>
-      <a href="ofrecerservicios.html">Freelancers</a>
-      <a href="ofrecerservicios.html">Employees</a>
+      <a href="/en/ofrecerservicios">Freelancers</a>
+      <a href="/en/ofrecerservicios">Employees</a>
     </div>
     <div>
       <h4>Our Ecosystem</h4>
@@ -602,8 +594,8 @@ document.addEventListener('DOMContentLoaded', function(){
   <div class="footer-bottom wrap">
     <span>© 2026 Sevrii Ecosystem. All rights reserved.</span>
     <div class="links">
-      <a href="terminos.html">Terms</a>
-      <a href="privacidad.html">Privacy</a>
+      <a href="/en/terminos">Terms</a>
+      <a href="/en/privacidad">Privacy</a>
       <a href="https://wa.me/12245083851?text=Hi%2C%20I%20need%20help%20with%20Sevrii" target="_blank" rel="noopener">Support</a>
     </div>
   </div>
@@ -707,17 +699,30 @@ document.addEventListener('DOMContentLoaded', function(){
   // Marketplace: published Sevrii pages load from /api/marketplace, matched to
   // where the visitor is. In-person services only show when the visitor is in
   // their area; online services show everywhere. Category and search filter too.
+  // Category keys (data-category) are the Spanish names; these are the English ones.
+  var CAT_EN = {
+    'Finanzas y Crédito': 'Finance & Credit', 'Mudanzas': 'Moving', 'Hogar y Limpieza': 'Home & Cleaning',
+    'Belleza y Cuidado': 'Beauty & Care', 'Reparaciones': 'Repairs', 'Legal y Trámites': 'Legal & Paperwork',
+    'Eventos': 'Events', 'Tecnología': 'Technology', 'Salud y Bienestar': 'Health & Wellness',
+    'Educación': 'Education', 'Automotriz': 'Automotive', 'Mascotas': 'Pets', 'Fotografía': 'Photography',
+    'Asesoría y Negocios': 'Consulting & Business'
+  };
+  // Texts are built as parts (text / {b} bold / {a} link) and rendered without innerHTML.
   var T = {
-    near: function(l){ return 'Services for <strong>' + l + '</strong>'; },
-    all: 'Showing <strong>the whole country</strong>',
+    near: function(l){ return ['Services for ', { b: l }]; },
+    all: ['Showing ', { b: 'the whole country' }],
     unknown: 'Choose your city to see the services that serve you',
     notFound: "We couldn't find that city. Try your ZIP code.",
+    geoDenied: "We couldn't use your location. Check your browser's permission or type your city or ZIP code.",
+    geoTimeout: 'Getting your location took too long. Try again or type your city or ZIP code.',
+    geoUnavailable: "We couldn't get your location. Type your city or ZIP code.",
     by: 'by ', from: 'From ', spanish: 'Se habla español',
     one: 'service found', many: 'services found',
     miles: function(m){ return m < 1 ? 'Very close to you' : m + ' miles from you'; },
     online: 'Online · serves you wherever you are',
-    noneNear: function(cat, where){ return 'There are no ' + (cat ? '<strong>' + cat + '</strong> ' : '') + 'services in <strong>' + where + '</strong> yet. Online services work from anywhere. <a href="#" data-all="1">See the whole country</a> · <a href="ofrecerservicios.html">Offer this service? List it on Sevrii</a>'; },
-    none: 'We could not find services matching your search. Do you offer this service? <a href="ofrecerservicios.html">List it on Sevrii</a>.',
+    noneNear: function(cat, where){ return ['There are no ', cat ? [{ b: cat }, ' '] : '', 'services in ', { b: where }, ' yet. Online services work from anywhere. ', { a: 'See the whole country', all: true }, ' · ', { a: 'Offer this service? List it on Sevrii', href: '/en/ofrecerservicios' }]; },
+    none: ['We could not find services matching your search. Do you offer this service? ', { a: 'List it on Sevrii', href: '/en/ofrecerservicios' }, '.'],
+    catName: function(c){ return CAT_EN[c] || c || ''; },
     lang: 'en'
   };
   var categoryLinks = document.querySelectorAll('.category-item[data-category]');
@@ -732,7 +737,9 @@ document.addEventListener('DOMContentLoaded', function(){
   var locInput = document.getElementById('locInput');
   var activeCategory = null;
   var visitorLabel = '';
+  var visitorCountry = null; // null = we don't know where the visitor is
   var showAll = false;
+  var reqSeq = 0, appliedSeq = 0;
 
   function normalize(s){
     return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -742,6 +749,23 @@ document.addEventListener('DOMContentLoaded', function(){
     if (cls) e.className = cls;
     if (text) e.textContent = text;
     return e;
+  }
+  // Fills an element from text parts: 'text', {b: 'bold'}, {a: 'link', href | all}. No HTML parsing.
+  function render(target, parts){
+    if (!target) return;
+    target.textContent = '';
+    (function add(p){
+      if (p === null || p === undefined || p === '') return;
+      if (Array.isArray(p)) { p.forEach(add); return; }
+      if (typeof p === 'string') { target.appendChild(document.createTextNode(p)); return; }
+      if (p.b !== undefined) { target.appendChild(el('strong', '', String(p.b))); return; }
+      if (p.a) {
+        var a = el('a', '', p.a);
+        a.href = p.href || '#';
+        if (p.all) a.setAttribute('data-all', '1');
+        target.appendChild(a);
+      }
+    })(parts);
   }
   function safeImg(u){ return /^https:\/\//.test(u || '') ? u : ''; }
   function initials(name){
@@ -783,9 +807,13 @@ document.addEventListener('DOMContentLoaded', function(){
     var term = normalize(input ? input.value : '');
     var visible = 0;
     document.querySelectorAll('.result-card[data-category]').forEach(function(c){
-      var matchesCategory = !activeCategory || c.getAttribute('data-category') === activeCategory;
-      var haystack = normalize((c.getAttribute('data-search') || '') + ' ' + c.textContent);
-      var servesHere = showAll || c.getAttribute('data-serves') !== '0';
+      var cat = c.getAttribute('data-category') || '';
+      var matchesCategory = !activeCategory || cat === activeCategory;
+      var haystack = normalize((c.getAttribute('data-search') || '') + ' ' + T.catName(cat) + ' ' + c.textContent);
+      // Fixed online cards serve all of the US (same rule as online pages from the API).
+      var servesHere = showAll || (c.getAttribute('data-reach') === 'remote-us'
+        ? (visitorCountry === null || visitorCountry === 'US')
+        : c.getAttribute('data-serves') !== '0');
       var show = matchesCategory && servesHere && (!term || haystack.indexOf(term) !== -1);
       c.style.display = show ? '' : 'none';
       if (show) visible++;
@@ -793,20 +821,28 @@ document.addEventListener('DOMContentLoaded', function(){
     if (countEl) countEl.textContent = visible;
     if (labelEl) labelEl.textContent = visible === 1 ? T.one : T.many;
     if (noResultsEl) {
-      noResultsEl.innerHTML = (!showAll && visitorLabel) ? T.noneNear(activeCategory, visitorLabel) : T.none;
+      render(noResultsEl, (!showAll && visitorLabel) ? T.noneNear(activeCategory ? T.catName(activeCategory) : '', visitorLabel) : T.none);
       noResultsEl.style.display = visible === 0 ? 'block' : 'none';
     }
     if (grid) grid.style.display = visible === 0 ? 'none' : '';
   }
 
+  // Resolves with the data, { stale: true } when a newer answer is already shown,
+  // { notFound: true } (nothing changes) or null on a network error.
   function load(params){
+    var my = ++reqSeq;
     var q = 'lang=' + T.lang + (params ? '&' + params : '');
     return fetch('/api/marketplace?' + q, { headers: { accept: 'application/json' } })
       .then(function(r){ return r.ok ? r.json() : { listings: [] }; })
       .then(function(data){
+        if (my < appliedSeq) return { stale: true };
+        if (data && data.notFound) return data;
+        appliedSeq = my;
         showAll = !!(data && data.all);
-        visitorLabel = (data && data.visitor && data.visitor.label) || '';
-        if (locText) locText.innerHTML = showAll ? T.all : visitorLabel ? T.near(visitorLabel) : T.unknown;
+        var v = data && data.visitor;
+        visitorLabel = (v && v.label) || '';
+        visitorCountry = v ? (v.country || '') : null;
+        render(locText, showAll ? T.all : visitorLabel ? T.near(visitorLabel) : T.unknown);
         document.querySelectorAll('.result-card.dyn').forEach(function(c){ c.remove(); });
         var list = (data && data.listings) || [];
         var first = grid ? grid.firstChild : null;
@@ -814,7 +850,7 @@ document.addEventListener('DOMContentLoaded', function(){
         applyFilters();
         return data;
       })
-      .catch(function(){ applyFilters(); });
+      .catch(function(){ if (my >= appliedSeq) applyFilters(); return null; });
   }
 
   categoryLinks.forEach(function(link){
@@ -837,6 +873,14 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 
   // Location controls
+  function locMsg(text){
+    if (!locForm) return;
+    var old = locForm.querySelector('.loc-msg'); if (old) old.remove();
+    if (!text) return;
+    var m = el('div', 'loc-msg', text); m.style.width = '100%';
+    locForm.appendChild(m);
+    locForm.style.display = 'flex';
+  }
   var changeBtn = document.getElementById('locChange');
   if (changeBtn) changeBtn.addEventListener('click', function(){
     if (!locForm) return;
@@ -848,15 +892,17 @@ document.addEventListener('DOMContentLoaded', function(){
     var v = (locInput && locInput.value || '').trim();
     if (!v) return;
     load('loc=' + encodeURIComponent(v)).then(function(data){
-      var found = data && data.visitor && data.visitor.source === 'typed';
-      var old = locForm.querySelector('.loc-msg'); if (old) old.remove();
-      if (!found) { var m = el('div', 'loc-msg', T.notFound); m.style.width = '100%'; locForm.appendChild(m); return; }
+      if (!data || data.stale) return;
+      var found = !data.notFound && data.visitor && data.visitor.source === 'typed';
+      // Not found: the list and the saved choice stay as they were.
+      if (!found) { locMsg(T.notFound); return; }
+      locMsg('');
       store('sevrii_loc', v); store('sevrii_loc_all', null);
       locForm.style.display = 'none';
     });
   });
   var allBtn = document.getElementById('locAll');
-  function goAll(){ store('sevrii_loc_all', '1'); load('loc=all'); if (locForm) locForm.style.display = 'none'; }
+  function goAll(){ store('sevrii_loc_all', '1'); locMsg(''); load('loc=all'); if (locForm) locForm.style.display = 'none'; }
   if (allBtn) allBtn.addEventListener('click', goAll);
   if (noResultsEl) noResultsEl.addEventListener('click', function(e){
     var t = e.target;
@@ -864,16 +910,28 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   var devBtn = document.getElementById('locDevice');
   if (devBtn) devBtn.addEventListener('click', function(){
-    if (!navigator.geolocation) return;
+    locMsg('');
+    if (!navigator.geolocation) { locMsg(T.geoUnavailable); return; }
     navigator.geolocation.getCurrentPosition(function(pos){
-      store('sevrii_loc', null); store('sevrii_loc_all', null);
-      load('lat=' + pos.coords.latitude.toFixed(3) + '&lon=' + pos.coords.longitude.toFixed(3));
-      if (locForm) locForm.style.display = 'none';
-    }, function(){}, { timeout: 8000, maximumAge: 600000 });
+      var lat = pos.coords.latitude.toFixed(3), lon = pos.coords.longitude.toFixed(3);
+      load('lat=' + lat + '&lon=' + lon).then(function(data){
+        if (!data || data.stale || data.notFound) return;
+        store('sevrii_loc', 'geo:' + lat + ',' + lon); store('sevrii_loc_all', null);
+        if (locForm) locForm.style.display = 'none';
+      });
+    }, function(err){
+      locMsg(err && err.code === 1 ? T.geoDenied : err && err.code === 3 ? T.geoTimeout : T.geoUnavailable);
+    }, { timeout: 8000, maximumAge: 600000 });
   });
 
+  // Saved choice: whole country, a typed city/ZIP, or device coordinates ("geo:lat,lon").
   var saved = read('sevrii_loc');
-  load(read('sevrii_loc_all') ? 'loc=all' : saved ? 'loc=' + encodeURIComponent(saved) : '');
+  var geo = /^geo:(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)$/.exec(saved);
+  var initial = read('sevrii_loc_all') ? 'loc=all' : geo ? 'lat=' + geo[1] + '&lon=' + geo[2] : saved ? 'loc=' + encodeURIComponent(saved) : '';
+  load(initial).then(function(data){
+    // A saved city we no longer recognize: forget it and use the connection's location.
+    if (data && data.notFound) { store('sevrii_loc', null); load(''); }
+  });
 })();
 </script>
 

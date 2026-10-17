@@ -131,7 +131,9 @@ export default function DashboardTabs({
         .then((n) => alive && setUnreadChats(n))
         .catch(() => {});
     check();
-    const id = setInterval(check, 30000);
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") check();
+    }, 30000);
     return () => {
       alive = false;
       clearInterval(id);
@@ -215,7 +217,7 @@ export default function DashboardTabs({
               </button>
               {it.id === "store" && (
                 <button type="button" onClick={() => setView("chats")} className={`dash-pill ${view === "chats" ? "on" : ""}`}>
-                  💬 {chatsLabel}
+                  {chatsLabel}
                   {unreadChats > 0 && <span className="dash-badge">{unreadChats}</span>}
                 </button>
               )}

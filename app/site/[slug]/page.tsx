@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
+import { after } from "next/server";
+import { cache } from "react";
 import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, type BusinessRow } from "@/lib/db";
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
@@ -15,9 +17,13 @@ import { channelClass, type ContactChannel } from "@/lib/storeContact";
 
 // A page is public only while it's published AND its owner's plan includes publishing
 // (if the subscription ends, the page goes offline until they subscribe again).
+// Metadata and the page share these lookups (one query each per request).
+const businessBySlug = cache((slug: string) => getBusinessBySlug(slug));
+const ownerById = cache((id: string) => getUserById(id));
+
 async function isLive(b: BusinessRow): Promise<boolean> {
   if (!b.published) return false;
-  const owner = await getUserById(b.userId);
+  const owner = await ownerById(b.userId);
   return Boolean(owner && limitsFor(owner).canPublish);
 }
 
@@ -25,7 +31,7 @@ const BOT_UA = /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|slack|discor
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const business = await getBusinessBySlug(slug);
+  const business = await businessBySlug(slug);
   if (!business || !(await isLive(business))) return { title: "Sevrii", robots: { index: false } };
   const site = business.site;
   const where = site.serviceArea || business.city || "";
@@ -42,19 +48,21 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PublicBusinessPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const business = await getBusinessBySlug(slug);
+  const business = await businessBySlug(slug);
   if (!business) notFound();
 
-  const viewer = await getCurrentUser().catch(() => null);
+  const [viewer, live] = await Promise.all([getCurrentUser().catch(() => null), isLive(business)]);
   const isOwner = viewer?.id === business.userId;
-  const live = await isLive(business);
   if (!live && !isOwner) notFound();
 
   const site = business.site;
   const t = STORE_TEXT[site.lang].site;
-  const services = await listServices(business.id);
   // Payment links the owner turned on (only when their Stripe account can take payments).
-  const payLinks = business.payStatus === "ready" ? (await listPaymentLinks(business.id)).filter((l) => l.active).slice(0, 6) : [];
+  const [services, allPayLinks] = await Promise.all([
+    listServices(business.id),
+    business.payStatus === "ready" ? listPaymentLinks(business.id) : Promise.resolve([]),
+  ]);
+  const payLinks = allPayLinks.filter((l) => l.active).slice(0, 6);
   const payText =
     site.lang === "en"
       ? { eyebrow: "Pay online", title: "Book and pay here", button: "Pay" }
@@ -65,8 +73,13 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
   if (!isOwner && live) {
     try {
       const ua = (await headers()).get("user-agent") || "";
-      if (!BOT_UA.test(ua) && (await allow(`view:${await clientIp()}:${business.id}`, 1, 60 * 60))) {
-        await incrementPageViews(business.id);
+      const ip = await clientIp();
+      // Counted after the page is sent, so the visitor never waits for it.
+      if (!BOT_UA.test(ua)) {
+        const id = business.id;
+        after(async () => {
+          if (await allow(`view:${ip}:${id}`, 1, 60 * 60)) await incrementPageViews(id);
+        });
       }
     } catch {
       // Never let analytics failures break the visitor's page.
@@ -174,7 +187,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
             />
           </div>
 
-          {(ordered.length > 0 || area || site.hours || phone || site.googleReviewsUrl) && (
+          {(ordered.length > 0 || area || site.hours || site.googleReviewsUrl) && (
             <div className="below-gallery">
               {ordered.length > 1 && (
                 <div className="pkg-card">
@@ -200,7 +213,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                   </ul>
                 </div>
               )}
-              {(area || site.hours || phone || site.googleReviewsUrl) && (
+              {(area || site.hours || site.googleReviewsUrl) && (
               <div className="info-card">
                 <div className="eyebrow grad-text">{t.infoTitle}</div>
                 {area && (
@@ -282,7 +295,7 @@ export default async function PublicBusinessPage({ params }: { params: Promise<{
                 const link = payFor(s.name);
                 return { id: s.id, name: s.name, price: s.price ?? "", payHref: link ? `/pay/${link.id}` : undefined };
               })}
-              chat={site.chat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.coverUrl, lang: site.lang } : null}
+              chat={site.chat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang } : null}
               ctaNote={site.ctaNote}
               labels={{ chooseLabel: t.chooseLabel, selected: t.selected, priceOnRequest: t.priceOnRequest, payNow: t.payNow }}
             />

@@ -7,6 +7,7 @@ import {
   openInboxConversationAction,
   ownerReplyAction,
   setConversationAiAction,
+  resolveConversationAction,
   getOwnerProfileAction,
   setOwnerNameAction,
   type ChatMsg,
@@ -28,6 +29,7 @@ const TEXT = {
     aiOff: "Estás respondiendo tú",
     turnAiOn: "Devolver al asistente",
     turnAiOff: "Responder yo",
+    resolve: "Marcar atendido",
     placeholder: "Escribe un mensaje",
     send: "Enviar",
     call: "Llamar",
@@ -59,6 +61,7 @@ const TEXT = {
     aiOff: "You're replying",
     turnAiOn: "Hand back to assistant",
     turnAiOff: "Reply myself",
+    resolve: "Mark as done",
     placeholder: "Write a message",
     send: "Send",
     call: "Call",
@@ -150,20 +153,47 @@ export default function ChatsView({ businessId, published, onStore }: { business
 
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 15000);
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, 15000);
     return () => clearInterval(id);
   }, [refresh, businessId]);
 
-  const load = useCallback(async (id: string) => {
-    const res = await openInboxConversationAction(id);
-    if (res.ok) setMsgs(res.messages);
+  // Only the chat that is open right now may fill the thread (a slow answer
+  // for the previous chat is ignored), and only new messages are fetched.
+  const openRef = useRef(openId);
+  openRef.current = openId;
+  const lastSeq = useRef(0);
+  const load = useCallback(async (id: string, full = false) => {
+    const looking = document.visibilityState === "visible";
+    const after = full ? 0 : lastSeq.current;
+    const res = await openInboxConversationAction(id, after, looking);
+    if (!res.ok || openRef.current !== id) return;
+    setMsgs((cur) => {
+      const base = full ? [] : cur;
+      const seen = new Set(base.map((m) => m.seq));
+      const next = [...base, ...res.messages.filter((m) => !seen.has(m.seq))].sort((a, b) => a.seq - b.seq);
+      lastSeq.current = next.length ? next[next.length - 1].seq : 0;
+      return next;
+    });
   }, []);
 
   useEffect(() => {
     if (!openId) return;
-    load(openId);
-    const id = setInterval(() => load(openId), 5000);
-    return () => clearInterval(id);
+    setMsgs([]);
+    lastSeq.current = 0;
+    load(openId, true);
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") load(openId);
+    }, 5000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load(openId);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [openId, load]);
 
   useEffect(() => {
@@ -175,14 +205,21 @@ export default function ChatsView({ businessId, published, onStore }: { business
     setBusy(true);
     try {
       const res = await ownerReplyAction(openId, draft);
-      if (res.ok) {
+      if (res.ok && openRef.current === openId) {
         setMsgs(res.messages);
+        lastSeq.current = res.messages.length ? res.messages[res.messages.length - 1].seq : 0;
         setDraft("");
         refresh();
       }
     } finally {
       setBusy(false);
     }
+  }
+
+  async function resolve() {
+    if (!current) return;
+    await resolveConversationAction(current.id);
+    refresh();
   }
 
   async function toggleAi() {
@@ -313,6 +350,11 @@ export default function ChatsView({ businessId, published, onStore }: { business
                     <a href={`mailto:${current.email}`} className={quiet}>
                       <Icon d={I.mail} size={15} /> <span className="hidden sm:inline">{t.email}</span>
                     </a>
+                  )}
+                  {current.handoff && (
+                    <button type="button" onClick={resolve} className={quiet}>
+                      {t.resolve}
+                    </button>
                   )}
                   <button type="button" onClick={toggleAi} className="h-8 px-3 rounded-lg text-[13px] text-white inline-flex items-center transition-colors" style={{ border: "1px solid rgba(255,255,255,0.14)" }}>
                     {current.aiEnabled ? t.turnAiOff : t.turnAiOn}

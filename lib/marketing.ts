@@ -144,17 +144,10 @@ export function normalizeCampaign(
 ): { spec: CampaignSpec; warnings: string[] } {
   const warnings: string[] = [];
   const platform = raw.platform === "google" ? "google" : "meta";
-  const objective = (["calls", "messages", "leads", "traffic"] as const).includes(raw.objective as never)
-    ? (raw.objective as CampaignSpec["objective"])
-    : "calls";
-  let destination = (["call", "whatsapp", "messenger", "website"] as const).includes(raw.destination as never)
-    ? (raw.destination as CampaignSpec["destination"])
-    : objective === "messages"
-      ? "whatsapp"
-      : objective === "calls"
-        ? "call"
-        : "website";
-  if (platform === "google" && destination !== "call") destination = "website";
+  // Customers reach the business through the chat on its Sevrii page, so
+  // every ad sends people to that page (no call or WhatsApp ads).
+  const objective: CampaignSpec["objective"] = raw.objective === "leads" ? "leads" : "traffic";
+  const destination: CampaignSpec["destination"] = "website";
 
   // The category is decided by code from the business type, not only by the AI.
   const detected = detectSpecialCategory(ctx.category);

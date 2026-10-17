@@ -1,5 +1,5 @@
 import { siteUrl } from "./billing";
-import { setBusinessPayStatus, setBusinessStripeAccount, type BusinessRow, type PayStatus, type PaymentLinkRow } from "./db";
+import { replaceBusinessStripeAccount, setBusinessPayStatus, setBusinessStripeAccount, type BusinessRow, type PayStatus, type PaymentLinkRow } from "./db";
 
 // Sevrii Payments: each business connects its own Stripe account (Stripe
 // Connect) and charges its clients with "direct charges". The money lands in
@@ -14,7 +14,9 @@ export const TOTAL_FEE_RATE = 0.05;
 const STRIPE_RATE = 0.029;
 const STRIPE_FIXED_CENTS = 30;
 
-export const MIN_AMOUNT_CENTS = 500; // $5
+// Below ~$14.29 Stripe's 2.9% + 30¢ alone is more than 5%, so "5% all
+// included" would not hold. Keep the PaymentsView minimum and texts in sync.
+export const MIN_AMOUNT_CENTS = 1500; // $15
 export const MAX_AMOUNT_CENTS = 1_000_000; // $10,000
 
 export function sevriiFeeCents(amountCents: number): number {
@@ -96,8 +98,23 @@ async function stripeV2<T = Record<string, unknown>>(
   return data;
 }
 
-async function ensureAccount(business: BusinessRow, email: string): Promise<string> {
-  if (business.stripeAccountId) return business.stripeAccountId;
+// True when Stripe's answer means "this account doesn't exist for these keys"
+// (e.g. after switching from test to live keys), not a passing error.
+function isMissingAccount(err: unknown): boolean {
+  const msg = (err as Error)?.message || "";
+  return /: 404 /.test(msg) || /No such account|resource_missing|does not exist/i.test(msg);
+}
+
+async function accountMissing(accountId: string): Promise<boolean> {
+  try {
+    const a = await stripeV2<{ closed?: boolean }>("GET", `core/accounts/${encodeURIComponent(accountId)}`);
+    return Boolean(a.closed);
+  } catch (err) {
+    return isMissingAccount(err);
+  }
+}
+
+async function createAccount(business: BusinessRow, email: string, idempotencyKey: string): Promise<string> {
   const acct = await stripeV2<{ id: string }>(
     "POST",
     "core/accounts",
@@ -110,9 +127,22 @@ async function ensureAccount(business: BusinessRow, email: string): Promise<stri
       defaults: { currency: "usd", responsibilities: { fees_collector: "stripe", losses_collector: "stripe" } },
       metadata: { sevriiBusinessId: business.id },
     },
-    `connect-account-v2-${business.id}`
+    idempotencyKey
   );
-  return await setBusinessStripeAccount(business.id, acct.id);
+  return acct.id;
+}
+
+async function ensureAccount(business: BusinessRow, email: string): Promise<string> {
+  const saved = business.stripeAccountId;
+  if (saved) {
+    // The saved account must exist for the keys in use (it won't after
+    // switching Stripe keys or platforms). If it's gone, make a new one.
+    if (!(await accountMissing(saved))) return saved;
+    const fresh = await createAccount(business, email, `connect-account-v2-${business.id}-${saved}`);
+    return await replaceBusinessStripeAccount(business.id, saved, fresh);
+  }
+  const id = await createAccount(business, email, `connect-account-v2-${business.id}`);
+  return await setBusinessStripeAccount(business.id, id);
 }
 
 // Where the business goes to finish (or continue) Stripe's sign-up.
@@ -133,21 +163,55 @@ export async function onboardingUrl(business: BusinessRow, email: string): Promi
 }
 
 type V2Account = {
+  closed?: boolean;
   configuration?: { merchant?: { capabilities?: { card_payments?: { status?: string } } } | null } | null;
-  requirements?: { entries?: { minimum_deadline?: { status?: string } }[] } | null;
+  requirements?: {
+    entries?: { awaiting_action_from?: string | { type?: string } | null; minimum_deadline?: { status?: string } }[];
+  } | null;
+};
+
+export type PayState = {
+  status: PayStatus;
+  // Stripe restricted card payments (or doesn't support them) and asks for
+  // nothing: the owner has to look in their Stripe to see why.
+  blocked: boolean;
 };
 
 // Reads the account from Stripe and stores where the business is:
-// ready = can take card payments; review = Stripe is checking; pending = info missing.
-export async function refreshPayStatus(business: BusinessRow): Promise<PayStatus> {
-  if (!business.stripeAccountId) return "none";
+// ready = can take card payments; review = Stripe is checking; pending = the
+// owner has to act (info missing, or blocked by Stripe); none = no account
+// (the saved one doesn't exist for these keys, so setting up starts over).
+export async function refreshPayState(business: BusinessRow): Promise<PayState> {
+  if (!business.stripeAccountId) return { status: "none", blocked: false };
   const id = encodeURIComponent(business.stripeAccountId);
-  const a = await stripeV2<V2Account>("GET", `core/accounts/${id}?include=configuration.merchant&include=requirements`);
-  const card = a.configuration?.merchant?.capabilities?.card_payments?.status;
-  const due = (a.requirements?.entries || []).some((e) => ["currently_due", "past_due"].includes(e.minimum_deadline?.status || ""));
-  const status: PayStatus = card === "active" ? "ready" : due ? "pending" : "review";
-  if (status !== business.payStatus) await setBusinessPayStatus(business.id, status);
-  return status;
+  let a: V2Account | null = null;
+  try {
+    a = await stripeV2<V2Account>("GET", `core/accounts/${id}?include=configuration.merchant&include=requirements`);
+  } catch (err) {
+    if (!isMissingAccount(err)) throw err;
+  }
+  let state: PayState;
+  if (!a || a.closed) {
+    state = { status: "none", blocked: false };
+  } else {
+    const card = a.configuration?.merchant?.capabilities?.card_payments?.status;
+    const entries = a.requirements?.entries || [];
+    const due = entries.some((e) => ["currently_due", "past_due"].includes(e.minimum_deadline?.status || ""));
+    const stripeChecking = entries.some((e) => {
+      const from = e.awaiting_action_from;
+      return (typeof from === "string" ? from : from?.type) === "stripe";
+    });
+    if (card === "active") state = { status: "ready", blocked: false };
+    else if (due) state = { status: "pending", blocked: false };
+    else if (card === "unsupported" || (card === "restricted" && !stripeChecking)) state = { status: "pending", blocked: true };
+    else state = { status: "review", blocked: false };
+  }
+  if (state.status !== business.payStatus) await setBusinessPayStatus(business.id, state.status);
+  return state;
+}
+
+export async function refreshPayStatus(business: BusinessRow): Promise<PayStatus> {
+  return (await refreshPayState(business)).status;
 }
 
 // ---------- Charging a client ----------
@@ -157,6 +221,9 @@ export async function checkoutForLink(business: BusinessRow, link: PaymentLinkRo
   const back = `${siteUrl()}/pay/${link.id}`;
   const params: Record<string, string> = {
     mode: "payment",
+    // Cards only (Apple Pay / Google Pay go through card): other methods have
+    // other Stripe fees, which breaks "5% all included", and bank debits settle days later.
+    "payment_method_types[0]": "card",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "usd",
     "line_items[0][price_data][unit_amount]": String(link.amountCents),
@@ -185,6 +252,8 @@ export type ReceivedPayment = {
   createdAt: string;
 };
 
+type Charge = { refunded?: boolean; amount_refunded?: number; disputed?: boolean };
+
 type Session = {
   id: string;
   created: number;
@@ -193,32 +262,52 @@ type Session = {
   status?: string;
   metadata?: Record<string, string>;
   customer_details?: { email?: string | null; name?: string | null } | null;
+  // Only an object when expanded (see listReceivedPayments).
+  payment_intent?: string | { latest_charge?: string | Charge | null } | null;
 };
 
 // The latest paid Sevrii payments, read straight from the business's Stripe account.
+// Fully refunded or disputed payments are left out, and partial refunds are
+// taken off the amount, so the totals show money really kept.
 export async function listReceivedPayments(business: BusinessRow): Promise<ReceivedPayment[]> {
   if (!business.stripeAccountId) return [];
-  const list = await stripe<{ data: Session[] }>("GET", "checkout/sessions", { limit: "50", status: "complete" }, { account: business.stripeAccountId });
-  return list.data
-    .filter((s) => s.payment_status === "paid" && s.metadata?.sevriiBusinessId === business.id)
-    .map((s) => {
-      const amount = s.amount_total ?? 0;
-      return {
-        id: s.id,
-        title: s.metadata?.sevriiTitle || "",
-        amountCents: amount,
-        // Approximate total taken (Stripe's standard fee + Sevrii's part).
-        feeCents: totalFeeCents(amount),
-        email: s.customer_details?.email ?? null,
-        name: s.customer_details?.name ?? null,
-        createdAt: new Date(s.created * 1000).toISOString(),
-      };
+  const account = business.stripeAccountId;
+  const params = { limit: "50", status: "complete" };
+  let list: { data: Session[] };
+  try {
+    list = await stripe<{ data: Session[] }>("GET", "checkout/sessions", { ...params, "expand[]": "data.payment_intent.latest_charge" }, { account });
+  } catch (err) {
+    console.error("[payments] expanded list failed; listing without refunds", (err as Error)?.message);
+    list = await stripe<{ data: Session[] }>("GET", "checkout/sessions", params, { account });
+  }
+  const out: ReceivedPayment[] = [];
+  for (const s of list.data) {
+    if (s.payment_status !== "paid" || s.metadata?.sevriiBusinessId !== business.id) continue;
+    const pi = s.payment_intent;
+    const charge = pi && typeof pi === "object" && pi.latest_charge && typeof pi.latest_charge === "object" ? pi.latest_charge : null;
+    if (charge?.refunded || charge?.disputed) continue;
+    const amount = s.amount_total ?? 0;
+    const refunded = Math.min(amount, Math.max(0, charge?.amount_refunded ?? 0));
+    out.push({
+      id: s.id,
+      title: s.metadata?.sevriiTitle || "",
+      amountCents: amount - refunded,
+      // Approximate total taken (Stripe's standard fee + Sevrii's part), on
+      // the original amount: those fees aren't given back on a refund.
+      feeCents: Math.min(amount - refunded, totalFeeCents(amount)),
+      email: s.customer_details?.email ?? null,
+      name: s.customer_details?.name ?? null,
+      createdAt: new Date(s.created * 1000).toISOString(),
     });
+  }
+  return out;
 }
 
 // One paid Sevrii session, read from the business's own Stripe account.
 // Returns null unless it is really paid and really belongs to this business.
-export async function getPaidSession(business: BusinessRow, sessionId: string): Promise<ReceivedPayment | null> {
+// With throwOnError, a failed Stripe call throws instead of returning null
+// (so a caller can tell "not paid" from "couldn't check" and retry).
+export async function getPaidSession(business: BusinessRow, sessionId: string, opts: { throwOnError?: boolean } = {}): Promise<ReceivedPayment | null> {
   if (!business.stripeAccountId || !/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) return null;
   try {
     const s = await stripe<Session>("GET", `checkout/sessions/${encodeURIComponent(sessionId)}`, {}, { account: business.stripeAccountId });
@@ -233,7 +322,8 @@ export async function getPaidSession(business: BusinessRow, sessionId: string): 
       name: s.customer_details?.name ?? null,
       createdAt: new Date(s.created * 1000).toISOString(),
     };
-  } catch {
+  } catch (err) {
+    if (opts.throwOnError) throw err;
     return null;
   }
 }

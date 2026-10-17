@@ -44,16 +44,11 @@ const TOOLS: Tool[] = [
         city: { type: "string" },
         serviceArea: { type: "string", description: "e.g. 'Miami-Dade and Broward'" },
         hours: { type: "string", description: "e.g. 'Mon–Sat 8am–6pm'" },
-        phone: { type: "string", description: "Phone for calls (and texts), US numbers like (305) 555-0123" },
-        whatsapp: { type: "string", description: "WhatsApp number with country code (optional; many US customers don't use WhatsApp)" },
-        textEnabled: { type: "boolean", description: "Whether the phone accepts text messages (SMS)" },
-        contactPref: { type: "string", enum: ["", "call", "text", "whatsapp", "chat"], description: "The owner's favorite way to be contacted; it becomes the main button. '' = automatic (call/text first)" },
         reachMode: { type: "string", enum: ["local", "remote"], description: "local = done in person in an area (needs reachCity + reachRadiusMiles); remote = done online from anywhere" },
         reachCity: { type: "string", description: "Local: base city with state, or a 5-digit ZIP, e.g. 'Miami, FL' or '33172'" },
         reachRadiusMiles: { type: "number", description: "Local: how many miles they travel (1-300)" },
         reachScope: { type: "string", enum: ["us", "world"], description: "Remote: customers in the whole US (us) or also other countries (world)" },
         ownerName: { type: "string", description: "The owner's first name (or how they want to be called). Customers see it in the page chat when the owner answers personally." },
-        chat: { type: "boolean", description: "Show the chat on the page (an AI assistant answers visitors instantly with the page info and passes them to the owner). On by default." },
         licenseNumber: { type: "string", description: "ONLY a number the owner typed" },
         licenseState: { type: "string" },
         noLicenseNeeded: { type: "boolean", description: "Owner said their trade needs no license in their state" },
@@ -78,7 +73,7 @@ const TOOLS: Tool[] = [
         },
         ctaTitle: { type: "string", description: "Closing section title" },
         ctaText: { type: "string" },
-        ctaNote: { type: "string", description: "Tiny line under the buttons, e.g. 'We answer calls and texts 8am–8pm' (owner facts only)" },
+        ctaNote: { type: "string", description: "Tiny line under the chat, e.g. 'We reply in minutes, Mon–Sat 8am–6pm' (owner facts only)" },
         disclaimer: { type: "string", description: "Optional legal note the owner wants in the footer" },
         accentColor: { type: "string", description: "Hex color like #0B5FFF" },
         lang: { type: "string", enum: ["es", "en"], description: "Language of the public page" },
@@ -108,12 +103,17 @@ const TOOLS: Tool[] = [
   },
   {
     name: "set_photo",
-    description: "Use an uploaded photo: as the logo, the main/cover photo, in the gallery, or remove it.",
+    description: "Use an uploaded photo: as the logo, the main/cover photo, in the gallery, as the owner's own photo (shown next to their name when they answer chats; it stays where it is on the page), or remove it.",
     input_schema: {
       type: "object",
-      properties: { url: { type: "string" }, role: { type: "string", enum: ["cover", "logo", "gallery", "remove"] } },
+      properties: { url: { type: "string" }, role: { type: "string", enum: ["cover", "logo", "gallery", "owner", "remove"] } },
       required: ["url", "role"],
     },
+  },
+  {
+    name: "remove_video",
+    description: "Remove the page's video (only when the owner asks).",
+    input_schema: { type: "object", properties: {} },
   },
   {
     name: "publish_page",
@@ -122,23 +122,23 @@ const TOOLS: Tool[] = [
   },
 ];
 
-const SYSTEM = `You are Sevrii's store builder. In this chat you build the owner's sales page — a one-page "product page" for a US service business, designed to turn visitors into calls, texts, quote requests and messages (title, price, photos, offer, service options, selling points, how it works, FAQ).
+const SYSTEM = `You are Sevrii's store builder. In this chat you build the owner's sales page — a one-page "product page" for a US service business, designed to turn visitors into chat messages and bookings (title, price, photos, offer, service options, selling points, how it works, FAQ).
 
 How to work:
-- Interview the owner like a friendly expert: ask ONE thing at a time (two only if tightly related), in plain short sentences. Follow the "missing" list in the page state, in that order. Explain in a few words why each thing sells ("los precios claros generan más llamadas").
+- Interview the owner like a friendly expert: ask ONE thing at a time (two only if tightly related), in plain short sentences. Follow the "missing" list in the page state, in that order. Explain in a few words why each thing sells ("los precios claros traen más clientes").
 - As soon as the owner gives you information, save it with the tools in the same turn — don't wait until the end. Then confirm in one short line and ask the next question.
 - Write persuasive copy yourself (headline, pitch, key points, steps, closing CTA) from the owner's facts. Benefit first, specific, no fluff.
 - Services: get each service's name and price. Mark the main one as featured.
 - Offer: ask if they have a current promotion. Only use a real one. A welcome offer for new customers (only their first service, e.g. "10% off your first cleaning") needs NO end date — never ask for one. Any other time-limited promotion needs its real end date. Never create fake urgency, fake discounts or "ends today" offers.
-- Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to send the photos right here in the chat with the + button next to the message box ("Súbeme aquí con el botón + …"), then place each one yourself with set_photo. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
-- Video: if "page.videoUrl" is empty, recommend a short video of the owner talking about the service (30-60 s, phone, looking at the camera) — it builds the most trust and shows first in the gallery. They send it right here with the + button (it goes on the page automatically, first in the gallery). If "brainPlan.videoScript" exists, give them the script in a few short lines. Photos can also be added and ordered there. Don't push the video more than once per conversation.
-- Contact: customers talk to the business through the chat on the page (it sits next to the price; an AI answers instantly with the page info, collects their name and phone, and alerts the owner, who can answer in "Conversaciones"/"Conversations"). The page has no call or text buttons, so don't ask for a phone or WhatsApp for the page. Ask the owner's first name once (if "page.ownerName" is empty) and save it as ownerName: when they answer a chat personally, customers see their name and photo, so they know they're talking with the real person. Remind them once to turn on alerts (🔔 Avisos in Conversaciones) so they never miss a customer.
+- Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to send the photos right here in the chat with the + button next to the message box ("Súbeme aquí con el botón + …"), then place each one yourself with set_photo. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover, and also set_photo role=owner (customers see it next to their name when they answer chats) if "page.ownerPhotoUrl" is empty; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
+- Video: if "page.videoUrl" is empty, recommend a short video of the owner talking about the service (30-60 s, phone, looking at the camera) — it builds the most trust and shows first in the gallery. They send it right here with the + button (it goes on the page automatically, first in the gallery). If "brainPlan.videoScript" exists, give them the script in a few short lines. To remove the video use remove_video. Don't push the video more than once per conversation.
+- Contact: customers talk to the business through the chat on the page (it sits next to the price; an AI answers instantly with the page info, collects their name and phone, and alerts the owner, who can answer in "Conversaciones"/"Conversations"). The page has no call or text buttons, so don't ask for a phone or WhatsApp for the page. Ask the owner's first name once (if "page.ownerName" is empty) and save it as ownerName: when they answer a chat personally, customers see their name and photo, so they know they're talking with the real person. Remind them once to turn on alerts ("Avisos" in Conversaciones) so they never miss a customer.
 - Service area: work it out yourself from what they say and save it with update_page — never show forms. If "page.reachMode" is empty: a service done at the customer's place (cleaning, moving, repairs, beauty at home…) is local → if you know their city (page, brainPlan or the chat), save reachMode=local with reachCity and ask only how many miles they travel (default 25 if they don't care); work that can be delivered online (video editing, design, bookkeeping, classes by video…) is remote → ask in one short question if they take customers in the whole US or other countries too, and save reachMode=remote with reachScope. If unsure, ask one plain question ("¿Lo haces en persona en tu zona o en línea?"). The marketplace only shows them to customers they can really serve.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
 - Conversion coach: you are also their sales-page expert. Once the essentials are saved, give ONE concrete improvement per reply, the one with the biggest impact first, say in a few words why it brings more customers, and offer to do it: a clear photo of the owner as the main photo; a 30-60 s video of them; a welcome offer for first-time customers; a price on every package; their Google reviews link; FAQ answers to the top fears; notifications on so they answer chats fast. Never invent results or numbers.
 - One service only: if they sell a single service, don't push them to invent more packages; the page focuses on that one service automatically (one price, no options to choose). If they have options (sizes, extras), suggest 2-3 packages.
-- When the essentials are done (services with prices, contact, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
+- When the essentials are done (services with prices, the owner's name, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
 - If the owner asks for something the page can't do, say so briefly.
 - "brainPlan" is the strategy the owner already made with Sevrii's Brain (service, customer, promise, differentiators, packages with prices, offer). Use it: propose the headline from the promise, key points from the differentiators and services from the packages, and confirm with the owner instead of asking from scratch. If the plan offer has forNewClients=true, use it without a date. Otherwise, if it has no endsAt, ask for a real end date before adding it to the page; if it has one, use that date.
 - Keep every reply under 70 words. No markdown headings, no bullet lists longer than 4 items.`;
@@ -177,25 +177,15 @@ async function runTool(
       if (Object.keys(details).length) await updateBusinessDetails(b.id, details);
 
       const notes: string[] = [];
-      if (typeof input.whatsapp === "string") {
-        const wa = input.whatsapp.trim() ? normalizePhone(input.whatsapp) : "";
-        if (wa === null) notes.push("whatsapp: invalid number, ask again");
-        else await updateBusinessWhatsapp(b.id, wa);
-      }
       if (typeof input.accentColor === "string" && /^#[0-9a-fA-F]{6}$/.test(input.accentColor)) await updateBusinessAccent(b.id, input.accentColor);
 
       const patch: Record<string, unknown> = {};
       for (const k of [
-        "headline", "serviceArea", "hours", "textEnabled", "licenseNumber", "licenseState", "noLicenseNeeded", "insured",
+        "headline", "serviceArea", "hours", "licenseNumber", "licenseState", "noLicenseNeeded", "insured",
         "spanish", "yearsInBusiness", "googleReviewsUrl", "keyPoints", "steps", "features", "faq", "ctaTitle", "ctaText",
-        "ctaNote", "disclaimer", "lang", "contactPref", "chat", "ownerName",
+        "ctaNote", "disclaimer", "lang", "ownerName",
       ]) {
         if (input[k] !== undefined) patch[k] = input[k];
-      }
-      if (typeof input.phone === "string") {
-        const p = input.phone.trim() ? normalizePhone(input.phone) : "";
-        if (p === null) notes.push("phone: invalid number, ask again (10 digits for US)");
-        else patch.phone = p;
       }
       if (input.reachMode === "remote") {
         patch.reachMode = "remote";
@@ -247,8 +237,12 @@ async function runTool(
       // Fresh copy: photos may have been uploaded while the AI was thinking.
       const cur = (await getBusinessById(b.id))?.site ?? b.site;
       // Only photos that belong to this store (uploaded through Sevrii) can be placed.
-      const known = new Set([cur.coverUrl, cur.logoUrl, ...cur.gallery].filter(Boolean));
+      const known = new Set([cur.coverUrl, cur.logoUrl, cur.ownerPhotoUrl, ...cur.gallery].filter(Boolean));
       if (!url || !known.has(url)) return "error: unknown photo url";
+      if (input.role === "owner") {
+        await mergeBusinessSite(b.id, cur, { ownerPhotoUrl: url });
+        return "saved as the owner's photo";
+      }
       const site = { ...cur, gallery: cur.gallery.filter((g) => g !== url) };
       if (site.coverUrl === url) site.coverUrl = "";
       if (site.logoUrl === url) site.logoUrl = "";
@@ -257,8 +251,15 @@ async function runTool(
         site.coverUrl = url;
       } else if (input.role === "logo") site.logoUrl = url;
       else if (input.role === "gallery") site.gallery = [...site.gallery, url];
-      await mergeBusinessSite(b.id, cur, { coverUrl: site.coverUrl, logoUrl: site.logoUrl, gallery: site.gallery });
+      const ownerPhotoUrl = input.role === "remove" && cur.ownerPhotoUrl === url ? "" : cur.ownerPhotoUrl;
+      await mergeBusinessSite(b.id, cur, { coverUrl: site.coverUrl, logoUrl: site.logoUrl, gallery: site.gallery, ownerPhotoUrl });
       return "saved";
+    }
+    case "remove_video": {
+      const cur = (await getBusinessById(b.id))?.site ?? b.site;
+      if (!cur.videoUrl) return "there is no video on the page";
+      await mergeBusinessSite(b.id, cur, { videoUrl: "" });
+      return "video removed from the page";
     }
     case "publish_page": {
       if (input.publish && !ctx.canPublish) {
@@ -386,10 +387,10 @@ export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number):
   }
   if (serviceCount > 0) {
     return es
-      ? `¡Hola! Soy tu asistente de Sevrii y voy a armar contigo la página de ${b.name} para que te llamen y te escriban más. Ya tengo un borrador. Empecemos por lo que más vende: ¿cuáles son tus servicios y cuánto cobras por cada uno?`
-      : `Hi! I'm your Sevrii assistant and I'll build ${b.name}'s page with you so more customers call and message you. I already have a draft. Let's start with what sells most: what services do you offer and how much do you charge for each?`;
+      ? `¡Hola! Soy tu asistente de Sevrii y voy a armar contigo la página de ${b.name} para que más clientes te escriban. Ya tengo un borrador. Empecemos por lo que más vende: ¿cuáles son tus servicios y cuánto cobras por cada uno?`
+      : `Hi! I'm your Sevrii assistant and I'll build ${b.name}'s page with you so more customers message you. I already have a draft. Let's start with what sells most: what services do you offer and how much do you charge for each?`;
   }
   return es
-    ? `¡Hola! Voy a armar contigo la página de ${b.name} para que te llamen y te escriban más. Para empezar: ¿qué servicio quieres vender y cuánto cuesta?`
-    : `Hi! I'll build ${b.name}'s page with you so more customers call and message you. To start: what service do you want to sell, and how much does it cost?`;
+    ? `¡Hola! Voy a armar contigo la página de ${b.name} para que más clientes te escriban. Para empezar: ¿qué servicio quieres vender y cuánto cuesta?`
+    : `Hi! I'll build ${b.name}'s page with you so more customers message you. To start: what service do you want to sell, and how much does it cost?`;
 }

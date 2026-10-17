@@ -82,15 +82,19 @@ export async function sendWelcomeEmail(email: string, lang: Lang): Promise<void>
 
 // Emails the business owner once per paid Checkout session. Safe to call many
 // times (the pay page and the Stripe webhook may both call it).
-export async function notifyPaymentReceived(business: BusinessRow, sessionId: string): Promise<void> {
-  if (!emailReady() || !business.stripeAccountId) return;
+// Returns false only when it should be tried again (Stripe couldn't be read or
+// the email didn't go out); true when sent, already sent, or nothing to send.
+export async function notifyPaymentReceived(business: BusinessRow, sessionId: string): Promise<boolean> {
+  if (!emailReady() || !business.stripeAccountId) return true;
+  let claimed = false;
   try {
-    if (await hasPaymentNotice(sessionId)) return;
-    const paid = await getPaidSession(business, sessionId);
-    if (!paid) return;
-    if (!(await claimPaymentNotice(sessionId, business.id))) return;
+    if (await hasPaymentNotice(sessionId)) return true;
+    const paid = await getPaidSession(business, sessionId, { throwOnError: true });
+    if (!paid) return true;
+    if (!(await claimPaymentNotice(sessionId, business.id))) return true;
+    claimed = true;
     const owner = await getUserById(business.userId);
-    if (!owner?.email) return;
+    if (!owner?.email) return true;
     const t = TEXT[business.site.lang === "en" ? "en" : "es"];
     const amt = money(paid.amountCents);
     const who = paid.name || paid.email || t.someone;
@@ -110,12 +114,20 @@ export async function notifyPaymentReceived(business: BusinessRow, sessionId: st
       url: `${siteUrl()}/dashboard?view=payments`,
       outro: t.paidOutro,
     });
-    const ok = await sendEmail(owner.email, t.paidSubject(amt), html, text);
-    // If sending failed, let a later call (webhook retry, page reload) try again.
-    if (!ok) await releasePaymentNotice(sessionId);
+    if (await sendEmail(owner.email, t.paidSubject(amt), html, text)) return true;
+    console.error("[notify] payment notice not sent", sessionId);
   } catch (err) {
     console.error("[notify] payment notice failed", (err as Error)?.message);
   }
+  // Failed: free the claim so a later call (webhook retry, page reload) can send it.
+  if (claimed) {
+    try {
+      await releasePaymentNotice(sessionId);
+    } catch (err) {
+      console.error("[notify] could not release payment notice", sessionId, (err as Error)?.message);
+    }
+  }
+  return false;
 }
 
 // Visitor text can't carry clickable links into an email sent from Sevrii.

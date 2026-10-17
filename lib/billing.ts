@@ -45,15 +45,28 @@ export function siteUrl(): string {
 
 const PAID_STATUSES = new Set(["active", "trialing", "past_due"]);
 
+// A failed renewal (past_due) keeps the paid plan only for this long while
+// Stripe retries the card; after that the account is treated as free.
+const PAST_DUE_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
+
+type PlanFields = Pick<UserRow, "plan" | "planStatus" | "planRenewsAt">;
+
 // The plan an account is really on right now.
-export function effectivePlan(user: Who & Pick<UserRow, "plan" | "planStatus">): PlanId {
+export function effectivePlan(user: Who & PlanFields): PlanId {
   if (isAdmin(user)) return "team";
   const plan = (user.plan || "free") as PlanId;
   if (plan === "free" || !PLANS[plan]) return "free";
-  return PAID_STATUSES.has(user.planStatus || "") ? plan : "free";
+  if (!PAID_STATUSES.has(user.planStatus || "")) return "free";
+  if (user.planStatus === "past_due") {
+    // For past_due, planRenewsAt is when the unpaid period started (see applySubscription).
+    // Unknown date (a caller that doesn't load it): keep the plan, as before.
+    const since = user.planRenewsAt ? new Date(user.planRenewsAt).getTime() : NaN;
+    if (Number.isFinite(since) && Date.now() > since + PAST_DUE_GRACE_MS) return "free";
+  }
+  return plan;
 }
 
-export function limitsFor(user: Who & Pick<UserRow, "plan" | "planStatus">): PlanLimits {
+export function limitsFor(user: Who & PlanFields): PlanLimits {
   return PLANS[effectivePlan(user)].limits;
 }
 
@@ -62,7 +75,8 @@ export async function clientPlan(user: UserRow): Promise<ClientPlan> {
   return {
     id: effectivePlan(user),
     status: ["active", "trialing", "past_due", "canceled", "none"].includes(status) ? status : "none",
-    renewsAt: user.planRenewsAt ? new Date(user.planRenewsAt).toISOString() : null,
+    // past_due stores when the unpaid period began, not a renewal date: don't show it as one.
+    renewsAt: user.planRenewsAt && status !== "past_due" ? new Date(user.planRenewsAt).toISOString() : null,
     cancelAtPeriodEnd: Boolean(user.cancelAtPeriodEnd),
     billingReady: billingReady(),
     yearlyReady: yearlyReady(),
@@ -235,9 +249,10 @@ type Sub = {
   customer: string;
   status: string;
   cancel_at_period_end: boolean;
+  current_period_start?: number;
   current_period_end?: number;
   metadata?: { userId?: string };
-  items?: { data?: { current_period_end?: number; price?: { id?: string } }[] };
+  items?: { data?: { current_period_start?: number; current_period_end?: number; price?: { id?: string } }[] };
 };
 
 function planFromPrice(priceId: string | undefined): PlanId | null {
@@ -288,6 +303,10 @@ export async function applySubscription(subOrId: Sub | string): Promise<void> {
   }
   const item = sub.items?.data?.[0];
   const end = item?.current_period_end ?? sub.current_period_end;
+  // Stripe moves the period forward at renewal even when the payment fails, so
+  // for past_due the grace (effectivePlan) counts from when that period began.
+  const start = item?.current_period_start ?? sub.current_period_start;
+  const date = sub.status === "past_due" && start ? start : end;
   let plan: PlanId = "free";
   if (live) {
     const fromPrice = planFromPrice(item?.price?.id);
@@ -297,7 +316,7 @@ export async function applySubscription(subOrId: Sub | string): Promise<void> {
   await updateUserPlan(user.id, {
     plan,
     planStatus: live ? sub.status : "canceled",
-    planRenewsAt: end ? new Date(end * 1000).toISOString() : null,
+    planRenewsAt: date ? new Date(date * 1000).toISOString() : null,
     cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),
     stripeSubscriptionId: live ? sub.id : null,
   });

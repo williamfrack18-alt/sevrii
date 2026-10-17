@@ -1,5 +1,5 @@
 import { marketplaceListings } from "@/lib/marketplace";
-import { lookupPlace, nearestPlace } from "@/lib/geo";
+import { lookupPlace, milesBetween, nearestPlace } from "@/lib/geo";
 import type { Visitor } from "@/lib/reach";
 
 // Public list of published pages for the marketplace on sevrii.com, matched
@@ -16,29 +16,67 @@ function header(req: Request, k: string): string {
   }
 }
 
-function visitorFrom(req: Request): { visitor: Visitor | null; all: boolean } {
+// US territories come from Vercel as their own country code, but US-wide
+// online services serve them too: treat them as US (the code stays as state).
+const US_TERRITORIES = new Set(["PR", "GU", "VI", "AS", "MP"]);
+
+// Where the internet connection comes from (Vercel headers), country normalized.
+function ipLocation(req: Request): { country: string; region: string; city: string; lat: number; lon: number; hasCoords: boolean } {
+  let country = header(req, "x-vercel-ip-country").toUpperCase();
+  let region = header(req, "x-vercel-ip-country-region").toUpperCase();
+  if (US_TERRITORIES.has(country)) {
+    region = country;
+    country = "US";
+  }
+  const rawLat = header(req, "x-vercel-ip-latitude");
+  const lat = Number(rawLat);
+  const lon = Number(header(req, "x-vercel-ip-longitude"));
+  return { country, region, city: header(req, "x-vercel-ip-city"), lat, lon, hasCoords: !!rawLat && Number.isFinite(lat) && Number.isFinite(lon) };
+}
+
+function ipLabel(ip: ReturnType<typeof ipLocation>): string {
+  if (ip.city) return `${ip.city}${ip.region ? `, ${ip.region}` : ""}`;
+  return ip.hasCoords ? nearestPlace(ip.lat, ip.lon)?.city ?? "" : ip.region;
+}
+
+// Device coordinates farther than this from any known US place are outside the US.
+const DEVICE_US_MAX_MILES = 60;
+
+type Detected = { visitor: Visitor | null; all: boolean; notFound?: boolean };
+
+function visitorFrom(req: Request): Detected {
   const url = new URL(req.url);
+  const ip = ipLocation(req);
   const loc = (url.searchParams.get("loc") || "").slice(0, 80).trim();
   if (loc === "all") return { visitor: null, all: true };
   if (loc) {
-    const p = lookupPlace(loc);
+    // "Arlington" alone: prefer the visitor's own state when we know it.
+    const p = lookupPlace(loc, ip.country === "US" && ip.region ? ip.region : undefined);
     if (p) return { visitor: { lat: p.lat, lon: p.lon, country: "US", label: `${p.city}, ${p.state}`, source: "typed" }, all: false };
+    return { visitor: null, all: false, notFound: true };
   }
   const lat = Number(url.searchParams.get("lat"));
   const lon = Number(url.searchParams.get("lon"));
   if (url.searchParams.has("lat") && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
     const near = nearestPlace(lat, lon);
-    return { visitor: { lat, lon, country: "US", label: near ? `${near.city}, ${near.state}` : "", source: "device" }, all: false };
+    const miles = near ? milesBetween(near, { lat, lon }) : Infinity;
+    const ipForeign = !!ip.country && ip.country !== "US";
+    // Near a US place: in the US, unless the connection is foreign and the point
+    // isn't right at that place (Toronto, Vancouver… are within 60 miles of the US).
+    if (near && miles <= DEVICE_US_MAX_MILES && (!ipForeign || miles <= 10)) {
+      return { visitor: { lat, lon, country: "US", label: `${near.city}, ${near.state}`, source: "device" }, all: false };
+    }
+    // Farther away (or a foreign connection): the connection's country decides —
+    // a US one (rural Alaska, Nevada…) stays US; none at all means unknown, not US.
+    // Never labeled with the nearest US city, which may be hundreds of miles away.
+    const country = ip.country;
+    const label = country === "US" ? ipLabel(ip) : country ? ip.city || country : "";
+    return { visitor: { lat, lon, country, label, source: "device" }, all: false };
   }
   // Vercel tells us roughly where the connection comes from.
-  const country = header(req, "x-vercel-ip-country");
-  const ilat = Number(header(req, "x-vercel-ip-latitude"));
-  const ilon = Number(header(req, "x-vercel-ip-longitude"));
-  if (country && Number.isFinite(ilat) && Number.isFinite(ilon) && header(req, "x-vercel-ip-latitude")) {
-    const city = header(req, "x-vercel-ip-city");
-    const region = header(req, "x-vercel-ip-country-region");
-    const label = country === "US" ? (city ? `${city}${region ? `, ${region}` : ""}` : nearestPlace(ilat, ilon)?.city ?? "") : city || country;
-    return { visitor: { lat: ilat, lon: ilon, country, label, source: "ip" }, all: false };
+  if (ip.country && ip.hasCoords) {
+    const label = ip.country === "US" ? ipLabel(ip) : ip.city || ip.country;
+    return { visitor: { lat: ip.lat, lon: ip.lon, country: ip.country, label, source: "ip" }, all: false };
   }
   return { visitor: null, all: false };
 }
@@ -46,7 +84,9 @@ function visitorFrom(req: Request): { visitor: Visitor | null; all: boolean } {
 export async function GET(req: Request) {
   const lang = new URL(req.url).searchParams.get("lang") === "en" ? "en" : "es";
   try {
-    const { visitor, all } = visitorFrom(req);
+    const { visitor, all, notFound } = visitorFrom(req);
+    // A typed place we don't know: say so and let the page keep what it shows.
+    if (notFound) return Response.json({ notFound: true }, { headers: { "Cache-Control": "private, max-age=60" } });
     const listings = await marketplaceListings(visitor, lang);
     return Response.json(
       {

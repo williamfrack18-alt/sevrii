@@ -11,7 +11,7 @@ import {
   onboardingUrl,
   paymentsReady,
   payLinkUrl,
-  refreshPayStatus,
+  refreshPayState,
   type ReceivedPayment,
 } from "@/lib/payments";
 
@@ -19,6 +19,7 @@ export type ClientPayLink = { id: string; title: string; amountCents: number; de
 export type PaymentsState = {
   ready: boolean; // Stripe keys are set on Sevrii
   status: PayStatus;
+  blocked?: boolean; // Stripe restricted card payments and asks for nothing (see refreshPayState)
   links: ClientPayLink[];
   payments: ReceivedPayment[];
   error?: "stripe";
@@ -42,10 +43,10 @@ export async function loadPaymentsAction(): Promise<PaymentsState> {
   const base: PaymentsState = { ready: paymentsReady(), status: (business.payStatus as PayStatus) || "none", links, payments: [] };
   if (!base.ready || !business.stripeAccountId) return base;
   try {
-    const status = await refreshPayStatus(business);
+    const { status, blocked } = await refreshPayState(business);
     const fresh = (await getBusinessById(business.id)) ?? business;
     const payments = status === "ready" ? await listReceivedPayments(fresh) : [];
-    return { ...base, status, payments };
+    return { ...base, status, blocked, payments };
   } catch (err) {
     console.error("[payments] load failed", (err as Error)?.message);
     return { ...base, error: "stripe" };

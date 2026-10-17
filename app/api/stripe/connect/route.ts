@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { verifyStripeSignature } from "@/lib/billing";
 import { getBusinessByStripeAccount } from "@/lib/db";
 import { notifyPaymentReceived } from "@/lib/notify";
+import { refreshPayStatus } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
 // Stripe tells us here about events on the businesses' own (connected) Stripe
-// accounts. Today: a client paid with a Sevrii link → email the owner.
+// accounts: a client paid with a Sevrii link → email the owner; the account
+// changed (account.updated) → refresh the business's payment status.
 // Every request must carry a valid signature made with STRIPE_CONNECT_WEBHOOK_SECRET.
 type ConnectEvent = {
   type?: string;
@@ -28,8 +30,16 @@ export async function POST(req: Request) {
     if (paidEvent && event.account && s?.id && s.metadata?.sevriiBusinessId) {
       const business = await getBusinessByStripeAccount(event.account);
       if (business && business.id === s.metadata.sevriiBusinessId) {
-        await notifyPaymentReceived(business, s.id);
+        // Not sent: answer 500 so Stripe retries (the notice claim prevents duplicates).
+        if (!(await notifyPaymentReceived(business, s.id))) {
+          return NextResponse.json({ error: "notice failed" }, { status: 500 });
+        }
       }
+    } else if (event.type === "account.updated") {
+      // The status is always read again from Stripe, never taken from the event.
+      const accountId = event.account || (s?.object === "account" ? s.id : undefined);
+      const business = accountId ? await getBusinessByStripeAccount(accountId) : undefined;
+      if (business) await refreshPayStatus(business);
     }
   } catch (err) {
     console.error("[connect] webhook failed", (err as Error)?.message);

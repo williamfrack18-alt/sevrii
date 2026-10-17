@@ -14,6 +14,9 @@ import {
 } from "@/app/paymentsActions";
 import type { ClientBusiness, ClientService } from "./types";
 
+// Same minimum as the server (MIN_AMOUNT_CENTS in lib/payments.ts).
+const MIN_CENTS = 1500;
+
 // Same rule as the server (lib/payments.ts): 5% in total, Stripe's fee included.
 function netCents(amount: number): number {
   const stripe = Math.round(amount * 0.029) + 30;
@@ -101,7 +104,20 @@ export default function PaymentsView({ business, services }: { business: ClientB
             <h1 className="font-serif text-[34px] md:text-[46px] leading-[1.05] mb-4">{t.title}</h1>
             <p className="text-muted text-[16px] leading-relaxed max-w-[520px]">{t.lead}</p>
 
-            {state.status === "review" ? (
+            {state.blocked ? (
+              <div className="mt-8 card p-5">
+                <div className="text-[16px] font-[500] mb-1">{t.blockedTitle}</div>
+                <p className="text-[14px] text-muted mb-4">{t.blockedNote}</p>
+                <div className="flex flex-wrap gap-2">
+                  <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer" className="btn-ghost">
+                    {t.openStripe} ↗
+                  </a>
+                  <button type="button" onClick={goStripe} disabled={busy} className="btn-ghost">
+                    {busy ? t.opening : t.reviewBtn}
+                  </button>
+                </div>
+              </div>
+            ) : state.status === "review" ? (
               <div className="mt-8 card p-5">
                 <div className="text-[16px] font-[500] mb-1">{t.reviewTitle}</div>
                 <p className="text-[14px] text-muted mb-4">{t.reviewNote}</p>
@@ -270,7 +286,7 @@ function ReadyView({
             />
           </div>
           <div className="text-[12.5px] mb-4" style={{ color: ACCENT, minHeight: 18 }}>
-            {cents && cents >= 500 ? t.youGet(usd(netCents(cents))) : ""}
+            {cents ? (cents >= MIN_CENTS ? t.youGet(usd(netCents(cents))) : t.minAmount) : ""}
           </div>
           <label className="block text-[13px] text-muted mb-1.5">{t.desc}</label>
           <textarea className="input w-full mb-4 min-h-[72px]" value={desc} maxLength={240} onChange={(e) => setDesc(e.target.value)} placeholder={t.descPh} />
