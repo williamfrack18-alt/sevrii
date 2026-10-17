@@ -103,6 +103,7 @@ export default function ChatWidget({
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+  const scrolledOnce = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastSeq = msgs.length ? msgs[msgs.length - 1].seq : 0;
   // Once the owner answers, the chat shows the real person (name + photo).
@@ -171,9 +172,18 @@ export default function ChatWidget({
   }, [token, poll]);
 
   useEffect(() => {
-    // After the new bubbles are laid out, show the newest one.
-    const raf = requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }));
-    return () => cancelAnimationFrame(raf);
+    // After the new bubbles are laid out, show the newest one (instantly the
+    // first time, so a resumed chat doesn't open on its oldest messages).
+    const el = listRef.current;
+    if (!el) return;
+    const first = !scrolledOnce.current;
+    if (msgs.length) scrolledOnce.current = true;
+    const raf = requestAnimationFrame(() => el.scrollTo({ top: el.scrollHeight, behavior: first ? "auto" : "smooth" }));
+    const late = first ? setTimeout(() => el.scrollTo({ top: el.scrollHeight }), 400) : undefined;
+    return () => {
+      cancelAnimationFrame(raf);
+      if (late) clearTimeout(late);
+    };
   }, [msgs, sending, waiting]);
 
   async function send() {
