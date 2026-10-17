@@ -345,7 +345,7 @@ export function chooseIdea(plan: BusinessPlan, i: number): BusinessPlan {
   });
 }
 
-export type BrainChatResult = { reply: string; business: BusinessRow; startPipeline: boolean };
+export type BrainChatResult = { reply: string; business: BusinessRow; startPipeline: boolean; debug?: string };
 
 export async function runPlanChatTurn(opts: {
   business: BusinessRow;
@@ -379,6 +379,7 @@ export async function runPlanChatTurn(opts: {
   let reply = "";
   let startPipeline = false;
   let nudged = false;
+  let debug = "";
   try {
     for (let step = 0; step < 7; step++) {
       const { system, tools } = stageOf(business.plan);
@@ -428,12 +429,13 @@ export async function runPlanChatTurn(opts: {
     }
   } catch (err) {
     logAiError("brain", err);
+    debug = String((err as Error)?.message || err).slice(0, 400);
     reply = es ? "Tuve un problema para guardar eso. Inténtalo de nuevo en un momento." : "I had a problem saving that. Please try again in a moment.";
   }
   if (!reply && startPipeline) {
     reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos ves el resultado abajo." : "Done! I have what I need. I'll research your area now; you'll see the result below in 1-2 minutes.";
   }
-  return { reply: reply || (es ? "Listo." : "Done."), business, startPipeline };
+  return { reply: reply || (es ? "Listo." : "Done."), business, startPipeline, debug };
 }
 
 export function planGreeting(lang: Lang, b: BusinessRow): string {
