@@ -22,6 +22,7 @@ export type MindNode = {
   tone?: MindTone; // done = approved (green), warn = needs attention
   badge?: string; // tiny status text, e.g. "Aprobado"
   group?: string; // id of the group it hangs from (see `groups`)
+  step?: boolean; // a part the owner has to approve (counts in "x de y listas")
   detail?: ReactNode; // everything else, shown when the part is opened
 };
 
@@ -107,11 +108,12 @@ export default function MindMap({
   }, [groups, nodes, lang]);
 
   // The next part that needs the owner gets the "start here" mark.
-  const nextId = nodes.find((n) => n.tone === "warn")?.id ?? nodes.find((n) => n.tone !== "done" && n.badge)?.id ?? null;
+  const steps = nodes.filter((n) => n.step);
+  const nextId = steps.find((n) => n.tone !== "done")?.id ?? null;
 
   // Unfolded groups: those with something pending; all of them if everything is done.
   const [unfolded, setUnfolded] = useState<Set<string>>(() => {
-    const pending = cols.filter((g) => g.nodes.some((n) => n.tone !== "done")).map((g) => g.id);
+    const pending = cols.filter((g) => g.nodes.some((n) => n.step && n.tone !== "done")).map((g) => g.id);
     return new Set(pending.length ? pending : cols.map((g) => g.id));
   });
   const toggleGroup = (id: string) =>
@@ -201,7 +203,8 @@ function Tree({
         Math.abs(x1 - x0) < 1
           ? `M ${x0} ${y0} V ${y1}`
           : `M ${x0} ${y0} V ${mid - rad} Q ${x0} ${mid} ${x0 + dir * rad} ${mid} H ${x1 - dir * rad} Q ${x1} ${mid} ${x1} ${mid + rad} V ${y1}`;
-      out.push({ id: c.id, d, done: c.nodes.every((n) => n.tone === "done") });
+      const st = c.nodes.filter((n) => n.step);
+      out.push({ id: c.id, d, done: st.length > 0 && st.every((n) => n.tone === "done") });
     }
     setLines(out);
     setBox({ w: W.width, h: W.height });
@@ -239,9 +242,10 @@ function Tree({
       <div className={`relative z-[1] grid grid-cols-1 ${gridCols} gap-4 lg:gap-5 lg:mt-14`}>
         {cols.map((c) => {
           const isOpen = unfolded.has(c.id);
-          const done = c.nodes.filter((x) => x.tone === "done").length;
-          const allDone = done === c.nodes.length;
-          const hasStatus = c.nodes.some((x) => x.badge);
+          const stepNodes = c.nodes.filter((x) => x.step);
+          const done = stepNodes.filter((x) => x.tone === "done").length;
+          const hasStatus = stepNodes.length > 0;
+          const allDone = hasStatus && done === stepNodes.length;
           return (
             <div key={c.id} className="flex flex-col">
               <div
@@ -269,7 +273,7 @@ function Tree({
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-semibold text-white leading-tight">{c.label}</span>
                     <span className="block text-[12px] text-[#9a9a9a] mt-0.5">
-                      {hasStatus ? t.approved(done, c.nodes.length) : t.parts(c.nodes.length)}
+                      {hasStatus ? t.approved(done, stepNodes.length) : t.parts(c.nodes.length)}
                       {!isOpen && <span className="text-[#d4d4d4]"> · {t.open}</span>}
                     </span>
                   </span>

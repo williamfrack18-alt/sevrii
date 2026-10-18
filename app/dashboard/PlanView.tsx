@@ -376,6 +376,7 @@ export default function PlanView({
                   nodes={strategyNodes({ plan, t, busy, onApprove: approve, onChange: change, onNoOffer: () => act(() => noOfferAction()) }).map((n) => ({
                     ...n,
                     group: ["service", "packages", "offer"].includes(n.id) ? "sell" : ["zone", "requirements"].includes(n.id) ? "market" : "how",
+                    step: ["service", "pitch", "packages", "offer", "campaign", "faq"].includes(n.id),
                   }))}
                   openId={openId}
                   onOpenChange={setOpenId}
