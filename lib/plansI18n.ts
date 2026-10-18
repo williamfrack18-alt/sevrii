@@ -42,7 +42,7 @@ const es = {
   highlights: {
     free: ["Cerebro completo: entrevista, investigación de tu zona y propuesta", "Tu página de venta armada, en borrador", "Cobra a tus clientes con links de pago (Payments)", "1 proyecto"],
     starter: ["Todo lo de Gratis", "Tu página publicada en sevrii.com", "Estrategia y campañas listas, con guía para lanzarlas tú", "Conteo de visitas, llamadas y mensajes", "1 proyecto"],
-    pro: ["Todo lo de Starter", "El agente publica tus campañas en Meta y Google, con tu aprobación", "Revisión semanal y resumen de resultados", "Hasta 3 proyectos"],
+    pro: ["Todo lo de Starter", "Agente de marketing: lanza tus campañas en Facebook e Instagram con tu aprobación", "Revisa tus anuncios cada día, pausa lo que gasta sin traer clientes y te prepara publicaciones gratis", "Hasta 3 proyectos"],
     team: ["Todo lo de Pro", "Hasta 10 proyectos", "Varios usuarios", "Reportes de todos tus proyectos", "Soporte prioritario"],
   } as Record<PlanId, string[]>,
   compareTitle: "Compara los planes",
@@ -67,7 +67,7 @@ const es = {
       rows: [
         { label: "Estrategia y campañas listas, con guía", values: { free: false, starter: true, pro: true, team: true } },
         { label: "El agente publica las campañas por ti", values: { free: false, starter: false, pro: true, team: true } },
-        { label: "Revisión semanal y resumen", values: { free: false, starter: false, pro: true, team: true } },
+        { label: "Revisión diaria de tus anuncios", values: { free: false, starter: false, pro: true, team: true } },
       ],
     },
     {
@@ -92,7 +92,7 @@ const es = {
     upgrade: "Mejorar plan",
     seePlans: "Ver planes",
     publishChip: "Publicar: plan Starter",
-    marketingTitle: "Marketing está en el plan Starter",
+    marketingTitle: "Marketing está desde el plan Starter",
     marketingSub: "Con Starter, el cerebro de marketing arma tu estrategia y te deja las campañas listas con guía para lanzarlas. Con Pro (próximamente), el agente las publica y las cuida por ti.",
     autoPro: "Publicar automático: plan Pro (próximamente)",
     paymentsPro: "Payments viene incluido en todos los planes: 5% por pago, todo incluido.",
@@ -139,7 +139,7 @@ const en: typeof es = {
   highlights: {
     free: ["Full Brain: interview, local research and proposal", "Your sales page built, as a draft", "Charge your clients with payment links (Payments)", "1 project"],
     starter: ["Everything in Free", "Your page published on sevrii.com", "Strategy and ready campaigns, with a guide to launch them", "Visits, calls and messages count", "1 project"],
-    pro: ["Everything in Starter", "The agent publishes your campaigns on Meta and Google, with your approval", "Weekly review and results summary", "Up to 3 projects"],
+    pro: ["Everything in Starter", "Marketing agent: launches your campaigns on Facebook and Instagram with your approval", "Checks your ads every day, pauses what spends without bringing clients and prepares free posts", "Up to 3 projects"],
     team: ["Everything in Pro", "Up to 10 projects", "Multiple users", "Reports across projects", "Priority support"],
   },
   compareTitle: "Compare plans",
@@ -164,7 +164,7 @@ const en: typeof es = {
       rows: [
         { label: "Strategy and ready campaigns, with a guide", values: { free: false, starter: true, pro: true, team: true } },
         { label: "The agent publishes campaigns for you", values: { free: false, starter: false, pro: true, team: true } },
-        { label: "Weekly review and summary", values: { free: false, starter: false, pro: true, team: true } },
+        { label: "Daily review of your ads", values: { free: false, starter: false, pro: true, team: true } },
       ],
     },
     {
@@ -189,7 +189,7 @@ const en: typeof es = {
     upgrade: "Upgrade plan",
     seePlans: "See plans",
     publishChip: "Publish: Starter plan",
-    marketingTitle: "Marketing is in the Starter plan",
+    marketingTitle: "Marketing starts with the Starter plan",
     marketingSub: "With Starter, the marketing brain builds your strategy and leaves your campaigns ready with a guide to launch them. With Pro (coming soon), the agent publishes and manages them for you.",
     autoPro: "Auto-publish: Pro plan (coming soon)",
     paymentsPro: "Payments is included in every plan: 5% per payment, all included.",

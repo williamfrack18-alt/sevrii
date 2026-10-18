@@ -38,7 +38,7 @@ const TEXT = {
   es: {
     off: "La publicación en Facebook todavía no está disponible.",
     signin: "Vuelve a iniciar sesión.",
-    plan: "Marketing es parte del plan Starter.",
+    plan: "Conectar Facebook para publicar es parte del plan Pro.",
     notConnected: "Primero conecta tu cuenta de Facebook.",
     reconnect: "La conexión con Facebook venció. Desconecta y vuelve a conectar.",
     noAssets: "Elige tu cuenta publicitaria y tu página de Facebook.",
@@ -58,7 +58,7 @@ const TEXT = {
   en: {
     off: "Publishing on Facebook isn't available yet.",
     signin: "Please sign in again.",
-    plan: "Marketing is part of the Starter plan.",
+    plan: "Connecting Facebook to publish is part of the Pro plan.",
     notConnected: "Connect your Facebook account first.",
     reconnect: "The Facebook connection expired. Disconnect and connect again.",
     noAssets: "Choose your ad account and your Facebook page.",
@@ -99,7 +99,7 @@ async function context(): Promise<Ctx> {
   const user = await getCurrentUser();
   if (!user || !user.business) return { t, error: t.signin };
   if (!metaReady()) return { t, error: t.off };
-  if (!limitsFor(user).marketing) return { t, error: t.plan };
+  if (!limitsFor(user).autoMarketing) return { t, error: t.plan };
   const business = user.business;
   const conn = await getMetaConnection(business.id);
   return { t, user, business, conn };

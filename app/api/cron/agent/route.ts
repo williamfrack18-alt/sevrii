@@ -34,7 +34,7 @@ export async function GET(req: Request) {
     if (counts.ran + counts.failed >= PER_RUN || Date.now() - started > TIME_BUDGET_MS) break;
     try {
       const owner = await getUserById(b.userId);
-      if (!owner || !limitsFor(owner).marketing) {
+      if (!owner || !limitsFor(owner).autoMarketing) {
         // Not in their plan now: move it to the back of the line without working on it.
         await markAgentRan(b.id);
         counts.skipped++;

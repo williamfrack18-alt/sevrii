@@ -170,6 +170,8 @@ export default function MarketingView({
       changed={changed.length}
       error={approveErr}
       onApprove={approve}
+      agentAllowed={agent === undefined ? undefined : Boolean(agent?.allowed)}
+      onPlans={onPlans}
     />
   );
   const nodes = buildNodes({ business, campaigns: withSpec, approved, agent: agent ?? null, results, lang });
@@ -313,8 +315,12 @@ function CenterAction({
   changed,
   error,
   onApprove,
+  agentAllowed,
+  onPlans,
 }: {
   lang: Lang;
+  agentAllowed?: boolean;
+  onPlans?: () => void;
   approving: boolean;
   approved: boolean;
   approvedAt: string | null;
@@ -340,6 +346,27 @@ function CenterAction({
   }
   if (!approved) {
     if (!canApprove) return <span className="text-[12.5px] text-[#8e8e8e]">{m.building}</span>;
+    // Still checking the plan: don't flash a button the owner may not have.
+    if (agentAllowed === undefined) return <span className="h-11" aria-hidden="true" />;
+    if (!agentAllowed) {
+      return (
+        <div className="w-full flex flex-col items-center gap-2">
+          <span className="flex items-center gap-1.5 text-[13.5px] text-white font-medium leading-snug">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="5" y="11" width="14" height="9" rx="2" />
+              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+            </svg>
+            {m.proTitle}
+          </span>
+          <span className="text-[12px] text-[#a1a1a1] leading-snug">{m.proSub}</span>
+          {onPlans && (
+            <button type="button" onClick={onPlans} className={btn} style={BRAND_BTN}>
+              {m.proBtn} →
+            </button>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="w-full flex flex-col items-center gap-2">
         <button type="button" onClick={onApprove} className={btn} style={BRAND_BTN}>
@@ -530,7 +557,7 @@ function buildNodes({
       summary: `${m.perDay(usd(spec.dailyBudgetUsd), spec.durationDays)}${spec.platform === "meta" && n ? ` · ${m.ads(n)}` : ""}`,
       badge: m.status[c.status] ?? m.status.draft,
       tone,
-      detail: <CampaignDetail campaign={c} spec={spec} business={business} result={results[c.id]} approved={approved} />,
+      detail: <CampaignDetail campaign={c} spec={spec} business={business} result={results[c.id]} approved={approved && Boolean(agent?.allowed)} />,
     });
   }
 

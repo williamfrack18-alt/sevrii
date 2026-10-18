@@ -489,7 +489,7 @@ export async function runDaily(businessId: string): Promise<string> {
   const owner = await getUserById(b.userId);
   if (!owner) return "no owner";
   const limits = limitsFor(owner);
-  if (!limits.marketing) return "no marketing in plan";
+  if (!limits.autoMarketing) return "agent not in plan (Pro)";
 
   return runForUser(b.userId, async () => {
     const lang = langOf(b);
@@ -730,7 +730,7 @@ export async function agentState(business: BusinessRow, user: UserRow): Promise<
   const prevWeek: AgentNumbers = { views: Math.max(0, views14 - views7), chats: p.chats, contacts: p.contacts, spendUsd: spendPrev };
 
   return {
-    allowed: limitsFor(user).marketing,
+    allowed: limitsFor(user).autoMarketing,
     started: Boolean(lastRunAt) || items.length > 0,
     budgetUsd: b.marketing.profile.monthlyBudgetUsd,
     metaReady: metaReady(),

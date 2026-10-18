@@ -49,7 +49,7 @@ const MAX_BUDGET = 10_000;
 const TEXT = {
   es: {
     signin: "Vuelve a iniciar sesión.",
-    plan: "El agente de marketing es parte del plan Starter.",
+    plan: "El agente de marketing es parte del plan Pro.",
     busy: "Espera un momento e inténtalo de nuevo.",
     budget: `Escribe un presupuesto entre $${MIN_BUDGET} y $${MAX_BUDGET.toLocaleString("en-US")} al mes.`,
     aiLimit: "Ya usaste la IA incluida en tu plan por ahora. Inténtalo más tarde o mejora tu plan.",
@@ -67,7 +67,7 @@ const TEXT = {
   },
   en: {
     signin: "Please sign in again.",
-    plan: "The marketing agent is part of the Starter plan.",
+    plan: "The marketing agent is part of the Pro plan.",
     busy: "Wait a moment and try again.",
     budget: `Enter a budget between $${MIN_BUDGET} and $${MAX_BUDGET.toLocaleString("en-US")} a month.`,
     aiLimit: "You've used the AI included in your plan for now. Try later or upgrade your plan.",
@@ -96,7 +96,7 @@ async function context(): Promise<Ctx> {
   const t = TEXT[lang];
   const user = await getCurrentUser();
   if (!user || !user.business) return { ok: false, error: t.signin };
-  if (!limitsFor(user).marketing) return { ok: false, error: t.plan };
+  if (!limitsFor(user).autoMarketing) return { ok: false, error: t.plan };
   if (!(await allow(`agent:act:${user.id}`, 60, 10 * 60))) return { ok: false, error: t.busy };
   const { business, ...rest } = user;
   return { ok: true, t, lang, user: rest as UserRow, business };

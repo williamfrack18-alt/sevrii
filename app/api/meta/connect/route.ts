@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
   const user = await getCurrentUser();
   if (!user) return NextResponse.redirect(new URL("/login", url.origin));
-  if (!user.business || !limitsFor(user).marketing) return back("plan");
+  if (!user.business || !limitsFor(user).autoMarketing) return back("plan");
   if (!(await allow(`meta:connect:${user.id}`, 10, 15 * 60))) return back("busy");
 
   const s = newMetaState(user.business.id);
