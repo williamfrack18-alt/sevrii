@@ -111,10 +111,11 @@ export default function MindMap({
   const steps = nodes.filter((n) => n.step);
   const nextId = steps.find((n) => n.tone !== "done")?.id ?? null;
 
-  // Unfolded groups: those with something pending; all of them if everything is done.
+  // Unfolded groups: only those with something left to approve.
   const [unfolded, setUnfolded] = useState<Set<string>>(() => {
     const pending = cols.filter((g) => g.nodes.some((n) => n.step && n.tone !== "done")).map((g) => g.id);
-    return new Set(pending.length ? pending : cols.map((g) => g.id));
+    // Nothing pending: everything starts folded, inviting a tap ("Toca para desplegar").
+    return new Set(pending);
   });
   const toggleGroup = (id: string) =>
     setUnfolded((cur) => {
