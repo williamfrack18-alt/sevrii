@@ -162,11 +162,11 @@ export default function StoreView({
       <section
         className={`${business.published ? "h-[calc(100dvh-var(--hdr))] md:h-screen" : "h-[calc(100dvh-var(--hdr)-44px)] md:h-[calc(100vh-44px)]"} flex flex-col`}
       >
-        <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between">
-          <span className="text-[17px] font-semibold text-white">
+        <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3">
+          <span className="text-[17px] font-semibold text-white truncate min-w-0">
             Sevrii <span className="text-[#8e8e8e] font-normal">· Store</span>
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {business.site.chat && (
               <button type="button" onClick={onChats} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
                 {lang === "es" ? "Conversaciones" : "Conversations"}
@@ -185,14 +185,14 @@ export default function StoreView({
                     {st.inMarket}: {lang === "es" ? business.marketCategory : MARKET_CATEGORY_EN[business.marketCategory as MarketCategory] ?? business.marketCategory}
                   </a>
                 )}
-                <a href="#store-page" className="text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: TINT, color: ACCENT }}>
+                <a href="#store-page" className="tap text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: TINT, color: ACCENT }}>
                   {st.live}
                 </a>
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => publish(false)}
-                  className="text-[12px] px-3 py-1 rounded-full font-medium disabled:opacity-50"
+                  className="tap text-[12px] px-3 py-1 rounded-full font-medium disabled:opacity-50"
                   style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}
                 >
                   {st.unpublish}
@@ -207,7 +207,7 @@ export default function StoreView({
                   type="button"
                   disabled={busy}
                   onClick={() => publish(true)}
-                  className="h-8 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60"
+                  className="tap h-8 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60"
                   style={BRAND_BTN}
                 >
                   {busy ? st.publishing : st.publish}
@@ -218,7 +218,7 @@ export default function StoreView({
                 <a href="#store-page" className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
                   {st.draft}
                 </a>
-                <button type="button" onClick={onPlans} className="text-[12px] px-3 py-1 rounded-full font-semibold" style={{ background: TINT, color: ACCENT }}>
+                <button type="button" onClick={onPlans} className="tap text-[12px] px-3 py-1 rounded-full font-semibold" style={{ background: TINT, color: ACCENT }}>
                   {lk.publishChip} →
                 </button>
               </>
@@ -227,7 +227,7 @@ export default function StoreView({
         </div>
         {notice && (
           <div className="shrink-0 mx-4 md:mx-6 mb-2 rounded-xl px-4 py-3 text-[13.5px] text-[#ececec] flex items-start justify-between gap-3" style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,.1)" }}>
-            <div>
+            <div className="min-w-0">
               {notice.kind === "gaps" ? (
                 <>
                   <div className="font-medium">{st.gapsTitle}</div>
@@ -247,7 +247,7 @@ export default function StoreView({
                 <span>{st.publishFailed}</span>
               )}
             </div>
-            <button type="button" onClick={() => setNotice(null)} className="text-[#8e8e8e] text-[16px] leading-none" aria-label={st.close} title={st.close}>
+            <button type="button" onClick={() => setNotice(null)} className="tap text-[#8e8e8e] text-[16px] leading-none shrink-0" aria-label={st.close} title={st.close}>
               ×
             </button>
           </div>
@@ -307,11 +307,11 @@ export default function StoreView({
       )}
 
       {/* The page, below the chat */}
-      <section id="store-page" className="px-3 md:px-8 pt-6 pb-10" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+      <section id="store-page" className="px-4 md:px-8 pt-6 pb-10" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-[1180px] mx-auto">
           <div className="flex items-center justify-between gap-3 mb-4">
             <h2 className="text-[15px] font-semibold text-white">{st.yourPage}</h2>
-            <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] text-muted hover:text-ink">
+            <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap text-[13px] text-muted hover:text-ink shrink-0">
               {business.published ? t.dashboard.openLive : st.viewDraft} ↗
             </a>
           </div>

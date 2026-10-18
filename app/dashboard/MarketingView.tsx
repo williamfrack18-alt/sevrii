@@ -1,26 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { getCampaignResultsAction } from "@/app/marketingResultsActions";
+import { approveStrategyAction, getAgentStateAction } from "@/app/agentActions";
 import type { CampaignStats } from "@/lib/db";
+import type { AgentState } from "@/lib/agentTypes";
 import CampaignResults from "./CampaignResults";
 import AdImages from "./AdImages";
-import MetaConnect from "./MetaConnect";
 import MetaLaunch from "./MetaLaunch";
+import MindMap, { type MindNode, type MindTone } from "./MindMap";
 import { useLang } from "@/components/LangProvider";
 import { MK_TEXT } from "@/lib/marketingI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { maxDailySpend, type CampaignSpec } from "@/lib/marketing";
+import { activeOffer } from "@/lib/site";
 import { sendMarketingChatAction } from "@/app/marketingActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
 import AgentPanel from "./AgentPanel";
 import { toClientBusiness, type ClientBusiness, type ClientCampaign } from "./types";
-import { ACCENT, BRAND_BTN } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
+
+type Lang = "es" | "en";
+type Result = { link: string; stats: CampaignStats; week: CampaignStats };
 
 const usd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+const HAIR = "rgba(255,255,255,0.08)";
+const RUNNING = ["live", "approved", "paused"];
 
-// Marketing = the same clean chat as Store. The strategy and campaigns the
-// brain builds appear right below it.
+// Marketing in 3 stages:
+//  1. Estrategia — the chat (the strategist) builds the strategy and its
+//     campaigns with the owner; they show up below as a mind map.
+//  2. Aprobada — the owner approves it; the agent turns the campaigns into
+//     launch proposals (one OK each) and prepares free posts.
+//  3. En marcha — campaigns are out; the agent panel shows what it does.
 export default function MarketingView({
   business,
   campaigns,
@@ -42,11 +54,20 @@ export default function MarketingView({
 }) {
   const lang = useLang();
   const t = MK_TEXT[lang];
+  const m = t.map;
   const lk = PLANS_TEXT[lang].lock;
   const strategy = business.marketing.strategy;
+  const approvedAt = business.marketing.approvedAt ?? null;
+  const approved = Boolean(approvedAt);
+
   // What each campaign's link brought (visits, chats, contacts).
-  const [results, setResults] = useState<Record<string, { link: string; stats: CampaignStats; week: CampaignStats }>>({});
-  const campaignKey = campaigns.map((c) => c.id).join(",");
+  const [results, setResults] = useState<Record<string, Result>>({});
+  // The agent: undefined = loading, null = not available.
+  const [agent, setAgent] = useState<AgentState | null | undefined>(undefined);
+  const [approving, setApproving] = useState(false);
+  const [approveErr, setApproveErr] = useState<string | null>(null);
+
+  const campaignKey = campaigns.map((c) => `${c.id}:${c.status}`).join(",");
   useEffect(() => {
     if (locked) return;
     let alive = true;
@@ -60,6 +81,16 @@ export default function MarketingView({
       alive = false;
     };
   }, [campaignKey, locked]);
+
+  const loadAgent = useCallback(() => {
+    getAgentStateAction()
+      .then((s) => setAgent(s ?? null))
+      .catch(() => setAgent(null));
+  }, []);
+  useEffect(() => {
+    if (!locked) loadAgent();
+  }, [locked, loadAgent]);
+
   if (locked) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#000" }}>
@@ -77,7 +108,14 @@ export default function MarketingView({
       </div>
     );
   }
+
   const withSpec = campaigns.filter((c) => c.spec);
+  const active = withSpec.filter((c) => c.status !== "declined");
+  // Changed or new in the chat after approval: they wait for "Aprobar cambios".
+  const changed = approved ? withSpec.filter((c) => c.status === "draft") : [];
+  const running = withSpec.some((c) => RUNNING.includes(c.status));
+  const step = !approved ? 0 : running ? 2 : 1;
+  const showAgent = Boolean(agent && agent.allowed && (approved || agent.started));
 
   const applyUpdate = (res: Awaited<ReturnType<typeof sendMarketingChatAction>>) =>
     onUpdated(
@@ -97,25 +135,56 @@ export default function MarketingView({
     );
   // The agent changed the strategy or campaigns: reload them without sending
   // anything to the chat (an empty message only reads).
-  const refresh = () => {
+  const refresh = () =>
     sendMarketingChatAction("")
       .then(applyUpdate)
       .catch(() => {});
+
+  const approve = async () => {
+    if (approving) return;
+    setApproving(true);
+    setApproveErr(null);
+    try {
+      const res = await approveStrategyAction();
+      if (!res.ok) {
+        setApproveErr(res.error);
+        return;
+      }
+      setAgent(res.state);
+      await refresh();
+      setTimeout(() => document.getElementById("mk-agent")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    } catch {
+      setApproveErr(m.failed);
+    } finally {
+      setApproving(false);
+    }
   };
 
+  const footer = (
+    <CenterAction
+      lang={lang}
+      approving={approving}
+      approved={approved}
+      approvedAt={approvedAt}
+      canApprove={Boolean(strategy) && active.length > 0}
+      changed={changed.length}
+      error={approveErr}
+      onApprove={approve}
+    />
+  );
+  const nodes = buildNodes({ business, campaigns: withSpec, approved, agent: agent ?? null, results, lang });
+  const hasMap = Boolean(strategy) || withSpec.length > 0;
+  const profile = business.marketing.profile;
+
   return (
-    <div style={{ background: "#000" }}>
-      <AgentPanel business={business} lang={lang} onChanged={refresh} />
+    <div style={{ background: "#000" }} className="overflow-x-clip">
+      {/* 1. The strategist: the chat comes first, full height */}
       <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
-        <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between">
-          <span className="text-[17px] font-semibold text-white">
-            Sevrii <span className="text-[#8e8e8e] font-normal">· Marketing</span>
+        <div className="shrink-0 h-12 md:h-14 px-4 md:px-6 flex items-center justify-between gap-3">
+          <span className="min-w-0 truncate text-[16px] md:text-[17px] font-semibold text-white">
+            Sevrii <span className="text-[#8e8e8e] font-normal">· {t.flow.title}</span>
           </span>
-          {withSpec.length > 0 && (
-            <a href="#mk-plan" className="text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
-              {withSpec.length} {t.campaigns.toLowerCase()}
-            </a>
-          )}
+          <Stepper steps={t.flow.steps} current={step} />
         </div>
         <ChatPanel
           greeting={greeting}
@@ -125,60 +194,379 @@ export default function MarketingView({
             const res = await sendMarketingChatAction(text);
             onMessages?.(res.messages);
             applyUpdate(res);
+            // The chat may have changed campaigns the agent was proposing.
+            if (showAgent) loadAgent();
             return res.messages;
           }}
         />
       </section>
 
-      <section id="mk-plan" className="px-4 md:px-8 pt-8 pb-14" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-        <div className="max-w-[1100px] mx-auto flex flex-col gap-10">
-          <div>
-            <h2 className="text-[20px] font-semibold text-white mb-4">{t.plan}</h2>
-            {!strategy ? (
-              <p className="text-[14.5px] text-[#8e8e8e]">{t.planEmpty}</p>
-            ) : (
-              <div className="flex flex-col gap-5">
-                <p className="text-[15.5px] leading-relaxed text-[#ececec] max-w-[760px]">{strategy.summary}</p>
-                {strategy.stages.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {strategy.stages.map((s, i) => (
-                      <div key={i} className="rounded-2xl p-5 flex flex-col gap-2" style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.07)" }}>
-                        <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
-                          {i + 1} · {t.stages[s.stage]}
-                        </span>
-                        <span className="text-[15.5px] font-semibold text-white">{s.title}</span>
-                        <span className="text-[12.5px] text-[#8e8e8e]">{s.channel}</span>
-                        <span className="text-[14px] text-[#d4d4d4] leading-relaxed">{s.message}</span>
-                        <span className="text-[13px] text-[#a1a1aa] leading-relaxed">→ {s.action}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {strategy.budgetPlan && (
-                  <p className="text-[14px] text-[#a1a1aa]">
-                    <span className="text-white font-medium">{t.budget}:</span> {strategy.budgetPlan}
-                  </p>
-                )}
-              </div>
-            )}
+      {/* The strategy as a mind map */}
+      <section id="mk-plan" className="px-4 md:px-8 pt-8 pb-12 scroll-mt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+        <div className="max-w-[1100px] mx-auto flex flex-col gap-5">
+          <div className="flex flex-col gap-1.5">
+            <h2 className="text-[20px] font-semibold text-white tracking-tight">{t.plan}</h2>
+            {strategy?.summary && <p className="text-[14.5px] leading-relaxed text-[#d4d4d4] max-w-[760px]">{strategy.summary}</p>}
+            {hasMap && <p className="text-[12.5px] text-[#8e8e8e]">{m.sub}</p>}
           </div>
-
-          {withSpec.length > 0 && (
-            <div>
-              <h2 className="text-[20px] font-semibold text-white mb-4">{t.campaigns}</h2>
-              <div className="mb-5">
-                <MetaConnect lang={lang} />
-              </div>
-              <div className="flex flex-col gap-5">
-                {withSpec.map((c) => (
-                  <CampaignCard key={c.id} campaign={c} spec={c.spec as CampaignSpec} business={business} result={results[c.id]} />
-                ))}
-              </div>
-            </div>
+          {hasMap ? (
+            <MindMap
+              center={{
+                eyebrow: m.eyebrow,
+                title: profile.goal || m.goalFallback(profile.mainService || business.plan.service || ""),
+                subtitle: profile.monthlyBudgetUsd ? m.budgetMonth(usd(profile.monthlyBudgetUsd)) : m.noBudget,
+                footer,
+              }}
+              nodes={nodes}
+            />
+          ) : (
+            <EmptyMap lang={lang} />
           )}
         </div>
       </section>
+
+      {/* 3. En marcha: what the agent does */}
+      {approved && agent === undefined && (
+        <section className="px-4 md:px-8 py-8" style={{ borderTop: `1px solid ${HAIR}` }}>
+          <div className="max-w-[1100px] mx-auto flex items-center gap-3">
+            <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
+            <span className="text-[14px] text-[#a1a1a1]">{t.agent.loading}</span>
+          </div>
+        </section>
+      )}
+      {showAgent && agent && <AgentPanel business={business} lang={lang} state={agent} setState={setAgent} onChanged={refresh} />}
     </div>
+  );
+}
+
+// ---------- header stepper ----------
+function Check({ size = 10 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
+  );
+}
+
+// Estrategia — Aprobada — En marcha. The current step is the stage chip; on a
+// phone the other steps are just numbered dots so it always fits one line.
+function Stepper({ steps, current }: { steps: string[]; current: number }) {
+  return (
+    <ol className="flex items-center gap-1 shrink-0" aria-label={steps.join(" · ")}>
+      {steps.map((label, i) => (
+        <li key={label} className="flex items-center gap-1" aria-current={i === current ? "step" : undefined}>
+          {i > 0 && <span className="h-px w-2.5 sm:w-4" style={{ background: "rgba(255,255,255,0.14)" }} />}
+          {i === current ? (
+            <span className="h-6 px-2.5 rounded-full text-[11.5px] font-semibold flex items-center gap-1.5 whitespace-nowrap" style={{ background: TINT, color: ACCENT }}>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: ACCENT }} />
+              {label}
+            </span>
+          ) : (
+            <span className="h-6 flex items-center gap-1.5 text-[11.5px] whitespace-nowrap" style={{ color: i < current ? "#a1a1a1" : "#5c5c5c" }} title={label}>
+              <span
+                className="h-[18px] w-[18px] rounded-full flex items-center justify-center text-[10px] font-semibold"
+                style={i < current ? { background: "rgba(125,191,156,0.16)", color: ACCENT } : { boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.16)" }}
+              >
+                {i < current ? <Check /> : i + 1}
+              </span>
+              <span className="hidden sm:inline">{label}</span>
+            </span>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// ---------- the main action in the center of the map ----------
+function CenterAction({
+  lang,
+  approving,
+  approved,
+  approvedAt,
+  canApprove,
+  changed,
+  error,
+  onApprove,
+}: {
+  lang: Lang;
+  approving: boolean;
+  approved: boolean;
+  approvedAt: string | null;
+  canApprove: boolean;
+  changed: number;
+  error: string | null;
+  onApprove: () => void;
+}) {
+  const m = MK_TEXT[lang].map;
+  const btn = "w-full min-h-11 px-5 py-2.5 rounded-full text-[14px] font-semibold leading-snug disabled:opacity-60";
+  const err = error && <span className="text-[12.5px] text-[#ff8a8a] leading-snug">{error}</span>;
+
+  if (approving) {
+    return (
+      <div className="flex flex-col items-center gap-1.5" aria-live="polite">
+        <span className="flex items-center gap-2 text-[13.5px] text-white">
+          <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
+          {m.approving}
+        </span>
+        <span className="text-[12px] text-[#8e8e8e]">{m.approvingSub}</span>
+      </div>
+    );
+  }
+  if (!approved) {
+    if (!canApprove) return <span className="text-[12.5px] text-[#8e8e8e]">{m.building}</span>;
+    return (
+      <div className="w-full flex flex-col items-center gap-2">
+        <button type="button" onClick={onApprove} className={btn} style={BRAND_BTN}>
+          {m.approve}
+        </button>
+        <span className="text-[12px] text-[#a1a1a1] leading-snug">{m.approveHint}</span>
+        {err}
+      </div>
+    );
+  }
+  if (changed > 0) {
+    return (
+      <div className="w-full flex flex-col items-center gap-2">
+        <span className="text-[12.5px] text-[#f5c451] leading-snug">{m.changesHint(changed)}</span>
+        <button type="button" onClick={onApprove} className={btn} style={BRAND_BTN}>
+          {m.approveChanges}
+        </button>
+        {err}
+      </div>
+    );
+  }
+  const day = approvedAt ? new Date(approvedAt).toLocaleDateString(lang === "es" ? "es-US" : "en-US", { month: "long", day: "numeric" }) : "";
+  return (
+    <span className="h-7 px-3 rounded-full text-[12px] font-medium flex items-center gap-1.5" style={{ background: TINT, color: ACCENT }}>
+      <Check size={11} />
+      {m.approvedOn(day)}
+    </span>
+  );
+}
+
+function EmptyMap({ lang }: { lang: Lang }) {
+  const m = MK_TEXT[lang].map;
+  return (
+    <div className="rounded-2xl px-5 py-8 md:py-10 flex flex-col items-center text-center gap-3" style={{ background: "#101010", boxShadow: `0 0 0 1px ${HAIR}` }}>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: ACCENT }}>
+        {m.eyebrow}
+      </span>
+      <span className="text-[17px] font-semibold text-white">{m.emptyTitle}</span>
+      <p className="text-[14px] text-[#a1a1a1] leading-relaxed max-w-[520px]">{m.emptyText}</p>
+      <button
+        type="button"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className="mt-1 h-10 px-5 rounded-full text-[13.5px] font-medium text-[#ececec] hover:text-white"
+        style={{ background: "rgba(255,255,255,0.08)" }}
+      >
+        {m.toChat}
+      </button>
+    </div>
+  );
+}
+
+// ---------- the branches of the map ----------
+function buildNodes({
+  business,
+  campaigns,
+  approved,
+  agent,
+  results,
+  lang,
+}: {
+  business: ClientBusiness;
+  campaigns: ClientCampaign[];
+  approved: boolean;
+  agent: AgentState | null;
+  results: Record<string, Result>;
+  lang: Lang;
+}): MindNode[] {
+  const t = MK_TEXT[lang];
+  const m = t.map;
+  const profile = business.marketing.profile;
+  const strategy = business.marketing.strategy;
+  const plan = business.plan;
+  const site = business.site;
+  const nodes: MindNode[] = [];
+  const active = campaigns.filter((c) => c.status !== "declined");
+  const first = (active[0] ?? campaigns[0])?.spec ?? null;
+
+  // Público
+  const custLang = profile.customerLanguage || plan.profile.languages || "";
+  const langText = custLang ? m.langs[custLang] : first ? m.langs[first.language] : "";
+  const whereText =
+    site.reachMode === "remote"
+      ? m.wholeUs
+      : site.reachMode === "local"
+        ? m.aroundCity(site.baseCity || profile.area || business.city || "", first?.radiusMiles || site.reachRadius)
+        : profile.area || first?.city || business.city || "";
+  const ageText = first ? t.ages(first.ageMin, first.ageMax) : "";
+  const who = profile.idealCustomer || plan.customer || m.audienceFallback;
+  nodes.push({
+    id: "audience",
+    label: m.audience,
+    title: who,
+    summary: [whereText, ageText, langText].filter(Boolean).join(" · "),
+    detail: (
+      <Rows
+        rows={[
+          [m.who, who],
+          [m.where, whereText],
+          [m.age, ageText],
+          [m.lang, langText],
+        ]}
+      />
+    ),
+  });
+
+  // Mensaje
+  const offer = activeOffer(site);
+  const offerText = offer ? [offer.label, offer.newPrice].filter(Boolean).join(" · ") : "";
+  const stageMsg = strategy?.stages.find((s) => s.stage === "conversion")?.message || strategy?.stages[0]?.message || "";
+  const promise = plan.promise || stageMsg;
+  if (promise || offerText) {
+    nodes.push({
+      id: "message",
+      label: m.message,
+      title: promise || offerText,
+      summary: offerText || m.noOffer,
+      detail: (
+        <Rows
+          rows={[
+            [m.promise, promise],
+            [m.offer, offerText || m.noOffer],
+            [m.why, plan.differentiators.filter(Boolean).join(" · ")],
+          ]}
+        />
+      ),
+    });
+  }
+
+  // One branch per funnel stage
+  (strategy?.stages ?? []).forEach((s, i) => {
+    nodes.push({
+      id: `stage-${i}`,
+      label: t.stages[s.stage],
+      title: s.title,
+      summary: s.channel,
+      detail: (
+        <Rows
+          rows={[
+            [m.channel, s.channel],
+            [m.say, s.message],
+            [m.doIt, s.action],
+          ]}
+        />
+      ),
+    });
+  });
+
+  // Presupuesto
+  const max = profile.monthlyBudgetUsd;
+  const monthly = Math.round(active.reduce((sum, c) => sum + (c.spec?.dailyBudgetUsd ?? 0) * 30, 0) * 100) / 100;
+  const over = Boolean(max && monthly > max + 0.5);
+  if (max || strategy?.budgetPlan || active.length) {
+    nodes.push({
+      id: "budget",
+      label: m.budget,
+      title: max ? m.budgetMonth(usd(max)) : m.noBudget,
+      summary: strategy?.budgetPlan || undefined,
+      tone: over ? "warn" : undefined,
+      detail: (
+        <div className="flex flex-col gap-3 text-[14px]">
+          {strategy?.budgetPlan && <p className="text-[#d4d4d4] leading-relaxed">{strategy.budgetPlan}</p>}
+          {active.length > 0 && (
+            <ul className="flex flex-col rounded-xl overflow-hidden" style={{ background: "#171717" }}>
+              {active.map((c, i) => (
+                <li key={c.id} className="px-3.5 py-2.5 flex items-baseline justify-between gap-3" style={i > 0 ? { borderTop: `1px solid ${HAIR}` } : undefined}>
+                  <span className="text-white min-w-0 truncate">{c.title}</span>
+                  <span className="text-[#a1a1a1] text-[13px] whitespace-nowrap">{m.perDay(usd(c.spec!.dailyBudgetUsd), c.spec!.durationDays)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {max && active.length > 0 && <p className="text-[13px] leading-relaxed" style={{ color: over ? "#f5c451" : "#a1a1a1" }}>{over ? m.overMonth(usd(monthly), usd(max)) : m.sumMonth(usd(monthly), usd(max))}</p>}
+        </div>
+      ),
+    });
+  }
+
+  // Each campaign
+  for (const c of campaigns) {
+    const spec = c.spec as CampaignSpec;
+    const n = spec.platform === "meta" ? spec.ads.length : spec.headlines.length;
+    const tone: MindTone =
+      c.status === "live" || c.status === "approved" ? "done" : c.status === "proposed" ? "active" : c.status === "draft" && approved ? "warn" : "idle";
+    nodes.push({
+      id: `c-${c.id}`,
+      label: t.platform[spec.platform],
+      title: c.title,
+      summary: `${m.perDay(usd(spec.dailyBudgetUsd), spec.durationDays)}${spec.platform === "meta" && n ? ` · ${m.ads(n)}` : ""}`,
+      badge: m.status[c.status] ?? m.status.draft,
+      tone,
+      detail: <CampaignDetail campaign={c} spec={spec} business={business} result={results[c.id]} approved={approved} />,
+    });
+  }
+
+  // Publicaciones gratis
+  const ready = (agent?.posts ?? []).filter((p) => p.status === "ready");
+  if (ready.length > 0) {
+    const channels = Array.from(new Set(ready.map((p) => t.agent.channels[p.channel])));
+    nodes.push({
+      id: "posts",
+      label: m.posts,
+      title: m.postsTitle(ready.length),
+      summary: `${channels.join(" · ")} · ${m.postsSummary}`,
+      tone: "done",
+      detail: (
+        <div className="flex flex-col gap-3">
+          {ready.slice(0, 2).map((p) => (
+            <div key={p.id} className="rounded-xl px-3.5 py-3" style={{ background: "#171717" }}>
+              <div className="text-[11px] font-medium uppercase tracking-wider mb-1" style={{ color: ACCENT }}>
+                {t.agent.channels[p.channel]}
+              </div>
+              <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed line-clamp-3">{p.text}</p>
+            </div>
+          ))}
+          <a href="#mk-posts" className="text-[13.5px] text-[#a1a1a1] hover:text-white underline underline-offset-4 decoration-[rgba(255,255,255,.25)] self-start">
+            {m.postsSee}
+          </a>
+        </div>
+      ),
+    });
+  }
+
+  // Cómo medimos
+  nodes.push({
+    id: "measure",
+    label: m.measure,
+    title: m.measureTitle,
+    summary: m.measureSummary,
+    detail: (
+      <div className="flex flex-col gap-2 text-[14px] text-[#d4d4d4] leading-relaxed">
+        {m.measureText.map((p) => (
+          <p key={p}>{p}</p>
+        ))}
+      </div>
+    ),
+  });
+
+  return nodes;
+}
+
+function Rows({ rows }: { rows: [string, string][] }) {
+  const list = rows.filter(([, v]) => v);
+  if (list.length === 0) return null;
+  return (
+    <dl className="flex flex-col gap-3">
+      {list.map(([k, v]) => (
+        <div key={k} className="flex flex-col gap-0.5">
+          <dt className="text-[11.5px] text-[#8e8e8e]">{k}</dt>
+          <dd className="text-[14px] text-[#ececec] leading-relaxed">{v}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -205,16 +593,19 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function CampaignCard({
+// Everything about one campaign, shown when its branch is opened.
+function CampaignDetail({
   campaign,
   spec,
   business,
   result,
+  approved,
 }: {
   campaign: ClientCampaign;
   spec: CampaignSpec;
   business: ClientBusiness;
-  result?: { link: string; stats: CampaignStats; week: CampaignStats };
+  result?: Result;
+  approved: boolean;
 }) {
   const lang = useLang();
   const t = MK_TEXT[lang];
@@ -222,97 +613,92 @@ function CampaignCard({
   const image = business.site.coverUrl || business.site.gallery[0] || "";
   const total = spec.dailyBudgetUsd * spec.durationDays;
   const cta = t.cta[spec.destination];
+  const status = t.map.status[campaign.status] ?? t.map.status.draft;
+  const live = RUNNING.includes(campaign.status);
 
   return (
-    <div className="rounded-3xl p-5 md:p-6 flex flex-col gap-5" style={{ background: "#0f0f0f", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="text-[17px] font-semibold text-white">{campaign.title}</span>
-          <span className="text-[13.5px] text-[#a1a1aa]">{campaign.goal}</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <span className="text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.08)", color: "#d4d4d4" }}>
-            {t.draft}
-          </span>
-          <span className="text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: "rgba(255,196,0,0.12)", color: "#ffc400" }}>
-            {PLANS_TEXT[useLang()].lock.autoPro}
-          </span>
-        </div>
+    <div className="flex flex-col gap-5 min-w-0">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        {campaign.goal && <span className="text-[13.5px] text-[#a1a1aa] leading-relaxed min-w-0 flex-1">{campaign.goal}</span>}
+        <span className="text-[11.5px] px-2.5 py-1 rounded-full shrink-0" style={live ? { background: TINT, color: ACCENT } : { background: HAIR, color: "#d4d4d4" }}>
+          {status}
+        </span>
       </div>
 
       {/* Key facts */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[13.5px]">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 text-[13.5px]">
         <Fact k={t.platform[spec.platform]} v={t.objective[spec.objective]} />
         <Fact k={t.audience} v={`${t.area(spec.city, spec.radiusMiles)} · ${t.ages(spec.ageMin, spec.ageMax)} · ${t.language[spec.language]}`} />
         <Fact k={t.daily} v={`${usd(spec.dailyBudgetUsd)} × ${t.duration(spec.durationDays)}`} />
         <Fact k={t.total} v={usd(total)} />
       </div>
-      {spec.platform === "meta" && <p className="text-[12.5px] text-[#8e8e8e] -mt-2">{t.maxDay(usd(maxDailySpend(spec.dailyBudgetUsd)))}</p>}
+      {spec.platform === "meta" && <p className="text-[12.5px] text-[#8e8e8e] -mt-2 leading-relaxed">{t.maxDay(usd(maxDailySpend(spec.dailyBudgetUsd)))}</p>}
 
-      {result && <CampaignResults campaignId={campaign.id} link={result.link} stats={result.stats} week={result.week} lang={lang} />}
-      <MetaLaunch campaign={{ id: campaign.id, platform: spec.platform }} lang={lang} />
       {spec.specialCategory !== "none" && (
         <p className="text-[13px] rounded-xl px-3.5 py-2.5" style={{ background: "rgba(255,196,0,0.1)", color: "#ffd75e" }}>
           {t.special(t.specialNames[spec.specialCategory])}
         </p>
       )}
 
-      {/* Ads */}
+      {/* Ads: a swipeable row on phones, a grid on desktop */}
       {spec.platform === "meta" && spec.ads.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {spec.ads.map((ad, i) => (
-            <div key={i} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] text-[#8e8e8e]">{t.variation(i + 1)}</span>
-                <CopyButton text={`${ad.primaryText}\n\n${ad.headline}${ad.description ? `\n${ad.description}` : ""}`} />
-              </div>
-              {/* Facebook/Instagram feed preview */}
-              <div className="rounded-2xl overflow-hidden" style={{ background: "#fff", color: "#1c1e21" }}>
-                <div className="flex items-center gap-2.5 px-3 pt-3">
-                  <span className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: business.accentColor === "#122118" ? "#234f36" : business.accentColor }}>
-                    {business.name.slice(0, 2).toUpperCase()}
-                  </span>
-                  <div className="leading-tight">
-                    <div className="text-[13px] font-semibold">{business.name}</div>
-                    <div className="text-[11px] text-[#65676b]">{t.sponsored}</div>
+        <div className="flex flex-col gap-2">
+          <span className="text-[12px] text-[#8e8e8e]">{t.map.adTexts}</span>
+          <div className="-mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-px-4 no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible">
+            {spec.ads.map((ad, i) => (
+              <div key={i} className="w-[85%] shrink-0 snap-start md:w-auto flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-[#8e8e8e]">{t.variation(i + 1)}</span>
+                  <CopyButton text={`${ad.primaryText}\n\n${ad.headline}${ad.description ? `\n${ad.description}` : ""}`} />
+                </div>
+                {/* Facebook/Instagram feed preview */}
+                <div className="rounded-2xl overflow-hidden" style={{ background: "#fff", color: "#1c1e21" }}>
+                  <div className="flex items-center gap-2.5 px-3 pt-3">
+                    <span className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: business.accentColor === "#122118" ? "#234f36" : business.accentColor }}>
+                      {business.name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <div className="leading-tight min-w-0">
+                      <div className="text-[13px] font-semibold truncate">{business.name}</div>
+                      <div className="text-[11px] text-[#65676b]">{t.sponsored}</div>
+                    </div>
+                  </div>
+                  <p className="px-3 py-2.5 text-[13.5px] leading-snug whitespace-pre-line break-words">{ad.primaryText}</p>
+                  {image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={image} alt="" className="w-full aspect-[1.91/1] object-cover" />
+                  ) : (
+                    <div className="w-full aspect-[1.91/1] flex items-center justify-center text-white text-[15px] font-semibold px-6 text-center" style={{ background: "linear-gradient(135deg,#234f36,#0b1a12)" }}>
+                      {business.site.headline || business.name}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-3 px-3 py-2.5" style={{ background: "#f0f2f5" }}>
+                    <div className="min-w-0">
+                      <div className="text-[11px] text-[#65676b] uppercase truncate">sevrii.com</div>
+                      <div className="text-[13.5px] font-semibold truncate">{ad.headline}</div>
+                    </div>
+                    <span className="shrink-0 text-[12.5px] font-semibold px-3 py-1.5 rounded-md" style={{ background: "#e4e6eb" }}>
+                      {cta}
+                    </span>
                   </div>
                 </div>
-                <p className="px-3 py-2.5 text-[13.5px] leading-snug whitespace-pre-line">{ad.primaryText}</p>
-                {image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={image} alt="" className="w-full aspect-[1.91/1] object-cover" />
-                ) : (
-                  <div className="w-full aspect-[1.91/1] flex items-center justify-center text-white text-[15px] font-semibold px-6 text-center" style={{ background: "linear-gradient(135deg,#234f36,#0b1a12)" }}>
-                    {business.site.headline || business.name}
-                  </div>
-                )}
-                <div className="flex items-center justify-between gap-3 px-3 py-2.5" style={{ background: "#f0f2f5" }}>
-                  <div className="min-w-0">
-                    <div className="text-[11px] text-[#65676b] uppercase truncate">sevrii.com</div>
-                    <div className="text-[13.5px] font-semibold truncate">{ad.headline}</div>
-                  </div>
-                  <span className="shrink-0 text-[12.5px] font-semibold px-3 py-1.5 rounded-md" style={{ background: "#e4e6eb" }}>
-                    {cta}
-                  </span>
-                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
       {spec.platform === "google" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-2xl p-4 flex flex-col gap-1 self-start" style={{ background: "#fff", color: "#202124" }}>
-            <span className="text-[12px]">
+          <div className="rounded-2xl p-4 flex flex-col gap-1 self-start min-w-0" style={{ background: "#fff", color: "#202124" }}>
+            <span className="text-[12px] truncate">
               <b>{t.googleSponsored}</b> · sevrii.com/site/{business.slug}
             </span>
-            <span className="text-[18px] leading-snug" style={{ color: "#1a0dab" }}>
+            <span className="text-[18px] leading-snug break-words" style={{ color: "#1a0dab" }}>
               {spec.headlines.slice(0, 3).join(" | ")}
             </span>
             <span className="text-[13.5px] text-[#4d5156]">{spec.descriptions.slice(0, 2).join(" ")}</span>
           </div>
-          <div className="flex flex-col gap-3 text-[13.5px]">
+          <div className="flex flex-col gap-3 text-[13.5px] min-w-0">
             <ListBlock title={t.headlines} items={spec.headlines} />
             <ListBlock title={t.descriptions} items={spec.descriptions} />
             <ListBlock title={t.keywords} items={spec.keywords} />
@@ -321,10 +707,13 @@ function CampaignCard({
         </div>
       )}
 
+      {result && <CampaignResults campaignId={campaign.id} link={result.link} stats={result.stats} week={result.week} lang={lang} />}
+      {/* Publishing by hand only once the owner approved the strategy. */}
+      {approved && campaign.status !== "declined" && <MetaLaunch campaign={{ id: campaign.id, platform: spec.platform }} lang={lang} />}
       {spec.platform === "meta" && <AdImages campaignId={campaign.id} photoCount={photoCount} lang={lang} />}
 
       {spec.notes && (
-        <p className="text-[13.5px] text-[#d4d4d4]">
+        <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed">
           <span className="text-white font-medium">{t.note}:</span> {spec.notes}
         </p>
       )}
@@ -343,11 +732,11 @@ function CampaignCard({
   );
 }
 
-function Fact({ k, v }: { k: string; v: string }) {
+function Fact({ k, v }: { k: string; v: ReactNode }) {
   return (
-    <div className="rounded-xl px-3.5 py-3" style={{ background: "#171717" }}>
+    <div className="rounded-xl px-3 py-2.5 min-w-0" style={{ background: "#171717" }}>
       <div className="text-[11.5px] text-[#8e8e8e] mb-0.5">{k}</div>
-      <div className="text-white leading-snug">{v}</div>
+      <div className="text-white leading-snug break-words">{v}</div>
     </div>
   );
 }

@@ -40,14 +40,14 @@ export default function ProjectsView({
   const lk = PLANS_TEXT[lang].lock;
 
   return (
-    <div className="min-h-screen" style={{ background: "#000" }}>
+    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen" style={{ background: "#000" }}>
       <div className="h-14 px-4 md:px-6 flex items-center">
         <span className="text-[17px] font-semibold text-white">
           Sevrii <span className="text-[#8e8e8e] font-normal">· {PLAN_TEXT[lang].nav.projects}</span>
         </span>
       </div>
 
-      <div className="max-w-[1100px] mx-auto px-4 md:px-8 pt-8 md:pt-14 pb-16">
+      <div className="max-w-[1100px] mx-auto px-4 md:px-8 pt-4 md:pt-14 pb-10 md:pb-16">
         <h1 className="text-[28px] md:text-[34px] font-semibold text-white tracking-tight">{t.title}</h1>
         <p className="text-[15px] text-[#8e8e8e] mt-2 max-w-[560px] leading-relaxed">{t.sub}</p>
 
@@ -62,7 +62,7 @@ export default function ProjectsView({
           ))}
         </div>
 
-        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-9 ${pending ? "opacity-60 pointer-events-none" : ""}`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mt-6 md:mt-9 ${pending ? "opacity-60 pointer-events-none" : ""}`}>
           {projects.map((p) => {
             const active = p.id === activeId;
             const asking = confirmId === p.id;
@@ -121,7 +121,7 @@ export default function ProjectsView({
               </button>
               {asking ? (
                 <div className="mx-5 mb-5 rounded-xl p-3.5 flex flex-col gap-2.5" style={{ background: "rgba(248,113,113,.08)", boxShadow: "0 0 0 1px rgba(248,113,113,.3)" }}>
-                  <span className="text-[14px] font-semibold text-white">{t.deleteAsk(p.name)}</span>
+                  <span className="text-[14px] font-semibold text-white break-words">{t.deleteAsk(p.name)}</span>
                   <span className="text-[12.5px] text-[#d4d4d4] leading-relaxed">{t.deleteWarn}</span>
                   {deleteError && <span className="text-[12.5px] text-red-400">{deleteError}</span>}
                   <div className="flex gap-2">
@@ -134,12 +134,12 @@ export default function ProjectsView({
                           if (res?.error) setDeleteError(res.error === "invalid" ? t.deleteFailed : res.error);
                         })
                       }
-                      className="h-9 px-4 rounded-full text-[13px] font-semibold text-white"
+                      className="h-10 md:h-9 px-4 rounded-full text-[13px] font-semibold text-white"
                       style={{ background: "#b42318" }}
                     >
                       {pending ? t.deleting : t.deleteYes}
                     </button>
-                    <button type="button" onClick={() => setConfirmId(null)} className="h-9 px-4 rounded-full text-[13px] text-[#d4d4d4]" style={{ background: "rgba(255,255,255,0.08)" }}>
+                    <button type="button" onClick={() => setConfirmId(null)} className="h-10 md:h-9 px-4 rounded-full text-[13px] text-[#d4d4d4]" style={{ background: "rgba(255,255,255,0.08)" }}>
                       {t.cancel}
                     </button>
                   </div>
@@ -151,7 +151,7 @@ export default function ProjectsView({
                     setDeleteError("");
                     setConfirmId(p.id);
                   }}
-                  className="self-start mx-5 mb-4 text-[12px] text-[#71717a] hover:text-red-400"
+                  className="tap self-start mx-5 mb-4 text-[12px] text-[#71717a] hover:text-red-400"
                 >
                   {t.delete}
                 </button>

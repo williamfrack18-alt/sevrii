@@ -7,8 +7,6 @@ import {
   addMarketingPosts,
   businessWeekNumbers,
   campaignStats,
-  createCampaignSpec,
-  deleteCampaign,
   getBusinessById,
   getMetaConnection,
   getUserById,
@@ -38,7 +36,9 @@ import { allow } from "./guard";
 import { researchGate, runForUser } from "./usage";
 import type { AgentItem, AgentItemKind, AgentItemStatus, AgentNumbers, AgentPost, AgentPostChannel, AgentState } from "./agentTypes";
 
-// The autonomous marketing agent. It plans (kickoff), then checks every
+// The autonomous marketing agent. The marketing chat (lib/marketingBrain.ts)
+// builds the strategy and campaigns with the owner; once the owner approves
+// it, the agent puts it to work (executeStrategy) and then checks every
 // campaign once a day (runDaily). The owner approves every launch and every
 // budget increase; the agent may on its own only do things that never raise
 // spend: pause a campaign that wastes money, write new ad texts, prepare free
@@ -46,7 +46,7 @@ import type { AgentItem, AgentItemKind, AgentItemStatus, AgentNumbers, AgentPost
 
 const DAY = 24 * 60 * 60 * 1000;
 const MONTH_DAYS = 30;
-const POSTS_TARGET = 8; // free posts prepared by the kickoff
+const POSTS_TARGET = 8; // free posts ready when the strategy is approved
 const POSTS_MIN = 4; // fewer upcoming than this → prepare more
 const POSTS_REFILL = 6;
 
@@ -130,7 +130,8 @@ function recentItem(items: AgentItemRow[], kind: string, campaignId: string | nu
 }
 
 // ---------- facts the AI may use (and nothing else) ----------
-async function businessFacts(b: BusinessRow) {
+// Also what the marketing chat knows before asking anything.
+export async function businessFacts(b: BusinessRow) {
   const services = await listServices(b.id);
   const s = b.site;
   const p = b.plan;
@@ -175,6 +176,7 @@ async function businessFacts(b: BusinessRow) {
         }
       : null,
     marketingProfile: b.marketing.profile,
+    strategy: b.marketing.strategy,
     customersLanguage: customerLangs(b),
   };
 }
@@ -251,70 +253,7 @@ function cleanPosts(b: BusinessRow, raw: unknown, max: number): { channel: Agent
   return out;
 }
 
-// ---------- kickoff ----------
-const KICKOFF_SYSTEM = `You are Sevrii's marketing agent for one small US service business. The owner is not technical and wants you to do ALL the marketing; they only approve each ad launch. From the facts you get, write in ONE answer:
-1) strategy: a simple funnel plan (summary 2-3 sentences; up to 4 stages; budgetPlan = how the monthly budget is split, in USD). Small budgets focus on conversion.
-2) campaigns: 1 or 2 Meta (Facebook + Instagram) campaigns, each 1 ad set with exactly 3 ad variations to test. Objective traffic to the Sevrii page. durationDays 30.
-   · The SUM of dailyBudgetUsd × 30 of all campaigns must be ≤ the monthly budget. Under ~$300/month: ONE campaign. Two campaigns only when each gets at least $5/day (e.g. one per customer language when customers speak both, or two different services/offers).
-   · Ads in the customers' language (customersLanguage; "both" → one campaign per language if the budget allows two, otherwise the page language). Mention the real price or offer only if it is in the facts.
-   · Local businesses: radiusMiles = the page's reach radius. Online businesses: the whole US (radiusMiles 0).
-   · Ages 18-65 unless the facts clearly say otherwise. specialCategory for credit/loans/financial products, housing/real estate or employment (then 15+ miles, ages 18-65).
-   · audience: who it is for, one plain line. why: why this campaign, one plain line for the owner.
-3) posts: exactly ${POSTS_TARGET} free posts for the next 14 days (dayOffset 1-14, spread out, at most one per channel per day), mixing facebook, instagram and google (Google Business Profile posts, ONLY if the business works in person in an area; otherwise only facebook and instagram). Short and natural (Facebook 40-90 words, Instagram 30-70 words + up to 2 hashtags, Google 30-80 words, no hashtags), in the page language. Vary the angle: the service, how it works, the offer, a tip, the owner and their work, answering a common worry. No links or URLs (the app adds the page link). photo = index of a page photo (0..photoCount-1).
-
-${RULES}`;
-
-const KICKOFF_SCHEMA = obj({
-  strategy: obj({
-    summary: S("2-3 sentences: the plan in plain words"),
-    budgetPlan: S("How the monthly budget is split, in USD"),
-    stages: {
-      type: "array",
-      description: "Up to 4 funnel stages",
-      items: obj({
-        stage: { type: "string", enum: ["awareness", "consideration", "conversion", "retention"] },
-        title: S("Short title"),
-        channel: S("e.g. 'Facebook + Instagram ads', 'Google Business Profile', 'referrals'"),
-        message: S("What to say at this stage"),
-        action: S("The concrete thing to do"),
-      }),
-    },
-  }),
-  campaigns: {
-    type: "array",
-    description: "1 or 2 Meta campaigns",
-    items: obj({
-      title: S("Short campaign name, max 60 chars"),
-      goal: S("What it should achieve, one line"),
-      audience: S("Who it is for, one plain line for the owner"),
-      why: S("Why this campaign, one plain line for the owner"),
-      language: { type: "string", enum: ["es", "en"] },
-      specialCategory: { type: "string", enum: ["none", "credit", "employment", "housing", "financial"] },
-      radiusMiles: { type: "number" },
-      ageMin: { type: "integer" },
-      ageMax: { type: "integer" },
-      dailyBudgetUsd: { type: "number" },
-      ads: { type: "array", items: AD, description: "Exactly 3 variations" },
-      notes: S("Short tip for the owner, or empty"),
-    }),
-  },
-  posts: { type: "array", items: POST, description: `Exactly ${POSTS_TARGET} posts` },
-});
-
-export type KickoffResult = { campaigns: number; posts: number };
-
-// Fits the AI's daily budgets under the owner's monthly budget (whole cents, ≥ $1/day).
-function fitBudgets(raw: Record<string, unknown>[], monthlyBudgetUsd: number): { raw: Record<string, unknown>; daily: number }[] {
-  const maxDaily = floorCents(monthlyBudgetUsd / MONTH_DAYS);
-  let list = raw.slice(0, 2);
-  if (list.length > 1 && maxDaily < 10) list = list.slice(0, 1);
-  const asked = list.map((c) => Math.max(0, Number(c.dailyBudgetUsd) || 0));
-  const sum = asked.reduce((a, b) => a + b, 0);
-  if (sum <= 0) return list.map((c) => ({ raw: c, daily: Math.max(1, floorCents(maxDaily / list.length)) }));
-  const scale = sum > maxDaily ? maxDaily / sum : 1;
-  return list.map((c, i) => ({ raw: c, daily: Math.max(1, floorCents(asked[i] * scale)) }));
-}
-
+// ---------- putting the approved strategy to work ----------
 function launchTexts(b: BusinessRow, title: string, spec: CampaignSpec, audience: string, why: string) {
   const lang = langOf(b);
   const d = spec.dailyBudgetUsd;
@@ -329,102 +268,104 @@ function launchTexts(b: BusinessRow, title: string, spec: CampaignSpec, audience
   const clip = (x: string) => x.trim().replace(/[.\s]+$/, "");
   audience = clip(audience);
   why = clip(why);
+  const meta = spec.platform === "meta";
+  const peakEs = meta ? ` (Facebook puede gastar hasta ${money(maxDailySpend(d))} un día y menos otro)` : "";
+  const peakEn = meta ? ` (Facebook may spend up to ${money(maxDailySpend(d))} one day and less another)` : "";
   return {
     title: es ? `Lanzar ${quote(title, lang)} — ${money(d)} al día por ${spec.durationDays} días` : `Launch ${quote(title, lang)} — ${money(d)} a day for ${spec.durationDays} days`,
     detail: es
-      ? `Para quién: ${audience || "clientes de tu zona"}. Dónde: ${where(b, spec, lang)}. Cuánto: ${money(d)} al día, unos ${money(d * spec.durationDays)} en total (Facebook puede gastar hasta ${money(maxDailySpend(d))} un día y menos otro). Por qué: ${why || "trae gente a tu página para que te escriba por el chat"}. El anuncio lleva a tu página, donde te escriben por el chat.${special}`
-      : `Who: ${audience || "customers in your area"}. Where: ${where(b, spec, lang)}. How much: ${money(d)} a day, about ${money(d * spec.durationDays)} in total (Facebook may spend up to ${money(maxDailySpend(d))} one day and less another). Why: ${why || "it brings people to your page to write to you in the chat"}. The ad sends people to your page, where they write to you in the chat.${special}`,
+      ? `Para quién: ${audience || "clientes de tu zona"}. Dónde: ${where(b, spec, lang)}. Cuánto: ${money(d)} al día, unos ${money(d * spec.durationDays)} en total${peakEs}. Por qué: ${why || "trae gente a tu página para que te escriba por el chat"}. El anuncio lleva a tu página, donde te escriben por el chat.${special}`
+      : `Who: ${audience || "customers in your area"}. Where: ${where(b, spec, lang)}. How much: ${money(d)} a day, about ${money(d * spec.durationDays)} in total${peakEn}. Why: ${why || "it brings people to your page to write to you in the chat"}. The ad sends people to your page, where they write to you in the chat.${special}`,
   };
 }
 
-export async function kickoff(business: BusinessRow, lang: Lang, monthlyBudgetUsd: number): Promise<KickoffResult> {
-  return runForUser(business.userId, async () => {
-    const b = business;
-    const facts = await businessFacts(b);
-    const user = `Facts (JSON):\n${JSON.stringify(facts)}\n\nMonthly ad budget: $${monthlyBudgetUsd} (max $${floorCents(monthlyBudgetUsd / MONTH_DAYS)} a day for all campaigns together).\nWrite the strategy in ${LANG_NOTE(lang)}. Write the posts in ${LANG_NOTE(langOf(b))}. Write each campaign's title, goal, audience and why in ${LANG_NOTE(langOf(b))}, and its ads in that campaign's language.`;
-    let out: Record<string, unknown>;
-    try {
-      out = await ask({ system: KICKOFF_SYSTEM, user, schema: KICKOFF_SCHEMA, model: MODELS.chat, maxTokens: 16000, effort: "medium", think: true, timeoutMs: 170_000 });
-    } catch (err) {
-      logAiError("agent:kickoff", err);
-      throw err;
-    }
+export type ExecuteResult =
+  | { ok: true; campaigns: number; posts: number }
+  | { ok: false; reason: "no_strategy" | "no_campaigns" | "no_budget" | "over_budget"; totalUsd?: number; budgetUsd?: number };
 
-    // Strategy + budget (the rest of the profile stays).
-    const marketing = parseMarketing({
-      profile: { ...b.marketing.profile, monthlyBudgetUsd },
-      strategy: out.strategy,
-    });
+// Campaigns that wait for (or already have) the owner's decision on launching.
+const DECIDED = ["proposed", "approved", "live", "paused", "declined"];
+
+// The owner approved the strategy the marketing chat built. Nothing new is
+// invented here: the chat's campaigns become launch proposals (one OK each),
+// the free posts are prepared and the daily check starts watching.
+// Re-approving after changes only proposes the campaigns that are new or changed.
+export async function executeStrategy(business: BusinessRow, lang: Lang, opts: { posts?: boolean } = {}): Promise<ExecuteResult> {
+  const b = business;
+  const strategy = b.marketing.strategy;
+  if (!strategy) return { ok: false, reason: "no_strategy" };
+  const budget = b.marketing.profile.monthlyBudgetUsd;
+  if (!budget) return { ok: false, reason: "no_budget" };
+  const [campaigns, items] = await Promise.all([listCampaigns(b.id), listAgentItems(b.id, 200)]);
+  if (!campaigns.some((c) => c.spec)) return { ok: false, reason: "no_campaigns" };
+
+  const pendingLaunch = (id: string) => items.some((i) => i.kind === "launch" && i.status === "pending" && i.campaignId === id);
+  // Proposals left over from campaigns the chat deleted or changed.
+  for (const it of items) {
+    if (it.kind !== "launch" || it.status !== "pending") continue;
+    const c = it.campaignId ? campaigns.find((x) => x.id === it.campaignId) : undefined;
+    if (!c || c.status !== "proposed") await setAgentItemStatus(b.id, it.id, "dismissed");
+  }
+  const toPropose = campaigns.filter(
+    (c) => c.spec && (c.status === "proposed" ? !pendingLaunch(c.id) : !DECIDED.includes(c.status))
+  );
+
+  // What everything adds up to once these are approved: never over the owner's maximum.
+  const total = plannedMonthly(campaigns) + toPropose.filter((c) => c.status !== "proposed").reduce((s, c) => s + monthlyOf(c), 0);
+  if (total > budget + 0.5) return { ok: false, reason: "over_budget", totalUsd: Math.round(total * 100) / 100, budgetUsd: budget };
+
+  return runForUser(b.userId, async () => {
+    const marketing = parseMarketing({ ...b.marketing, approvedAt: new Date().toISOString() });
     await updateBusinessMarketing(b.id, marketing);
 
-    // Old proposals the owner never approved are replaced, not piled up.
-    const [items, existing] = await Promise.all([listAgentItems(b.id, 200), listCampaigns(b.id)]);
-    for (const it of items) {
-      if (it.kind !== "launch" || it.status !== "pending") continue;
-      const c = it.campaignId ? existing.find((x) => x.id === it.campaignId) : undefined;
-      if (c && c.status !== "proposed") continue;
-      await setAgentItemStatus(b.id, it.id, "dismissed");
-      if (c && !c.meta?.campaignId) await deleteCampaign(c.id, b.id);
-    }
-
-    // Campaigns, each waiting for the owner's OK.
-    const fitted = fitBudgets((Array.isArray(out.campaigns) ? out.campaigns : []) as Record<string, unknown>[], monthlyBudgetUsd);
-    const city = isLocal(b) ? b.site.baseCity || b.marketing.profile.area || b.site.serviceArea || b.city || "" : "United States";
     let made = 0;
-    for (const { raw, daily } of fitted) {
-      const { spec } = normalizeCampaign(
-        {
-          ...raw,
-          platform: "meta",
-          objective: "traffic",
-          destination: "website",
-          city,
-          radiusMiles: Number(raw.radiusMiles) || b.site.reachRadius || 10,
-          dailyBudgetUsd: daily,
-          durationDays: MONTH_DAYS,
-          headlines: [],
-          descriptions: [],
-          keywords: [],
-          negativeKeywords: [],
-        },
-        { category: b.category, city, defaultLang: langOf(b) }
-      );
-      if (spec.ads.length === 0) continue;
-      const title = String(raw.title || "").trim().slice(0, 80) || (langOf(b) === "es" ? "Campaña" : "Campaign");
-      const goal = String(raw.goal || "").trim().slice(0, 160) || b.marketing.profile.goal || "";
-      const id = await createCampaignSpec(b.id, title, goal, spec);
-      await setCampaignStatus(b.id, id, "proposed");
-      const t = launchTexts(b, title, spec, String(raw.audience || "").slice(0, 200), String(raw.why || "").slice(0, 300));
+    for (const c of toPropose) {
+      const spec = c.spec!;
+      await setCampaignStatus(b.id, c.id, "proposed");
+      const t = launchTexts(b, c.title, spec, b.marketing.profile.idealCustomer || b.plan.customer || "", c.goal || "");
       await addAgentItem({
         businessId: b.id,
         kind: "launch",
         status: "pending",
         title: t.title,
         detail: t.detail,
-        campaignId: id,
+        campaignId: c.id,
         payload: { dailyBudgetUsd: spec.dailyBudgetUsd, durationDays: spec.durationDays },
       });
       made++;
     }
 
-    // Free posts: top up to POSTS_TARGET upcoming (re-running doesn't pile them up).
-    const upcoming = (await listMarketingPosts(b.id, today(), 60)).filter((p) => p.status === "ready").length;
-    const posts = cleanPosts(b, out.posts, Math.max(0, POSTS_TARGET - upcoming));
-    if (posts.length) await addMarketingPosts(b.id, posts);
+    // Free posts: top up to POSTS_TARGET upcoming (re-approving doesn't pile them up).
+    let posts = 0;
+    if (opts.posts !== false && process.env.ANTHROPIC_API_KEY) {
+      try {
+        const all = await listMarketingPosts(b.id, inDays(-14), 80);
+        const upcoming = all.filter((p) => p.day >= today() && p.status === "ready").length;
+        const want = Math.max(0, POSTS_TARGET - upcoming);
+        if (want > 0) {
+          const fresh = { ...b, marketing };
+          const list = await morePosts(fresh, all.map((p) => ({ day: p.day, channel: p.channel, text: p.text.slice(0, 160) })), want);
+          if (list.length) await addMarketingPosts(b.id, list);
+          posts = list.length;
+        }
+      } catch (err) {
+        // The daily check prepares them later.
+        logAiError("agent:execute:posts", err);
+      }
+    }
 
-    const sl = langOf(b);
+    const es = lang === "es";
     await addAgentItem({
       businessId: b.id,
       kind: "info",
       status: "auto",
-      title:
-        sl === "es"
-          ? `Armé tu estrategia, ${made} ${made === 1 ? "campaña" : "campañas"} y ${posts.length} ${posts.length === 1 ? "publicación" : "publicaciones"}`
-          : `I built your strategy, ${made} ${made === 1 ? "campaign" : "campaigns"} and ${posts.length} ${posts.length === 1 ? "post" : "posts"}`,
-      detail: [marketing.strategy?.summary, marketing.strategy?.budgetPlan].filter(Boolean).join(" "),
+      title: es
+        ? `Puse en marcha tu estrategia: ${made} ${made === 1 ? "campaña lista" : "campañas listas"} para aprobar y ${posts} ${posts === 1 ? "publicación" : "publicaciones"}`
+        : `I put your strategy to work: ${made} ${made === 1 ? "campaign" : "campaigns"} ready for your OK and ${posts} ${posts === 1 ? "post" : "posts"}`,
+      detail: [strategy.summary, strategy.budgetPlan].filter(Boolean).join(" "),
     });
     await markAgentRan(b.id);
-    return { campaigns: made, posts: posts.length };
+    return { ok: true as const, campaigns: made, posts };
   });
 }
 
@@ -488,6 +429,10 @@ export function launchedText(b: BusinessRow, c: CampaignRow): { title: string; d
 
 export function readyToPublishText(b: BusinessRow, c: CampaignRow): { title: string; detail: string } {
   const lang = langOf(b);
+  if (c.spec?.platform === "google")
+    return lang === "es"
+      ? { title: `Lista para Google: ${quote(c.title, lang)}`, detail: "Cópiala a Google Ads siguiendo los pasos de la campaña en Marketing. Usa su link para que Sevrii cuente lo que trae." }
+      : { title: `Ready for Google: ${quote(c.title, lang)}`, detail: "Copy it into Google Ads following the campaign's steps in Marketing. Use its link so Sevrii counts what it brings." };
   return lang === "es"
     ? {
         title: `Lista para publicar: ${quote(c.title, lang)}`,
@@ -523,17 +468,18 @@ const POSTS_SYSTEM = `You prepare free social posts for one small US service bus
 
 ${RULES}`;
 
-async function morePosts(b: BusinessRow, recent: { day: string; channel: string; text: string }[]) {
+async function morePosts(b: BusinessRow, recent: { day: string; channel: string; text: string }[], count = POSTS_REFILL) {
+  const n = Math.max(1, Math.min(POSTS_TARGET, count));
   const out = await ask({
     system: POSTS_SYSTEM,
-    user: `Facts (JSON):\n${JSON.stringify(await businessFacts(b))}\n\nRecent and planned posts (don't repeat them, avoid their days): ${JSON.stringify(recent.slice(-10))}\nToday is ${today()}. Write exactly ${POSTS_REFILL} posts in ${LANG_NOTE(langOf(b))}.`,
-    schema: obj({ posts: { type: "array", items: POST, description: `Exactly ${POSTS_REFILL} posts` } }),
+    user: `Facts (JSON):\n${JSON.stringify(await businessFacts(b))}\n\nRecent and planned posts (don't repeat them, avoid their days): ${JSON.stringify(recent.slice(-10))}\nToday is ${today()}. Follow the strategy in the facts when there is one. Write exactly ${n} posts in ${LANG_NOTE(langOf(b))}.`,
+    schema: obj({ posts: { type: "array", items: POST, description: `Exactly ${n} posts` } }),
     maxTokens: 4000,
     effort: "low",
     think: false,
     timeoutMs: 60_000,
   });
-  return cleanPosts(b, out.posts, POSTS_REFILL);
+  return cleanPosts(b, out.posts, n);
 }
 
 // ---------- the daily check ----------
@@ -561,7 +507,7 @@ export async function runDaily(businessId: string): Promise<string> {
       try {
         const spec = c.spec;
         // Proposals the owner hasn't approved: nothing to do.
-        if (!spec || c.status === "proposed") continue;
+        if (!spec || c.status === "proposed" || c.status === "declined") continue;
 
         // Approved while Facebook wasn't connected: publish it now that it is.
         if (c.status === "approved" && !isLiveOnMeta(c) && conn && b.published && limits.canPublish && spec.platform === "meta") {

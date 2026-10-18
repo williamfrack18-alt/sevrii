@@ -189,7 +189,7 @@ export default function ChatPanel({
     <div className="w-full">
       {error && <p className="text-[13px] text-[#ff6b6b] mb-2 px-4">{error}</p>}
       <form
-        className="flex items-end gap-1.5 rounded-[28px] px-2.5 py-2.5"
+        className="flex items-end gap-1.5 rounded-[26px] md:rounded-[28px] px-2 md:px-2.5 py-2 md:py-2.5"
         style={{ background: "#1f1f1f", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}
         onSubmit={(e) => {
           e.preventDefault();
@@ -222,7 +222,7 @@ export default function ChatPanel({
           ref={inputRef}
           rows={1}
           autoFocus={empty}
-          className="flex-1 bg-transparent outline-none resize-none text-[16px] leading-[1.5] text-white placeholder:text-[#8e8e8e] py-2 max-h-[200px]"
+          className="flex-1 min-w-0 bg-transparent outline-none resize-none text-[16px] leading-[1.5] text-white placeholder:text-[#8e8e8e] py-2 max-h-[200px]"
           placeholder={texts.placeholder}
           value={input}
           maxLength={2000}
@@ -252,7 +252,7 @@ export default function ChatPanel({
   );
 
   const footnote = (
-    <p className="text-center text-[12px] text-[#8e8e8e] pt-2.5 px-4">
+    <p className="text-center text-[11.5px] md:text-[12px] text-[#8e8e8e] pt-2 md:pt-2.5 px-2 md:px-4">
       {texts.disclaimer}{" "}
       <a href={texts.seeBelowHref} className="underline underline-offset-2 hover:text-white">
         {texts.seeBelow}
@@ -262,10 +262,10 @@ export default function ChatPanel({
 
   if (empty) {
     return (
-      <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4">
-        <div className="w-full max-w-[760px] flex flex-col items-center gap-8">
+      <div className="flex-1 min-h-0 flex flex-col items-center px-4 overflow-y-auto">
+        <div className="w-full max-w-[760px] my-auto py-4 md:py-0 flex flex-col items-center gap-6 md:gap-8">
           <div className="text-center flex flex-col gap-3">
-            <h1 className="text-[28px] md:text-[32px] font-medium tracking-[-0.02em] text-white">{texts.emptyTitle}</h1>
+            <h1 className="text-[24px] md:text-[32px] leading-tight font-medium tracking-[-0.02em] text-white">{texts.emptyTitle}</h1>
             <p className="text-[15px] text-[#a1a1aa] max-w-[560px]">{texts.emptySub}</p>
           </div>
           {uploadRow && <div className="w-full px-1">{uploadRow}</div>}
@@ -277,8 +277,8 @@ export default function ChatPanel({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
-        <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-6 pb-8 flex flex-col gap-7">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-6 md:pb-8 flex flex-col gap-6 md:gap-7">
           {messages.map((m) => {
             const photo = PHOTO.exec(m.content);
             const video = VIDEO.exec(m.content);
@@ -286,12 +286,12 @@ export default function ChatPanel({
               return (
                 <div key={m.id} className="flex justify-end">
                   {video ? (
-                    <video src={video[1]} controls playsInline preload="metadata" className="max-w-[280px] rounded-3xl bg-black" />
+                    <video src={video[1]} controls playsInline preload="metadata" className="max-w-[min(280px,85%)] md:max-w-[280px] rounded-3xl bg-black" />
                   ) : photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={photo[1]} alt="" className="max-w-[240px] rounded-3xl" />
+                    <img src={photo[1]} alt="" className="max-w-[min(240px,85%)] md:max-w-[240px] rounded-3xl" />
                   ) : (
-                    <div className="max-w-[78%] rounded-3xl px-5 py-3 text-[15.5px] leading-[1.6] whitespace-pre-line" style={{ background: "#2a2a2a", color: "#fff" }}>
+                    <div className="max-w-[85%] md:max-w-[78%] rounded-3xl px-4 md:px-5 py-2.5 md:py-3 text-[15px] md:text-[15.5px] leading-[1.55] md:leading-[1.6] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ background: "#2a2a2a", color: "#fff" }}>
                       {m.content}
                     </div>
                   )}
@@ -301,7 +301,7 @@ export default function ChatPanel({
             const text = m.content.replace(OLD_CARD, "").trim();
             if (!text) return null;
             return (
-              <div key={m.id} className="text-[15.5px] leading-[1.7] whitespace-pre-line" style={{ color: "#e8e8e8" }}>
+              <div key={m.id} className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: "#e8e8e8" }}>
                 {text}
               </div>
             );
@@ -314,7 +314,7 @@ export default function ChatPanel({
           )}
         </div>
       </div>
-      <div className="shrink-0 px-4 md:px-6 pb-3">
+      <div className="shrink-0 px-4 md:px-6 pt-1 md:pt-0 pb-3">
         <div className="max-w-[760px] mx-auto">
           {composer}
           {footnote}

@@ -61,17 +61,17 @@ export default function PlansView({
             : null;
 
   return (
-    <div className="min-h-screen" style={{ background: "#000" }}>
+    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen" style={{ background: "#000" }}>
       <div className="h-14 px-4 md:px-6 flex items-center">
         <span className="text-[17px] font-semibold text-white">
           Sevrii <span className="text-[#8e8e8e] font-normal">· {t.nav}</span>
         </span>
       </div>
 
-      <div className="max-w-[1180px] mx-auto px-4 md:px-8 pt-6 md:pt-10 pb-16 flex flex-col gap-8">
+      <div className="max-w-[1180px] mx-auto px-4 md:px-8 pt-4 md:pt-10 pb-10 md:pb-16 flex flex-col gap-6 md:gap-8">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
           <div>
-            <h1 className="text-[28px] md:text-[34px] font-semibold text-white tracking-tight">{t.title}</h1>
+            <h1 className="text-[26px] md:text-[34px] leading-tight font-semibold text-white tracking-tight">{t.title}</h1>
             <p className="text-[15px] text-[#8e8e8e] mt-2 max-w-[620px] leading-relaxed">{t.sub}</p>
           </div>
           {(plan.yearlyReady || !plan.billingReady) && (
@@ -81,7 +81,7 @@ export default function PlansView({
                 key={String(y)}
                 type="button"
                 onClick={() => setYearly(y)}
-                className="h-9 px-4 rounded-full text-[13.5px] font-medium"
+                className="h-10 md:h-9 px-4 rounded-full text-[13.5px] font-medium whitespace-nowrap"
                 style={yearly === y ? { background: "#fff", color: "#000" } : { color: "#d4d4d4" }}
               >
                 {y ? t.yearly : t.monthly}

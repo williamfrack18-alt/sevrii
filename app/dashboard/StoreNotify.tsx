@@ -214,11 +214,11 @@ export default function StoreNotify() {
     <div className="rounded-2xl p-4 md:p-5 mb-5" style={{ background: "#0f0f0f", boxShadow: "0 0 0 1px rgba(255,255,255,.08)" }}>
       <h3 className="text-[15px] font-semibold text-white">{t.title}</h3>
       <p className="text-[13px] text-[#9a9a9a] mt-1">{t.sub}</p>
-      <div className="grid md:grid-cols-3 gap-3 mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
         {/* Push */}
-        <div className={row} style={rowStyle}>
+        <div className={`${row} min-w-0`} style={rowStyle}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[14px] font-semibold text-white">{t.push}</span>
+            <span className="text-[14px] font-semibold text-white min-w-0">{t.push}</span>
             {chip(push === "on")}
           </div>
           <p className="text-[12.5px] text-[#a1a1a1] leading-relaxed">
@@ -227,16 +227,16 @@ export default function StoreNotify() {
           {s.devices > 0 && <p className="text-[12px] text-[#8e8e8e]">{t.otherDevices(s.devices)}</p>}
           <div className="flex flex-wrap gap-2 mt-auto pt-1">
             {(push === "off" || push === "loading") && (
-              <button type="button" disabled={busy || push === "loading" || !s.pushKey} onClick={enable} className="h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
+              <button type="button" disabled={busy || push === "loading" || !s.pushKey} onClick={enable} className="h-10 md:h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
                 {t.enable}
               </button>
             )}
             {push === "on" && (
               <>
-                <button type="button" disabled={busy} onClick={test} className="h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60" style={{ background: TINT, color: ACCENT }}>
+                <button type="button" disabled={busy} onClick={test} className="h-10 md:h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60" style={{ background: TINT, color: ACCENT }}>
                   {t.test}
                 </button>
-                <button type="button" disabled={busy} onClick={disable} className="h-9 px-4 rounded-full text-[13px] disabled:opacity-60" style={{ background: "rgba(255,255,255,.08)", color: "#e5e5e5" }}>
+                <button type="button" disabled={busy} onClick={disable} className="h-10 md:h-9 px-4 rounded-full text-[13px] disabled:opacity-60" style={{ background: "rgba(255,255,255,.08)", color: "#e5e5e5" }}>
                   {t.disable}
                 </button>
               </>
@@ -271,7 +271,7 @@ export default function StoreNotify() {
               role="switch"
               aria-checked={s.email}
               onClick={toggleEmail}
-              className="relative w-11 h-6 rounded-full transition-colors"
+              className="tap relative w-11 h-6 rounded-full transition-colors shrink-0"
               style={{ background: s.email ? ACCENT : "rgba(255,255,255,.18)" }}
             >
               <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: s.email ? 22 : 2 }} />

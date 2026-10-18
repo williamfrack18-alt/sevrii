@@ -223,38 +223,171 @@ export default function DashboardTabs({
       : p
   );
 
-  // Views that fill the screen below the mobile header (their own chat scrolls).
-  const fullHeight = view === "plan" || view === "store" || view === "chats" || view === "marketing";
+  // Mobile: 4 main sections in the bottom tab bar, the rest in the "More" sheet.
+  const tabs: { id: DashboardView | "more"; label: string }[] = [
+    { id: "plan", label: pt.nav.plan },
+    { id: "store", label: t.dashboard.store },
+    { id: "chats", label: "Chats" },
+    { id: "marketing", label: t.dashboard.marketing },
+    { id: "more", label: lang === "es" ? "Más" : "More" },
+  ];
+  const inMore = view === "projects" || view === "payments" || view === "capital" || view === "plans";
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMoreOpen(false);
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [moreOpen]);
+  function go(next: DashboardView) {
+    setMoreOpen(false);
+    setView(next);
+  }
+
+  function TabIcon({ d, size = 22 }: { d: React.ReactNode; size?: number }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {d}
+      </svg>
+    );
+  }
+  const MORE_ICON = (
+    <>
+      <circle cx="5.5" cy="12" r="1.3" />
+      <circle cx="12" cy="12" r="1.3" />
+      <circle cx="18.5" cy="12" r="1.3" />
+    </>
+  );
+  const ACCOUNT_ICON = (
+    <>
+      <circle cx="12" cy="8.5" r="3.5" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+    </>
+  );
+  const LOGOUT_ICON = (
+    <>
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+      <path d="M10 16l-4-4 4-4M6 12h10" />
+    </>
+  );
+  const CHEVRON = (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#5c5c5c] shrink-0" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+  const sheetRows: { id: DashboardView; label: string; meta?: React.ReactNode }[] = [
+    { id: "projects", label: pt.nav.projects, meta: projects.length > 1 ? <span className="text-[13px] text-[#8e8e8e]">{projects.length}</span> : undefined },
+    { id: "payments", label: "Payments" },
+    { id: "capital", label: "Capital", meta: <span className="dash-soon">{t.dashboard.soon}</span> },
+    {
+      id: "plans",
+      label: bt.nav,
+      meta:
+        plan.id === "free" ? (
+          <span className="text-[11.5px] font-semibold px-2.5 py-1 rounded-full" style={BRAND_BTN}>
+            {bt.lock.upgrade}
+          </span>
+        ) : (
+          <span className="text-[13px] text-[#8e8e8e]">{bt.plans[plan.id].name}</span>
+        ),
+    },
+  ];
 
   return (
-    // --hdr = height of the mobile top bar below: 64px bar + 34px pills + 12px
-    // padding + 1px border. Full-height views use calc(100dvh - var(--hdr)).
-    <div className="theme-dark bg-cream flex flex-col md:flex-row" style={{ "--hdr": "111px" } as React.CSSProperties}>
-      {/* Mobile top bar + section pills (keep --hdr above in sync) */}
-      <div className="md:hidden sticky top-0 z-30 bg-cream border-b border-border">
-        <div className="h-[64px] px-4 flex items-center justify-between">
-          <BrandMark />
-          <LangToggle />
-        </div>
-        <div className="dash-pills flex gap-2 px-4 pb-3 overflow-x-auto">
-          {items.map((it) => (
-            <span key={it.id} className="contents">
-              <button type="button" onClick={() => setView(it.id)} className={`dash-pill ${view === it.id ? "on" : ""}`}>
-                {it.label}
-              </button>
-              {it.id === "store" && (
-                <button type="button" onClick={() => setView("chats")} className={`dash-pill ${view === "chats" ? "on" : ""}`}>
-                  {chatsLabel}
-                  {unreadChats > 0 && <span className="dash-badge">{unreadChats}</span>}
+    // --hdr (set in globals.css on .dash-root) = height of the mobile chrome:
+    // top bar (52px) + bottom tab bar (60px) + safe areas; 0 on desktop.
+    // Full-height views use calc(100dvh - var(--hdr)).
+    <div className="dash-root theme-dark bg-cream flex flex-col md:flex-row">
+      {/* Mobile top bar: mark, current project (opens Projects), language */}
+      <header className="dash-topbar md:hidden sticky top-0 z-30">
+        <a href="/dashboard" aria-label="Sevrii" className="h-10 w-10 -ml-2 flex items-center justify-center shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/assets/sevrii-logo.png" alt="Sevrii" className="h-7 w-7 object-contain" />
+        </a>
+        <button
+          type="button"
+          onClick={() => setView("projects")}
+          aria-label={`${pt.nav.projects}: ${currentBusiness.name}`}
+          className="min-w-0 flex-1 h-10 flex items-center gap-2 px-2 rounded-[10px] active:bg-white/5 transition-colors"
+        >
+          <span
+            className="w-6 h-6 rounded-[7px] text-white flex items-center justify-center text-[10px] font-semibold shrink-0"
+            style={{ background: `linear-gradient(135deg, ${currentBusiness.accentColor} 0%, #2B4F3A 100%)` }}
+          >
+            {initials(currentBusiness.name)}
+          </span>
+          <span className="min-w-0 truncate text-[15px] font-semibold text-white">{currentBusiness.name}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#8e8e8e] shrink-0" aria-hidden="true">
+            <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
+          </svg>
+        </button>
+        <LangToggle className="tap shrink-0" />
+      </header>
+
+      {/* Mobile bottom tab bar */}
+      <nav className="dash-tabbar md:hidden" aria-label="Sevrii">
+        {tabs.map((tb) => {
+          const on = tb.id === "more" ? inMore || moreOpen : view === tb.id && !moreOpen;
+          return (
+            <button
+              key={tb.id}
+              type="button"
+              onClick={() => (tb.id === "more" ? setMoreOpen((o) => !o) : go(tb.id))}
+              aria-current={on && tb.id !== "more" ? "page" : undefined}
+              aria-expanded={tb.id === "more" ? moreOpen : undefined}
+              className={`dash-tab ${on ? "on" : ""}`}
+            >
+              <span className="relative">
+                <TabIcon d={tb.id === "more" ? MORE_ICON : ICONS[tb.id]} />
+                {tb.id === "chats" && unreadChats > 0 && <span className="dash-tab-badge">{unreadChats > 99 ? "99+" : unreadChats}</span>}
+              </span>
+              <span className="dash-tab-label">{tb.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Mobile "More" sheet */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-[35]" role="dialog" aria-modal="true" aria-label={tabs[4].label}>
+          <button type="button" aria-label={lang === "es" ? "Cerrar" : "Close"} className="dash-sheet-backdrop" onClick={() => setMoreOpen(false)} />
+          <div className="dash-sheet">
+            <div className="mx-auto mt-2 mb-3 h-1 w-9 rounded-full bg-[#3a3a3a]" />
+            <div className="flex flex-col">
+              {sheetRows.map((r) => (
+                <button key={r.id} type="button" onClick={() => go(r.id)} className={`dash-sheet-row ${view === r.id ? "on" : ""}`}>
+                  <TabIcon d={ICONS[r.id]} size={20} />
+                  <span className="grow min-w-0 truncate text-left">{r.label}</span>
+                  {r.meta}
+                  {CHEVRON}
                 </button>
-              )}
-            </span>
-          ))}
-          <button type="button" onClick={() => setView("plans")} className={`dash-pill ${view === "plans" ? "on" : ""}`}>
-            {bt.nav}
-          </button>
+              ))}
+            </div>
+            <div className="h-px my-2 mx-4" style={{ background: "rgba(255,255,255,.08)" }} />
+            <div className="flex flex-col">
+              <a href="/account" className="dash-sheet-row">
+                <TabIcon d={ACCOUNT_ICON} size={20} />
+                <span className="grow min-w-0 flex flex-col text-left">
+                  <span>{lang === "es" ? "Mi cuenta" : "My account"}</span>
+                  <span className="text-[12.5px] text-[#8e8e8e] truncate">{userEmail}</span>
+                </span>
+                {CHEVRON}
+              </a>
+              <form action={logoutAction}>
+                <button type="submit" className="dash-sheet-row w-full !text-[#f87171]">
+                  <TabIcon d={LOGOUT_ICON} size={20} />
+                  <span className="grow text-left">{t.dashboard.logout}</span>
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Desktop rail: collapsed to icons by default, expands with the toggle */}
       <aside
@@ -424,7 +557,7 @@ export default function DashboardTabs({
       </aside>
 
       {/* Main content */}
-      <main className="grow min-w-0">
+      <main className="dash-main grow min-w-0">
         {view === "projects" && (
           <ProjectsView projects={liveProjects} activeId={currentBusiness.id} onNavigate={setView} projectLimit={limits.projects} />
         )}
@@ -478,19 +611,6 @@ export default function DashboardTabs({
         )}
         {view === "payments" && <PaymentsView business={currentBusiness} services={currentServices} />}
         {view === "capital" && <ComingSoonView pillar="capital" onBack={() => setView("projects")} onPlans={() => setView("plans")} />}
-
-        {/* Log out on mobile (the rail with it is hidden there). Not under the
-            full-height views, where it would add a second scroll. */}
-        {!fullHeight && (
-        <div className="md:hidden px-5 py-6 border-t border-border flex items-center justify-between gap-3">
-          <a href="/account" className="text-[12px] text-muted truncate">{userEmail}</a>
-          <form action={logoutAction}>
-            <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
-              {t.dashboard.logout}
-            </button>
-          </form>
-        </div>
-        )}
       </main>
     </div>
   );

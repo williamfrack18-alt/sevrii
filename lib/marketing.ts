@@ -29,7 +29,9 @@ export type Strategy = {
   budgetPlan: string;
 };
 
-export type MarketingData = { profile: MarketingProfile; strategy: Strategy | null };
+// approvedAt: when the owner approved the strategy the chat built (ISO), so
+// the agent puts it to work. null = still being shaped in the chat.
+export type MarketingData = { profile: MarketingProfile; strategy: Strategy | null; approvedAt?: string | null };
 
 export type MetaAd = { primaryText: string; headline: string; description: string };
 
@@ -85,7 +87,9 @@ export function parseMarketing(raw: unknown): MarketingData {
   const p = (o.profile && typeof o.profile === "object" ? o.profile : {}) as Record<string, unknown>;
   const s = (o.strategy && typeof o.strategy === "object" ? o.strategy : null) as Record<string, unknown> | null;
   const lang = p.customerLanguage;
+  const approved = typeof o.approvedAt === "string" ? new Date(o.approvedAt) : null;
   return {
+    approvedAt: approved && Number.isFinite(approved.getTime()) ? approved.toISOString() : null,
     profile: {
       goal: str(p.goal, 160),
       monthlyBudgetUsd: num(p.monthlyBudgetUsd, 1, 1_000_000),

@@ -4,11 +4,9 @@ import { useEffect, useState } from "react";
 import {
   approveAgentItemAction,
   dismissAgentItemAction,
-  getAgentStateAction,
   markPostUsedAction,
   runAgentNowAction,
   setAgentBudgetAction,
-  startAgentAction,
 } from "@/app/agentActions";
 import type { AgentItem, AgentNumbers, AgentPost, AgentResult, AgentState } from "@/lib/agentTypes";
 import { MK_TEXT } from "@/lib/marketingI18n";
@@ -20,7 +18,6 @@ type Lang = "es" | "en";
 type T = (typeof MK_TEXT)["es"]["agent"];
 
 const MIN_BUDGET = 30;
-const CARD = { background: "#0f0f0f", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" } as const;
 const TILE = { background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" } as const;
 const GHOST = { background: "rgba(255,255,255,0.08)" } as const;
 
@@ -47,134 +44,30 @@ function postDay(day: string, lang: Lang): string {
   return d.toLocaleDateString(locale(lang), { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-// The agent that does the owner's marketing. The owner only approves launches
-// and budget increases; everything it does is shown here.
-export default function AgentPanel({ business, lang, onChanged }: { business: ClientBusiness; lang: Lang; onChanged?: () => void }) {
+// The agent that executes the strategy the owner approved. The owner only
+// approves launches and budget increases; everything it does is shown here.
+// MarketingView owns the state (it also needs it for the strategy map) and
+// shows this panel only once the strategy is approved.
+export default function AgentPanel({
+  business,
+  lang,
+  state,
+  setState,
+  onChanged,
+}: {
+  business: ClientBusiness;
+  lang: Lang;
+  state: AgentState;
+  setState: (s: AgentState) => void;
+  onChanged?: () => void;
+}) {
   const t = MK_TEXT[lang].agent;
-  // undefined = still loading; null = nothing to show.
-  const [state, setState] = useState<AgentState | null | undefined>(undefined);
-
-  useEffect(() => {
-    let alive = true;
-    getAgentStateAction()
-      .then((s) => {
-        if (alive) setState(s ?? null);
-      })
-      .catch(() => {
-        if (alive) setState(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  if (state === null || (state && !state.allowed)) return null;
-
   return (
-    <section className="px-4 md:px-8 pt-6 pb-8" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+    <section id="mk-agent" className="px-4 md:px-8 pt-8 pb-14 scroll-mt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
       <div className="max-w-[1100px] mx-auto">
-        {state === undefined ? (
-          <div className="rounded-3xl p-6 md:p-7 flex items-center gap-3" style={CARD}>
-            <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
-            <span className="text-[14px] text-[#a1a1a1]">{t.loading}</span>
-          </div>
-        ) : !state.started ? (
-          <StartCard
-            t={t}
-            onStarted={(s) => {
-              setState(s);
-              onChanged?.();
-            }}
-          />
-        ) : (
-          <Dashboard state={state} setState={setState} business={business} lang={lang} t={t} onChanged={onChanged} />
-        )}
+        <Dashboard state={state} setState={setState} business={business} lang={lang} t={t} onChanged={onChanged} />
       </div>
     </section>
-  );
-}
-
-function StartCard({ t, onStarted }: { t: T; onStarted: (s: AgentState) => void }) {
-  const [budget, setBudget] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const start = async () => {
-    const n = Math.round(Number(budget));
-    if (!Number.isFinite(n) || n < MIN_BUDGET) {
-      setError(t.minBudget(MIN_BUDGET));
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await startAgentAction(n);
-      if (res.ok) onStarted(res.state);
-      else setError(res.error || t.failed);
-    } catch {
-      setError(t.failed);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="rounded-3xl p-6 md:p-8 flex flex-col gap-5" style={CARD}>
-      <div className="flex flex-col gap-2">
-        <h2 className="text-[22px] md:text-[24px] font-semibold text-white tracking-tight">{t.title}</h2>
-        <p className="text-[15px] leading-relaxed text-[#a1a1a1] max-w-[640px]">{t.intro}</p>
-      </div>
-
-      {busy ? (
-        <div className="flex flex-col gap-3 max-w-[520px]" aria-live="polite">
-          <div className="flex items-center gap-2.5">
-            <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
-            <span className="text-[14.5px] text-white">{t.starting}</span>
-          </div>
-          <div className="h-1 w-full rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-            <div className="h-full w-1/3 rounded-full animate-pulse" style={{ background: ACCENT }} />
-          </div>
-          <span className="text-[12.5px] text-[#8e8e8e]">{t.startingSub}</span>
-        </div>
-      ) : (
-        <form
-          className="flex flex-col gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            start();
-          }}
-        >
-          <label htmlFor="agent-budget" className="text-[14px] font-medium text-white">
-            {t.budgetQ}
-          </label>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="h-11 rounded-xl flex items-center px-3.5 gap-1 sm:w-[200px]" style={TILE}>
-              <span className="text-[15px] text-[#8e8e8e]">$</span>
-              <input
-                id="agent-budget"
-                type="number"
-                inputMode="numeric"
-                min={MIN_BUDGET}
-                step={1}
-                placeholder="150"
-                value={budget}
-                onChange={(e) => {
-                  setBudget(e.target.value);
-                  setError(null);
-                }}
-                className="flex-1 min-w-0 bg-transparent outline-none text-[15px] text-white tabular-nums placeholder:text-[#5c5c5c]"
-              />
-              <span className="text-[13.5px] text-[#8e8e8e]">{t.perMonth}</span>
-            </div>
-            <button type="submit" className="h-11 px-6 rounded-full text-[14.5px] font-semibold" style={BRAND_BTN}>
-              {t.start}
-            </button>
-          </div>
-          <span className="text-[12.5px] text-[#8e8e8e]">{t.budgetHint}</span>
-          {error && <span className="text-[13px] text-[#ff8a8a]">{error}</span>}
-        </form>
-      )}
-    </div>
   );
 }
 
@@ -243,13 +136,16 @@ function Dashboard({
   const headerError = error && (error.key === "budget" || error.key === "run") ? error.msg : null;
 
   return (
-    <div className="rounded-3xl p-5 md:p-7 flex flex-col gap-7" style={CARD}>
+    <div className="flex flex-col gap-7 md:rounded-3xl md:p-7 md:bg-[#0f0f0f] md:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
       {/* Header */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="flex flex-col gap-1 min-w-0">
-            <h2 className="text-[20px] md:text-[22px] font-semibold text-white tracking-tight">{t.title}</h2>
-            <span className="flex items-center gap-2 text-[13px] text-[#a1a1a1]">
+            <h2 className="text-[20px] md:text-[22px] font-semibold text-white tracking-tight">
+              {t.title} <span className="font-normal" style={{ color: ACCENT }}>· {t.live}</span>
+            </h2>
+            <p className="text-[13.5px] text-[#a1a1a1] leading-relaxed max-w-[620px]">{t.intro}</p>
+            <span className="flex items-center gap-2 text-[13px] text-[#a1a1a1] mt-1">
               <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: ACCENT }} />
               <span>
                 {t.working} · {state.lastRunAt ? t.lastRun(ago(state.lastRunAt, now, t, lang)) : t.neverRun}
@@ -354,7 +250,7 @@ function Dashboard({
                 busy={busy}
                 error={error?.key === item.id ? error.msg : null}
                 onApprove={() => act(item.id, () => approveAgentItemAction(item.id), true)}
-                onDismiss={() => act(item.id, () => dismissAgentItemAction(item.id))}
+                onDismiss={() => act(item.id, () => dismissAgentItemAction(item.id), true)}
               />
             ))}
             {launchWithoutMeta && <MetaConnect lang={lang} />}
@@ -393,7 +289,7 @@ function Dashboard({
       </div>
 
       {/* Posts */}
-      <div className="flex flex-col gap-3">
+      <div id="mk-posts" className="flex flex-col gap-3 scroll-mt-4">
         <div className="flex flex-col gap-1">
           <SectionTitle title={t.posts} />
           {posts.length > 0 && <span className="text-[12.5px] text-[#8e8e8e]">{t.postsSub}</span>}
@@ -401,7 +297,7 @@ function Dashboard({
         {posts.length === 0 ? (
           <p className="text-[13.5px] text-[#8e8e8e]">{t.noPosts}</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="-mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-px-4 no-scrollbar pb-1 md:mx-0 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible">
             {posts.map((p) => (
               <PostCard
                 key={p.id}
@@ -553,28 +449,37 @@ function PostCard({
   onUsed: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [open, setOpen] = useState(false);
   const used = post.status === "used";
-  const small = "h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center text-[#d4d4d4] hover:text-white disabled:opacity-60";
+  const long = post.text.length > 220;
+  const small = "h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center whitespace-nowrap text-[#d4d4d4] hover:text-white disabled:opacity-60";
 
   return (
-    <div className="rounded-2xl overflow-hidden flex flex-col" style={{ ...TILE, opacity: used ? 0.5 : 1 }}>
+    <div className="w-[82%] max-w-[320px] shrink-0 snap-start md:w-auto md:max-w-none rounded-2xl overflow-hidden flex flex-col" style={{ ...TILE, opacity: used ? 0.5 : 1 }}>
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo} alt="" loading="lazy" className="w-full aspect-[4/3] object-cover" />
+        <img src={photo} alt="" loading="lazy" className="w-full aspect-[16/9] md:aspect-[4/3] object-cover" />
       ) : (
-        <div className="w-full aspect-[4/3] flex items-center justify-center text-[12.5px] text-[#8e8e8e]" style={{ background: "linear-gradient(135deg,#1a3a2a,#0b1a12)" }}>
+        <div className="w-full aspect-[16/9] md:aspect-[4/3] flex items-center justify-center text-[12.5px] text-[#8e8e8e]" style={{ background: "linear-gradient(135deg,#1a3a2a,#0b1a12)" }}>
           {t.noPhoto}
         </div>
       )}
-      <div className="p-4 flex flex-col gap-3 flex-1">
+      <div className="p-3.5 md:p-4 flex flex-col gap-3 flex-1">
         <div className="flex items-center justify-between gap-2 text-[12px]">
           <span className="font-medium uppercase tracking-wider" style={{ color: ACCENT }}>
             {t.channels[post.channel]}
           </span>
           <span className="text-[#8e8e8e] first-letter:uppercase">{postDay(post.day, lang)}</span>
         </div>
-        <p className="text-[13.5px] text-[#ececec] leading-relaxed whitespace-pre-line flex-1">{post.text}</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex-1 flex flex-col items-start gap-1">
+          <p className={`text-[13.5px] text-[#ececec] leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere] ${long && !open ? "line-clamp-5" : ""}`}>{post.text}</p>
+          {long && (
+            <button type="button" onClick={() => setOpen((v) => !v)} className="text-[12.5px] text-[#a1a1a1] hover:text-white">
+              {open ? t.less : t.more}
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
             className={small}

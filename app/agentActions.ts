@@ -30,7 +30,7 @@ import { chatGate, runForUser } from "@/lib/usage";
 import {
   agentStarted,
   agentState,
-  kickoff,
+  executeStrategy,
   launchedText,
   launchOnMeta,
   metaFriendly,
@@ -53,7 +53,11 @@ const TEXT = {
     busy: "Espera un momento e inténtalo de nuevo.",
     budget: `Escribe un presupuesto entre $${MIN_BUDGET} y $${MAX_BUDGET.toLocaleString("en-US")} al mes.`,
     aiLimit: "Ya usaste la IA incluida en tu plan por ahora. Inténtalo más tarde o mejora tu plan.",
-    startFailed: "No pude armar tu estrategia ahora. Inténtalo de nuevo en unos minutos.",
+    startFailed: "No pude poner en marcha tu estrategia ahora. Inténtalo de nuevo en unos minutos.",
+    noStrategy: "Primero arma tu estrategia en el chat de arriba.",
+    noCampaigns: "Tu estrategia todavía no tiene campañas. Pídele al chat que las arme.",
+    noBudget: "Dile al chat cuánto quieres invertir al mes en anuncios.",
+    overBudget: (total: string, budget: string) => `Tus campañas suman ${total} al mes, más que tu máximo de ${budget}. Pídele al chat que las ajuste.`,
     notFound: "No encontramos eso. Recarga la página.",
     already: "Eso ya se resolvió.",
     notLive: "Publica tu página primero: los anuncios llevan a la gente ahí.",
@@ -67,7 +71,11 @@ const TEXT = {
     busy: "Wait a moment and try again.",
     budget: `Enter a budget between $${MIN_BUDGET} and $${MAX_BUDGET.toLocaleString("en-US")} a month.`,
     aiLimit: "You've used the AI included in your plan for now. Try later or upgrade your plan.",
-    startFailed: "I couldn't build your strategy right now. Try again in a few minutes.",
+    startFailed: "I couldn't put your strategy to work right now. Try again in a few minutes.",
+    noStrategy: "First build your strategy in the chat above.",
+    noCampaigns: "Your strategy has no campaigns yet. Ask the chat to build them.",
+    noBudget: "Tell the chat how much you want to invest in ads per month.",
+    overBudget: (total: string, budget: string) => `Your campaigns add up to ${total} a month, more than your ${budget} maximum. Ask the chat to adjust them.`,
     notFound: "We couldn't find that. Reload the page.",
     already: "That was already handled.",
     notLive: "Publish your page first: the ads send people there.",
@@ -112,18 +120,27 @@ export async function getAgentStateAction(): Promise<AgentState | null> {
   return agentState(business, rest as UserRow);
 }
 
-export async function startAgentAction(monthlyBudgetUsd: number): Promise<AgentResult> {
+// The owner approved the strategy the marketing chat built: the agent puts it
+// to work (launch proposals, free posts, daily checks). Also used to approve
+// changes the chat made afterwards.
+export async function approveStrategyAction(): Promise<AgentResult> {
   const ctx = await context();
   if (!ctx.ok) return ctx;
   const { t, lang, user, business } = ctx;
-  if (!validBudget(monthlyBudgetUsd)) return { ok: false, error: t.budget };
-  if (!(await allow(`agent:start:${business.id}`, 5, 60 * 60))) return { ok: false, error: t.busy };
+  if (!(await allow(`agent:approve:${business.id}`, 10, 60 * 60))) return { ok: false, error: t.busy };
+  // Without AI left the strategy is still approved; the posts come with the daily check.
   const gate = await chatGate(user.id);
-  if (gate) return { ok: false, error: gate === "slow" ? t.busy : t.aiLimit };
+  if (gate === "slow") return { ok: false, error: t.busy };
   try {
-    await kickoff(business, lang, Math.round(monthlyBudgetUsd * 100) / 100);
+    const r = await executeStrategy(business, lang, { posts: gate === null });
+    if (!r.ok) {
+      if (r.reason === "no_strategy") return { ok: false, error: t.noStrategy };
+      if (r.reason === "no_campaigns") return { ok: false, error: t.noCampaigns };
+      if (r.reason === "no_budget") return { ok: false, error: t.noBudget };
+      return { ok: false, error: t.overBudget(money(r.totalUsd ?? 0), money(r.budgetUsd ?? 0)) };
+    }
   } catch (err) {
-    console.error("[agent] kickoff failed", business.id, (err as Error)?.message);
+    console.error("[agent] execute failed", business.id, (err as Error)?.message);
     return { ok: false, error: t.startFailed };
   }
   return result(user, business.id);
@@ -174,6 +191,14 @@ export async function approveAgentItemAction(id: string): Promise<AgentResult> {
 
   if (item.kind === "launch") {
     if (!campaign?.spec) return { ok: false, error: t.notFound };
+    // Google campaigns aren't published by the agent: approved = ready to copy into Google Ads.
+    if (campaign.spec.platform !== "meta") {
+      if (!(await resolveAgentItem(business.id, item.id, "done"))) return { ok: false, error: t.already };
+      await setCampaignStatus(business.id, campaign.id, "approved");
+      const r = readyToPublishText(business, campaign);
+      await addAgentItem({ businessId: business.id, kind: "info", status: "auto", campaignId: campaign.id, title: r.title, detail: r.detail });
+      return result(user, business.id);
+    }
     // Checked before taking the approval, so the item stays waiting.
     if (conn && (!business.published || !limitsFor(user).canPublish)) return { ok: false, error: t.notLive };
     if (!(await resolveAgentItem(business.id, item.id, "approved"))) return { ok: false, error: t.already };
@@ -267,9 +292,10 @@ export async function dismissAgentItemAction(id: string): Promise<AgentResult> {
   if (!item) return { ok: false, error: t.notFound };
   if (!(await resolveAgentItem(business.id, item.id, "dismissed"))) return { ok: false, error: t.already };
   if (item.kind === "launch" && item.campaignId) {
-    // A turned-down proposal stays as a plain draft the owner can still use.
+    // A turned-down proposal stays visible in the strategy as "declined"; if the
+    // chat changes it later it goes back to draft and can be approved again.
     const c = (await listCampaigns(business.id)).find((x) => x.id === item.campaignId);
-    if (c?.status === "proposed") await setCampaignStatus(business.id, c.id, "draft");
+    if (c?.status === "proposed") await setCampaignStatus(business.id, c.id, "declined");
   }
   return result(user, business.id);
 }

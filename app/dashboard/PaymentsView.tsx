@@ -76,13 +76,13 @@ export default function PaymentsView({ business, services }: { business: ClientB
   }
 
   if (!state) {
-    return <div className="px-5 md:px-10 py-12 text-muted text-[14px]">{t.loading}</div>;
+    return <div className="px-4 md:px-10 py-12 text-muted text-[14px]">{t.loading}</div>;
   }
 
   const ready = state.status === "ready";
 
   return (
-    <div className="px-5 md:px-10 py-8 md:py-12 max-w-[1180px]">
+    <div className="px-4 md:px-10 py-6 md:py-12 max-w-[1180px]">
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <span className="text-[15px] font-medium" style={{ color: ACCENT }}>
           {t.eyebrow}
@@ -100,8 +100,8 @@ export default function PaymentsView({ business, services }: { business: ClientB
         <ReadyView state={state} setState={setState} services={services} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center">
-          <div>
-            <h1 className="font-serif text-[34px] md:text-[46px] leading-[1.05] mb-4">{t.title}</h1>
+          <div className="min-w-0">
+            <h1 className="font-serif text-[32px] md:text-[46px] leading-[1.05] mb-4 break-words">{t.title}</h1>
             <p className="text-muted text-[16px] leading-relaxed max-w-[520px]">{t.lead}</p>
 
             {state.blocked ? (
@@ -264,7 +264,7 @@ function ReadyView({
                       setAmount(priceFromService(s.price));
                       setDesc((s.description || "").slice(0, 240));
                     }}
-                    className="text-[12.5px] px-3 py-1.5 rounded-full border border-border hover:border-borderStrong"
+                    className="text-[12.5px] px-3 py-1.5 max-md:min-h-[40px] max-md:max-w-full max-md:truncate rounded-full border border-border hover:border-borderStrong"
                   >
                     {s.name} · ${priceFromService(s.price)}
                   </button>
@@ -307,8 +307,8 @@ function ReadyView({
               {state.links.map((l) => (
                 <li key={l.id} className="py-4 border-b border-border">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className={`text-[15.5px] font-[450] ${l.active ? "" : "text-muted line-through"}`}>{l.title}</div>
+                    <div className="min-w-0 max-w-full">
+                      <div className={`text-[15.5px] font-[450] break-words ${l.active ? "" : "text-muted line-through"}`}>{l.title}</div>
                       <div className="text-[12.5px] text-mutedLight truncate">{l.url.replace(/^https?:\/\//, "")}</div>
                     </div>
                     <div className="text-[16px] font-medium">{usd(l.amountCents)}</div>
