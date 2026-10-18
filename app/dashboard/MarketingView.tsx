@@ -217,7 +217,32 @@ export default function MarketingView({
                 subtitle: profile.monthlyBudgetUsd ? m.budgetMonth(usd(profile.monthlyBudgetUsd)) : m.noBudget,
                 footer,
               }}
-              nodes={nodes}
+              groups={
+                lang === "es"
+                  ? [
+                      { id: "who", label: "A quién y qué decir" },
+                      { id: "plan", label: "El plan y el dinero" },
+                      { id: "run", label: "Campañas y publicaciones" },
+                      { id: "measure", label: "Cómo medimos" },
+                    ]
+                  : [
+                      { id: "who", label: "Who and what to say" },
+                      { id: "plan", label: "The plan and the money" },
+                      { id: "run", label: "Campaigns and posts" },
+                      { id: "measure", label: "How we measure" },
+                    ]
+              }
+              nodes={nodes.map((n) => ({
+                ...n,
+                group:
+                  n.id === "audience" || n.id === "message"
+                    ? "who"
+                    : n.id === "budget" || n.id.startsWith("stage-")
+                      ? "plan"
+                      : n.id === "measure"
+                        ? "measure"
+                        : "run",
+              }))}
             />
           ) : (
             <EmptyMap lang={lang} />

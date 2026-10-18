@@ -412,3 +412,9 @@ body {
 
 /* Text renders crisp and calm everywhere in the app */
 body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Mind map detail panel */
+@keyframes sheetIn {
+  from { transform: translateY(18px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}

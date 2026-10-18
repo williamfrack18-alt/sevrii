@@ -74,7 +74,8 @@ export default function PlanView({
   const [retryKey, setRetryKey] = useState(0);
   const [moreText, setMoreText] = useState("");
   // The open branch of the strategy map: the first block still to approve.
-  const [openId, setOpenId] = useState<string | null>(() => firstPending(business.plan));
+  // The detail panel opens when the owner taps a part (never by itself on load).
+  const [openId, setOpenId] = useState<string | null>(null);
 
   // Latest values for the polling loop.
   const bizRef = useRef(business);
@@ -150,7 +151,11 @@ export default function PlanView({
   const current = Math.max(0, order.indexOf(plan.stage));
 
   const act = (fn: () => Promise<PlanChatResponse>) => startAction(async () => applyAction(await fn()));
-  const change = (block: ApprovalBlock) => setPrefill({ key: Date.now(), text: t.changePrefix(t.blocks[block]) });
+  // "Cambiar" closes the panel and writes the request in the chat.
+  const change = (block: ApprovalBlock) => {
+    setOpenId(null);
+    setPrefill({ key: Date.now(), text: t.changePrefix(t.blocks[block]) });
+  };
   // After approving, open the next block that still needs a look.
   const approve = (block: ApprovalBlock) =>
     startAction(async () => {
@@ -357,7 +362,21 @@ export default function PlanView({
                     subtitle: oneLine(plan.customer || plan.promise) || undefined,
                     footer: <CenterFooter plan={plan} done={doneCount} t={t} />,
                   }}
-                  nodes={strategyNodes({ plan, t, busy, onApprove: approve, onChange: change, onNoOffer: () => act(() => noOfferAction()) })}
+                  groups={lang === "es"
+                    ? [
+                        { id: "sell", label: "Lo que vendes" },
+                        { id: "how", label: "Cómo lo vendes" },
+                        { id: "market", label: "Tu mercado" },
+                      ]
+                    : [
+                        { id: "sell", label: "What you sell" },
+                        { id: "how", label: "How you sell it" },
+                        { id: "market", label: "Your market" },
+                      ]}
+                  nodes={strategyNodes({ plan, t, busy, onApprove: approve, onChange: change, onNoOffer: () => act(() => noOfferAction()) }).map((n) => ({
+                    ...n,
+                    group: ["service", "packages", "offer"].includes(n.id) ? "sell" : ["zone", "requirements"].includes(n.id) ? "market" : "how",
+                  }))}
                   openId={openId}
                   onOpenChange={setOpenId}
                 />
