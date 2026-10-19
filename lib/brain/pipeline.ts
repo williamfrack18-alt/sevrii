@@ -12,6 +12,7 @@ import {
 } from "../db";
 import type { Lang } from "../i18n";
 import { researchGate } from "../usage";
+import { IDEAS_TOKEN, nextPartMessage } from "./walk";
 import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanStage } from "../plan";
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
@@ -125,14 +126,16 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
       businessId,
       "plan",
       "ai",
-      message ||
+      `${
+        message ||
         (plan.ideaRounds > 0
           ? es
-            ? "Encontré 3 opciones nuevas, distintas a las anteriores. Míralas abajo y escoge la que más te guste."
-            : "I found 3 new options, different from the ones before. See them below and pick one."
+            ? "Encontré 3 opciones nuevas, distintas a las anteriores. Escoge la que más te guste, o dime qué no te convence."
+            : "I found 3 new options, different from the ones before. Pick the one you like, or tell me what doesn't convince you."
           : es
-            ? "Encontré 3 opciones para ti. Míralas abajo y escoge la que más te guste."
-            : "I found 3 options for you. See them below and pick one.")
+            ? "Encontré 3 opciones para ti. Escoge la que más te guste, o dime qué no te convence."
+            : "I found 3 options for you. Pick the one you like, or tell me what doesn't convince you.")
+      }\n\n${IDEAS_TOKEN}`
     );
     return;
   }
@@ -184,13 +187,18 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     const strategyMsg = ((jobOf(jobs, "strategy")?.result ?? {}) as { message?: string }).message;
     const base =
       strategyMsg ||
-      (es ? "Listo: investigué tu zona y armé tu propuesta. Revísala abajo, bloque por bloque." : "Done: I researched your area and built your proposal. Review it below, block by block.");
+      (es ? "Listo: investigué tu zona y armé tu propuesta." : "Done: I researched your area and built your proposal.");
+    const walk = es
+      ? "\n\nTe la muestro aquí mismo, parte por parte. En cada una me dices si va así o qué cambio."
+      : "\n\nI'll show it to you right here, part by part. For each one, tell me if it's right or what to change.";
     const note = guard.block.length
       ? es
         ? `\n\nAntes de aprobar, revisa esto: ${guard.block.join(" ")}`
         : `\n\nBefore approving, check this: ${guard.block.join(" ")}`
       : "";
-    await addChatMessage(businessId, "plan", "ai", base + note);
+    await addChatMessage(businessId, "plan", "ai", base + note + walk);
+    const first = nextPartMessage(plan, lang);
+    if (first) await addChatMessage(businessId, "plan", "ai", first);
     return;
   }
 }

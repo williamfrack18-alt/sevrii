@@ -25,6 +25,11 @@ const PHOTO = /^📷\s+(https:\/\/\S+)$/;
 const VIDEO = /^🎥\s+(https:\/\/\S+)$/;
 // Older saved replies may still carry a "[[card:x]]" token from a removed feature.
 const OLD_CARD = /\[\[card:[a-z]+\]\]/g;
+// A card token at the end of an assistant message ("[[part:service]]"); the
+// chat that owns the cards draws them (Brain), the others just hide them.
+const TOKEN = /\s*\[\[([a-z]+)(?::([a-z]+))?\]\]\s*$/;
+
+export type ChatToken = { kind: string; arg: string; msgId: string };
 
 const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mov|mp4|webm)$/i.test(f.name);
 
@@ -41,6 +46,9 @@ export default function ChatPanel({
   locked,
   sync,
   prefill,
+  renderToken,
+  tail,
+  tailKey,
 }: {
   greeting: string;
   initialMessages: Msg[];
@@ -55,6 +63,12 @@ export default function ChatPanel({
   sync?: { key: number; messages: Msg[] };
   // Put text in the composer from outside (e.g. a "Change" button).
   prefill?: { key: number; text: string };
+  // Draws the card a message's token asks for.
+  renderToken?: (token: ChatToken) => React.ReactNode;
+  // Shown after the last message (e.g. the part being reviewed); tailKey
+  // changes when it does, to keep the chat scrolled to it.
+  tail?: React.ReactNode;
+  tailKey?: string;
 }) {
   const lang = useLang();
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
@@ -103,7 +117,7 @@ export default function ChatPanel({
       cancelAnimationFrame(raf);
       if (late) clearTimeout(late);
     };
-  }, [messages, pending, uploading !== null]);
+  }, [messages, pending, uploading !== null, tailKey]);
 
   // Grow the composer with the text.
   useEffect(() => {
@@ -298,14 +312,23 @@ export default function ChatPanel({
                 </div>
               );
             }
-            const text = m.content.replace(OLD_CARD, "").trim();
-            if (!text) return null;
+            const raw = m.content.replace(OLD_CARD, "");
+            const tk = TOKEN.exec(raw);
+            const text = (tk ? raw.slice(0, tk.index) : raw).trim();
+            const card = tk && renderToken ? renderToken({ kind: tk[1], arg: tk[2] ?? "", msgId: m.id }) : null;
+            if (!text && !card) return null;
             return (
-              <div key={m.id} className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: "#e8e8e8" }}>
-                {text}
+              <div key={m.id} className="min-w-0 flex flex-col gap-3.5">
+                {text && (
+                  <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: "#e8e8e8" }}>
+                    {text}
+                  </div>
+                )}
+                {card}
               </div>
             );
           })}
+          {tail}
           {uploadRow}
           {pending && (
             <div className="flex items-center gap-1.5 h-6" aria-label={texts.thinking}>

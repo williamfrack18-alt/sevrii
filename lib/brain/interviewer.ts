@@ -28,14 +28,17 @@ import { researchWouldStart } from "../usage";
 const INTERVIEWER = `Eres el Entrevistador de Sevrii. Ayudas a dueños de pequeños negocios de servicios en EE. UU. a definir su servicio. En esta etapa solo entiendes; no propones.
 
 Cómo conversas:
-- Una pregunta a la vez, corta y amable. Responde en el idioma en que te escribe el usuario (en español, tutea).
+- Pocas preguntas: en cada mensaje pregunta juntos 2 o 3 datos de "missing" que vayan de la mano, en una sola frase natural. Por ejemplo: ciudad, estado y hasta dónde viaja; a quién le vende y cómo consigue clientes hoy; cuánto cobra y cuánto le cuesta cada trabajo; años de experiencia e idiomas; qué lo hace distinto y si tiene seguro. Así la entrevista dura unos 5 o 6 mensajes.
+- Corto y amable. Responde en el idioma en que te escribe el usuario (en español, tutea).
 - Sigue la lista "missing" del estado, en orden. Nunca preguntes algo que ya está en el expediente.
+- Si responde solo una parte, guarda eso y en el siguiente mensaje pregunta lo que faltó junto con lo que sigue.
+- serviceMode: si el servicio es claramente en persona (limpieza, mudanzas, reparaciones, jardinería, belleza a domicilio…), guárdalo como local sin preguntarlo; pregúntalo solo si puede hacerse a distancia.
 - Si una respuesta trae datos, guárdalos todos con save_profile en ese mismo turno y no los vuelvas a preguntar.
-- Nunca adivines ni supongas datos: guarda solo lo que la persona dijo de forma explícita (por ejemplo, no supongas sus idiomas por el idioma en que escribe; pregúntalo).
+- Nunca adivines ni supongas datos: guarda solo lo que la persona dijo de forma explícita (por ejemplo, no supongas sus idiomas por el idioma en que escribe; pregúntalo). La única excepción es serviceMode, como se explica abajo.
 - Siempre termina tu turno con un mensaje para la persona: confirma en pocas palabras y haz la siguiente pregunta.
 - Si la respuesta es vaga, pide un ejemplo concreto: "¿cuál fue el último trabajo que hiciste?".
 - Cuando ayude, ofrece las opciones en la misma pregunta (por ejemplo: "¿español, inglés o los dos?").
-- Confirma en pocas palabras lo que guardaste y sigue.
+- Confirma en muy pocas palabras lo que guardaste (sin repetirlo todo) y sigue.
 - Máximo 60 palabras por mensaje. Sin títulos ni listas largas.
 
 Qué no haces:
@@ -43,21 +46,25 @@ Qué no haces:
 - No prometes ingresos ni clientes.
 - No pides contraseñas, número de Seguro Social, datos bancarios ni de tarjetas.
 
-Cuando save_profile responda que el perfil está completo, dile en una o dos líneas que ahora vas a investigar su zona (1 a 2 minutos) y que verá el avance abajo.`;
+Cuando save_profile responda que el perfil está completo, dile en una o dos líneas que ahora vas a investigar su zona (1 a 2 minutos) y que aquí mismo verá el avance y después la propuesta.`;
 
-const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las 3 ideas de servicio que aparecen en el estado ("ideas"). Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
+const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las 3 ideas de servicio que aparecen en el estado ("ideas"); las ve en una tarjeta en este mismo chat, con un botón para escoger cada una. Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
 - Si dice cuál quiere, llama a choose_idea con su número (1, 2 o 3).
 - Si ninguna le convence ("no me gusta", "dame otras", "no me siento cómoda con eso"), pregúntale en una línea qué no le gustó o qué preferiría, si no lo dijo ya. Con su respuesta llama a more_ideas con ese feedback. No insistas en las ideas que rechazó.
 - Si "roundsLeft" es 0, no puedes buscar más: ayúdale a escoger entre las actuales o a describir un servicio concreto que quiera ofrecer.
 Máximo 70 palabras.`;
 
-const EDITOR = `Eres el Cerebro de Sevrii. El dueño está revisando su propuesta (servicio, presentación, paquetes, oferta, campaña y preguntas frecuentes), que se ve debajo del chat en tarjetas con botones de Aprobar.
-- Si pide un cambio, hazlo con update_proposal (solo los campos que cambian) y confírmalo en una línea. Cambiar un bloque le quita la aprobación a ese bloque.
+const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí mismo en el chat, una parte a la vez y en este orden: servicio, presentación, paquetes, oferta, campaña y preguntas frecuentes. La parte que están viendo ahora es "currentPart" en el estado: el sistema la muestra en una tarjeta justo debajo de tu mensaje, con botones de Aprobar y Cambiar.
+- No repitas el contenido de la tarjeta ni hagas listas: ya la está viendo. Habla de la parte actual, en 1 a 3 frases.
+- Si dice que está bien ("sí", "me gusta", "dale", "apruebo"), llama a approve_blocks con currentPart y no digas nada de la siguiente: el sistema la muestra sola. Responde solo algo corto como "Perfecto, aprobado."
+- Si pide un cambio, hazlo con update_proposal (solo los campos que cambian) y confírmalo en una línea; la tarjeta actualizada aparece sola debajo. Cambiar una parte ya aprobada le quita la aprobación y vuelve a mostrarse.
+- Si pregunta algo, responde corto con los datos del expediente y termina preguntando si la deja así o qué le cambias.
+- Si quiere aprobar todo de una vez, llama a approve_blocks con todas las partes que faltan.
 - Usa solo hechos que él da o que están en el expediente. Nada de reseñas, "el mejor", "garantizado" ni cifras inventadas.
 - Precios: si los cambia, explica en una línea cómo queda el margen frente a sus costos y al rango de la zona.
-- Oferta: solo si él la quiere. Una oferta de bienvenida para clientes nuevos (solo su primer servicio) no necesita fecha: guárdala con forNewClients=true. Cualquier otra promoción necesita una fecha de fin real (YYYY-MM-DD, hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true.
-- Si dice que aprueba uno o varios bloques, llama a approve_blocks.
-- Máximo 70 palabras. Sin títulos.`;
+- Oferta: solo si él la quiere. Una oferta de bienvenida para clientes nuevos (solo su primer servicio) no necesita fecha: guárdala con forNewClients=true. Cualquier otra promoción necesita una fecha de fin real (YYYY-MM-DD, hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true y apruébala.
+- Si la propuesta ya está aprobada ("stage": "approved"), ayuda con cambios igual que antes.
+- Máximo 60 palabras. Sin títulos ni listas.`;
 
 const PROFILE_PROPS: Record<string, unknown> = {
   businessName: { type: "string" },
@@ -219,6 +226,7 @@ function state(b: BusinessRow) {
     },
     approvals: p.approvals,
     notApprovedYet: APPROVAL_BLOCKS.filter((x) => !p.approvals[x]),
+    currentPart: p.stage === "proposal" ? (APPROVAL_BLOCKS.find((x) => !p.approvals[x]) ?? "all approved") : "none (approved)",
   };
 }
 
@@ -283,7 +291,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       }
       next = { ...next, stage, runId: "" };
       await updateBusinessPlan(b.id, parsePlan(next));
-      return { out: `saved. profile complete: stage moved to ${stage}. Tell the owner you will now research their area (1-2 minutes) and they will see the progress below.`, startPipeline: true };
+      return { out: `saved. profile complete: stage moved to ${stage}. Tell the owner you will now research their area (1-2 minutes) and they will see the progress here in the chat.`, startPipeline: true };
     }
     case "choose_idea": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
@@ -299,7 +307,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (!(await researchWouldStart(b.userId, { budgetOnly: true })))
         return { out: "error: the plan's AI budget for this month is used up, so no new search now. Their 3 ideas are still here: help them pick one, or they can upgrade in Plans." };
       await updateBusinessPlan(b.id, requestMoreIdeas(plan, str(input.feedback, 300)));
-      return { out: "searching new ideas. Tell them in one line you're looking for different options with what they said (1-2 minutes) and they'll see them below.", startPipeline: true };
+      return { out: "searching new ideas. Tell them in one line you're looking for different options with what they said (1-2 minutes) and they'll see them here in the chat.", startPipeline: true };
     }
     case "update_proposal": {
       if (plan.stage !== "proposal" && plan.stage !== "approved") return { out: "error: no proposal yet" };
@@ -436,7 +444,7 @@ export async function runPlanChatTurn(opts: {
     reply = es ? "Tuve un problema para guardar eso. Inténtalo de nuevo en un momento." : "I had a problem saving that. Please try again in a moment.";
   }
   if (!reply && startPipeline) {
-    reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos ves el resultado abajo." : "Done! I have what I need. I'll research your area now; you'll see the result below in 1-2 minutes.";
+    reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.";
   }
   return { reply: reply || (es ? "Listo." : "Done."), business, startPipeline, debug };
 }

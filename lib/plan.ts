@@ -437,13 +437,13 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.serviceMode, "serviceMode (in person in an area = local, or remote/online = remote)");
     need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they travel)");
     need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, or other countries too = world)");
-    need(p.yearsExperience === null, "yearsExperience");
     need(!p.typicalCustomer, "typicalCustomer");
+    need(!p.howGetsClients, "howGetsClients (how they get customers today)");
     need(!p.currentPrice, "currentPrice (what they charge today)");
     need(!p.costs, "costs (materials and hours per job)");
-    need(!p.differentiators, "differentiators (what makes them different)");
-    need(!p.howGetsClients, "howGetsClients (how they get customers today)");
+    need(p.yearsExperience === null, "yearsExperience");
     need(!p.languages, "languages (es, en or both)");
+    need(!p.differentiators, "differentiators (what makes them different)");
     need(!p.insured, "insured (yes / no)");
     need(!p.businessName, "businessName");
   } else if (plan.stage === "interview") {

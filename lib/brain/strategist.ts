@@ -74,7 +74,7 @@ const PROPOSAL_SCHEMA = obj({
   faq: { type: "array", items: obj({ q: S("Question"), a: S("Answer, honest, max 300 chars") }), description: "6 FAQs for the page" },
   videoScript: S("30-60 second first-person video script to record with a phone, using [tu nombre]/[your name] for the name"),
   photoIdeas: { type: "array", items: { type: "string" }, description: "4-6 concrete photos of the owner and their work to take with a phone" },
-  message: S("4-5 short lines for the owner explaining the proposal and asking them to review the cards below"),
+  message: S("2-3 short lines for the owner summarizing the idea behind the proposal (who, at what price, how you will find clients). Do not list the parts: they are shown one by one right after this message."),
 });
 
 const IDEAS_SCHEMA = obj({
@@ -92,7 +92,7 @@ const IDEAS_SCHEMA = obj({
       cons: S("Cons, one line"),
     }),
   },
-  message: S("3-4 short lines for the person: you found 3 options, explain briefly how you chose, ask them to pick one below"),
+  message: S("3-4 short lines for the person: you found 3 options, explain briefly how you chose, do not describe each idea (they are shown in a card right after this message)"),
 });
 
 function langLine(lang: Lang) {

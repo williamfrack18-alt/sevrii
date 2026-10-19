@@ -73,6 +73,7 @@ export default function MindMap({
   initialOpen,
   openId: controlledOpen,
   onOpenChange,
+  guide = true,
 }: {
   center: MindCenter;
   nodes: MindNode[];
@@ -80,6 +81,8 @@ export default function MindMap({
   initialOpen?: string | null;
   openId?: string | null;
   onOpenChange?: (id: string | null) => void;
+  // false: no "Empieza aquí" tag (the parts are approved somewhere else).
+  guide?: boolean;
 }) {
   const lang = useLang();
   const t = TEXT[lang];
@@ -109,7 +112,7 @@ export default function MindMap({
 
   // The next part that needs the owner gets the "start here" mark.
   const steps = nodes.filter((n) => n.step);
-  const nextId = steps.find((n) => n.tone !== "done")?.id ?? null;
+  const nextId = guide ? (steps.find((n) => n.tone !== "done")?.id ?? null) : null;
 
   // Unfolded groups: only those with something left to approve.
   const [unfolded, setUnfolded] = useState<Set<string>>(() => {

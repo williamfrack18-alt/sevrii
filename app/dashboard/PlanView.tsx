@@ -4,9 +4,9 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
-import { approveBlockAction, chooseIdeaAction, finishPlanAction, moreIdeasAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
+import { approveBlockAction, chooseIdeaAction, finishPlanAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
 import { MAX_IDEA_ROUNDS } from "@/lib/plan";
-import ChatPanel, { type Msg } from "./ChatPanel";
+import ChatPanel, { type ChatToken, type Msg } from "./ChatPanel";
 import MindMap, { type MindNode } from "./MindMap";
 import { toClientBusiness, type ClientBusiness, type ClientService, type DashboardView } from "./types";
 import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
@@ -35,7 +35,9 @@ const GUARD_HINTS: Record<ApprovalBlock, RegExp> = {
   faq: /(pregunta|\bfaq\b|question)/i,
 };
 
-const firstPending = (p: BusinessPlan): string | null => (p.stage === "approved" ? null : APPROVAL_BLOCKS.find((b) => !p.approvals[b]) ?? null);
+// The card token at the end of an assistant message (see lib/brain/walk.ts).
+const TOKEN = /\[\[([a-z]+)(?::([a-z]+))?\]\]\s*$/;
+const isBlock = (x: string): x is ApprovalBlock => (APPROVAL_BLOCKS as string[]).includes(x);
 const oneLine = (s: string, max = 110) => {
   const x = s.replace(/\s+/g, " ").trim();
   return x.length > max ? `${x.slice(0, max - 1).trimEnd()}…` : x;
@@ -72,10 +74,10 @@ export default function PlanView({
   const [notice, setNotice] = useState("");
   const [busy, startAction] = useTransition();
   const [retryKey, setRetryKey] = useState(0);
-  const [moreText, setMoreText] = useState("");
-  // The open branch of the strategy map: the first block still to approve.
-  // The detail panel opens when the owner taps a part (never by itself on load).
+  // The map's detail panel opens only when the owner taps a part.
   const [openId, setOpenId] = useState<string | null>(null);
+  // The chat's messages, to know which card in it is the live one.
+  const [msgs, setMsgs] = useState<Msg[]>(initialMessages);
 
   // Latest values for the polling loop.
   const bizRef = useRef(business);
@@ -87,6 +89,7 @@ export default function PlanView({
     if (s.jobs) setJobs(s.jobs);
     if (s.messages && s.messages.length !== msgCount.current) {
       msgCount.current = s.messages.length;
+      setMsgs(s.messages);
       setSync({ key: Date.now(), messages: s.messages });
       onMessages?.(s.messages);
     }
@@ -95,6 +98,7 @@ export default function PlanView({
   function applyAction(res: PlanChatResponse) {
     onUpdated(toClientBusiness(res.business), res.services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description })));
     msgCount.current = res.messages.length;
+    setMsgs(res.messages);
     setSync({ key: Date.now(), messages: res.messages });
     onMessages?.(res.messages);
     setNotice(res.notice ?? "");
@@ -151,22 +155,48 @@ export default function PlanView({
   const current = Math.max(0, order.indexOf(plan.stage));
 
   const act = (fn: () => Promise<PlanChatResponse>) => startAction(async () => applyAction(await fn()));
-  // "Cambiar" closes the panel and writes the request in the chat.
+  // "Cambiar" closes the map's panel and starts the request in the chat.
   const change = (block: ApprovalBlock) => {
     setOpenId(null);
     setPrefill({ key: Date.now(), text: t.changePrefix(t.blocks[block]) });
   };
-  // After approving, open the next block that still needs a look.
-  const approve = (block: ApprovalBlock) =>
-    startAction(async () => {
-      const res = await approveBlockAction(block, true);
-      applyAction(res);
-      setOpenId(firstPending(toClientBusiness(res.business).plan));
-    });
+  const approve = (block: ApprovalBlock) => act(() => approveBlockAction(block, true));
+
+  // The review happens in the chat: the part being reviewed is the first one
+  // not approved yet, and only the latest card for it has buttons.
+  const reviewing: ApprovalBlock | null = plan.stage === "proposal" ? (APPROVAL_BLOCKS.find((b) => !plan.approvals[b]) ?? null) : null;
+  const lastCard = [...msgs].reverse().find((m) => m.role !== "user" && TOKEN.test(m.content));
+  const lastTok = lastCard ? TOKEN.exec(lastCard.content) : null;
+  const liveId =
+    lastCard && lastTok
+      ? (reviewing && lastTok[1] === "part" && lastTok[2] === reviewing) || (plan.stage === "choose" && lastTok[1] === "ideas") || (plan.stage === "approved" && lastTok[1] === "done")
+        ? lastCard.id
+        : null
+      : null;
+  const partCard = (id: ApprovalBlock) => (
+    <PartCard id={id} plan={plan} busy={busy} onApprove={approve} onChange={change} onNoOffer={() => act(() => noOfferAction())} />
+  );
+  const renderToken = ({ kind, arg, msgId }: ChatToken) => {
+    if (kind === "part" && isBlock(arg)) return msgId === liveId ? partCard(arg) : <PartRow id={arg} plan={plan} stale={arg === reviewing} />;
+    if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} onChoose={(i) => act(() => chooseIdeaAction(i))} /> : null;
+    if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} />;
+    return null;
+  };
+  // No live card in the chat yet (an older chat, or a final check stopped
+  // the plan): show what's next after the last message.
+  const tail = liveId
+    ? null
+    : reviewing
+      ? partCard(reviewing)
+      : plan.stage === "proposal"
+        ? <FinishCard plan={plan} busy={busy} onFinish={() => act(() => finishPlanAction())} />
+        : plan.stage === "choose" && plan.ideas.length
+          ? <IdeasCard plan={plan} busy={busy} live onChoose={(i) => act(() => chooseIdeaAction(i))} />
+          : null;
+  const tailKey = `${plan.stage}:${reviewing}:${liveId}:${busy}`;
 
   const isStrategy = plan.stage === "proposal" || plan.stage === "approved";
   const doneCount = APPROVAL_BLOCKS.filter((b) => plan.approvals[b]).length;
-  const allDone = doneCount === APPROVAL_BLOCKS.length;
 
   const chip =
     plan.stage === "approved" ? (
@@ -213,10 +243,14 @@ export default function PlanView({
           }
           sync={sync}
           prefill={prefill}
+          renderToken={renderToken}
+          tail={tail}
+          tailKey={tailKey}
           onSend={async (text) => {
             const res = await sendPlanChatAction(text);
             onUpdated(toClientBusiness(res.business), res.services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description })));
             msgCount.current = res.messages.length;
+            setMsgs(res.messages);
             onMessages?.(res.messages);
             return res.messages;
           }}
@@ -251,107 +285,9 @@ export default function PlanView({
 
           {(plan.stage === "interview" || plan.stage === "ready_check") && <ProfileCard plan={plan} />}
 
-          {plan.stage === "choose" && (
-            <div className="flex flex-col gap-4">
-              <SectionHead title={t.ideasTitle} sub={t.ideasSub} />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                {plan.ideas.map((idea, i) => (
-                  <div key={i} className="rounded-2xl p-5 flex flex-col gap-3 min-w-0" style={i === 0 ? { ...CARD, boxShadow: `0 0 0 1px ${RING}` } : CARD}>
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="text-[17px] font-semibold text-white leading-snug min-w-0 break-words">{idea.title}</span>
-                      <span className="text-[12px] px-2 py-0.5 rounded-full shrink-0 font-medium" style={{ background: "rgba(46,122,85,0.26)", color: GREEN }}>
-                        {t.fit(idea.score)}
-                      </span>
-                    </div>
-                    <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed">{idea.why}</p>
-                    <Facts
-                      rows={[
-                        [t.typicalPrice, idea.typicalPrice],
-                        [t.startCost, idea.startCost],
-                        [t.license, idea.license && !/^no\b/i.test(idea.license.trim()) ? idea.license : ""],
-                        [t.demand, idea.demand],
-                      ]}
-                    />
-                    {(idea.pros || idea.cons) && (
-                      <div className="flex flex-col gap-1.5 pt-3" style={{ borderTop: `1px solid ${HAIR}` }}>
-                        {idea.pros && (
-                          <p className="text-[13px] text-[#a1a1a1] leading-relaxed flex gap-2">
-                            <span className="shrink-0 font-semibold" style={{ color: GREEN }}>+</span>
-                            <span className="min-w-0">{idea.pros}</span>
-                          </p>
-                        )}
-                        {idea.cons && (
-                          <p className="text-[13px] text-[#a1a1a1] leading-relaxed flex gap-2">
-                            <span className="shrink-0 font-semibold" style={{ color: AMBER }}>−</span>
-                            <span className="min-w-0">{idea.cons}</span>
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <Sources list={idea.sources} />
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => act(() => chooseIdeaAction(i))}
-                      className="mt-auto h-11 rounded-full text-[14px] font-semibold disabled:opacity-60"
-                      style={i === 0 ? BRAND_BTN : GHOST_BTN}
-                    >
-                      {t.choose}
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-2xl p-5 flex flex-col gap-3" style={CARD}>
-                <div>
-                  <div className="text-[16px] font-semibold text-white">{t.moreTitle}</div>
-                  <p className="text-[13.5px] text-[#a1a1a1] mt-0.5 leading-relaxed">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.moreSub}</p>
-                </div>
-                {plan.ideaRounds < MAX_IDEA_ROUNDS && (
-                  <form
-                    className="flex flex-col sm:flex-row gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const text = moreText;
-                      act(async () => {
-                        const res = await moreIdeasAction(text);
-                        setMoreText("");
-                        return res;
-                      });
-                    }}
-                  >
-                    <input
-                      id="more-ideas"
-                      value={moreText}
-                      onChange={(e) => setMoreText(e.target.value)}
-                      maxLength={300}
-                      placeholder={t.morePlaceholder}
-                      className="flex-1 min-w-0 h-11 rounded-full px-4 text-[14px] text-white placeholder:text-[#6b6b6b] outline-none focus:ring-2"
-                      style={{ background: "rgba(255,255,255,0.06)", boxShadow: `0 0 0 1px ${HAIR_STRONG}` }}
-                    />
-                    <button type="submit" disabled={busy} className="h-11 px-5 rounded-full text-[14px] font-semibold shrink-0 disabled:opacity-60" style={BRAND_BTN}>
-                      {busy ? t.moreBusy : t.moreButton}
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
-          )}
-
           {isStrategy && (
             <div className="flex flex-col gap-5">
-              <SectionHead title={plan.stage === "approved" ? t.approvedTitle : t.proposalTitle} sub={plan.stage === "approved" ? t.approvedSub : t.proposalMapSub} />
-              {plan.guard.block.length > 0 && <Notes title={t.guardBlock} items={plan.guard.block} color={RED} />}
-              {plan.stage === "proposal" && allDone && (
-                <div className="rounded-2xl p-4 md:p-5 flex items-center justify-between gap-4 flex-wrap" style={{ ...CARD, boxShadow: `0 0 0 1px ${RING}` }}>
-                  <div className="min-w-0">
-                    <div className="text-[15px] font-semibold text-white">{t.finishTitle}</div>
-                    <p className="text-[13px] text-[#a1a1a1] mt-0.5 max-w-[560px] leading-relaxed">{t.finishSub}</p>
-                  </div>
-                  <button type="button" disabled={busy} onClick={() => act(() => finishPlanAction())} className="h-10 px-5 rounded-full text-[14px] font-semibold shrink-0 disabled:opacity-60" style={BRAND_BTN}>
-                    {t.finishButton}
-                  </button>
-                </div>
-              )}
+              <SectionHead title={plan.stage === "approved" ? t.approvedTitle : t.proposalTitle} sub={plan.stage === "approved" ? t.mapSubDone : t.mapSub} />
               {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
 
               <div className="pt-1 md:pt-3">
@@ -373,13 +309,14 @@ export default function PlanView({
                         { id: "how", label: "How you sell it" },
                         { id: "market", label: "Your market" },
                       ]}
-                  nodes={strategyNodes({ plan, t, busy, onApprove: approve, onChange: change, onNoOffer: () => act(() => noOfferAction()) }).map((n) => ({
+                  nodes={strategyNodes({ plan, t, onChange: change }).map((n) => ({
                     ...n,
                     group: ["service", "packages", "offer"].includes(n.id) ? "sell" : ["zone", "requirements"].includes(n.id) ? "market" : "how",
                     step: ["service", "pitch", "packages", "offer", "campaign", "faq"].includes(n.id),
                   }))}
                   openId={openId}
                   onOpenChange={setOpenId}
+                  guide={false}
                 />
               </div>
 
@@ -403,157 +340,90 @@ export default function PlanView({
   );
 }
 
-// ---------- strategy map ----------
+// ---------- the parts of the proposal ----------
 
-function strategyNodes({
-  plan,
-  t,
-  busy,
-  onApprove,
-  onChange,
-  onNoOffer,
-}: {
-  plan: BusinessPlan;
-  t: T;
-  busy: boolean;
-  onApprove: (b: ApprovalBlock) => void;
-  onChange: (b: ApprovalBlock) => void;
-  onNoOffer: () => void;
-}): MindNode[] {
-  const offerOk = !plan.offer || Boolean(plan.offer.endsAt) || plan.offer.forNewClients;
-  const flagged = (b: ApprovalBlock) =>
-    plan.stage === "proposal" && (plan.guard.block.some((n) => GUARD_HINTS[b].test(n)) || (b === "offer" && !offerOk));
-  const status = (b: ApprovalBlock): Pick<MindNode, "tone" | "badge"> => {
-    const ok = plan.approvals[b] === true;
-    return { tone: ok ? "done" : flagged(b) ? "warn" : "idle", badge: ok ? t.approved : t.toApprove };
-  };
-  const detail = (b: ApprovalBlock, body: ReactNode, opts: { canApprove?: boolean; extra?: ReactNode } = {}) => (
-    <BlockDetail id={b} plan={plan} busy={busy} onApprove={onApprove} onChange={onChange} canApprove={opts.canApprove} extra={opts.extra}>
-      {body}
-    </BlockDetail>
-  );
-
-  const nodes: MindNode[] = [];
-
-  // Tu servicio
-  nodes.push({
-    id: "service",
-    label: t.blocks.service,
-    title: plan.serviceIncludes || plan.service,
-    summary: plan.problem || undefined,
-    ...status("service"),
-    detail: detail(
-      "service",
-      <>
-        <Facts
-          rows={[
-            [t.includes, plan.serviceIncludes],
-            [t.excludes, plan.serviceExcludes],
-            [t.customer, plan.customer],
-            [t.problem, plan.problem],
-          ]}
-        />
-        {plan.steps.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <Label>{t.steps}</Label>
-            <ol className="flex flex-col gap-2">
-              {plan.steps.map((s, i) => (
-                <li key={i} className="flex gap-3 text-[13.5px] text-[#ececec] leading-relaxed">
-                  <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-px" style={{ background: "rgba(255,255,255,0.06)", color: "#a1a1a1" }}>
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0">{s}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
-      </>
-    ),
-  });
-
-  // Cómo te presentas
-  nodes.push({
-    id: "pitch",
-    label: t.blocks.pitch,
-    title: plan.promise ? `“${plan.promise}”` : t.promise,
-    summary: plan.differentiators.length ? t.diffCount(plan.differentiators.length) : undefined,
-    ...status("pitch"),
-    detail: detail(
-      "pitch",
-      <>
-        {plan.promise && (
-          <div className="flex flex-col gap-1.5">
-            <Label>{t.promise}</Label>
-            <p className="text-[16px] text-white leading-relaxed">“{plan.promise}”</p>
-          </div>
-        )}
-        {plan.differentiators.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <Label>{t.differentiators}</Label>
-            <ul className="flex flex-col gap-2">
-              {plan.differentiators.map((d, i) => (
-                <li key={i} className="flex gap-2.5 text-[14px] text-[#ececec] leading-relaxed">
-                  <Check />
-                  <span className="min-w-0">{d}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </>
-    ),
-  });
-
-  // Paquetes y precios
-  nodes.push({
-    id: "packages",
-    label: t.blocks.packages,
-    title: t.packagesCount(plan.packages.length),
-    summary: plan.packages.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join(" · ") || undefined,
-    ...status("packages"),
-    detail: detail(
-      "packages",
-      <>
-        <div className={`grid grid-cols-1 gap-3 ${plan.packages.length >= 3 ? "lg:grid-cols-3" : plan.packages.length === 2 ? "lg:grid-cols-2" : ""}`}>
-          {plan.packages.map((p, i) => (
-            <div key={i} className="rounded-xl p-4 flex flex-col gap-1.5 min-w-0" style={i === 1 ? { ...INSET, boxShadow: `inset 0 0 0 1px ${RING}` } : INSET}>
-              <span className="text-[14px] font-semibold text-white break-words">{p.name}</span>
-              <span className="text-[22px] font-semibold tracking-tight break-words leading-tight" style={{ color: GREEN }}>
-                {p.price || "—"}
-              </span>
-              {p.includes && <span className="text-[13px] text-[#d4d4d4] leading-relaxed">{p.includes}</span>}
-              {p.note && <span className="text-[12px] text-[#8e8e8e] leading-relaxed">{p.note}</span>}
+// What each part shows, in its chat card and in the map's detail panel.
+function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
+  const t = PLAN_TEXT[useLang()];
+  switch (id) {
+    case "service":
+      return (
+        <div className="flex flex-col gap-4 min-w-0">
+          {plan.service && <p className="text-[15.5px] font-medium text-white leading-snug">{plan.service}</p>}
+          <Facts
+            rows={[
+              [t.includes, plan.serviceIncludes],
+              [t.excludes, plan.serviceExcludes],
+              [t.customer, plan.customer],
+              [t.problem, plan.problem],
+            ]}
+          />
+          {plan.steps.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <Label>{t.steps}</Label>
+              <ol className="flex flex-col gap-2">
+                {plan.steps.map((s, i) => (
+                  <li key={i} className="flex gap-3 text-[13.5px] text-[#ececec] leading-relaxed">
+                    <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-px" style={{ background: "rgba(255,255,255,0.06)", color: "#a1a1a1" }}>
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0">{s}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
-          ))}
+          )}
         </div>
-        {plan.pricingNote && (
-          <p className="text-[13px] text-[#a1a1a1] leading-relaxed">
-            <span className="text-[#d4d4d4] font-medium">{t.pricingNote}:</span> {plan.pricingNote}
-          </p>
-        )}
-      </>
-    ),
-  });
-
-  // Oferta de bienvenida
-  const offerState = plan.offer
-    ? plan.offer.endsAt
-      ? t.endsOn(plan.offer.endsAt)
-      : plan.offer.forNewClients
-        ? t.forNewClients
-        : t.offerNeedsDate
-    : undefined;
-  nodes.push({
-    id: "offer",
-    label: t.blocks.offer,
-    title: plan.offer?.label || t.offerNone,
-    summary: offerState,
-    ...status("offer"),
-    detail: detail(
-      "offer",
-      plan.offer ? (
-        <div className="flex flex-col gap-1.5">
+      );
+    case "pitch":
+      return (
+        <div className="flex flex-col gap-4 min-w-0">
+          {plan.promise && (
+            <div className="flex flex-col gap-1.5">
+              <Label>{t.promise}</Label>
+              <p className="text-[16px] text-white leading-relaxed">“{plan.promise}”</p>
+            </div>
+          )}
+          {plan.differentiators.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <Label>{t.differentiators}</Label>
+              <ul className="flex flex-col gap-2">
+                {plan.differentiators.map((d, i) => (
+                  <li key={i} className="flex gap-2.5 text-[14px] text-[#ececec] leading-relaxed">
+                    <Check />
+                    <span className="min-w-0">{d}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      );
+    case "packages":
+      return (
+        <div className="flex flex-col gap-3 min-w-0">
+          <div className={`grid grid-cols-1 gap-3 ${plan.packages.length >= 3 ? "sm:grid-cols-3" : plan.packages.length === 2 ? "sm:grid-cols-2" : ""}`}>
+            {plan.packages.map((p, i) => (
+              <div key={i} className="rounded-xl p-4 flex flex-col gap-1.5 min-w-0" style={i === 1 ? { ...INSET, boxShadow: `inset 0 0 0 1px ${RING}` } : INSET}>
+                <span className="text-[14px] font-semibold text-white break-words">{p.name}</span>
+                <span className="text-[22px] font-semibold tracking-tight break-words leading-tight" style={{ color: GREEN }}>
+                  {p.price || "—"}
+                </span>
+                {p.includes && <span className="text-[13px] text-[#d4d4d4] leading-relaxed">{p.includes}</span>}
+                {p.note && <span className="text-[12px] text-[#8e8e8e] leading-relaxed">{p.note}</span>}
+              </div>
+            ))}
+          </div>
+          {plan.pricingNote && (
+            <p className="text-[13px] text-[#a1a1a1] leading-relaxed">
+              <span className="text-[#d4d4d4] font-medium">{t.pricingNote}:</span> {plan.pricingNote}
+            </p>
+          )}
+        </div>
+      );
+    case "offer":
+      return plan.offer ? (
+        <div className="flex flex-col gap-1.5 min-w-0">
           <span className="text-[16px] font-semibold text-white">{plan.offer.label}</span>
           {plan.offer.detail && <span className="text-[13.5px] text-[#a1a1a1] leading-relaxed">{plan.offer.detail}</span>}
           <span className="text-[12.5px] leading-relaxed" style={{ color: plan.offer.endsAt || plan.offer.forNewClients ? GREEN : AMBER }}>
@@ -562,68 +432,313 @@ function strategyNodes({
         </div>
       ) : (
         <span className="text-[14px] text-[#a1a1a1]">{t.offerNone}</span>
-      ),
-      {
-        canApprove: offerOk,
-        extra:
-          plan.offer && !plan.approvals.offer ? (
-            <button type="button" disabled={busy} onClick={onNoOffer} className="h-9 px-4 rounded-full text-[13px] text-[#d4d4d4] disabled:opacity-60" style={{ background: "rgba(255,255,255,0.04)" }}>
-              {t.noOffer}
-            </button>
-          ) : null,
-      }
-    ),
-  });
+      );
+    case "campaign":
+      return (
+        <div className="flex flex-col gap-3 min-w-0">
+          <p className="text-[15px] font-medium text-white leading-relaxed">{plan.campaignType}</p>
+          {plan.channels.length > 0 && (
+            <ol className="flex flex-col gap-2.5">
+              {plan.channels.map((c, i) => (
+                <li key={i} className="flex gap-3 text-[13.5px] leading-relaxed">
+                  <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-px" style={{ background: "rgba(255,255,255,0.06)", color: "#a1a1a1" }}>
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 text-[#a1a1a1]">
+                    <span className="text-[#ececec] font-medium">{c.channel}</span>
+                    {c.why ? ` — ${c.why}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      );
+    case "faq":
+      return (
+        <div className="flex flex-col gap-4 min-w-0">
+          {plan.faq.map((f, i) => (
+            <div key={i} className="flex flex-col gap-1 min-w-0">
+              <span className="text-[14px] font-medium text-white leading-snug">{f.q}</span>
+              <span className="text-[13px] text-[#a1a1a1] leading-relaxed">{f.a}</span>
+            </div>
+          ))}
+        </div>
+      );
+  }
+}
 
-  // Tipo de campaña
+const offerReady = (p: BusinessPlan) => !p.offer || Boolean(p.offer.endsAt) || p.offer.forNewClients;
+const notesFor = (p: BusinessPlan, b: ApprovalBlock) => (p.stage === "proposal" ? p.guard.block.filter((n) => GUARD_HINTS[b].test(n)) : []);
+
+// The part being reviewed, inside the chat: what it says and what to do.
+function PartCard({
+  id,
+  plan,
+  busy,
+  onApprove,
+  onChange,
+  onNoOffer,
+}: {
+  id: ApprovalBlock;
+  plan: BusinessPlan;
+  busy: boolean;
+  onApprove: (b: ApprovalBlock) => void;
+  onChange: (b: ApprovalBlock) => void;
+  onNoOffer: () => void;
+}) {
+  const t = PLAN_TEXT[useLang()];
+  const n = APPROVAL_BLOCKS.indexOf(id);
+  const notes = notesFor(plan, id);
+  const canApprove = id !== "offer" || offerReady(plan);
+  return (
+    <div className="rounded-2xl overflow-hidden min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${notes.length ? `${AMBER}55` : RING}` }}>
+      <div className="px-4 md:px-5 pt-4 pb-3 flex items-center justify-between gap-3" style={{ borderBottom: `1px solid ${HAIR}` }}>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[11.5px] text-[#8e8e8e]">{t.partOf(n + 1, APPROVAL_BLOCKS.length)}</span>
+          <span className="text-[16px] font-semibold text-white leading-snug">{t.blocks[id]}</span>
+        </div>
+        <PartDots plan={plan} current={id} />
+      </div>
+      <div className="px-4 md:px-5 py-4 flex flex-col gap-4 min-w-0">
+        <PartBody id={id} plan={plan} />
+        {notes.length > 0 && (
+          <div className="flex flex-col gap-1.5 rounded-xl p-3" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)" }}>
+            {notes.map((x, i) => (
+              <span key={i} className="text-[13px] text-[#f3e3b5] leading-relaxed">
+                {x}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="px-4 md:px-5 pb-4 flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          disabled={busy || !canApprove}
+          onClick={() => onApprove(id)}
+          className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-45"
+          style={BRAND_BTN}
+        >
+          {busy ? t.approving : t.approve}
+        </button>
+        <button type="button" disabled={busy} onClick={() => onChange(id)} className="h-10 px-4 rounded-full text-[14px] disabled:opacity-60" style={GHOST_BTN}>
+          {t.changeSome}
+        </button>
+        {id === "offer" && plan.offer && (
+          <button type="button" disabled={busy} onClick={onNoOffer} className="h-10 px-4 rounded-full text-[14px] text-[#d4d4d4] disabled:opacity-60" style={{ background: "rgba(255,255,255,0.03)" }}>
+            {t.noOffer}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Six small dots: which parts are approved and which one is open.
+function PartDots({ plan, current }: { plan: BusinessPlan; current: ApprovalBlock }) {
+  return (
+    <div className="flex items-center gap-1 shrink-0" aria-hidden="true">
+      {APPROVAL_BLOCKS.map((b) => (
+        <span
+          key={b}
+          className="h-1.5 rounded-full transition-all"
+          style={{ width: b === current ? 16 : 6, background: plan.approvals[b] ? GREEN : b === current ? "#fff" : "rgba(255,255,255,0.16)" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// An earlier card in the chat: one line, opens to read it again.
+function PartRow({ id, plan, stale }: { id: ApprovalBlock; plan: BusinessPlan; stale: boolean }) {
+  const t = PLAN_TEXT[useLang()];
+  const [open, setOpen] = useState(false);
+  const ok = plan.approvals[id] === true;
+  return (
+    <div className="rounded-xl min-w-0" style={INSET}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+        {ok ? <Check size={14} /> : <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "#5b5b5b" }} />}
+        <span className="flex-1 min-w-0 flex flex-col">
+          <span className="text-[14px] text-white font-medium truncate">{t.blocks[id]}</span>
+          <span className="text-[12px] truncate" style={{ color: ok ? GREEN : "#8e8e8e" }}>
+            {ok ? t.approved : stale ? t.updatedBelow : t.pending}
+          </span>
+        </span>
+        <span className="text-[12.5px] text-[#a1a1a1] shrink-0">{open ? t.hide : t.view}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-1 min-w-0">
+          <PartBody id={id} plan={plan} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Every part approved but a final check stopped the plan.
+function FinishCard({ plan, busy, onFinish }: { plan: BusinessPlan; busy: boolean; onFinish: () => void }) {
+  const t = PLAN_TEXT[useLang()];
+  return (
+    <div className="rounded-2xl p-4 md:p-5 flex flex-col gap-3 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${AMBER}55` }}>
+      <span className="text-[14px] text-white leading-relaxed">{t.finishChat}</span>
+      {plan.guard.block.map((x, i) => (
+        <span key={i} className="text-[13px] text-[#f3e3b5] leading-relaxed flex gap-2.5">
+          <span className="h-1.5 w-1.5 rounded-full shrink-0 mt-[8px]" style={{ background: AMBER }} />
+          <span className="min-w-0">{x}</span>
+        </span>
+      ))}
+      <button type="button" disabled={busy} onClick={onFinish} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
+        {t.finishButton}
+      </button>
+    </div>
+  );
+}
+
+// The plan is approved: where to go next.
+function DoneCard({ live, onNavigate }: { live: boolean; onNavigate: (v: DashboardView) => void }) {
+  const t = PLAN_TEXT[useLang()];
+  if (!live) {
+    return (
+      <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={INSET}>
+        <Check size={14} />
+        <span className="text-[14px] text-white font-medium">{t.doneShort}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl p-4 md:p-5 flex flex-col gap-3 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${RING}` }}>
+      <div className="flex items-center gap-2">
+        <Check size={16} />
+        <span className="text-[16px] font-semibold text-white">{t.doneTitle}</span>
+      </div>
+      <p className="text-[13.5px] text-[#a1a1a1] leading-relaxed">{t.doneSub}</p>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <button type="button" onClick={() => onNavigate("store")} className="h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
+          {t.goStore} →
+        </button>
+        <button type="button" onClick={() => onNavigate("marketing")} className="h-10 px-5 rounded-full text-[14px] font-medium" style={GHOST_BTN}>
+          {t.goMarketing} →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// The 3 ideas (new-service path), inside the chat.
+function IdeasCard({ plan, busy, live, onChoose }: { plan: BusinessPlan; busy: boolean; live: boolean; onChoose: (i: number) => void }) {
+  const t = PLAN_TEXT[useLang()];
+  const chosen = plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
+  if (!live) {
+    return (
+      <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={INSET}>
+        {chosen ? <Check size={14} /> : <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "#5b5b5b" }} />}
+        <span className="text-[14px] text-white font-medium min-w-0 truncate">{chosen ? t.chosen(chosen.title) : t.ideasShown}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3 min-w-0">
+      {plan.ideas.map((idea, i) => (
+        <div key={i} className="rounded-2xl p-4 md:p-5 flex flex-col gap-3 min-w-0" style={i === 0 ? { ...CARD, boxShadow: `0 0 0 1px ${RING}` } : CARD}>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-[16px] font-semibold text-white leading-snug min-w-0 break-words">
+              <span className="text-[#8e8e8e] font-normal">{i + 1}. </span>
+              {idea.title}
+            </span>
+            <span className="text-[12px] px-2 py-0.5 rounded-full shrink-0 font-medium" style={{ background: "rgba(46,122,85,0.26)", color: GREEN }}>
+              {t.fit(idea.score)}
+            </span>
+          </div>
+          <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed">{idea.why}</p>
+          <Facts
+            rows={[
+              [t.typicalPrice, idea.typicalPrice],
+              [t.startCost, idea.startCost],
+              [t.license, idea.license && !/^no\b/i.test(idea.license.trim()) ? idea.license : ""],
+              [t.demand, idea.demand],
+            ]}
+          />
+          {(idea.pros || idea.cons) && (
+            <div className="flex flex-col gap-1.5">
+              {idea.pros && (
+                <p className="text-[13px] text-[#a1a1a1] leading-relaxed flex gap-2">
+                  <span className="shrink-0 font-semibold" style={{ color: GREEN }}>+</span>
+                  <span className="min-w-0">{idea.pros}</span>
+                </p>
+              )}
+              {idea.cons && (
+                <p className="text-[13px] text-[#a1a1a1] leading-relaxed flex gap-2">
+                  <span className="shrink-0 font-semibold" style={{ color: AMBER }}>−</span>
+                  <span className="min-w-0">{idea.cons}</span>
+                </p>
+              )}
+            </div>
+          )}
+          <Sources list={idea.sources} />
+          <button type="button" disabled={busy} onClick={() => onChoose(i)} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={i === 0 ? BRAND_BTN : GHOST_BTN}>
+            {t.choose}
+          </button>
+        </div>
+      ))}
+      <p className="text-[13px] text-[#a1a1a1] leading-relaxed">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.ideasNone}</p>
+    </div>
+  );
+}
+
+// ---------- strategy map (a read-only summary under the chat) ----------
+
+function strategyNodes({ plan, t, onChange }: { plan: BusinessPlan; t: T; onChange: (b: ApprovalBlock) => void }): MindNode[] {
+  const status = (b: ApprovalBlock): Pick<MindNode, "tone" | "badge"> => {
+    const ok = plan.approvals[b] === true;
+    return { tone: ok ? "done" : notesFor(plan, b).length || (b === "offer" && !offerReady(plan)) ? "warn" : "idle", badge: ok ? t.approved : t.toApprove };
+  };
+  const detail = (b: ApprovalBlock) => (
+    <div className="flex flex-col gap-4 min-w-0">
+      <PartBody id={b} plan={plan} />
+      <div className="flex items-center gap-2 pt-4 flex-wrap" style={{ borderTop: `1px solid ${HAIR}` }}>
+        {plan.approvals[b] && (
+          <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[13px] font-semibold" style={{ background: "rgba(46,122,85,0.22)", color: GREEN }}>
+            <Check size={13} />
+            {t.approved}
+          </span>
+        )}
+        <button type="button" onClick={() => onChange(b)} className="h-9 px-4 rounded-full text-[13px]" style={GHOST_BTN}>
+          {t.changeInChat}
+        </button>
+      </div>
+    </div>
+  );
+
+  const nodes: MindNode[] = [];
+  nodes.push({ id: "service", label: t.blocks.service, title: plan.serviceIncludes || plan.service, summary: plan.problem || undefined, ...status("service"), detail: detail("service") });
+  nodes.push({
+    id: "pitch",
+    label: t.blocks.pitch,
+    title: plan.promise ? `“${plan.promise}”` : t.promise,
+    summary: plan.differentiators.length ? t.diffCount(plan.differentiators.length) : undefined,
+    ...status("pitch"),
+    detail: detail("pitch"),
+  });
+  nodes.push({
+    id: "packages",
+    label: t.blocks.packages,
+    title: t.packagesCount(plan.packages.length),
+    summary: plan.packages.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join(" · ") || undefined,
+    ...status("packages"),
+    detail: detail("packages"),
+  });
+  const offerState = plan.offer ? (plan.offer.endsAt ? t.endsOn(plan.offer.endsAt) : plan.offer.forNewClients ? t.forNewClients : t.offerNeedsDate) : undefined;
+  nodes.push({ id: "offer", label: t.blocks.offer, title: plan.offer?.label || t.offerNone, summary: offerState, ...status("offer"), detail: detail("offer") });
   nodes.push({
     id: "campaign",
     label: t.blocks.campaign,
     title: plan.campaignType,
     summary: plan.channels.map((c) => c.channel).join(" · ") || undefined,
     ...status("campaign"),
-    detail: detail(
-      "campaign",
-      <>
-        <p className="text-[15px] font-medium text-white leading-relaxed">{plan.campaignType}</p>
-        {plan.channels.length > 0 && (
-          <ol className="flex flex-col gap-2.5">
-            {plan.channels.map((c, i) => (
-              <li key={i} className="flex gap-3 text-[13.5px] leading-relaxed">
-                <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-px" style={{ background: "rgba(255,255,255,0.06)", color: "#a1a1a1" }}>
-                  {i + 1}
-                </span>
-                <span className="min-w-0 text-[#a1a1a1]">
-                  <span className="text-[#ececec] font-medium">{c.channel}</span>
-                  {c.why ? ` — ${c.why}` : ""}
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </>
-    ),
+    detail: detail("campaign"),
   });
-
-  // Preguntas frecuentes
-  nodes.push({
-    id: "faq",
-    label: t.blocks.faq,
-    title: t.faqCount(plan.faq.length),
-    summary: plan.faq[0]?.q,
-    ...status("faq"),
-    detail: detail(
-      "faq",
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
-        {plan.faq.map((f, i) => (
-          <div key={i} className="flex flex-col gap-1 min-w-0">
-            <span className="text-[14px] font-medium text-white leading-snug">{f.q}</span>
-            <span className="text-[13px] text-[#a1a1a1] leading-relaxed">{f.a}</span>
-          </div>
-        ))}
-      </div>
-    ),
-  });
+  nodes.push({ id: "faq", label: t.blocks.faq, title: t.faqCount(plan.faq.length), summary: plan.faq[0]?.q, ...status("faq"), detail: detail("faq") });
 
   // Video y fotos (not an approval block)
   if (plan.videoScript || plan.photoIdeas.length > 0) {
@@ -713,57 +828,6 @@ function CenterFooter({ plan, done, t }: { plan: BusinessPlan; done: number; t: 
       <span className="text-[12.5px] text-[#a1a1a1]">{t.approvedCount(done, total)}</span>
       <div className="h-1 w-full rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.10)" }}>
         <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${(done / total) * 100}%`, background: GREEN }} />
-      </div>
-    </div>
-  );
-}
-
-function BlockDetail({
-  id,
-  plan,
-  busy,
-  onApprove,
-  onChange,
-  canApprove = true,
-  extra,
-  children,
-}: {
-  id: ApprovalBlock;
-  plan: BusinessPlan;
-  busy: boolean;
-  onApprove: (b: ApprovalBlock) => void;
-  onChange: (b: ApprovalBlock) => void;
-  canApprove?: boolean;
-  extra?: ReactNode;
-  children: ReactNode;
-}) {
-  const t = PLAN_TEXT[useLang()];
-  const ok = plan.approvals[id] === true;
-  return (
-    <div className="flex flex-col gap-4 min-w-0">
-      {children}
-      <div className="flex items-center gap-2 pt-4 flex-wrap" style={{ borderTop: `1px solid ${HAIR}` }}>
-        {ok && (
-          <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[13px] font-semibold" style={{ background: "rgba(46,122,85,0.22)", color: GREEN }}>
-            <Check size={13} />
-            {t.approved}
-          </span>
-        )}
-        {!ok && plan.stage === "proposal" && (
-          <button
-            type="button"
-            disabled={busy || !canApprove}
-            onClick={() => onApprove(id)}
-            className="h-9 px-5 rounded-full text-[13px] font-semibold disabled:opacity-40"
-            style={BRAND_BTN}
-          >
-            {t.approve}
-          </button>
-        )}
-        <button type="button" onClick={() => onChange(id)} className="h-9 px-4 rounded-full text-[13px]" style={GHOST_BTN}>
-          {t.change}
-        </button>
-        {extra}
       </div>
     </div>
   );
