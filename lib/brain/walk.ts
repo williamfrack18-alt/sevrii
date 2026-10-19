@@ -75,7 +75,9 @@ export function cardAfterTurn(before: BusinessPlan, after: BusinessPlan, lang: L
   const now = firstPending(after);
   if (!now) return null;
   const was = firstPending(before);
-  if (was !== now || before.stage !== "proposal") return `${INTRO[lang][now]}\n\n${partToken(now)}`;
+  // Reopened from an approved plan: just the changed part, no "next part" intro.
+  if (before.stage !== "proposal") return partToken(now);
+  if (was !== now) return `${INTRO[lang][now]}\n\n${partToken(now)}`;
   return partSignature(before, now) !== partSignature(after, now) ? partToken(now) : null;
 }
 
