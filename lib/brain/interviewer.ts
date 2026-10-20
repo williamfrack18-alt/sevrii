@@ -435,7 +435,7 @@ export async function runPlanChatTurn(opts: {
       const { system, tools } = stageOf(business.plan);
       const res = await client.messages.create({
         model: MODELS.chat,
-        max_tokens: 3000,
+        max_tokens: 6000,
         thinking: { type: "between_tools" },
         output_config: { effort: "low" },
         system: [{ type: "text", text: `${system}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`, cache_control: { type: "ephemeral" } }],
@@ -445,11 +445,15 @@ export async function runPlanChatTurn(opts: {
       const text = textOf(res.content);
       if (text) reply = text;
       const uses = res.content.filter((c): c is ToolUseBlock => c.type === "tool_use");
-      if (res.stop_reason !== "tool_use" || uses.length === 0) {
+      // Tools run whenever the model asked for them (a cut-off answer may hold
+      // an unfinished one, so not then).
+      if (uses.length === 0 || res.stop_reason === "max_tokens") {
         // Sometimes the model ends a turn without a word for the person. Ask once more.
         if (!reply && !nudged) {
           nudged = true;
-          if (res.content.length) messages.push({ role: "assistant", content: res.content });
+          // Never resend a tool call without its result (the API rejects it).
+          const kept = res.content.filter((c) => c.type !== "tool_use");
+          if (kept.some((c) => c.type === "text")) messages.push({ role: "assistant", content: kept });
           messages.push({
             role: "user",
             content: es
