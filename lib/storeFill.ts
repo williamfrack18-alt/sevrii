@@ -161,6 +161,8 @@ export function agentFromPlan(plan: BusinessPlan): ServiceAgent {
     knowledge: p.agentKnowledge,
     limits: a?.limits.length ? a.limits : p.agentLimits ? [p.agentLimits] : [],
     greeting: a?.greeting || "",
+    creator: a?.creator || "",
+    edge: a?.edge ?? [],
     offers: plan.packages.map(offerFromPackage).filter(Boolean),
     // The welcome offer the strategy proposed ("15% off your first month").
     ...welcomeFromPlan(plan),

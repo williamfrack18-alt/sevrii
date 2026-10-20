@@ -478,6 +478,7 @@ function AgentBlock({ agent }: { agent: NonNullable<BusinessPlan["agent"]> }) {
         <Label>{t.agentLabel}</Label>
         <span className="text-[15.5px] font-semibold text-white break-words">{agent.name}</span>
         {agent.role && <span className="text-[13.5px] text-[#d4d4d4] leading-relaxed">{agent.role}</span>}
+        {agent.creator && <span className="text-[12.5px] text-[#8e8e8e]">{agent.creator}</span>}
       </div>
       {agent.steps.length > 0 && (
         <div className="flex flex-col gap-1.5">
@@ -507,6 +508,33 @@ function AgentBlock({ agent }: { agent: NonNullable<BusinessPlan["agent"]> }) {
         <p className="text-[13px] text-[#a1a1a1] leading-relaxed">
           <span className="text-[#d4d4d4]">{t.agentGreeting}:</span> “{agent.greeting}”
         </p>
+      )}
+      {(agent.edge.length > 0 || agent.freeAlt) && (
+        <div className="flex flex-col gap-2 pt-3" style={{ borderTop: `1px solid ${HAIR}` }}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-[12px] text-[#8e8e8e]">{t.agentEdge}</span>
+            {agent.score > 0 && (
+              <span className="text-[11.5px] font-semibold px-2.5 py-0.5 rounded-full" style={agent.score >= 4 ? { background: "rgba(46,122,85,0.26)", color: GREEN } : { background: "rgba(245,196,81,0.12)", color: AMBER }}>
+                {t.agentScore(agent.score)}
+              </span>
+            )}
+          </div>
+          {agent.edge.map((e, i) => (
+            <span key={i} className="text-[13.5px] text-[#ececec] leading-relaxed flex gap-2.5">
+              <Check />
+              <span className="min-w-0">
+                {e.title && <span className="font-medium text-white">{e.title}: </span>}
+                {e.text}
+              </span>
+            </span>
+          ))}
+          {agent.freeAlt && (
+            <p className="text-[12.5px] text-[#8e8e8e] leading-relaxed">
+              <span className="text-[#a1a1a1]">{t.agentFree}:</span> {agent.freeAlt}
+            </p>
+          )}
+          {agent.score > 0 && agent.score <= 2 && <p className="text-[12.5px] leading-relaxed" style={{ color: AMBER }}>{t.agentWeak}</p>}
+        </div>
       )}
     </div>
   );

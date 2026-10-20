@@ -48,10 +48,22 @@ export type Profile = {
   agentTask: string; // what the agent does for each customer, start to finish
   agentKnowledge: string; // what the owner knows and will teach it (materials, method)
   agentLimits: string; // what it must never do, and when the owner steps in
+  agentEdge: string; // what they know or do that a free AI chat doesn't
 };
 
 // C: the agent the strategy proposes (built later in Store).
-export type PlanAgent = { name: string; role: string; steps: string[]; limits: string[]; greeting: string };
+export type AgentEdge = { title: string; text: string };
+export type PlanAgent = {
+  name: string;
+  role: string;
+  steps: string[];
+  limits: string[];
+  greeting: string;
+  creator: string; // who made it, with the credential that backs it ("Ana · 6 años en recursos humanos")
+  edge: AgentEdge[]; // why pay for it instead of a free AI chat
+  freeAlt: string; // what a free general AI already does, said honestly
+  score: number; // 1-5: how strong the reason to pay is (0 = not rated)
+};
 
 export type PriceRange = { low: string; mid: string; high: string; includes: string; note: string };
 export type Competitor = { name: string; url: string; offer: string; price: string; guarantee: string; languages: string };
@@ -163,6 +175,7 @@ export const EMPTY_PROFILE: Profile = {
   agentTask: "",
   agentKnowledge: "",
   agentLimits: "",
+  agentEdge: "",
 };
 
 export const EMPTY_MARKET: Market = { prices: null, competitors: [], gaps: [], requirements: [], faq: [], sources: [], researchedAt: "", incomplete: [] };
@@ -288,6 +301,7 @@ export function parseProfile(raw: unknown): Profile {
     agentTask: str(p.agentTask, 600),
     agentKnowledge: str(p.agentKnowledge, 1200),
     agentLimits: str(p.agentLimits, 400),
+    agentEdge: str(p.agentEdge, 600),
   };
 }
 
@@ -379,7 +393,24 @@ export function parsePlanAgent(raw: unknown): PlanAgent | null {
   const name = str(a.name, 60);
   const role = str(a.role, 200);
   if (!name && !role) return null;
-  return { name, role, steps: list(a.steps, 8, 200), limits: list(a.limits, 8, 200), greeting: str(a.greeting, 300) };
+  const edge = (Array.isArray(a.edge) ? a.edge : [])
+    .map((x) => {
+      const e = obj(x);
+      return { title: str(e.title, 60), text: str(e.text, 220) };
+    })
+    .filter((e) => e.title || e.text)
+    .slice(0, 4);
+  return {
+    name,
+    role,
+    steps: list(a.steps, 8, 200),
+    limits: list(a.limits, 8, 200),
+    greeting: str(a.greeting, 300),
+    creator: str(a.creator, 120),
+    edge,
+    freeAlt: str(a.freeAlt, 300),
+    score: num(a.score, 1, 5) ?? 0,
+  };
 }
 
 export function parsePlan(raw: unknown): BusinessPlan {
@@ -463,6 +494,7 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.remoteScope, "remoteScope (customers in the whole US = us, only their state = state, other countries too = world)");
     need(!p.languages, "languages (es, en or both)");
     need(!p.agentKnowledge, "agentKnowledge (what they know and will teach the agent: method, notes, materials)");
+    need(!p.agentEdge, "agentEdge (why someone would pay for THEIR agent instead of using ChatGPT for free: own method or cases, local or state rules, follow-up over weeks, a final check by the owner, a very specific niche)");
     need(!p.agentLimits, "agentLimits (what the agent must never do, and when the owner should step in)");
     need(!p.currentPrice, "currentPrice (what they charge or would like to charge, a guess is fine)");
     need(!p.businessName, "businessName");

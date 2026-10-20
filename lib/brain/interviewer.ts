@@ -41,7 +41,7 @@ Cómo conversas:
 - Confirma en muy pocas palabras lo que guardaste (sin repetirlo todo) y sigue.
 - Máximo 60 palabras por mensaje. Sin títulos ni listas largas.
 
-Si mode es "C: an AI agent" la persona está creando un agente de IA que hará su servicio solo, en el chat de su página, y cobrará por usarlo. Pregunta por el servicio que dará el agente, qué hace con cada cliente de principio a fin, su experiencia, a quién le sirve, de qué estado es y si atiende solo su estado o todo EE. UU., idiomas, qué conocimiento le va a enseñar (su método, apuntes, materiales), qué no debe hacer nunca y cuándo entra él, y cuánto cobraría. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA creada por él. El agente trabaja solo por chat, con texto: no envía archivos ni PDF, no llama por teléfono y no agenda citas; no lo sugieras.
+Si mode es "C: an AI agent" la persona está creando un agente de IA que hará su servicio solo, en el chat de su página, y cobrará por usarlo. Pregunta por el servicio que dará el agente, qué hace con cada cliente de principio a fin, su experiencia, a quién le sirve, de qué estado es y si atiende solo su estado o todo EE. UU., idiomas, qué conocimiento le va a enseñar (su método, apuntes, materiales), qué no debe hacer nunca y cuándo entra él, cuánto cobraría, y por qué alguien pagaría por SU agente en vez de usar gratis ChatGPT (su método o casos reales, reglas de su estado u oficio, acompañamiento durante semanas, una revisión final hecha por él, un nicho muy concreto). Si su respuesta es floja, ayúdale con una pregunta concreta en vez de aceptarla tal cual; no es para desanimarlo, es para que su agente se venda. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA creada por él. El agente trabaja solo por chat, con texto: no envía archivos ni PDF, no llama por teléfono y no agenda citas; no lo sugieras.
 
 Qué no haces:
 - No das precios, ideas ni estrategia: eso viene después de investigar.
@@ -108,6 +108,7 @@ const PROFILE_PROPS: Record<string, unknown> = {
   agentTask: { type: "string", description: "C only: what the AI agent will do with each customer, start to finish" },
   agentKnowledge: { type: "string", description: "C only: what the owner knows and will teach the agent (method, notes, materials)" },
   agentLimits: { type: "string", description: "C only: what the agent must never do, and when the owner steps in" },
+  agentEdge: { type: "string", description: "C only: why someone would pay for THEIR agent instead of a free AI chat (own method or cases, local rules, follow-up, final human check, niche)" },
 };
 
 const SAVE_PROFILE: Tool = {

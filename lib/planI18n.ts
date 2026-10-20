@@ -146,6 +146,10 @@ export const PLAN_TEXT = {
     agentSteps: "Cómo trabaja con cada cliente",
     agentLimits: "Lo que nunca hace",
     agentGreeting: "Cómo saluda",
+    agentEdge: "Por qué pagarían por tu agente",
+    agentFree: "Lo que hace gratis un chat como ChatGPT",
+    agentScore: (n: number) => `Razón para pagar: ${n} de 5`,
+    agentWeak: "Razón para pagar débil: dale algo que solo tú sabes o haces, o cambia el enfoque en el chat.",
   },
   en: {
     nav: { projects: "Projects", plan: "Brain" },
@@ -293,6 +297,10 @@ export const PLAN_TEXT = {
     agentSteps: "How it works with each customer",
     agentLimits: "What it never does",
     agentGreeting: "How it says hello",
+    agentEdge: "Why people would pay for your agent",
+    agentFree: "What a free chat like ChatGPT already does",
+    agentScore: (n: number) => `Reason to pay: ${n} of 5`,
+    agentWeak: "Weak reason to pay: give it something only you know or do, or change the focus in the chat.",
   },
 };
 

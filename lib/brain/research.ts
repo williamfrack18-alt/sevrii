@@ -49,7 +49,7 @@ Forma: {"low":"$…","mid":"$…","high":"$…","includes":"qué suele incluir e
 ${out}`;
     case "competitors":
       return `Tarea: COMPETENCIA de "${service}" ${where}.
-${remote ? `Busca los 3 a 5 negocios o freelancers que aparecen primero para ese servicio en línea${oneState ? ` para clientes de ${p.state}` : " en EE. UU."} (no directorios). Lee sus páginas.` : "Busca los 3 a 5 negocios que aparecen primero para ese servicio en esa ciudad (no directorios). Lee sus páginas."}
+${plan.mode === "agent" ? `Es un agente de IA que hace este servicio solo. Busca 3 a 5 competidores reales: quienes venden ese servicio en línea (personas o negocios) y apps o agentes de IA que ya lo hacen, con su precio. Incluye siempre qué tan bien lo resuelve gratis un chat general como ChatGPT o una plantilla gratis (price "gratis"). En "gaps" pon lo que los chats gratis y las apps hacen mal para este cliente (reglas locales, acompañamiento, revisión humana, casos reales…).\n` : ""}${remote ? `Busca los 3 a 5 negocios o freelancers que aparecen primero para ese servicio en línea${oneState ? ` para clientes de ${p.state}` : " en EE. UU."} (no directorios). Lee sus páginas.` : "Busca los 3 a 5 negocios que aparecen primero para ese servicio en esa ciudad (no directorios). Lee sus páginas."}
 Forma: {"competitors":[{"name":"…","url":"…","offer":"qué ofrecen, en una línea","price":"precio publicado o 'no publica'","guarantee":"garantía que anuncian o 'no menciona'","languages":"idiomas que anuncian"}],"gaps":["algo que ninguno ofrece o comunica bien"],"sources":[{"title":"…","url":"…"}]}
 ${out}`;
     case "requirements":

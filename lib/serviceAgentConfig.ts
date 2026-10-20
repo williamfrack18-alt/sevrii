@@ -29,6 +29,9 @@ export type ServiceAgent = {
   // offers or only the one-time / monthly ones (monthly: the first month).
   welcomePercent: number;
   welcomeOn: "all" | "once" | "monthly";
+  // Shown on its page: who made it, and why it's worth paying for.
+  creator: string; // "Ana · 6 años en recursos humanos"
+  edge: { title: string; text: string }[];
 };
 
 export const AGENT_MIN_CENTS = 1500;
@@ -47,6 +50,8 @@ export const EMPTY_AGENT: ServiceAgent = {
   offers: [],
   welcomePercent: 0,
   welcomeOn: "all",
+  creator: "",
+  edge: [],
 };
 
 const s = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\u0000/g, "").trim().slice(0, max) : "");
@@ -95,6 +100,14 @@ export function parseServiceAgent(raw: unknown): ServiceAgent {
     offers,
     welcomePercent: n(o.welcomePercent, 0, 50, 0),
     welcomeOn: o.welcomeOn === "once" || o.welcomeOn === "monthly" ? o.welcomeOn : "all",
+    creator: s(o.creator, 120),
+    edge: (Array.isArray(o.edge) ? o.edge : [])
+      .map((x) => {
+        const e = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;
+        return { title: s(e.title, 60), text: s(e.text, 220) };
+      })
+      .filter((e) => e.title || e.text)
+      .slice(0, 4),
   };
 }
 

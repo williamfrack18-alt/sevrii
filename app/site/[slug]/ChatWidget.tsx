@@ -409,7 +409,7 @@ export default function ChatWidget({
 }
 
 // Floating button: takes the visitor to the chat (hidden while the chat is on screen).
-export function ChatJump({ lang }: { lang: "es" | "en" }) {
+export function ChatJump({ lang, label }: { lang: "es" | "en"; label?: string }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
     const target = document.getElementById("chat");
@@ -428,11 +428,11 @@ export function ChatJump({ lang }: { lang: "es" | "en" }) {
   }, []);
   if (!show) return null;
   return (
-    <button type="button" className="cw-fab" aria-label={TEXT[lang].open} onClick={() => window.dispatchEvent(new CustomEvent("sevrii:chat", { detail: "" }))}>
+    <button type="button" className="cw-fab" aria-label={label || TEXT[lang].open} onClick={() => window.dispatchEvent(new CustomEvent("sevrii:chat", { detail: "" }))}>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.6-5.4A8.4 8.4 0 1 1 21 11.5z" />
       </svg>
-      <span className="cw-fab-label" aria-hidden>{TEXT[lang].open}</span>
+      <span className="cw-fab-label" aria-hidden>{label || TEXT[lang].open}</span>
     </button>
   );
 }

@@ -13,6 +13,9 @@ Persona B: primero entrega 3 ideas (de las 5 investigadas). Cuando escoja una, e
 Persona C (mode "agent"): el dueño crea un agente de IA que hace el servicio él solo, en el chat de su página, las 24 horas (por ejemplo, un tutor para el examen de electricista de Texas). Entrega la misma propuesta y además "agent".
 
 Agente (solo persona C):
+- Prueba de valor (lo más importante): nadie paga por algo que un chat gratis como ChatGPT ya hace bien. Antes de armar nada, mira el servicio con los ojos del cliente: ¿lo resolvería gratis con ChatGPT o una plantilla? Si sí (por ejemplo, "te escribo tu currículum"), NO lo propongas así: reenfócalo en lo que solo este dueño puede dar, con las palancas que el expediente respalde: (1) su conocimiento propio que no está en internet (método, casos reales, lo que ve un reclutador por dentro); (2) reglas de un estado, ciudad u oficio, verificadas por él; (3) acompañamiento con un resultado (un plan de varias semanas, práctica diaria, simulacros calificados, seguimiento), no una respuesta suelta; (4) una revisión final hecha por el dueño en persona; (5) un nicho muy concreto (no "currículums", sino "currículum y entrevista para housekeeping en hoteles de Houston"); (6) material propio (bancos de preguntas, plantillas). Usa agentEdge y la investigación (gaps). Si reenfocaste el servicio, dilo en una línea en message.
+- agent.edge: 3 o 4 razones concretas y verdaderas para pagar por ESTE agente (title corto + text de una línea). agent.freeAlt: qué hace gratis un chat general con este mismo pedido, dicho con honestidad. agent.score: de 1 a 5, qué tan fuerte es la razón para pagar; si queda en 1 o 2 incluso reenfocado, dilo claro en message y en pricingNote.
+- agent.creator: quién lo creó y el respaldo que da (por ejemplo "Ana · 6 años en recursos humanos"), solo con datos del expediente.
 - Es un servicio en línea que entrega la IA con el método y el conocimiento del dueño (agentTask, agentKnowledge). El cliente lo prueba gratis unas respuestas y después paga.
 - Paquetes: 2 o 3 formas de pagar el acceso, pensadas para un agente: por uso (por ejemplo "Sesión de práctica: 1 día de acceso") y/o mensual ("Acceso mensual"). Cada precio es de al menos $15 (mínimo de pagos de Sevrii). Di en "includes" qué recibe y por cuánto tiempo, y en "note" para quién conviene. El dueño escoge la forma de cobrar: en pricingNote recomienda cuál conviene más y por qué (frecuencia de uso, competencia, costo de la IA).
 - Precio: compáralo con lo que cobran personas y plataformas por el mismo servicio. Un agente puede costar menos que una persona, pero no lo regales.
@@ -96,6 +99,10 @@ const AGENT_PROPOSAL_SCHEMA = obj({
     steps: { type: "array", items: { type: "string" }, description: "4-7 steps: how the agent works with a customer, start to finish (its method)" },
     limits: { type: "array", items: { type: "string" }, description: "3-6 limits: what it must never do, and when the owner steps in" },
     greeting: S("Its first message to a customer, 1-2 sentences, says it's an AI agent of the business (use the business name; no placeholders like [tu nombre])"),
+    creator: S("Who created it and the credential behind it, from the expediente, e.g. 'Ana · 6 años en recursos humanos'"),
+    edge: { type: "array", description: "3-4 true, concrete reasons to pay for THIS agent instead of a free AI chat", items: obj({ title: S("2-5 words"), text: S("One line") }) },
+    freeAlt: S("What a free general AI chat already does with the same request, said honestly, one line"),
+    score: { type: "integer", description: "1-5: how strong the reason to pay is" },
   }),
 });
 

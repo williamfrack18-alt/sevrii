@@ -13,6 +13,7 @@ import { reachLabel, resolveReach } from "@/lib/reach";
 import { activeOffer, storeTheme } from "@/lib/site";
 import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, type MediaItem } from "./StoreParts";
 import { ChatJump } from "./ChatWidget";
+import AgentPage from "./AgentPage";
 import { agentMissing, offerPriceLabel, welcomeLabel } from "@/lib/serviceAgentConfig";
 import "./store.css";
 
@@ -136,6 +137,9 @@ export default async function PublicBusinessPage({
               : [],
         }
       : null;
+  // A service agent gets its own page: the chat is the product.
+  if (business.plan.mode === "agent" || sa.name) return <AgentPage business={business} live={live} campaign={campaign} chatAgent={chatAgent} />;
+
   const reach = resolveReach(site, business.city, business.plan.profile);
   const area = site.serviceArea || reachLabel(reach, site.lang) || business.city || "";
   const mainTitle = site.headline || business.category || business.name;
