@@ -273,7 +273,23 @@ async function runTool(
         notes.push("googleReviewsUrl must be an https link");
       }
       if (Object.keys(patch).length) await mergeBusinessSite(b.id, b.site, patch as Partial<SiteData>);
-      return notes.length ? `saved, with problems: ${notes.join("; ")}` : "saved";
+      // With a service agent, the page's welcome offer ("15% off your first
+      // month") is also what the agent's checkout charges on a first purchase.
+      if ((b.plan.mode === "agent" || b.serviceAgent.name) && (input.clearOffer || input.offer)) {
+        const o = (input.offer ?? {}) as Record<string, unknown>;
+        const text = `${o.label ?? ""} ${o.detail ?? ""}`;
+        const pct = input.clearOffer ? 0 : Number(/(\d{1,2})\s*%/.exec(text)?.[1] ?? 0);
+        if (input.clearOffer || pct) {
+          await setServiceAgent(
+            b.id,
+            parseServiceAgent({ ...b.serviceAgent, welcomePercent: pct, welcomeOn: /\b(mes|mensual|month|monthly)\b/i.test(text) ? "monthly" : "all" })
+          );
+          notes.push(pct ? `the agent's checkout now takes ${pct}% off a new customer's first purchase` : "the agent's welcome discount was removed");
+        }
+      }
+      const problems = notes.filter((n) => !n.startsWith("the agent's"));
+      const info = notes.filter((n) => n.startsWith("the agent's"));
+      return `${problems.length ? `saved, with problems: ${problems.join("; ")}` : "saved"}${info.length ? `; ${info.join("; ")}` : ""}`;
     }
     case "save_service": {
       const nameV = clip(input.name, LIMITS.serviceName);
