@@ -41,6 +41,8 @@ Cómo conversas:
 - Confirma en muy pocas palabras lo que guardaste (sin repetirlo todo) y sigue.
 - Máximo 60 palabras por mensaje. Sin títulos ni listas largas.
 
+Si mode es "C: an AI agent" la persona está creando un agente de IA que hará su servicio solo, en el chat de su página, y cobrará por usarlo. Pregunta por el servicio que dará el agente, qué hace con cada cliente de principio a fin, su experiencia, a quién le sirve, de qué estado es y si atiende solo su estado o todo EE. UU., idiomas, qué conocimiento le va a enseñar (su método, apuntes, materiales), qué no debe hacer nunca y cuándo entra él, y cuánto cobraría. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA creada por él.
+
 Qué no haces:
 - No das precios, ideas ni estrategia: eso viene después de investigar.
 - No prometes ingresos ni clientes.
@@ -60,6 +62,7 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 - Si pide un cambio, hazlo con update_proposal (solo los campos que cambian) y confírmalo en una línea; la tarjeta actualizada aparece sola debajo. Cambiar una parte ya aprobada le quita la aprobación y vuelve a mostrarse.
 - Si pregunta algo, responde corto con los datos del expediente y termina preguntando si la deja así o qué le cambias.
 - Si quiere aprobar todo de una vez, llama a approve_blocks con todas las partes que faltan.
+- Si mode es C (agente), la parte "service" incluye el agente (nombre, qué hace paso a paso, límites y saludo): sus cambios van en el campo agent. El agente siempre dice que es una IA; los precios de acceso son de $15 o más.
 - Usa solo hechos que él da o que están en el expediente. Nada de reseñas, "el mejor", "garantizado" ni cifras inventadas.
 - Precios: si los cambia, explica en una línea cómo queda el margen frente a sus costos y al rango de la zona.
 - Oferta: solo si él la quiere. Una oferta de bienvenida para clientes nuevos (solo su primer servicio) no necesita fecha: guárdala con forNewClients=true. Cualquier otra promoción necesita una fecha de fin real (YYYY-MM-DD, hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true y apruébala.
@@ -102,6 +105,9 @@ const PROFILE_PROPS: Record<string, unknown> = {
   notWant: { type: "string" },
   goal: { type: "string", enum: ["extra", "fulltime"] },
   toolsReady: { type: "string", enum: ["yes", "no"] },
+  agentTask: { type: "string", description: "C only: what the AI agent will do with each customer, start to finish" },
+  agentKnowledge: { type: "string", description: "C only: what the owner knows and will teach the agent (method, notes, materials)" },
+  agentLimits: { type: "string", description: "C only: what the agent must never do, and when the owner steps in" },
 };
 
 const SAVE_PROFILE: Tool = {
@@ -160,6 +166,17 @@ const UPDATE_PROPOSAL: Tool = {
       campaignType: { type: "string" },
       channels: { type: "array", items: { type: "object", properties: { channel: { type: "string" }, why: { type: "string" } }, required: ["channel", "why"] } },
       faq: { type: "array", items: { type: "object", properties: { q: { type: "string" }, a: { type: "string" } }, required: ["q", "a"] } },
+      agent: {
+        type: "object",
+        description: "C only: the AI agent (send the whole object when it changes)",
+        properties: {
+          name: { type: "string" },
+          role: { type: "string" },
+          steps: { type: "array", items: { type: "string" } },
+          limits: { type: "array", items: { type: "string" } },
+          greeting: { type: "string" },
+        },
+      },
     },
   },
 };
@@ -189,6 +206,7 @@ const FIELD_BLOCK: Record<string, ApprovalBlock> = {
   campaignType: "campaign",
   channels: "campaign",
   faq: "faq",
+  agent: "service",
 };
 
 export const LOCKED_STAGES: PlanStage[] = ["ideas_research", "research"];
@@ -202,7 +220,11 @@ function stageOf(plan: BusinessPlan): { system: string; tools: Tool[] } {
 
 function state(b: BusinessRow) {
   const p = b.plan;
-  const base = { stage: p.stage, mode: p.mode === "new" ? "B: starting a new service" : "A: already offers a service", today: today() };
+  const base = {
+    stage: p.stage,
+    mode: p.mode === "new" ? "B: starting a new service" : p.mode === "agent" ? "C: an AI agent that delivers the service by itself" : "A: already offers a service",
+    today: today(),
+  };
   if (p.stage === "interview" || p.stage === "ready_check") {
     const idea = p.chosenIdea !== null ? p.ideas[p.chosenIdea] : null;
     return { ...base, missing: missingProfile(p), profile: p.profile, ...(idea ? { chosenIdea: idea } : {}) };
@@ -227,6 +249,7 @@ function state(b: BusinessRow) {
       campaignType: p.campaignType,
       channels: p.channels,
       faq: p.faq,
+      ...(p.mode === "agent" ? { agent: p.agent } : {}),
     },
     approvals: p.approvals,
     notApprovedYet: APPROVAL_BLOCKS.filter((x) => !p.approvals[x]),
@@ -324,6 +347,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       // (who it's for, the detail, the end date) instead of losing it.
       if (input.offer && typeof input.offer === "object" && plan.offer) patch.offer = { ...plan.offer, ...(input.offer as Record<string, unknown>) };
       if (input.offer) patch.noOffer = false;
+      if (input.agent && typeof input.agent === "object" && plan.agent) patch.agent = { ...plan.agent, ...(input.agent as Record<string, unknown>) };
       if (input.noOffer === true) patch.offer = null;
       // Only an edit to an approval block reopens the proposal; anything else
       // (video script, photo ideas…) keeps the stage as it was.
@@ -456,6 +480,11 @@ export async function runPlanChatTurn(opts: {
 export function planGreeting(lang: Lang, b: BusinessRow): string {
   const es = lang === "es";
   const p = b.plan;
+  if (p.mode === "agent") {
+    return es
+      ? "¡Hola! Soy el Cerebro de Sevrii. Vamos a crear tu agente: una IA que hace tu servicio sola, en el chat de tu página, las 24 horas, y que cobra por usarlo. Primero te entiendo, después investigo el mercado y te propongo el agente, sus precios y su campaña. Para empezar: ¿qué servicio quieres que haga tu agente, y para quién?"
+      : "Hi! I'm Sevrii's Brain. Let's create your agent: an AI that delivers your service by itself, in your page chat, 24/7, and charges for it. First I'll get to know you, then I'll research the market and propose the agent, its prices and its campaign. To start: what service do you want your agent to deliver, and for whom?";
+  }
   if (p.mode === "new") {
     return es
       ? "¡Hola! Soy el Cerebro de Sevrii. Te voy a ayudar a escoger un servicio que puedas empezar a ofrecer, según tu experiencia, tu tiempo y tu zona. Después investigo el mercado y te propongo cómo venderlo. Para empezar: ¿en qué ciudad y estado vives?"

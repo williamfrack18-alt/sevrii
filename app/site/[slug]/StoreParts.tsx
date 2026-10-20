@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ChatWidget from "./ChatWidget";
+import ChatWidget, { type ChatAgent } from "./ChatWidget";
 
 type Lang = "es" | "en";
 
@@ -166,7 +166,7 @@ export function BuyActions({
 }: {
   services: ChoiceService[];
   labels: { chooseLabel: string; selected: string; priceOnRequest: string; payNow: string };
-  chat: { slug: string; businessName: string; logoUrl: string; ownerName: string; ownerPhoto: string; lang: Lang; campaign?: string } | null;
+  chat: { slug: string; businessName: string; logoUrl: string; ownerName: string; ownerPhoto: string; lang: Lang; campaign?: string; agent?: ChatAgent | null } | null;
   ctaNote: string;
   lang: Lang;
 }) {

@@ -2,6 +2,7 @@ import type { SiteData } from "@/lib/site";
 import type { MarketingData, CampaignSpec } from "@/lib/marketing";
 import type { BusinessRow, ProjectSummary } from "@/lib/db";
 import type { BusinessPlan } from "@/lib/plan";
+import type { ServiceAgent } from "@/lib/serviceAgentConfig";
 
 // Shared by the server page and the client components (no "use client" here,
 // so the server can call these functions).
@@ -23,6 +24,8 @@ export type ClientBusiness = {
   site: SiteData;
   marketing: MarketingData;
   plan: BusinessPlan;
+  serviceAgent: ServiceAgent;
+  payReady: boolean; // Payments connected: customers can pay (e.g. for the agent)
 };
 
 export function toClientBusiness(b: BusinessRow): ClientBusiness {
@@ -44,6 +47,8 @@ export function toClientBusiness(b: BusinessRow): ClientBusiness {
     site: b.site,
     marketing: b.marketing,
     plan: b.plan,
+    serviceAgent: b.serviceAgent,
+    payReady: b.payStatus === "ready" && Boolean(b.stripeAccountId),
   };
 }
 

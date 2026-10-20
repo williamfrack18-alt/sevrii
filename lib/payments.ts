@@ -342,3 +342,105 @@ export async function paySessionState(business: BusinessRow, sessionId: string, 
     return null;
   }
 }
+
+// ---------- Service agents: customers pay for access ----------
+// The same direct charges as payment links (5% all included): a one-time
+// access, or a monthly subscription on the business's own Stripe account.
+export async function checkoutForAgentOffer(
+  business: BusinessRow,
+  offer: { id: string; title: string; detail: string; priceCents: number; billing: "once" | "monthly" },
+  agentName: string,
+  conversationId: string
+): Promise<string> {
+  if (!business.stripeAccountId) throw new Error("business has no Stripe account");
+  const back = `${siteUrl()}/site/${encodeURIComponent(business.slug)}`;
+  const name = `${offer.title} · ${agentName || business.name}`.slice(0, 120);
+  const fee = sevriiFeeCents(offer.priceCents);
+  const params: Record<string, string> = {
+    mode: offer.billing === "monthly" ? "subscription" : "payment",
+    "payment_method_types[0]": "card",
+    "line_items[0][quantity]": "1",
+    "line_items[0][price_data][currency]": "usd",
+    "line_items[0][price_data][unit_amount]": String(offer.priceCents),
+    "line_items[0][price_data][product_data][name]": name,
+    "metadata[sevriiBusinessId]": business.id,
+    "metadata[sevriiKind]": "agent",
+    "metadata[sevriiOffer]": offer.id,
+    "metadata[sevriiConv]": conversationId,
+    "metadata[sevriiTitle]": name,
+    success_url: `${back}?agent_paid={CHECKOUT_SESSION_ID}`,
+    cancel_url: back,
+  };
+  if (offer.detail) params["line_items[0][price_data][product_data][description]"] = offer.detail.slice(0, 300);
+  if (offer.billing === "monthly") {
+    params["line_items[0][price_data][recurring][interval]"] = "month";
+    params["subscription_data[metadata][sevriiBusinessId]"] = business.id;
+    params["subscription_data[metadata][sevriiConv]"] = conversationId;
+    // Subscriptions take a percent: the same share as a one-time charge.
+    const pct = Math.floor((fee / offer.priceCents) * 10000) / 100;
+    if (pct > 0) params["subscription_data[application_fee_percent]"] = String(pct);
+  } else {
+    params["payment_intent_data[description]"] = name.slice(0, 200);
+    if (fee > 0) params["payment_intent_data[application_fee_amount]"] = String(fee);
+  }
+  const s = await stripe<{ url: string }>("POST", "checkout/sessions", params, { account: business.stripeAccountId });
+  return s.url;
+}
+
+type SubLike = {
+  id?: string;
+  status?: string;
+  current_period_end?: number;
+  items?: { data?: { current_period_end?: number }[] };
+};
+const periodEnd = (sub: SubLike | null | undefined): number => sub?.current_period_end ?? sub?.items?.data?.[0]?.current_period_end ?? 0;
+
+export type AgentPaid = {
+  offerId: string;
+  conversationId: string;
+  amountCents: number;
+  email: string | null;
+  subscriptionId: string | null;
+  periodEnd: number | null; // monthly: unix seconds
+};
+
+// A paid agent checkout, read straight from the business's Stripe account
+// (never trusted from the address bar). Null unless paid and theirs.
+export async function getPaidAgentSession(business: BusinessRow, sessionId: string): Promise<AgentPaid | null> {
+  if (!business.stripeAccountId || !/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) return null;
+  try {
+    const s = await stripe<Session & { subscription?: string | SubLike | null }>(
+      "GET",
+      `checkout/sessions/${encodeURIComponent(sessionId)}`,
+      { "expand[]": "subscription" },
+      { account: business.stripeAccountId }
+    );
+    if (s.metadata?.sevriiBusinessId !== business.id || s.metadata?.sevriiKind !== "agent") return null;
+    if (s.payment_status !== "paid" || s.status !== "complete") return null;
+    const sub = s.subscription && typeof s.subscription === "object" ? s.subscription : null;
+    return {
+      offerId: s.metadata?.sevriiOffer || "",
+      conversationId: s.metadata?.sevriiConv || "",
+      amountCents: s.amount_total ?? 0,
+      email: s.customer_details?.email ?? null,
+      subscriptionId: sub?.id ?? (typeof s.subscription === "string" ? s.subscription : null),
+      periodEnd: sub ? periodEnd(sub) || null : null,
+    };
+  } catch (err) {
+    console.error("[payments] agent session check failed", (err as Error)?.message);
+    return null;
+  }
+}
+
+// A monthly access: still paid? Returns the end of the current period, or 0
+// when the subscription ended (null when Stripe couldn't be reached).
+export async function agentSubscriptionEnd(business: BusinessRow, subscriptionId: string): Promise<number | null> {
+  if (!business.stripeAccountId || !/^sub_[A-Za-z0-9]{6,200}$/.test(subscriptionId)) return 0;
+  try {
+    const sub = await stripe<SubLike>("GET", `subscriptions/${encodeURIComponent(subscriptionId)}`, {}, { account: business.stripeAccountId });
+    return sub.status === "active" || sub.status === "trialing" ? periodEnd(sub) : 0;
+  } catch (err) {
+    console.error("[payments] subscription check failed", (err as Error)?.message);
+    return null;
+  }
+}

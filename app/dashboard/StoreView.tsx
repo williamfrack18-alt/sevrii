@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import StoreChat from "./StoreChat";
+import AgentCard from "./AgentCard";
 import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
@@ -23,8 +24,10 @@ export default function StoreView({
   canPublish = true,
   onPlans,
   onChats,
+  onPayments,
 }: {
   onChats?: () => void;
+  onPayments?: () => void;
   canPublish?: boolean;
   onPlans?: () => void;
   business: ClientBusiness;
@@ -309,6 +312,9 @@ export default function StoreView({
       {/* The page, below the chat */}
       <section id="store-page" className="px-4 md:px-8 pt-6 pb-10" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-[1180px] mx-auto">
+          {(business.plan.mode === "agent" || business.serviceAgent.name) && (
+            <AgentCard business={business} onPayments={onPayments} onUpdated={(b) => { onUpdated(b, services); setPreviewKey((k) => k + 1); }} />
+          )}
           <div className="flex items-center justify-between gap-3 mb-4">
             <h2 className="text-[15px] font-semibold text-white">{st.yourPage}</h2>
             <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap text-[13px] text-muted hover:text-ink shrink-0">

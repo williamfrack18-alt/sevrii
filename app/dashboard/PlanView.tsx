@@ -229,8 +229,8 @@ export default function PlanView({
           initialMessages={initialMessages}
           texts={{
             ...t.chat,
-            emptyTitle: isB ? t.chat.emptyTitleB : t.chat.emptyTitleA,
-            emptySub: isB ? t.chat.emptySubB : t.chat.emptySubA,
+            emptyTitle: isB ? t.chat.emptyTitleB : plan.mode === "agent" ? t.chat.emptyTitleC : t.chat.emptyTitleA,
+            emptySub: isB ? t.chat.emptySubB : plan.mode === "agent" ? t.chat.emptySubC : t.chat.emptySubA,
             seeBelowHref: "#plan-result",
           }}
           locked={
@@ -358,6 +358,7 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
               [t.problem, plan.problem],
             ]}
           />
+          {plan.agent && <AgentBlock agent={plan.agent} />}
           {plan.steps.length > 0 && (
             <div className="flex flex-col gap-2">
               <Label>{t.steps}</Label>
@@ -466,6 +467,49 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
         </div>
       );
   }
+}
+
+// C: the agent the strategy proposes (built later in Store).
+function AgentBlock({ agent }: { agent: NonNullable<BusinessPlan["agent"]> }) {
+  const t = PLAN_TEXT[useLang()];
+  return (
+    <div className="rounded-xl p-4 flex flex-col gap-3 min-w-0" style={{ ...INSET, boxShadow: `inset 0 0 0 1px ${RING}` }}>
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <Label>{t.agentLabel}</Label>
+        <span className="text-[15.5px] font-semibold text-white break-words">{agent.name}</span>
+        {agent.role && <span className="text-[13.5px] text-[#d4d4d4] leading-relaxed">{agent.role}</span>}
+      </div>
+      {agent.steps.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[12px] text-[#8e8e8e]">{t.agentSteps}</span>
+          <ol className="flex flex-col gap-1.5">
+            {agent.steps.map((x, i) => (
+              <li key={i} className="flex gap-2.5 text-[13.5px] text-[#ececec] leading-relaxed">
+                <span className="text-[#8e8e8e] shrink-0 tabular-nums">{i + 1}.</span>
+                <span className="min-w-0">{x}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+      {agent.limits.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[12px] text-[#8e8e8e]">{t.agentLimits}</span>
+          {agent.limits.map((x, i) => (
+            <span key={i} className="text-[13px] text-[#d4d4d4] leading-relaxed flex gap-2">
+              <span className="shrink-0" style={{ color: AMBER }}>×</span>
+              <span className="min-w-0">{x}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {agent.greeting && (
+        <p className="text-[13px] text-[#a1a1a1] leading-relaxed">
+          <span className="text-[#d4d4d4]">{t.agentGreeting}:</span> “{agent.greeting}”
+        </p>
+      )}
+    </div>
+  );
 }
 
 const offerReady = (p: BusinessPlan) => !p.offer || Boolean(p.offer.endsAt) || p.offer.forNewClients;

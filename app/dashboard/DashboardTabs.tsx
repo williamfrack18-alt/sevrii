@@ -581,6 +581,7 @@ export default function DashboardTabs({
         {view === "store" && (
           <StoreView
             onChats={() => setView("chats")}
+            onPayments={() => setView("payments")}
             business={currentBusiness}
             services={currentServices}
             initialMessages={storeMessages}

@@ -342,3 +342,31 @@ export async function fillStoreFromPlanAction(): Promise<{
     messages: (await listChatMessages(business.id, "store")).map((m) => ({ id: m.id, role: m.role, content: m.content })),
   };
 }
+
+// ---------- Service agent (the page chat delivers the service) ----------
+export async function setAgentEnabledAction(on: boolean): Promise<{ ok: boolean; business: BusinessRow; missing: string[] }> {
+  const business = await requireBusiness();
+  const { agentMissing, parseServiceAgent } = await import("@/lib/serviceAgentConfig");
+  const { setServiceAgent } = await import("@/lib/db");
+  const missing = on ? agentMissing(business.serviceAgent) : [];
+  if (missing.length) return { ok: false, business, missing };
+  await setServiceAgent(business.id, parseServiceAgent({ ...business.serviceAgent, enabled: on }));
+  const fresh = (await getBusinessById(business.id))!;
+  refresh(fresh.slug);
+  return { ok: true, business: fresh, missing: [] };
+}
+
+export type AgentSales = { count: number; totalCents: number; active: number; recent: { title: string; amountCents: number; email: string | null; createdAt: string; billing: string }[] };
+
+export async function agentSalesAction(): Promise<AgentSales> {
+  const business = await requireBusiness();
+  const { listAgentAccess } = await import("@/lib/db");
+  const rows = await listAgentAccess(business.id, 100);
+  const now = Date.now();
+  return {
+    count: rows.length,
+    totalCents: rows.reduce((n, r) => n + r.amountCents, 0),
+    active: rows.filter((r) => r.status === "active" && new Date(r.endsAt).getTime() > now).length,
+    recent: rows.slice(0, 5).map((r) => ({ title: r.title, amountCents: r.amountCents, email: r.email, createdAt: r.createdAt, billing: r.billing })),
+  };
+}

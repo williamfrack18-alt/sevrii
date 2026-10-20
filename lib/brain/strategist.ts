@@ -1,6 +1,6 @@
 import { MODELS, getClaude } from "../claude";
 import type { Lang } from "../i18n";
-import { parseIdeas, str, type BusinessPlan, type Idea } from "../plan";
+import { parseIdeas, parsePlanAgent, str, type BusinessPlan, type Idea } from "../plan";
 import { textOf } from "./common";
 
 // The Strategist (the most capable model): turns the expediente into a
@@ -10,6 +10,16 @@ const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, serv
 
 Persona A: entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, una oferta de bienvenida, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
 Persona B: primero entrega 3 ideas (de las 5 investigadas). Cuando escoja una, entrega la misma propuesta que la persona A.
+Persona C (mode "agent"): el dueño crea un agente de IA que hace el servicio él solo, en el chat de su página, las 24 horas (por ejemplo, un tutor para el examen de electricista de Texas). Entrega la misma propuesta y además "agent".
+
+Agente (solo persona C):
+- Es un servicio en línea que entrega la IA con el método y el conocimiento del dueño (agentTask, agentKnowledge). El cliente lo prueba gratis unas respuestas y después paga.
+- Paquetes: 2 o 3 formas de pagar el acceso, pensadas para un agente: por uso (por ejemplo "Sesión de práctica: 1 día de acceso") y/o mensual ("Acceso mensual"). Cada precio es de al menos $15 (mínimo de pagos de Sevrii). Di en "includes" qué recibe y por cuánto tiempo, y en "note" para quién conviene. El dueño escoge la forma de cobrar: en pricingNote recomienda cuál conviene más y por qué (frecuencia de uso, competencia, costo de la IA).
+- Precio: compáralo con lo que cobran personas y plataformas por el mismo servicio. Un agente puede costar menos que una persona, pero no lo regales.
+- agent.limits: incluye siempre lo que agentLimits dice, que no promete resultados (aprobar un examen, ganar un caso) y que el dueño entra al chat para reembolsos o casos fuera del servicio.
+- Honestidad: la página y el agente dicen claramente que es un agente de IA creado por el dueño. Nunca lo presentes como una persona.
+- La oferta de bienvenida puede ser más respuestas gratis o un primer acceso con descuento, siempre que el precio quede en $15 o más.
+- Sin video ni fotos del agente: videoScript y photoIdeas son del dueño presentando su agente.
 
 Precios:
 - Parte del costo del dueño: materiales + horas × valor de su hora + traslado + permiso. Apunta a un margen de 30 % a 50 %.
@@ -48,7 +58,7 @@ Tipo de campaña: los anuncios llevan a la página del dueño en Sevrii, donde e
 const S = (description: string) => ({ type: "string", description });
 const obj = (properties: Record<string, unknown>) => ({ type: "object", additionalProperties: false, properties, required: Object.keys(properties) });
 
-const PROPOSAL_SCHEMA = obj({
+const PROPOSAL_PROPS = {
   service: S("The one concrete service, max 100 chars"),
   serviceIncludes: S("What the service includes, one line"),
   serviceExcludes: S("What it does not include, one line"),
@@ -75,6 +85,18 @@ const PROPOSAL_SCHEMA = obj({
   videoScript: S("30-60 second first-person video script to record with a phone, using [tu nombre]/[your name] for the name"),
   photoIdeas: { type: "array", items: { type: "string" }, description: "4-6 concrete photos of the owner and their work to take with a phone" },
   message: S("2-3 short lines for the owner summarizing the idea behind the proposal (who, at what price, how you will find clients). Do not list the parts: they are shown one by one right after this message."),
+};
+const PROPOSAL_SCHEMA = obj(PROPOSAL_PROPS);
+// C: the same proposal plus the agent that will deliver the service.
+const AGENT_PROPOSAL_SCHEMA = obj({
+  ...PROPOSAL_PROPS,
+  agent: obj({
+    name: S("A short, friendly name for the agent, e.g. 'Tutor Kevin IA' (max 40 chars)"),
+    role: S("One line: what the agent does for each customer"),
+    steps: { type: "array", items: { type: "string" }, description: "4-7 steps: how the agent works with a customer, start to finish (its method)" },
+    limits: { type: "array", items: { type: "string" }, description: "3-6 limits: what it must never do, and when the owner steps in" },
+    greeting: S("Its first message to a customer, 1-2 sentences, says it's an AI agent of the business"),
+  }),
 });
 
 const IDEAS_SCHEMA = obj({
@@ -130,10 +152,11 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
   const fix = fixNotes.length
     ? `\n\nEl Guardián marcó estos problemas en tu propuesta anterior. Corrígelos:\n- ${fixNotes.join("\n- ")}`
     : "";
+  const isAgent = plan.mode === "agent";
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
-    `Expediente (JSON):\n${JSON.stringify(expediente(plan))}\n\nArma la propuesta.${fix}`,
-    PROPOSAL_SCHEMA
+    `Expediente (JSON):\n${JSON.stringify(expediente(plan))}\n\nArma la propuesta${isAgent ? " (persona C: incluye el agente)" : ""}.${fix}`,
+    isAgent ? AGENT_PROPOSAL_SCHEMA : PROPOSAL_SCHEMA
   );
   const offer = (d.offerSuggestion ?? {}) as Record<string, unknown>;
   const label = str(offer.label, 80);
@@ -165,6 +188,7 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
       const f = (x ?? {}) as Record<string, unknown>;
       return { q: str(f.q, 160), a: str(f.a, 400) };
     }),
+    ...(isAgent ? { agent: parsePlanAgent(d.agent) } : {}),
     message: str(d.message, 900),
   };
 }

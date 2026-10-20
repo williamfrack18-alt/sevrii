@@ -120,3 +120,14 @@ export async function researchWouldStart(userId: string, opts: { budgetOnly?: bo
 export function gateMessage(reason: GateReason, t: { aiSlowDown: string; aiDailyLimit: string; aiMonthlyLimit: string }): string {
   return reason === "slow" ? t.aiSlowDown : reason === "day" ? t.aiDailyLimit : t.aiMonthlyLimit;
 }
+
+// A service agent's work for customers has its own pot (customers paid the
+// owner for it): as big as the plan's whole AI budget, separate from the
+// owner's own use and from the page assistant's.
+export function serviceAgentAccount(ownerId: string): string {
+  return `agentsvc:${ownerId}`;
+}
+export async function serviceAgentGate(ownerId: string): Promise<boolean> {
+  const l = await limitsForUserId(ownerId);
+  return (await monthSpendUsd(serviceAgentAccount(ownerId))) < Math.max(2, l.aiBudgetUsd);
+}

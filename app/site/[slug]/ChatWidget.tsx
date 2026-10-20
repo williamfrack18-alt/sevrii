@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { visitorChatPollAction, visitorChatSendAction, type ChatMsg } from "@/app/chatActions";
+import { agentCheckoutAction, agentClaimAction, visitorChatPollAction, visitorChatSendAction, type ChatMsg } from "@/app/chatActions";
+
+// The page chat as the owner's service agent (see lib/serviceAgent.ts).
+export type ChatAgent = { name: string; greeting: string; offers: { id: string; title: string; detail: string; label: string }[] };
+const PAY = /\s*\[\[pay\]\]\s*$/;
 
 const TEXT = {
   es: {
@@ -22,6 +26,11 @@ const TEXT = {
     errors: { closed: "El chat no está disponible ahora.", rate: "Vas muy rápido. Espera un momento.", long: "El mensaje es muy largo.", empty: "", failed: "No se pudo enviar. Inténtalo de nuevo." },
     message: "Tu mensaje",
     typing: "Escribiendo…",
+    agentStatus: (biz: string) => `Agente de IA de ${biz} · responde al instante`,
+    agentHello: "¡Hola! Cuéntame qué necesitas y empezamos.",
+    paying: "Abriendo el pago…",
+    payFailed: "No se pudo abrir el pago. Inténtalo de nuevo.",
+    securePay: "Pago seguro con tarjeta. Al terminar vuelves a este chat.",
   },
   en: {
     open: "Chat with us",
@@ -41,6 +50,11 @@ const TEXT = {
     errors: { closed: "Chat isn't available right now.", rate: "You're going fast. Wait a moment.", long: "That message is too long.", empty: "", failed: "Couldn't send. Please try again." },
     message: "Your message",
     typing: "Typing…",
+    agentStatus: (biz: string) => `${biz}'s AI agent · replies instantly`,
+    agentHello: "Hi! Tell me what you need and we'll get started.",
+    paying: "Opening checkout…",
+    payFailed: "Couldn't open checkout. Please try again.",
+    securePay: "Secure card payment. You'll come back to this chat when done.",
   },
 };
 
@@ -107,7 +121,9 @@ export default function ChatWidget({
   lang,
   pick,
   campaign,
+  agent,
 }: {
+  agent?: ChatAgent | null;
   pick?: string; // a service the visitor just picked above the chat
   campaign?: string; // the campaign whose link brought the visitor (already checked by the page)
   slug: string;
@@ -140,6 +156,44 @@ export default function ChatWidget({
   const ownerHere = ownerMsgs.length > 0 && lastReply?.role === "owner";
   const lastOwnerAt = ownerHere ? Date.parse(ownerMsgs[ownerMsgs.length - 1].at) : 0;
   const ownerRecent = ownerHere && Date.now() - lastOwnerAt < 10 * 60 * 1000;
+  // Only the newest "pay" message shows the buttons.
+  const payAt = agent ? msgs.reduce((at, m, i) => (m.role === "ai" && PAY.test(m.content) ? i : at), -1) : -1;
+  const [paying, setPaying] = useState("");
+
+  async function buy(offerId: string) {
+    if (!token || paying) return;
+    setError("");
+    setPaying(offerId);
+    try {
+      const res = await agentCheckoutAction({ slug, token, offerId });
+      if (res.url) {
+        window.location.href = res.url;
+        return;
+      }
+      setError(t.payFailed);
+    } catch {
+      setError(t.payFailed);
+    }
+    setPaying("");
+  }
+
+  // Back from Stripe: confirm the payment (checked with Stripe on the server).
+  useEffect(() => {
+    if (!agent) return;
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("agent_paid");
+    const saved = storeGet(key);
+    if (!sessionId || !saved) return;
+    params.delete("agent_paid");
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
+    setTimeout(() => rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+    agentClaimAction({ slug, token: saved, sessionId })
+      .then((res) => {
+        if (res.ok) setMsgs(res.messages);
+      })
+      .catch(() => {});
+  }, [agent, key, slug]);
 
   // Resume an earlier conversation on this device.
   useEffect(() => {
@@ -251,7 +305,7 @@ export default function ChatWidget({
 
   return (
     <div className="cw-inline" ref={rootRef} role="region" aria-label={t.open}>
-      <div className="cw-panel">
+      <div className={`cw-panel${agent ? " agent" : ""}`}>
           <div className={`cw-head ${ownerHere ? "owner" : ""}`}>
             {ownerHere ? (
               <Avatar src={ownerPhoto} name={ownerLabel} className="cw-avatar" />
@@ -259,16 +313,16 @@ export default function ChatWidget({
               <Avatar src={logoUrl} name={businessName} className="cw-avatar" />
             )}
             <div className="cw-head-text">
-              <div className="cw-name">{ownerHere ? `${ownerLabel} · ${businessName}` : t.title(businessName)}</div>
+              <div className="cw-name">{ownerHere ? `${ownerLabel} · ${businessName}` : agent ? agent.name : t.title(businessName)}</div>
               <div className="cw-status">
-                <span className="cw-dot" /> {ownerHere ? (ownerRecent ? t.online : t.talkingWith(ownerLabel)) : t.status}
+                <span className="cw-dot" /> {ownerHere ? (ownerRecent ? t.online : t.talkingWith(ownerLabel)) : agent ? t.agentStatus(businessName) : t.status}
               </div>
             </div>
           </div>
           <div className="cw-list" ref={listRef} aria-live="polite">
             <div className="cw-row cw-hello">
               <Avatar src={logoUrl} name={businessName} className="cw-mini" />
-              <div className="cw-msg ai">{t.hello(businessName)}</div>
+              <div className="cw-msg ai">{agent ? agent.greeting || t.agentHello : t.hello(businessName)}</div>
             </div>
             {msgs.map((m, i) => {
               const prev = msgs[i - 1];
@@ -290,10 +344,22 @@ export default function ChatWidget({
                   {showFrom && m.role === "ai" && msgs.slice(0, i).some((x) => x.role === "owner") && (
                     <div className="cw-from">
                       <Avatar src={logoUrl} name={businessName} className="cw-mini" />
-                      <span>{t.assistant(businessName)}</span>
+                      <span>{agent ? agent.name : t.assistant(businessName)}</span>
                     </div>
                   )}
-                  <div className={`cw-msg ${m.role}`}>{m.content.replace(/\*\*(.+?)\*\*/g, "$1")}</div>
+                  <div className={`cw-msg ${m.role}`}>{m.content.replace(PAY, "").replace(/\*\*(.+?)\*\*/g, "$1")}</div>
+                  {i === payAt && agent && agent.offers.length > 0 && (
+                    <div className="cw-offers">
+                      {agent.offers.map((o) => (
+                        <button key={o.id} type="button" className="cw-offer" disabled={Boolean(paying)} onClick={() => buy(o.id)}>
+                          <span className="cw-offer-title">{o.title}</span>
+                          {o.detail && <span className="cw-offer-detail">{o.detail}</span>}
+                          <span className="cw-offer-price">{paying === o.id ? t.paying : o.label}</span>
+                        </button>
+                      ))}
+                      <span className="cw-offer-note">{t.securePay}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -318,7 +384,7 @@ export default function ChatWidget({
               ref={inputRef}
               value={draft}
               rows={1}
-              maxLength={600}
+              maxLength={agent ? 2000 : 600}
               placeholder={t.placeholder}
               aria-label={t.message}
               onChange={(e) => setDraft(e.target.value)}

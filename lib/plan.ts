@@ -44,7 +44,14 @@ export type Profile = {
   notWant: string;
   goal: "extra" | "fulltime" | "";
   toolsReady: "yes" | "no" | "";
+  // C: an AI agent that delivers the service by itself
+  agentTask: string; // what the agent does for each customer, start to finish
+  agentKnowledge: string; // what the owner knows and will teach it (materials, method)
+  agentLimits: string; // what it must never do, and when the owner steps in
 };
+
+// C: the agent the strategy proposes (built later in Store).
+export type PlanAgent = { name: string; role: string; steps: string[]; limits: string[]; greeting: string };
 
 export type PriceRange = { low: string; mid: string; high: string; includes: string; note: string };
 export type Competitor = { name: string; url: string; offer: string; price: string; guarantee: string; languages: string };
@@ -79,7 +86,7 @@ export type ApprovalBlock = "service" | "pitch" | "packages" | "offer" | "campai
 export const APPROVAL_BLOCKS: ApprovalBlock[] = ["service", "pitch", "packages", "offer", "campaign", "faq"];
 
 export type BusinessPlan = {
-  mode: "existing" | "new" | "";
+  mode: "existing" | "new" | "agent" | "";
   stage: PlanStage;
   profile: Profile;
   market: Market;
@@ -104,6 +111,7 @@ export type BusinessPlan = {
   campaignType: string;
   channels: PlanChannel[];
   faq: Faq[];
+  agent: PlanAgent | null; // C only
   approvals: Partial<Record<ApprovalBlock, boolean>>;
   guard: { block: string[]; warn: string[] };
   // B: ideas the person turned down, and what they said they'd prefer.
@@ -152,6 +160,9 @@ export const EMPTY_PROFILE: Profile = {
   notWant: "",
   goal: "",
   toolsReady: "",
+  agentTask: "",
+  agentKnowledge: "",
+  agentLimits: "",
 };
 
 export const EMPTY_MARKET: Market = { prices: null, competitors: [], gaps: [], requirements: [], faq: [], sources: [], researchedAt: "", incomplete: [] };
@@ -179,6 +190,7 @@ export const EMPTY_PLAN: BusinessPlan = {
   campaignType: "",
   channels: [],
   faq: [],
+  agent: null,
   approvals: {},
   guard: { block: [], warn: [] },
   rejectedIdeas: [],
@@ -273,6 +285,9 @@ export function parseProfile(raw: unknown): Profile {
     notWant: str(p.notWant, 240),
     goal: oneOf(p.goal, ["extra", "fulltime"] as const),
     toolsReady: oneOf(p.toolsReady, ["yes", "no"] as const),
+    agentTask: str(p.agentTask, 600),
+    agentKnowledge: str(p.agentKnowledge, 1200),
+    agentLimits: str(p.agentLimits, 400),
   };
 }
 
@@ -359,6 +374,14 @@ export function parseIdeas(v: unknown): Idea[] {
     .slice(0, 5);
 }
 
+export function parsePlanAgent(raw: unknown): PlanAgent | null {
+  const a = obj(raw);
+  const name = str(a.name, 60);
+  const role = str(a.role, 200);
+  if (!name && !role) return null;
+  return { name, role, steps: list(a.steps, 8, 200), limits: list(a.limits, 8, 200), greeting: str(a.greeting, 300) };
+}
+
 export function parsePlan(raw: unknown): BusinessPlan {
   const o = obj(raw);
   const offer = obj(o.offer);
@@ -371,7 +394,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
   for (const b of APPROVAL_BLOCKS) if (ap[b] === true) approvals[b] = true;
   const chosen = num(o.chosenIdea, 0, 4);
   return {
-    mode: o.mode === "existing" || o.mode === "new" ? o.mode : "",
+    mode: o.mode === "existing" || o.mode === "new" || o.mode === "agent" ? o.mode : "",
     stage,
     profile: parseProfile(o.profile),
     market: parseMarket(o.market),
@@ -405,6 +428,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
       .filter((c) => c.channel)
       .slice(0, 4),
     faq: parseFaq(o.faq),
+    agent: parsePlanAgent(o.agent),
     approvals,
     guard: { block: list(g.block, 8, 240), warn: list(g.warn, 8, 240) },
     rejectedIdeas: list(o.rejectedIdeas, 20, 120),
@@ -430,7 +454,19 @@ export function missingProfile(plan: BusinessPlan): string[] {
   const need = (cond: boolean, key: string) => {
     if (cond) out.push(key);
   };
-  if (plan.stage === "interview" && plan.mode !== "new") {
+  if (plan.stage === "interview" && plan.mode === "agent") {
+    need(!p.mainService, "mainService (the service the agent will deliver, e.g. tutoring for the Texas electrician exam)");
+    need(!p.agentTask, "agentTask (what the agent does with each customer, start to finish)");
+    need(!p.exampleJob && p.yearsExperience === null, "exampleJob or yearsExperience (the owner's own experience with this)");
+    need(!p.typicalCustomer, "typicalCustomer");
+    need(!p.state, "state (where the owner lives)");
+    need(!p.remoteScope, "remoteScope (customers in the whole US = us, only their state = state, other countries too = world)");
+    need(!p.languages, "languages (es, en or both)");
+    need(!p.agentKnowledge, "agentKnowledge (what they know and will teach the agent: method, notes, materials)");
+    need(!p.agentLimits, "agentLimits (what the agent must never do, and when the owner should step in)");
+    need(!p.currentPrice, "currentPrice (what they charge or would like to charge, a guess is fine)");
+    need(!p.businessName, "businessName");
+  } else if (plan.stage === "interview" && plan.mode !== "new") {
     need(!p.mainService, "mainService");
     need(!p.exampleJob, "exampleJob (a recent real job)");
     need(!p.city || !p.state, "city and state");

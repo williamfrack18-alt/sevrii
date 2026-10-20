@@ -1,5 +1,7 @@
 // Writes an approved Brain expediente into the store page (see planToStore.ts).
-import { addChatMessage, addService, deleteService, getBusinessById, listServices, mergeBusinessSite, updateBusinessDetails, type BusinessRow } from "./db";
+import { addChatMessage, addService, deleteService, getBusinessById, listServices, mergeBusinessSite, setServiceAgent, updateBusinessDetails, type BusinessRow } from "./db";
+import { EMPTY_AGENT, parseServiceAgent, type AgentOffer, type ServiceAgent } from "./serviceAgentConfig";
+import type { BusinessPlan } from "./plan";
 import { normalizePhone, type SiteData } from "./site";
 import { planFingerprint, planReadyForStore, storeFromPlan } from "./planToStore";
 
@@ -12,6 +14,9 @@ export type FillResult = { filled: boolean; business?: BusinessRow };
 export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { onlyIfEmpty?: boolean } = {}): Promise<FillResult> {
   const b = await getBusinessById(businessId);
   if (!b || !planReadyForStore(b.plan)) return { filled: false };
+  // C: the agent the strategy proposed becomes the first draft of the agent
+  // in Store (only while the owner hasn't started one).
+  if (b.plan.mode === "agent" && !b.serviceAgent.name && b.plan.agent) await setServiceAgent(b.id, agentFromPlan(b.plan));
   const services = await listServices(b.id);
   if (opts.onlyIfEmpty && (services.length > 0 || b.site.headline)) return { filled: false };
 
@@ -96,4 +101,51 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
     ? es ? "Las fotos y el video me los puedes mandar aquí mismo con el botón +." : "You can send me the photos and the video right here with the + button."
     : es ? "Dímelo aquí." : "Tell me here.";
   return `${built} ${es ? `Para que quede completa me falta ${list}.` : `To finish it I still need ${list}.`} ${how}`;
+}
+
+// "$29/mes", "desde $15", "$40 por sesión de 3 días" → an offer the chat can sell.
+function offerFromPackage(p: BusinessPlan["packages"][number], i: number): AgentOffer | null {
+  const text = `${p.name} ${p.price} ${p.includes}`;
+  const m = /\$\s?(\d{1,4}(?:[.,]\d{2})?)/.exec(p.price) || /\$\s?(\d{1,4}(?:[.,]\d{2})?)/.exec(text);
+  if (!m) return null;
+  const cents = Math.round(Number(m[1].replace(",", ".")) * 100);
+  const monthly = /\b(mes|mensual|month|monthly)\b/i.test(text);
+  const days = /(\d{1,3})\s*(d[ií]as?|days?)\b/i.exec(text);
+  const hours = /(\d{1,3})\s*(horas?|hours?|hrs?)\b/i.exec(text);
+  return parseServiceAgent({
+    offers: [
+      {
+        id: `o${i + 1}`,
+        title: p.name,
+        detail: p.includes,
+        priceCents: cents,
+        billing: monthly ? "monthly" : "once",
+        hours: days ? Number(days[1]) * 24 : hours ? Number(hours[1]) : 24,
+      },
+    ],
+  }).offers[0] ?? null;
+}
+
+export function agentFromPlan(plan: BusinessPlan): ServiceAgent {
+  const a = plan.agent;
+  const p = plan.profile;
+  const steps = a?.steps.length ? a.steps : plan.steps;
+  const instructions = [
+    plan.service ? `Servicio: ${plan.service}.` : "",
+    plan.customer ? `Clientes: ${plan.customer}.` : "",
+    p.agentTask ? `Qué haces con cada cliente: ${p.agentTask}` : "",
+    steps.length ? `Pasos:\n${steps.map((x, i) => `${i + 1}. ${x}`).join("\n")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return parseServiceAgent({
+    ...EMPTY_AGENT,
+    name: a?.name || plan.service,
+    role: a?.role || plan.serviceIncludes,
+    instructions,
+    knowledge: p.agentKnowledge,
+    limits: a?.limits.length ? a.limits : p.agentLimits ? [p.agentLimits] : [],
+    greeting: a?.greeting || "",
+    offers: plan.packages.map(offerFromPackage).filter(Boolean),
+  });
 }

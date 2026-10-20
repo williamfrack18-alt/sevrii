@@ -11,12 +11,14 @@ import {
   updateBusinessDetails,
   updateBusinessWhatsapp,
   updateService,
+  setServiceAgent,
   type BusinessRow,
   type ServiceRow,
 } from "./db";
 import { LIMITS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
 import { planFingerprint } from "./planToStore";
+import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, parseServiceAgent } from "./serviceAgentConfig";
 
 // The Store tab is one chat. This agent interviews the owner for exactly the
 // data the conversion template needs (services and prices, offer, photos,
@@ -117,6 +119,51 @@ const TOOLS: Tool[] = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "update_agent",
+    description:
+      "Service agent only: change the AI agent that delivers the owner's service in the page chat. Send only what changes. enabled=true switches it on in the page chat (only after the owner clearly says yes).",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "The agent's name, e.g. 'Tutor Kevin IA'" },
+        role: { type: "string", description: "One line: what it does for each customer" },
+        instructions: { type: "string", description: "Its method, step by step (replaces the old one)" },
+        knowledgeAdd: { type: "string", description: "Owner's notes/materials to ADD to what the agent knows (keep the owner's own words)" },
+        knowledgeReplace: { type: "string", description: "Replace everything the agent knows (only if the owner asks)" },
+        limits: { type: "array", items: { type: "string" }, description: "What it must never do / when the owner steps in (replaces the list)" },
+        greeting: { type: "string", description: "Its first message; must say it's an AI agent" },
+        freeReplies: { type: "number", description: "Free replies before paying (0-10)" },
+        enabled: { type: "boolean" },
+      },
+    },
+  },
+  {
+    name: "set_agent_offers",
+    description: "Service agent only: what customers can buy to use the agent (replaces all offers). Prices in USD, at least $15.",
+    input_schema: {
+      type: "object",
+      properties: {
+        offers: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              detail: { type: "string", description: "What they get, one line" },
+              priceUsd: { type: "number" },
+              billing: { type: "string", enum: ["once", "monthly"] },
+              days: { type: "number", description: "once: days of access (use hours for less than a day)" },
+              hours: { type: "number" },
+              replies: { type: "number", description: "Replies included (optional)" },
+            },
+            required: ["title", "priceUsd", "billing"],
+          },
+        },
+      },
+      required: ["offers"],
+    },
+  },
+  {
     name: "publish_page",
     description: "Publish (or unpublish) the page. Only after the owner clearly says yes.",
     input_schema: { type: "object", properties: { publish: { type: "boolean" } }, required: ["publish"] },
@@ -142,6 +189,7 @@ How to work:
 - When the essentials are done (services with prices, the owner's name, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
 - If the owner asks for something the page can't do, say so briefly.
 - "brainPlan" is the strategy the owner already made with Sevrii's Brain (service, customer, promise, differentiators, packages with prices, offer). Use it: propose the headline from the promise, key points from the differentiators and services from the packages, and confirm with the owner instead of asking from scratch. If the plan offer has forNewClients=true, use it without a date. Otherwise, if it has no endsAt, ask for a real end date before adding it to the page; if it has one, use that date.
+- Service agent ("agent" in the state, when the owner is creating one): the page chat becomes their AI agent that delivers the service by itself and charges for access. Help them finish it before publishing: its name and one-line role; its method step by step (instructions); what it knows (ask them to paste their notes, rules, answers to common questions — save them with knowledgeAdd in their own words, never invent facts); its limits (always: it says it's an AI, never promises results, the owner handles refunds and cases outside the service); its greeting; how many free replies (3 is a good start); and what customers buy (set_agent_offers: one-time access for N days and/or monthly, each $15 or more). If "agent.paymentsReady" is false, tell them once that to charge they must connect Payments (left menu) — until then the agent only gives the free replies and then passes the chat to them. Then ask if they want to switch it on (update_agent enabled=true) and suggest testing it themselves on "Ver borrador" (as the owner they can chat for free). The page itself still needs a headline, a photo of the owner and publishing like any page.
 - Keep every reply under 70 words. No markdown headings, no bullet lists longer than 4 items.`;
 
 export type StoreChatResult = { reply: string; business: BusinessRow; services: ServiceRow[] };
@@ -155,6 +203,18 @@ function pageState(b: BusinessRow, services: ServiceRow[]) {
     services: services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description, featured: Boolean(s.featured), tag: s.tag ?? null })),
     missing: missingForSales({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length, pricedServices: priced }),
     publishBlockers: publishGaps({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length }),
+    ...(b.plan.mode === "agent" || b.serviceAgent.name
+      ? {
+          agent: {
+            ...b.serviceAgent,
+            knowledge: b.serviceAgent.knowledge.slice(0, 1500),
+            knowledgeChars: b.serviceAgent.knowledge.length,
+            offers: b.serviceAgent.offers.map((o) => ({ ...o, label: offerPriceLabel(o, b.site.lang) })),
+            missing: agentMissing(b.serviceAgent),
+            paymentsReady: b.payStatus === "ready",
+          },
+        }
+      : {}),
   };
 }
 
@@ -265,6 +325,43 @@ async function runTool(
       if (!cur.videoUrl) return "there is no video on the page";
       await mergeBusinessSite(b.id, cur, { videoUrl: "" });
       return "video removed from the page";
+    }
+    case "update_agent": {
+      const a = b.serviceAgent;
+      const next = { ...a };
+      if (typeof input.name === "string") next.name = input.name;
+      if (typeof input.role === "string") next.role = input.role;
+      if (typeof input.instructions === "string") next.instructions = input.instructions;
+      if (typeof input.knowledgeReplace === "string") next.knowledge = input.knowledgeReplace;
+      if (typeof input.knowledgeAdd === "string" && input.knowledgeAdd.trim()) next.knowledge = `${next.knowledge ? `${next.knowledge}\n\n` : ""}${input.knowledgeAdd.trim()}`;
+      if (Array.isArray(input.limits)) next.limits = input.limits.filter((x): x is string => typeof x === "string");
+      if (typeof input.greeting === "string") next.greeting = input.greeting;
+      if (typeof input.freeReplies === "number") next.freeReplies = input.freeReplies;
+      const notes: string[] = [];
+      if (next.knowledge.length > AGENT_LIMITS.knowledge) notes.push(`knowledge was cut to ${AGENT_LIMITS.knowledge} characters`);
+      if (typeof input.enabled === "boolean") {
+        const missing = agentMissing(parseServiceAgent(next));
+        if (input.enabled && missing.length) notes.push(`not switched on, missing: ${missing.join(", ")}`);
+        else next.enabled = input.enabled;
+      }
+      const saved = parseServiceAgent(next);
+      await setServiceAgent(b.id, saved);
+      if (saved.enabled && !a.enabled) notes.push(b.payStatus === "ready" && saved.offers.length ? "switched on: the page chat is now the agent" : "switched on: the page chat is now the agent, but it can't charge yet (no offers or Payments not connected): after the free replies it passes the chat to the owner");
+      return `saved${notes.length ? `; ${notes.join("; ")}` : ""}`;
+    }
+    case "set_agent_offers": {
+      const list = Array.isArray(input.offers) ? input.offers : [];
+      const notes: string[] = [];
+      const offers = list.slice(0, AGENT_LIMITS.offers).map((x, i) => {
+        const o = (x ?? {}) as Record<string, unknown>;
+        const cents = Math.round(Number(o.priceUsd) * 100);
+        if (!(cents >= AGENT_MIN_CENTS)) notes.push(`"${String(o.title ?? "").slice(0, 40)}" left out: the minimum price is $15`);
+        const hours = Number(o.days) > 0 ? Number(o.days) * 24 : Number(o.hours) > 0 ? Number(o.hours) : 24;
+        return { id: `o${i + 1}`, title: o.title, detail: o.detail ?? "", priceCents: cents, billing: o.billing === "monthly" ? "monthly" : "once", hours, ...(Number(o.replies) > 0 ? { replies: Number(o.replies) } : {}) };
+      });
+      const saved = parseServiceAgent({ ...b.serviceAgent, offers });
+      await setServiceAgent(b.id, saved);
+      return `saved ${saved.offers.length} offer(s)${notes.length ? `; ${notes.join("; ")}` : ""}${b.payStatus === "ready" ? "" : "; Payments isn't connected yet, so customers can't pay until the owner connects it"}`;
     }
     case "publish_page": {
       if (input.publish && !ctx.canPublish) {
@@ -385,6 +482,11 @@ export async function runStoreChatTurn(opts: {
 // First message when the chat is empty — no AI call needed.
 export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number): string {
   const es = lang === "es";
+  if (b.plan.mode === "agent" && b.serviceAgent.name && !b.serviceAgent.enabled) {
+    return es
+      ? `¡Hola! Ya armé el primer borrador de tu agente, "${b.serviceAgent.name}", con tu estrategia del Cerebro. Para que trabaje bien necesita tu conocimiento: pégame aquí tus apuntes, reglas o respuestas a las preguntas que más te hacen, y lo dejo listo para probarlo.`
+      : `Hi! I built the first draft of your agent, "${b.serviceAgent.name}", from your Brain strategy. To work well it needs your knowledge: paste your notes, rules or answers to the questions you get most, and I'll get it ready to test.`;
+  }
   if (b.plan.service && b.plan.packages.length > 0 && b.site.fromPlan !== planFingerprint(b.plan)) {
     return es
       ? `¡Hola! Ya tengo la estrategia que armaste en el Cerebro para "${b.plan.service}". Con eso armo la página de ${b.name}: título, puntos clave y tus paquetes con precio. ¿La armo así y luego la revisamos juntos?`

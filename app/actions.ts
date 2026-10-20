@@ -151,10 +151,10 @@ function carriedSite(prev: BusinessRow | null): Partial<SiteData> {
 
 // Start a project from the two buttons on /start. The Brain does the rest:
 // no fixed questions here any more.
-export async function startProjectAction(mode: "existing" | "new", newProject?: boolean) {
+export async function startProjectAction(mode: "existing" | "new" | "agent", newProject?: boolean) {
   const { userId, previous } = await checkNewProject(newProject);
   const lang = await getLang();
-  const m = mode === "new" ? "new" : "existing";
+  const m = mode === "new" ? "new" : mode === "agent" ? "agent" : "existing";
   let slug = "";
   for (let i = 0; i < 5 && (!slug || (await isSlugTaken(slug))); i++) slug = `proyecto-${randomBytes(4).toString("hex")}`;
   const prev = previous?.plan.profile;
@@ -173,7 +173,14 @@ export async function startProjectAction(mode: "existing" | "new", newProject?: 
       mode: m,
       stage: "interview",
       // Same person: where they work and the languages they speak carry over.
-      profile: { ...EMPTY_PLAN.profile, city: prev?.city ?? "", state: prev?.state ?? "", languages: prev?.languages ?? "" },
+      profile: {
+        ...EMPTY_PLAN.profile,
+        city: prev?.city ?? "",
+        state: prev?.state ?? "",
+        languages: prev?.languages ?? "",
+        // An agent always works online, in the page chat.
+        ...(m === "agent" ? { serviceMode: "remote" as const } : {}),
+      },
     },
   });
   await setActiveProject(business.id);

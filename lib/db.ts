@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { ownsBlob, parseSite, type SiteData } from "./site";
 import { parseMarketing, parseCampaignSpec, type MarketingData, type CampaignSpec } from "./marketing";
 import { parsePlan, type BusinessPlan } from "./plan";
+import { parseServiceAgent, type ServiceAgent } from "./serviceAgentConfig";
 
 // The Neon Vercel integration injects several connection-string env vars;
 // POSTGRES_URL / DATABASE_URL are the pooled connection, which is what a
@@ -404,6 +405,31 @@ async function migrate(): Promise<void> {
           "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
         )
       `;
+      // Service agents: the AI that delivers the owner's service in the page
+      // chat, and what customers paid for to use it.
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "serviceAgent" JSONB NOT NULL DEFAULT '{}'::jsonb`;
+      await sql`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "agentFree" INTEGER NOT NULL DEFAULT 0`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS agent_access (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          "conversationId" TEXT NOT NULL,
+          "sessionId" TEXT NOT NULL UNIQUE,
+          "subscriptionId" TEXT,
+          "offerId" TEXT NOT NULL,
+          title TEXT NOT NULL,
+          billing TEXT NOT NULL,
+          "amountCents" INTEGER NOT NULL,
+          "replyLimit" INTEGER NOT NULL,
+          "repliesUsed" INTEGER NOT NULL DEFAULT 0,
+          email TEXT,
+          status TEXT NOT NULL DEFAULT 'active',
+          "endsAt" TIMESTAMPTZ NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS agent_access_conv_idx ON agent_access ("conversationId", "endsAt")`;
+      await sql`CREATE INDEX IF NOT EXISTS agent_access_biz_idx ON agent_access ("businessId", "createdAt")`;
     }
   }
 }
@@ -555,6 +581,7 @@ export type BusinessRow = {
   site: SiteData;
   marketing: MarketingData;
   plan: BusinessPlan;
+  serviceAgent: ServiceAgent;
   marketCategory: string | null;
   stripeAccountId?: string | null;
   payStatus?: string;
@@ -570,6 +597,7 @@ function toBusiness(row: Record<string, unknown> | undefined): BusinessRow | und
     site: parseSite(row.site),
     marketing: parseMarketing(row.marketing),
     plan: parsePlan(row.plan),
+    serviceAgent: parseServiceAgent(row.serviceAgent),
   };
 }
 
@@ -625,6 +653,7 @@ export async function createBusiness(input: {
     site,
     marketing: parseMarketing({}),
     plan,
+    serviceAgent: parseServiceAgent({}),
     marketCategory: null,
     createdAt,
   };
@@ -1441,6 +1470,7 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM campaigns WHERE "businessId" = ${id}`;
   await sql`DELETE FROM campaign_events WHERE "businessId" = ${id}`;
   await sql`DELETE FROM agent_items WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM agent_access WHERE "businessId" = ${id}`;
   await sql`DELETE FROM marketing_posts WHERE "businessId" = ${id}`;
   await sql`DELETE FROM meta_connections WHERE "businessId" = ${id}`;
   await sql`DELETE FROM chat_messages WHERE "businessId" = ${id}`;
@@ -1471,6 +1501,7 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM campaigns WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM campaign_events WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM agent_items WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM agent_access WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM marketing_posts WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM meta_connections WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM chat_messages WHERE "businessId" = ANY(${ids})`;
@@ -1537,6 +1568,7 @@ export type ConversationRow = {
   handoff: boolean;
   ownerUnread: number;
   aiReplies: number;
+  agentFree: number;
   lastMessage: string;
   lastMessageAt: string;
   visitorSeenAt: string;
@@ -1557,6 +1589,7 @@ function convRow(r: Record<string, unknown>): ConversationRow {
     handoff: Boolean(r.handoff),
     ownerUnread: Number(r.ownerUnread ?? 0),
     aiReplies: Number(r.aiReplies ?? 0),
+    agentFree: Number(r.agentFree ?? 0),
     lastMessage: String(r.lastMessage ?? ""),
     lastMessageAt: iso(r.lastMessageAt),
     visitorSeenAt: iso(r.visitorSeenAt),
@@ -1925,4 +1958,109 @@ export async function listAgentBusinesses(limit = 200): Promise<{ id: string; us
     WHERE "agentRanAt" IS NOT NULL ORDER BY "agentRanAt" ASC LIMIT ${limit}
   `) as Record<string, unknown>[];
   return rows.map((r) => ({ id: r.id as string, userId: r.userId as string, agentRanAt: iso(r.agentRanAt) }));
+}
+
+// ---------- Service agents ----------
+export async function setServiceAgent(businessId: string, agent: ServiceAgent): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET "serviceAgent" = ${JSON.stringify(parseServiceAgent(agent))}::jsonb WHERE id = ${businessId}`;
+}
+
+// One free reply for a customer who hasn't paid (false when they used them all).
+export async function claimAgentFree(conversationId: string, max: number): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE conversations SET "agentFree" = "agentFree" + 1
+    WHERE id = ${conversationId} AND "aiEnabled" AND "agentFree" < ${max}
+    RETURNING id
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+export type AgentAccessRow = {
+  id: string;
+  businessId: string;
+  conversationId: string;
+  sessionId: string;
+  subscriptionId: string | null;
+  offerId: string;
+  title: string;
+  billing: "once" | "monthly";
+  amountCents: number;
+  replyLimit: number;
+  repliesUsed: number;
+  email: string | null;
+  status: string;
+  endsAt: string;
+  createdAt: string;
+};
+
+function accessRow(r: Record<string, unknown>): AgentAccessRow {
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : "");
+  return {
+    id: String(r.id),
+    businessId: String(r.businessId),
+    conversationId: String(r.conversationId),
+    sessionId: String(r.sessionId),
+    subscriptionId: r.subscriptionId ? String(r.subscriptionId) : null,
+    offerId: String(r.offerId),
+    title: String(r.title),
+    billing: r.billing === "monthly" ? "monthly" : "once",
+    amountCents: Number(r.amountCents) || 0,
+    replyLimit: Number(r.replyLimit) || 0,
+    repliesUsed: Number(r.repliesUsed) || 0,
+    email: r.email ? String(r.email) : null,
+    status: String(r.status),
+    endsAt: iso(r.endsAt),
+    createdAt: iso(r.createdAt),
+  };
+}
+
+// Saves a paid access once per Stripe session (null if it was already saved).
+export async function addAgentAccess(a: Omit<AgentAccessRow, "id" | "repliesUsed" | "status" | "createdAt">): Promise<AgentAccessRow | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO agent_access (id, "businessId", "conversationId", "sessionId", "subscriptionId", "offerId", title, billing, "amountCents", "replyLimit", email, "endsAt")
+    VALUES (${newId()}, ${a.businessId}, ${a.conversationId}, ${a.sessionId}, ${a.subscriptionId}, ${a.offerId}, ${a.title}, ${a.billing}, ${a.amountCents}, ${a.replyLimit}, ${a.email}, ${a.endsAt})
+    ON CONFLICT ("sessionId") DO NOTHING
+    RETURNING *
+  `) as Record<string, unknown>[];
+  return rows[0] ? accessRow(rows[0]) : null;
+}
+
+// The newest access of this chat that is still on (or a monthly one to re-check).
+export async function latestAgentAccess(conversationId: string): Promise<AgentAccessRow | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM agent_access WHERE "conversationId" = ${conversationId} AND status = 'active'
+    ORDER BY "endsAt" DESC LIMIT 1
+  `) as Record<string, unknown>[];
+  return rows[0] ? accessRow(rows[0]) : null;
+}
+
+// Uses one reply of a paid access (false when it ran out or expired).
+export async function useAgentReply(accessId: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE agent_access SET "repliesUsed" = "repliesUsed" + 1
+    WHERE id = ${accessId} AND status = 'active' AND "repliesUsed" < "replyLimit" AND "endsAt" > now()
+    RETURNING id
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+// A monthly access renewed (new period: replies start over) or ended.
+export async function renewAgentAccess(accessId: string, endsAt: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE agent_access SET "endsAt" = ${endsAt}, "repliesUsed" = 0 WHERE id = ${accessId}`;
+}
+export async function endAgentAccess(accessId: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE agent_access SET status = 'ended' WHERE id = ${accessId}`;
+}
+
+export async function listAgentAccess(businessId: string, limit = 50): Promise<AgentAccessRow[]> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM agent_access WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT ${limit}`) as Record<string, unknown>[];
+  return rows.map(accessRow);
 }

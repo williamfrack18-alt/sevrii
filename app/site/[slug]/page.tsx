@@ -13,6 +13,7 @@ import { reachLabel, resolveReach } from "@/lib/reach";
 import { activeOffer, storeTheme } from "@/lib/site";
 import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, type MediaItem } from "./StoreParts";
 import { ChatJump } from "./ChatWidget";
+import { agentMissing, offerPriceLabel } from "@/lib/serviceAgentConfig";
 import "./store.css";
 
 // A page is public only while it's published AND its owner's plan includes publishing
@@ -122,6 +123,19 @@ export default async function PublicBusinessPage({
 
   const offer = activeOffer(site);
   // Where they work: their own words first, else the service area they set.
+  // The page chat is the owner's service agent when it's switched on.
+  const sa = business.serviceAgent;
+  const chatAgent =
+    sa.enabled && agentMissing(sa).length === 0
+      ? {
+          name: sa.name,
+          greeting: sa.greeting,
+          offers:
+            business.payStatus === "ready" && business.stripeAccountId
+              ? sa.offers.map((o) => ({ id: o.id, title: o.title, detail: o.detail, label: offerPriceLabel(o, site.lang) }))
+              : [],
+        }
+      : null;
   const reach = resolveReach(site, business.city, business.plan.profile);
   const area = site.serviceArea || reachLabel(reach, site.lang) || business.city || "";
   const mainTitle = site.headline || business.category || business.name;
@@ -354,7 +368,7 @@ export default async function PublicBusinessPage({
                 const link = payFor(s.name);
                 return { id: s.id, name: s.name, price: s.price ?? "", payHref: link ? `/pay/${link.id}` : undefined };
               })}
-              chat={site.chat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang, campaign: campaign || undefined } : null}
+              chat={site.chat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang, campaign: campaign || undefined, agent: chatAgent } : null}
               ctaNote={site.ctaNote}
               lang={site.lang}
               labels={{ chooseLabel: t.chooseLabel, selected: t.selected, priceOnRequest: t.priceOnRequest, payNow: t.payNow }}

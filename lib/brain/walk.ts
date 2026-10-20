@@ -44,17 +44,23 @@ const INTRO: Record<Lang, Record<ApprovalBlock, string>> = {
 };
 
 // The message that shows the next part to review (or null when none is left).
+const AGENT_INTRO: Record<Lang, string> = {
+  es: "Empecemos por tu agente: qué servicio da, cómo trabaja con cada cliente y qué no hace nunca. ¿Así está bien?",
+  en: "Let's start with your agent: what service it gives, how it works with each customer and what it never does. Does this look right?",
+};
+const introFor = (p: BusinessPlan, b: ApprovalBlock, lang: Lang) => (p.mode === "agent" && b === "service" ? AGENT_INTRO[lang] : INTRO[lang][b]);
+
 export function nextPartMessage(p: BusinessPlan, lang: Lang): string | null {
   const b = firstPending(p);
   if (!b) return null;
-  return `${INTRO[lang][b]}\n\n${partToken(b)}`;
+  return `${introFor(p, b, lang)}\n\n${partToken(b)}`;
 }
 
 // What each part is made of, to notice when the chat changed it.
 export function partSignature(p: BusinessPlan, b: ApprovalBlock): string {
   switch (b) {
     case "service":
-      return JSON.stringify([p.service, p.serviceIncludes, p.serviceExcludes, p.steps, p.customer, p.problem]);
+      return JSON.stringify([p.service, p.serviceIncludes, p.serviceExcludes, p.steps, p.customer, p.problem, p.agent]);
     case "pitch":
       return JSON.stringify([p.promise, p.differentiators]);
     case "packages":
@@ -77,7 +83,7 @@ export function cardAfterTurn(before: BusinessPlan, after: BusinessPlan, lang: L
   const was = firstPending(before);
   // Reopened from an approved plan: just the changed part, no "next part" intro.
   if (before.stage !== "proposal") return partToken(now);
-  if (was !== now) return `${INTRO[lang][now]}\n\n${partToken(now)}`;
+  if (was !== now) return `${introFor(after, now, lang)}\n\n${partToken(now)}`;
   return partSignature(before, now) !== partSignature(after, now) ? partToken(now) : null;
 }
 

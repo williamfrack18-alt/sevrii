@@ -314,7 +314,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
                         <span className="text-[11.5px] text-[#6b6b6b] shrink-0">{when(c.lastMessageAt, lang)}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                        <span className={`min-w-0 text-[13.5px] md:text-[13px] truncate ${c.ownerUnread ? "text-[#bdbdbd]" : "text-[#737373]"}`}>{c.lastMessage}</span>
+                        <span className={`min-w-0 text-[13.5px] md:text-[13px] truncate ${c.ownerUnread ? "text-[#bdbdbd]" : "text-[#737373]"}`}>{c.lastMessage.replace(/\s*\[\[pay\]\]\s*$/, "")}</span>
                         {c.handoff && <span className="ml-auto shrink-0 text-[11px] text-[#e0b54a]">{t.needsYou}</span>}
                         {!c.handoff && c.ownerUnread > 0 && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
                       </div>
@@ -395,7 +395,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
                                   : { background: "transparent", color: "#d4d4d4", borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)" }
                             }
                           >
-                            {m.content.replace(/\*\*(.+?)\*\*/g, "$1")}
+                            {m.content.replace(/\s*\[\[pay\]\]\s*$/, "").replace(/\*\*(.+?)\*\*/g, "$1")}
                           </div>
                         </div>
                       );
