@@ -28,7 +28,14 @@ function task(kind: ResearchKind, plan: BusinessPlan, lang: Lang): string {
   const service = plan.service || p.mainService || "";
   const remote = p.serviceMode === "remote";
   // Remote services compete nationally (online), local ones in their city.
-  const place = remote ? (p.remoteScope === "world" ? "línea (clientes de EE. UU. y de otros países)" : "línea, para clientes de todo EE. UU.") : `${p.city}${p.state ? ", " + p.state : ""}`;
+  const oneState = remote && p.remoteScope === "state" && p.state;
+  const place = remote
+    ? p.remoteScope === "world"
+      ? "línea (clientes de EE. UU. y de otros países)"
+      : oneState
+        ? `línea, solo para clientes de ${p.state} (el servicio depende de las reglas de ese estado)`
+        : "línea, para clientes de todo EE. UU."
+    : `${p.city}${p.state ? ", " + p.state : ""}`;
   const where = remote ? `en ${place}` : `en ${place}, EE. UU.`;
   // Permits and registration depend on the owner's state even for online work.
   const reqWhere = remote ? `en ${p.state || "su estado"}, EE. UU. (servicio en línea)` : where;
@@ -42,7 +49,7 @@ Forma: {"low":"$…","mid":"$…","high":"$…","includes":"qué suele incluir e
 ${out}`;
     case "competitors":
       return `Tarea: COMPETENCIA de "${service}" ${where}.
-${remote ? "Busca los 3 a 5 negocios o freelancers que aparecen primero para ese servicio en línea en EE. UU. (no directorios). Lee sus páginas." : "Busca los 3 a 5 negocios que aparecen primero para ese servicio en esa ciudad (no directorios). Lee sus páginas."}
+${remote ? `Busca los 3 a 5 negocios o freelancers que aparecen primero para ese servicio en línea${oneState ? ` para clientes de ${p.state}` : " en EE. UU."} (no directorios). Lee sus páginas.` : "Busca los 3 a 5 negocios que aparecen primero para ese servicio en esa ciudad (no directorios). Lee sus páginas."}
 Forma: {"competitors":[{"name":"…","url":"…","offer":"qué ofrecen, en una línea","price":"precio publicado o 'no publica'","guarantee":"garantía que anuncian o 'no menciona'","languages":"idiomas que anuncian"}],"gaps":["algo que ninguno ofrece o comunica bien"],"sources":[{"title":"…","url":"…"}]}
 ${out}`;
     case "requirements":
@@ -82,7 +89,7 @@ export async function runResearch(kind: ResearchKind, plan: BusinessPlan, lang: 
   const location =
     local && p.city
       ? { type: "approximate" as const, city: p.city.slice(0, 60), ...(p.state ? { region: p.state } : {}), country: "US" }
-      : { type: "approximate" as const, ...(!local && p.state && kind === "requirements" ? { region: p.state } : {}), country: "US" };
+      : { type: "approximate" as const, ...(!local && p.state && (kind === "requirements" || p.remoteScope === "state") ? { region: p.state } : {}), country: "US" };
   const search: ToolUnion = { type: "web_search_20260318", name: "web_search", max_uses: 3, allowed_callers: ["direct"], user_location: location };
   const fetchTool: ToolUnion = { type: "web_fetch_20260318", name: "web_fetch", max_uses: 4, max_content_tokens: 6000, allowed_callers: ["direct"] };
   const seen = new SeenPages();

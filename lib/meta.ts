@@ -272,6 +272,25 @@ async function createCreative(
   return cr.id;
 }
 
+// Meta's id for a US state ("TX" → its region key), or "" if not found.
+async function stateRegionKey(code: string, token: string): Promise<string> {
+  const { US_STATES } = await import("./geo");
+  const name = US_STATES[code.toUpperCase()];
+  if (!name) return "";
+  try {
+    const res = await graph<{ data?: { key?: string; name?: string; country_code?: string; type?: string }[] }>(
+      "GET",
+      "search",
+      { type: "adgeolocation", location_types: JSON.stringify(["region"]), q: name, country_code: "US", limit: "5" },
+      token
+    );
+    const hit = (res.data ?? []).find((r) => r.type === "region" && r.country_code === "US" && r.name?.toLowerCase() === name.toLowerCase());
+    return hit?.key ? String(hit.key) : "";
+  } catch {
+    return "";
+  }
+}
+
 export async function launchCampaign(
   conn: MetaConnectionRow,
   business: BusinessRow,
@@ -302,6 +321,10 @@ export async function launchCampaign(
     const min = special.length ? 15 : 1;
     const radius = clamp(Math.round(spec.radiusMiles || site.reachRadius || 10), min, 50);
     geo = { custom_locations: [{ latitude: site.baseLat, longitude: site.baseLon, radius, distance_unit: "mile" }] };
+  } else if (site.reachMode === "remote" && site.reachScope === "state" && site.baseState) {
+    // One state only (e.g. a state license): Meta needs its own key for the state.
+    const key = await stateRegionKey(site.baseState, token);
+    if (key) geo = { regions: [{ key }] };
   }
   const targeting = {
     geo_locations: geo,

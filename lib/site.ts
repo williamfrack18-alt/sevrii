@@ -16,7 +16,7 @@ export type SiteData = {
   ownerName: string; // how customers see the owner in the chat ("Carlos")
   // Where the service is offered (the marketplace filters by it):
   reachMode: "" | "local" | "remote"; // in person in an area, or online from anywhere
-  reachScope: "us" | "world"; // remote: the whole US, or other countries too
+  reachScope: "us" | "state" | "world"; // remote: the whole US, only baseState, or other countries too
   reachRadius: number; // local: miles around the base
   baseCity: string; // local: "Miami"
   baseState: string; // "FL"
@@ -194,7 +194,7 @@ export function parseSite(raw: unknown): SiteData {
     notifyEmail: obj.notifyEmail === undefined ? true : Boolean(obj.notifyEmail),
     ownerName: str(obj.ownerName, 40),
     reachMode: obj.reachMode === "local" || obj.reachMode === "remote" ? obj.reachMode : "",
-    reachScope: obj.reachScope === "world" ? "world" : "us",
+    reachScope: obj.reachScope === "world" || obj.reachScope === "state" ? obj.reachScope : "us",
     reachRadius: typeof obj.reachRadius === "number" && obj.reachRadius >= 1 && obj.reachRadius <= 300 ? Math.round(obj.reachRadius) : 25,
     baseCity: str(obj.baseCity, 60),
     baseState: str(obj.baseState, 2).toUpperCase(),

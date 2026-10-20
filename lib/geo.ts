@@ -59,7 +59,7 @@ export const US_STATES: Record<string, string> = {
 };
 const STATE_BY_NAME = new Map(Object.entries(US_STATES).map(([code, name]) => [norm(name), code]));
 
-function stateCode(s: string): string | null {
+export function stateCode(s: string): string | null {
   const t = s.trim();
   if (/^[A-Za-z]{2}$/.test(t) && US_STATES[t.toUpperCase()]) return t.toUpperCase();
   return STATE_BY_NAME.get(norm(t)) ?? null;

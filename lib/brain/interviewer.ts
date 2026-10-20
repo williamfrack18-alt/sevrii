@@ -76,7 +76,11 @@ const PROFILE_PROPS: Record<string, unknown> = {
     enum: ["local", "remote"],
     description: "local = done in person in an area (cleaning, moving, repairs, beauty at home). remote = can be done online from anywhere (video editing, design, bookkeeping, tutoring online).",
   },
-  remoteScope: { type: "string", enum: ["us", "world"], description: "Remote only: customers anywhere in the US (us) or also in other countries (world)" },
+  remoteScope: {
+    type: "string",
+    enum: ["us", "state", "world"],
+    description: "Remote only: customers anywhere in the US (us), only in their own state (state: e.g. helping people get a Texas license, state-specific taxes or paperwork; save their state too) or also in other countries (world)",
+  },
   languages: { type: "string", enum: ["es", "en", "both"] },
   yearsExperience: { type: "number" },
   mainService: { type: "string" },

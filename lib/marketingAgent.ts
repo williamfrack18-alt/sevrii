@@ -119,6 +119,7 @@ function where(b: BusinessRow, spec: CampaignSpec, lang: Lang): string {
     const place = s.baseCity || spec.city || b.city || "";
     return lang === "es" ? `${radius} millas alrededor de ${place || "tu negocio"}` : `${radius} miles around ${place || "your business"}`;
   }
+  if (s.reachMode === "remote" && s.reachScope === "state" && s.baseState) return lang === "es" ? `todo el estado de ${s.baseState}` : `the whole state of ${s.baseState}`;
   return lang === "es" ? "todo EE. UU." : "the whole US";
 }
 
@@ -139,7 +140,9 @@ export async function businessFacts(b: BusinessRow) {
     s.reachMode === "remote"
       ? s.reachScope === "world"
         ? "online, customers in the US and other countries"
-        : "online, customers in the whole US"
+        : s.reachScope === "state" && s.baseState
+          ? `online, only customers in the state of ${s.baseState}`
+          : "online, customers in the whole US"
       : s.reachMode === "local"
         ? `in person, ${s.reachRadius || 10} miles around ${[s.baseCity, s.baseState].filter(Boolean).join(", ") || b.city || "the business"}`
         : "unknown";

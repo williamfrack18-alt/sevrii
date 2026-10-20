@@ -85,7 +85,9 @@ export function storeFromPlan(plan: BusinessPlan, lang: Lang): StoreDraft {
   const area = p.serviceMode === "remote"
     ? p.remoteScope === "world"
       ? es ? "En línea · EE. UU. y otros países" : "Online · US and other countries"
-      : es ? "En línea · todo EE. UU." : "Online · all of the US"
+      : p.remoteScope === "state" && p.state
+        ? es ? `En línea · solo ${p.state}` : `Online · ${p.state} only`
+        : es ? "En línea · todo EE. UU." : "Online · all of the US"
     : city
     ? p.radiusMiles
       ? es

@@ -41,7 +41,11 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
   // Where they work, from the Brain profile (only if the page doesn't say yet).
   if (!cur.reachMode) {
     const p = b.plan.profile;
-    if (p.serviceMode === "remote") Object.assign(site, { reachMode: "remote", reachScope: p.remoteScope === "world" ? "world" : "us" });
+    if (p.serviceMode === "remote") {
+      const { stateCode } = await import("./geo");
+      const st = stateCode(p.state || "");
+      Object.assign(site, { reachMode: "remote", reachScope: p.remoteScope === "world" ? "world" : p.remoteScope === "state" && st ? "state" : "us", ...(st ? { baseState: st } : {}) });
+    }
     else if (p.city) {
       const { lookupPlace } = await import("./geo");
       const where = lookupPlace(`${p.city}${p.state ? `, ${p.state}` : ""}`);

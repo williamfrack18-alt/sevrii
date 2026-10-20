@@ -52,7 +52,7 @@ function visitorFrom(req: Request): Detected {
   if (loc) {
     // "Arlington" alone: prefer the visitor's own state when we know it.
     const p = lookupPlace(loc, ip.country === "US" && ip.region ? ip.region : undefined);
-    if (p) return { visitor: { lat: p.lat, lon: p.lon, country: "US", label: `${p.city}, ${p.state}`, source: "typed" }, all: false };
+    if (p) return { visitor: { lat: p.lat, lon: p.lon, country: "US", label: `${p.city}, ${p.state}`, source: "typed", state: p.state }, all: false };
     return { visitor: null, all: false, notFound: true };
   }
   const lat = Number(url.searchParams.get("lat"));
@@ -64,19 +64,19 @@ function visitorFrom(req: Request): Detected {
     // Near a US place: in the US, unless the connection is foreign and the point
     // isn't right at that place (Toronto, Vancouver… are within 60 miles of the US).
     if (near && miles <= DEVICE_US_MAX_MILES && (!ipForeign || miles <= 10)) {
-      return { visitor: { lat, lon, country: "US", label: `${near.city}, ${near.state}`, source: "device" }, all: false };
+      return { visitor: { lat, lon, country: "US", label: `${near.city}, ${near.state}`, source: "device", state: near.state }, all: false };
     }
     // Farther away (or a foreign connection): the connection's country decides —
     // a US one (rural Alaska, Nevada…) stays US; none at all means unknown, not US.
     // Never labeled with the nearest US city, which may be hundreds of miles away.
     const country = ip.country;
     const label = country === "US" ? ipLabel(ip) : country ? ip.city || country : "";
-    return { visitor: { lat, lon, country, label, source: "device" }, all: false };
+    return { visitor: { lat, lon, country, label, source: "device", state: country === "US" ? ip.region || undefined : undefined }, all: false };
   }
   // Vercel tells us roughly where the connection comes from.
   if (ip.country && ip.hasCoords) {
     const label = ip.country === "US" ? ipLabel(ip) : ip.city || ip.country;
-    return { visitor: { lat: ip.lat, lon: ip.lon, country: ip.country, label, source: "ip" }, all: false };
+    return { visitor: { lat: ip.lat, lon: ip.lon, country: ip.country, label, source: "ip", state: ip.country === "US" ? ip.region || undefined : undefined }, all: false };
   }
   return { visitor: null, all: false };
 }

@@ -19,7 +19,7 @@ export type Profile = {
   radiusMiles: number | null;
   // In person in an area (cleaning, moving) or remote/online (video editing, design).
   serviceMode: "local" | "remote" | "";
-  remoteScope: "us" | "world" | ""; // remote only: the whole US, or other countries too
+  remoteScope: "us" | "state" | "world" | ""; // remote only: the whole US, only their own state, or other countries too
   languages: "es" | "en" | "both" | "";
   yearsExperience: number | null;
   // A
@@ -251,7 +251,7 @@ export function parseProfile(raw: unknown): Profile {
     state: US_STATES.has(state) ? state : "",
     radiusMiles: num(p.radiusMiles, 1, 150),
     serviceMode: oneOf(p.serviceMode, ["local", "remote"] as const),
-    remoteScope: oneOf(p.remoteScope, ["us", "world"] as const),
+    remoteScope: oneOf(p.remoteScope, ["us", "state", "world"] as const),
     languages: oneOf(p.languages, ["es", "en", "both"] as const),
     yearsExperience: num(p.yearsExperience, 0, 70),
     mainService: str(p.mainService, 120),
@@ -436,7 +436,7 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.city || !p.state, "city and state");
     need(!p.serviceMode, "serviceMode (in person in an area = local, or remote/online = remote)");
     need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they travel)");
-    need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, or other countries too = world)");
+    need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, only customers in their own state = state, other countries too = world)");
     need(!p.typicalCustomer, "typicalCustomer");
     need(!p.howGetsClients, "howGetsClients (how they get customers today)");
     need(!p.currentPrice, "currentPrice (what they charge today)");
@@ -460,7 +460,7 @@ export function missingProfile(plan: BusinessPlan): string[] {
   } else if (plan.stage === "ready_check") {
     need(!p.serviceMode, "serviceMode (the chosen service: in person in an area = local, or remote/online = remote)");
     need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they will travel)");
-    need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, or other countries too = world)");
+    need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, only customers in their own state = state, other countries too = world)");
     need(!p.insured, "insured (yes / no)");
     need(!p.toolsReady, "toolsReady (has the tools for the chosen idea: yes / no)");
     need(!p.costs, "costs (materials and hours per job, an estimate is fine)");
