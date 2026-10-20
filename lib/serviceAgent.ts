@@ -30,6 +30,15 @@ const TOOLS: Tool[] = [
   },
 ];
 
+// The greeting as customers see it: a "[tu nombre]" placeholder becomes the
+// owner's name (or the business name).
+export function greetingText(b: BusinessRow): string {
+  return fillName(b.serviceAgent.greeting, b.site.ownerName || b.name);
+}
+export function fillName(text: string, name: string): string {
+  return text.replace(/\[(tu nombre|your name|nombre)\]/gi, name);
+}
+
 export type AgentMode = { kind: "paid"; until: string; repliesLeft: number } | { kind: "free"; left: number } | { kind: "owner_test" };
 
 function system(b: BusinessRow, conv: ConversationRow, mode: AgentMode): string {
@@ -77,6 +86,10 @@ export async function runServiceAgent(b: BusinessRow, conv: ConversationRow, his
     if (last && last.role === role && typeof last.content === "string") last.content += `\n${text}`;
     else messages.push({ role, content: text });
   }
+  // The chat already showed the agent's greeting: it's part of the conversation
+  // (so the agent doesn't introduce itself twice).
+  const hello = greetingText(b);
+  if (hello && messages[0]?.role === "user") messages.unshift({ role: "user", content: "(customer opened the chat)" }, { role: "assistant", content: hello });
   if (!messages.length || messages[0].role !== "user") messages.unshift({ role: "user", content: "(customer opened the chat)" });
   if (messages[messages.length - 1].role !== "user") return null;
 

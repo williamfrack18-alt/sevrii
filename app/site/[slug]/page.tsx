@@ -129,7 +129,7 @@ export default async function PublicBusinessPage({
     sa.enabled && agentMissing(sa).length === 0
       ? {
           name: sa.name,
-          greeting: sa.greeting,
+          greeting: sa.greeting.replace(/\[(tu nombre|your name|nombre)\]/gi, site.ownerName || business.name),
           offers:
             business.payStatus === "ready" && business.stripeAccountId
               ? sa.offers.map((o) => ({ id: o.id, title: o.title, detail: o.detail, label: offerPriceLabel(o, site.lang), welcome: welcomeLabel(sa, o, site.lang) }))

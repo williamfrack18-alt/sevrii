@@ -102,8 +102,8 @@ export function parseServiceAgent(raw: unknown): ServiceAgent {
 // never takes the price under the $15 minimum (5% all included).
 export function welcomeFor(a: ServiceAgent, o: AgentOffer): number {
   if (!a.welcomePercent || (a.welcomeOn !== "all" && a.welcomeOn !== o.billing)) return 0;
-  const maxPct = Math.floor((1 - AGENT_MIN_CENTS / o.priceCents) * 100);
-  return Math.max(0, Math.min(a.welcomePercent, maxPct));
+  // Only where the whole % fits: a smaller, odd % ("11% off") reads as a mistake.
+  return discounted(o.priceCents, a.welcomePercent) >= AGENT_MIN_CENTS ? a.welcomePercent : 0;
 }
 export const discounted = (cents: number, pct: number) => Math.round(cents * (1 - pct / 100));
 

@@ -84,6 +84,11 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
 
 function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   const es = lang === "es";
+  if (b.plan.mode === "agent" && b.serviceAgent.name) {
+    return es
+      ? `¡Listo! Armé tu agente, "${b.serviceAgent.name}", y su página con tu estrategia: sus pasos, sus límites y tus ${packages || "opciones de"} precios. Lo que más lo hace bueno ahora es tu conocimiento: pégame aquí tus apuntes, tu método o las respuestas que siempre das, y lo dejo listo para probarlo. Su tarjeta está aquí abajo.`
+      : `Done! I built your agent, "${b.serviceAgent.name}", and its page from your strategy: its steps, its limits and your ${packages || ""} prices. What makes it good now is your knowledge: paste your notes, your method or the answers you always give, and I'll get it ready to test. Its card is below.`;
+  }
   const s = b.site;
   const missing: string[] = [];
   if (!s.chat && !s.phone && !normalizePhone(b.whatsapp)) missing.push(es ? "un teléfono de contacto" : "a contact phone");

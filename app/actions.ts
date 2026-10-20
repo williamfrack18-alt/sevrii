@@ -177,7 +177,8 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
         ...EMPTY_PLAN.profile,
         city: prev?.city ?? "",
         state: prev?.state ?? "",
-        languages: prev?.languages ?? "",
+        // An agent's languages are the ones it talks to customers in: asked again.
+        languages: m === "agent" ? "" : prev?.languages ?? "",
         // An agent always works online, in the page chat.
         ...(m === "agent" ? { serviceMode: "remote" as const } : {}),
       },

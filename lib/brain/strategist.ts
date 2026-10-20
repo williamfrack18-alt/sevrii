@@ -95,7 +95,7 @@ const AGENT_PROPOSAL_SCHEMA = obj({
     role: S("One line: what the agent does for each customer"),
     steps: { type: "array", items: { type: "string" }, description: "4-7 steps: how the agent works with a customer, start to finish (its method)" },
     limits: { type: "array", items: { type: "string" }, description: "3-6 limits: what it must never do, and when the owner steps in" },
-    greeting: S("Its first message to a customer, 1-2 sentences, says it's an AI agent of the business"),
+    greeting: S("Its first message to a customer, 1-2 sentences, says it's an AI agent of the business (use the business name; no placeholders like [tu nombre])"),
   }),
 });
 
