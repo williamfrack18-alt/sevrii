@@ -184,6 +184,7 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
     },
   });
   await setActiveProject(business.id);
+  (await cookies()).delete("sevrii_path");
   redirect("/dashboard?view=plan");
 }
 

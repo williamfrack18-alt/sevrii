@@ -10,11 +10,15 @@ import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { ACCENT } from "@/lib/brand";
 import { logoutAction } from "@/app/actions";
+import { cookies } from "next/headers";
 
-export default async function StartPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+export default async function StartPage({ searchParams }: { searchParams: Promise<{ new?: string; path?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const isNew = Boolean(user.business) && (await searchParams)?.new === "1";
+  const sp = (await searchParams) ?? {};
+  const isNew = Boolean(user.business) && sp.new === "1";
+  // Came from "Crear mi agente" (sevrii.com): that option starts picked.
+  const initial = sp.path === "agent" || (await cookies()).get("sevrii_path")?.value === "agent" ? "agent" : null;
   if (user.business && !isNew) redirect("/dashboard");
   if (isNew && (await countProjects(user.id)) >= limitsFor(user).projects) redirect("/dashboard?view=plans&need=projects");
   const t = getDict(await getLang());
@@ -60,7 +64,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
         <p className="text-muted text-[15.5px] leading-relaxed max-w-md">{isNew ? t.start.newProjectSubtitle : t.start.subtitle}</p>
       </div>
 
-      <PathPicker newProject={isNew} />
+      <PathPicker newProject={isNew} initial={initial} />
     </div>
   );
 }
