@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLang } from "@/components/LangProvider";
 import { ACCENT, BRAND_BTN, RING, TINT } from "@/lib/brand";
-import { agentMissing, money, offerPriceLabel } from "@/lib/serviceAgentConfig";
+import { agentMissing, money, offerPriceLabel, welcomeLabel } from "@/lib/serviceAgentConfig";
 import { agentSalesAction, setAgentEnabledAction, type AgentSales } from "@/app/storeActions";
 import { toClientBusiness, type ClientBusiness } from "./types";
 
@@ -146,6 +146,7 @@ export default function AgentCard({
                 <span className="text-[13px] font-semibold mt-1" style={{ color: ACCENT }}>
                   {offerPriceLabel(o, lang)}
                 </span>
+                {welcomeLabel(a, o, lang) && <span className="text-[12px] text-[#d4d4d4]">{welcomeLabel(a, o, lang)}</span>}
               </div>
             ))}
           </div>

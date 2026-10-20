@@ -298,18 +298,27 @@ async function renameProject(b: BusinessRow, name: string) {
   }
 }
 
-async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang): Promise<{ out: string; startPipeline?: boolean }> {
+// Did the owner actually talk about languages? (the model sometimes guesses
+// them from the language they write in, or from "Hispanic customers").
+const SAID_LANGUAGES = /\b(espa[ñn]ol|ingl[eé]s|spanish|english|idiomas?|languages?|biling[uü]e|bilingual|ambos|los dos|both)\b/i;
+
+async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = ""): Promise<{ out: string; startPipeline?: boolean }> {
   const plan = b.plan;
   switch (name) {
     case "save_profile": {
       if (plan.stage !== "interview" && plan.stage !== "ready_check") return { out: "error: not in the interview" };
+      let note = "";
+      if (input.languages !== undefined && !SAID_LANGUAGES.test(ownerSaid)) {
+        delete input.languages;
+        note = " (languages NOT saved: the owner never said which languages they serve in; ask them: español, inglés o los dos)";
+      }
       const profile = parseProfile({ ...plan.profile, ...input });
       let next: BusinessPlan = { ...plan, profile };
       if (typeof input.businessName === "string" && profile.businessName) await renameProject(b, profile.businessName);
       const left = missingProfile(next);
       if (left.length) {
         await updateBusinessPlan(b.id, parsePlan(next));
-        return { out: `saved. still missing: ${left.join(", ")}` };
+        return { out: `saved${note}. still missing: ${left.join(", ")}` };
       }
       const stage: PlanStage = plan.stage === "interview" && plan.mode === "new" ? "ideas_research" : "research";
       if (!(await researchWouldStart(b.userId))) {
@@ -411,6 +420,8 @@ export async function runPlanChatTurn(opts: {
     };
   }
 
+  // What the owner wrote in this chat (to check facts the model saves).
+  const ownerSaid = [...opts.history.filter((h) => h.role === "user").map((h) => h.content), opts.message].join("\n");
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
     { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}` },
@@ -453,7 +464,7 @@ export async function runPlanChatTurn(opts: {
       for (const u of uses) {
         let out: string;
         try {
-          const r = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, opts.lang);
+          const r = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, opts.lang, ownerSaid);
           out = r.out;
           if (r.startPipeline) startPipeline = true;
         } catch (err) {

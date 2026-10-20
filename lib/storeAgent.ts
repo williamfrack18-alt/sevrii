@@ -18,7 +18,7 @@ import {
 import { LIMITS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
 import { planFingerprint } from "./planToStore";
-import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, parseServiceAgent } from "./serviceAgentConfig";
+import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, parseServiceAgent, welcomeLabel } from "./serviceAgentConfig";
 
 // The Store tab is one chat. This agent interviews the owner for exactly the
 // data the conversion template needs (services and prices, offer, photos,
@@ -133,6 +133,8 @@ const TOOLS: Tool[] = [
         limits: { type: "array", items: { type: "string" }, description: "What it must never do / when the owner steps in (replaces the list)" },
         greeting: { type: "string", description: "Its first message; must say it's an AI agent" },
         freeReplies: { type: "number", description: "Free replies before paying (0-10)" },
+        welcomePercent: { type: "number", description: "Welcome offer: % off a new customer's first purchase (0 = none, max 50)" },
+        welcomeOn: { type: "string", enum: ["all", "once", "monthly"], description: "Which offers the welcome % applies to (monthly = the first month)" },
         enabled: { type: "boolean" },
       },
     },
@@ -189,7 +191,7 @@ How to work:
 - When the essentials are done (services with prices, the owner's name, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
 - If the owner asks for something the page can't do, say so briefly.
 - "brainPlan" is the strategy the owner already made with Sevrii's Brain (service, customer, promise, differentiators, packages with prices, offer). Use it: propose the headline from the promise, key points from the differentiators and services from the packages, and confirm with the owner instead of asking from scratch. If the plan offer has forNewClients=true, use it without a date. Otherwise, if it has no endsAt, ask for a real end date before adding it to the page; if it has one, use that date.
-- Service agent ("agent" in the state, when the owner is creating one): the page chat becomes their AI agent that delivers the service by itself and charges for access. Help them finish it before publishing: its name and one-line role; its method step by step (instructions); what it knows (ask them to paste their notes, rules, answers to common questions — save them with knowledgeAdd in their own words, never invent facts); its limits (always: it says it's an AI, never promises results, the owner handles refunds and cases outside the service); its greeting; how many free replies (3 is a good start); and what customers buy (set_agent_offers: one-time access for N days and/or monthly, each $15 or more). If "agent.paymentsReady" is false, tell them once that to charge they must connect Payments (left menu) — until then the agent only gives the free replies and then passes the chat to them. Then ask if they want to switch it on (update_agent enabled=true) and suggest testing it themselves on "Ver borrador" (as the owner they can chat for free). The page itself still needs a headline, a photo of the owner and publishing like any page.
+- Service agent ("agent" in the state, when the owner is creating one): the page chat becomes their AI agent that delivers the service by itself and charges for access. Help them finish it before publishing: its name and one-line role; its method step by step (instructions); what it knows (ask them to paste their notes, rules, answers to common questions — save them with knowledgeAdd in their own words, never invent facts); its limits (always: it says it's an AI, never promises results, the owner handles refunds and cases outside the service); its greeting; how many free replies (3 is a good start); and what customers buy (set_agent_offers: one-time access for N days and/or monthly, each $15 or more). A welcome offer for new customers is set with update_agent welcomePercent (and welcomeOn): it applies only to a customer's first purchase and never takes a price under $15. If "agent.paymentsReady" is false, tell them once that to charge they must connect Payments (left menu) — until then the agent only gives the free replies and then passes the chat to them. Then ask if they want to switch it on (update_agent enabled=true) and suggest testing it themselves on "Ver borrador" (as the owner they can chat for free). The page itself still needs a headline, a photo of the owner and publishing like any page.
 - Keep every reply under 70 words. No markdown headings, no bullet lists longer than 4 items.`;
 
 export type StoreChatResult = { reply: string; business: BusinessRow; services: ServiceRow[] };
@@ -209,7 +211,7 @@ function pageState(b: BusinessRow, services: ServiceRow[]) {
             ...b.serviceAgent,
             knowledge: b.serviceAgent.knowledge.slice(0, 1500),
             knowledgeChars: b.serviceAgent.knowledge.length,
-            offers: b.serviceAgent.offers.map((o) => ({ ...o, label: offerPriceLabel(o, b.site.lang) })),
+            offers: b.serviceAgent.offers.map((o) => ({ ...o, label: offerPriceLabel(o, b.site.lang), welcome: welcomeLabel(b.serviceAgent, o, b.site.lang) || null })),
             missing: agentMissing(b.serviceAgent),
             paymentsReady: b.payStatus === "ready",
           },
@@ -337,6 +339,8 @@ async function runTool(
       if (Array.isArray(input.limits)) next.limits = input.limits.filter((x): x is string => typeof x === "string");
       if (typeof input.greeting === "string") next.greeting = input.greeting;
       if (typeof input.freeReplies === "number") next.freeReplies = input.freeReplies;
+      if (typeof input.welcomePercent === "number") next.welcomePercent = input.welcomePercent;
+      if (input.welcomeOn === "all" || input.welcomeOn === "once" || input.welcomeOn === "monthly") next.welcomeOn = input.welcomeOn;
       const notes: string[] = [];
       if (next.knowledge.length > AGENT_LIMITS.knowledge) notes.push(`knowledge was cut to ${AGENT_LIMITS.knowledge} characters`);
       if (typeof input.enabled === "boolean") {

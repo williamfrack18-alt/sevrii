@@ -31,6 +31,7 @@ import {
   renewAgentAccess,
   endAgentAccess,
   claimAgentFree,
+  countAgentAccess,
   type AgentAccessRow,
   type BusinessRow,
   type ConvMessageRow,
@@ -41,7 +42,7 @@ import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
 import { runForUser, serviceAgentAccount, serviceAgentGate, visitorAiAccount, visitorAiGate } from "@/lib/usage";
 import { runServiceAgent, type AgentMode } from "@/lib/serviceAgent";
-import { agentMissing, offerPriceLabel } from "@/lib/serviceAgentConfig";
+import { agentMissing, offerPriceLabel, welcomeFor } from "@/lib/serviceAgentConfig";
 import { agentSubscriptionEnd, checkoutForAgentOffer, getPaidAgentSession, paymentsReady } from "@/lib/payments";
 import { normalizePhone } from "@/lib/site";
 import { runVisitorAi } from "@/lib/visitorChat";
@@ -524,7 +525,9 @@ export async function agentCheckoutAction(input: { slug: string; token: string; 
   const offer = b.serviceAgent.offers.find((o) => o.id === clean(input.offerId, 24));
   if (!conv || !offer) return { error: "closed" };
   try {
-    return { url: await checkoutForAgentOffer(b, offer, b.serviceAgent.name, conv.id) };
+    // The welcome discount only on this chat's first purchase.
+    const first = (await countAgentAccess(conv.id)) === 0;
+    return { url: await checkoutForAgentOffer(b, offer, b.serviceAgent.name, conv.id, first ? welcomeFor(b.serviceAgent, offer) : 0) };
   } catch (err) {
     console.error("[agent] checkout failed", (err as Error)?.message);
     return { error: "failed" };

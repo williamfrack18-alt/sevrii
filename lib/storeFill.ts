@@ -126,6 +126,16 @@ function offerFromPackage(p: BusinessPlan["packages"][number], i: number): Agent
   }).offers[0] ?? null;
 }
 
+function welcomeFromPlan(plan: BusinessPlan): { welcomePercent: number; welcomeOn: "all" | "once" | "monthly" } | Record<string, never> {
+  const o = plan.offer;
+  if (!o || plan.noOffer) return {};
+  const m = /(\d{1,2})\s*%/.exec(`${o.label} ${o.detail}`);
+  if (!m) return {};
+  const text = `${o.label} ${o.detail}`;
+  const on = /\b(mes|mensual|month|monthly)\b/i.test(text) ? "monthly" : "all";
+  return { welcomePercent: Number(m[1]), welcomeOn: on };
+}
+
 export function agentFromPlan(plan: BusinessPlan): ServiceAgent {
   const a = plan.agent;
   const p = plan.profile;
@@ -147,5 +157,7 @@ export function agentFromPlan(plan: BusinessPlan): ServiceAgent {
     limits: a?.limits.length ? a.limits : p.agentLimits ? [p.agentLimits] : [],
     greeting: a?.greeting || "",
     offers: plan.packages.map(offerFromPackage).filter(Boolean),
+    // The welcome offer the strategy proposed ("15% off your first month").
+    ...welcomeFromPlan(plan),
   });
 }

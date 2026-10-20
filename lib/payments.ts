@@ -350,21 +350,28 @@ export async function checkoutForAgentOffer(
   business: BusinessRow,
   offer: { id: string; title: string; detail: string; priceCents: number; billing: "once" | "monthly" },
   agentName: string,
-  conversationId: string
+  conversationId: string,
+  welcomePct = 0 // a new customer's first purchase (already capped at the $15 minimum)
 ): Promise<string> {
   if (!business.stripeAccountId) throw new Error("business has no Stripe account");
+  const account = business.stripeAccountId;
   const back = `${siteUrl()}/site/${encodeURIComponent(business.slug)}`;
   const name = `${offer.title} · ${agentName || business.name}`.slice(0, 120);
-  const fee = sevriiFeeCents(offer.priceCents);
+  const pct = Math.max(0, Math.min(50, Math.round(welcomePct)));
+  // One-time: the lower price is the charge. Monthly: the full price, with a
+  // coupon on the first month only.
+  const firstCents = offer.billing === "once" && pct ? Math.round(offer.priceCents * (1 - pct / 100)) : offer.priceCents;
+  const fee = sevriiFeeCents(firstCents);
   const params: Record<string, string> = {
     mode: offer.billing === "monthly" ? "subscription" : "payment",
     "payment_method_types[0]": "card",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "usd",
-    "line_items[0][price_data][unit_amount]": String(offer.priceCents),
+    "line_items[0][price_data][unit_amount]": String(firstCents),
     "line_items[0][price_data][product_data][name]": name,
     "metadata[sevriiBusinessId]": business.id,
     "metadata[sevriiKind]": "agent",
+    "metadata[sevriiWelcome]": String(pct),
     "metadata[sevriiOffer]": offer.id,
     "metadata[sevriiConv]": conversationId,
     "metadata[sevriiTitle]": name,
@@ -377,14 +384,26 @@ export async function checkoutForAgentOffer(
     params["subscription_data[metadata][sevriiBusinessId]"] = business.id;
     params["subscription_data[metadata][sevriiConv]"] = conversationId;
     // Subscriptions take a percent: the same share as a one-time charge.
-    const pct = Math.floor((fee / offer.priceCents) * 10000) / 100;
-    if (pct > 0) params["subscription_data[application_fee_percent]"] = String(pct);
+    const feePct = Math.floor((fee / offer.priceCents) * 10000) / 100;
+    if (feePct > 0) params["subscription_data[application_fee_percent]"] = String(feePct);
+    if (pct) params["discounts[0][coupon]"] = await welcomeCoupon(account, pct);
   } else {
     params["payment_intent_data[description]"] = name.slice(0, 200);
     if (fee > 0) params["payment_intent_data[application_fee_amount]"] = String(fee);
   }
-  const s = await stripe<{ url: string }>("POST", "checkout/sessions", params, { account: business.stripeAccountId });
+  const s = await stripe<{ url: string }>("POST", "checkout/sessions", params, { account });
   return s.url;
+}
+
+// "% off the first month" lives as one coupon per percent on the owner's account.
+async function welcomeCoupon(account: string, pct: number): Promise<string> {
+  const id = `sevrii-welcome-${pct}`;
+  try {
+    await stripe("GET", `coupons/${id}`, {}, { account });
+  } catch {
+    await stripe("POST", "coupons", { id, percent_off: String(pct), duration: "once", name: `Bienvenida ${pct}%` }, { account, idempotencyKey: `coupon-${account}-${id}` });
+  }
+  return id;
 }
 
 type SubLike = {

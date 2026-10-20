@@ -13,7 +13,7 @@ import { reachLabel, resolveReach } from "@/lib/reach";
 import { activeOffer, storeTheme } from "@/lib/site";
 import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, type MediaItem } from "./StoreParts";
 import { ChatJump } from "./ChatWidget";
-import { agentMissing, offerPriceLabel } from "@/lib/serviceAgentConfig";
+import { agentMissing, offerPriceLabel, welcomeLabel } from "@/lib/serviceAgentConfig";
 import "./store.css";
 
 // A page is public only while it's published AND its owner's plan includes publishing
@@ -132,7 +132,7 @@ export default async function PublicBusinessPage({
           greeting: sa.greeting,
           offers:
             business.payStatus === "ready" && business.stripeAccountId
-              ? sa.offers.map((o) => ({ id: o.id, title: o.title, detail: o.detail, label: offerPriceLabel(o, site.lang) }))
+              ? sa.offers.map((o) => ({ id: o.id, title: o.title, detail: o.detail, label: offerPriceLabel(o, site.lang), welcome: welcomeLabel(sa, o, site.lang) }))
               : [],
         }
       : null;

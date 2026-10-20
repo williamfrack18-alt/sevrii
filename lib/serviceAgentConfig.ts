@@ -25,6 +25,10 @@ export type ServiceAgent = {
   greeting: string; // first message to a customer
   freeReplies: number; // replies a customer gets before paying (0-10)
   offers: AgentOffer[];
+  // Welcome offer: % off a new customer's first purchase (0 = none), on all
+  // offers or only the one-time / monthly ones (monthly: the first month).
+  welcomePercent: number;
+  welcomeOn: "all" | "once" | "monthly";
 };
 
 export const AGENT_MIN_CENTS = 1500;
@@ -41,6 +45,8 @@ export const EMPTY_AGENT: ServiceAgent = {
   greeting: "",
   freeReplies: 3,
   offers: [],
+  welcomePercent: 0,
+  welcomeOn: "all",
 };
 
 const s = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\u0000/g, "").trim().slice(0, max) : "");
@@ -87,8 +93,19 @@ export function parseServiceAgent(raw: unknown): ServiceAgent {
     greeting: s(o.greeting, AGENT_LIMITS.greeting),
     freeReplies: n(o.freeReplies, 0, 10, 3),
     offers,
+    welcomePercent: n(o.welcomePercent, 0, 50, 0),
+    welcomeOn: o.welcomeOn === "once" || o.welcomeOn === "monthly" ? o.welcomeOn : "all",
   };
 }
+
+// The welcome discount for this offer on a first purchase, in percent. It
+// never takes the price under the $15 minimum (5% all included).
+export function welcomeFor(a: ServiceAgent, o: AgentOffer): number {
+  if (!a.welcomePercent || (a.welcomeOn !== "all" && a.welcomeOn !== o.billing)) return 0;
+  const maxPct = Math.floor((1 - AGENT_MIN_CENTS / o.priceCents) * 100);
+  return Math.max(0, Math.min(a.welcomePercent, maxPct));
+}
+export const discounted = (cents: number, pct: number) => Math.round(cents * (1 - pct / 100));
 
 // Is there enough to switch it on?
 export function agentMissing(a: ServiceAgent): ("name" | "role" | "instructions")[] {
@@ -102,6 +119,15 @@ export function agentMissing(a: ServiceAgent): ("name" | "role" | "instructions"
 export function money(cents: number): string {
   const d = cents / 100;
   return `$${Number.isInteger(d) ? d : d.toFixed(2)}`;
+}
+
+export function welcomeLabel(a: ServiceAgent, o: AgentOffer, lang: "es" | "en"): string {
+  const pct = welcomeFor(a, o);
+  if (!pct) return "";
+  const price = money(discounted(o.priceCents, pct));
+  const es = lang === "es";
+  if (o.billing === "monthly") return es ? `${pct}% menos tu primer mes: ${price}` : `${pct}% off your first month: ${price}`;
+  return es ? `${pct}% menos en tu primera compra: ${price}` : `${pct}% off your first purchase: ${price}`;
 }
 
 export function offerPriceLabel(o: AgentOffer, lang: "es" | "en"): string {

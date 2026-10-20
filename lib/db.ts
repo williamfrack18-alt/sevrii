@@ -2059,6 +2059,12 @@ export async function endAgentAccess(accessId: string): Promise<void> {
   await sql`UPDATE agent_access SET status = 'ended' WHERE id = ${accessId}`;
 }
 
+export async function countAgentAccess(conversationId: string): Promise<number> {
+  await ensureSchema();
+  const rows = (await sql`SELECT COUNT(*)::int AS n FROM agent_access WHERE "conversationId" = ${conversationId}`) as { n: number }[];
+  return Number(rows[0]?.n ?? 0);
+}
+
 export async function listAgentAccess(businessId: string, limit = 50): Promise<AgentAccessRow[]> {
   await ensureSchema();
   const rows = (await sql`SELECT * FROM agent_access WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT ${limit}`) as Record<string, unknown>[];

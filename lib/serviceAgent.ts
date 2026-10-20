@@ -6,7 +6,7 @@ import type { MessageParam, TextBlock, Tool, ToolResultBlockParam, ToolUseBlock 
 import { MODELS, getClaude, logAiError } from "./claude";
 import type { BusinessRow, ConvMessageRow, ConversationRow } from "./db";
 import { normalizePhone } from "./site";
-import { offerPriceLabel } from "./serviceAgentConfig";
+import { offerPriceLabel, welcomeLabel } from "./serviceAgentConfig";
 
 export type AgentTurn = {
   reply: string;
@@ -41,7 +41,7 @@ function system(b: BusinessRow, conv: ConversationRow, mode: AgentMode): string 
       ? `This is ${owner} testing you. Work exactly as you would with a paying customer.`
       : mode.kind === "paid"
         ? `This customer paid for access (until ${mode.until}, ${mode.repliesLeft} replies left). Deliver the full service.`
-        : `This customer is trying you for free: ${mode.left} free ${mode.left === 1 ? "reply" : "replies"} left, then the chat shows them the prices (${a.offers.map((o) => `${o.title}: ${offerPriceLabel(o, lang)}`).join("; ") || "none yet"}). Give real value so they see how you work: understand their case and start helping. Don't hold back on purpose, and don't push them to pay; never talk about prices beyond what is listed here.`;
+        : `This customer is trying you for free: ${mode.left} free ${mode.left === 1 ? "reply" : "replies"} left, then the chat shows them the prices (${a.offers.map((o) => `${o.title}: ${offerPriceLabel(o, lang)}${welcomeLabel(a, o, lang) ? ` (${welcomeLabel(a, o, lang)}, first purchase only)` : ""}`).join("; ") || "none yet"}). Give real value so they see how you work: understand their case and start helping. Don't hold back on purpose, and don't push them to pay; never talk about prices beyond what is listed here.`;
   return `You are "${a.name}", an AI agent created by ${b.name}${b.site.ownerName ? ` (${b.site.ownerName})` : ""}. You deliver this service yourself, in this chat: ${a.role}
 
 How you work (the owner's method):

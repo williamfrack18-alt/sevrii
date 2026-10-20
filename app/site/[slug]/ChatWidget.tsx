@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { agentCheckoutAction, agentClaimAction, visitorChatPollAction, visitorChatSendAction, type ChatMsg } from "@/app/chatActions";
 
 // The page chat as the owner's service agent (see lib/serviceAgent.ts).
-export type ChatAgent = { name: string; greeting: string; offers: { id: string; title: string; detail: string; label: string }[] };
+export type ChatAgent = { name: string; greeting: string; offers: { id: string; title: string; detail: string; label: string; welcome?: string }[] };
 const PAY = /\s*\[\[pay\]\]\s*$/;
 
 const TEXT = {
@@ -355,6 +355,7 @@ export default function ChatWidget({
                           <span className="cw-offer-title">{o.title}</span>
                           {o.detail && <span className="cw-offer-detail">{o.detail}</span>}
                           <span className="cw-offer-price">{paying === o.id ? t.paying : o.label}</span>
+                          {o.welcome && <span className="cw-offer-welcome">{o.welcome}</span>}
                         </button>
                       ))}
                       <span className="cw-offer-note">{t.securePay}</span>
