@@ -343,6 +343,21 @@ export async function fillStoreFromPlanAction(): Promise<{
   };
 }
 
+// The Store as it is now on the server (the Brain may have built the page and
+// written its first message after this screen was loaded).
+export async function loadStoreAction(): Promise<{
+  business: BusinessRow;
+  services: ServiceRow[];
+  messages: { id: string; role: string; content: string }[];
+}> {
+  const business = await requireBusiness();
+  return {
+    business,
+    services: await listServices(business.id),
+    messages: (await listChatMessages(business.id, "store")).map((m) => ({ id: m.id, role: m.role, content: m.content })),
+  };
+}
+
 // ---------- Service agent (the page chat delivers the service) ----------
 export async function setAgentEnabledAction(on: boolean): Promise<{ ok: boolean; business: BusinessRow; missing: string[] }> {
   const business = await requireBusiness();

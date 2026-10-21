@@ -31,6 +31,10 @@ const TOKEN = /\s*\[\[([a-z]+)(?::([a-z]+))?\]\]\s*$/;
 
 export type ChatToken = { kind: string; arg: string; msgId: string };
 
+// Quick actions above the composer: put a starter text in it, or open the
+// photo/video picker.
+export type ChatChip = { label: string; text?: string; upload?: boolean };
+
 const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mov|mp4|webm)$/i.test(f.name);
 
 // Clean, ChatGPT-style chat in Sevrii's colors: black canvas, assistant text
@@ -49,6 +53,8 @@ export default function ChatPanel({
   renderToken,
   tail,
   tailKey,
+  head,
+  chips,
 }: {
   greeting: string;
   initialMessages: Msg[];
@@ -69,6 +75,10 @@ export default function ChatPanel({
   // changes when it does, to keep the chat scrolled to it.
   tail?: React.ReactNode;
   tailKey?: string;
+  // Shown at the top of the conversation (e.g. a summary of the page). With a
+  // head the chat never shows its empty "first question" screen.
+  head?: React.ReactNode;
+  chips?: ChatChip[];
 }) {
   const lang = useLang();
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
@@ -80,7 +90,24 @@ export default function ChatPanel({
   const busy = pending || uploading !== null;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const empty = messages.length === 0;
+  const fileRef = useRef<HTMLInputElement>(null);
+  const empty = messages.length === 0 && !head;
+
+  function pickChip(c: ChatChip) {
+    if (busy) return;
+    if (c.upload) {
+      fileRef.current?.click();
+      return;
+    }
+    const text = c.text ?? "";
+    setInput(text);
+    setTimeout(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(text.length, text.length);
+    }, 0);
+  }
 
   useEffect(() => {
     if (sync) setMessages(sync.messages);
@@ -189,6 +216,24 @@ export default function ChatPanel({
     </div>
   );
 
+  const chipRow =
+    chips && chips.length > 0 && !locked ? (
+      <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {chips.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            disabled={busy}
+            onClick={() => pickChip(c)}
+            className="tap shrink-0 h-8 px-3.5 rounded-full text-[13px] text-[#d4d4d4] hover:text-white hover:bg-white/10 transition disabled:opacity-40 whitespace-nowrap"
+            style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12)" }}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+    ) : null;
+
   const composer = locked ? (
     <div className="w-full">
       <div
@@ -220,6 +265,7 @@ export default function ChatPanel({
             <path d="M12 5v14M5 12h14" />
           </svg>
           <input
+            ref={fileRef}
             type="file"
             accept="image/*,video/mp4,video/quicktime,video/webm"
             className="hidden"
@@ -293,6 +339,12 @@ export default function ChatPanel({
     <div className="flex-1 min-h-0 flex flex-col">
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-6 md:pb-8 flex flex-col gap-6 md:gap-7">
+          {head}
+          {messages.length === 0 && greeting && (
+            <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words" style={{ color: "#e8e8e8" }}>
+              {greeting}
+            </div>
+          )}
           {messages.map((m) => {
             const photo = PHOTO.exec(m.content);
             const video = VIDEO.exec(m.content);
@@ -339,6 +391,7 @@ export default function ChatPanel({
       </div>
       <div className="shrink-0 px-4 md:px-6 pt-1 md:pt-0 pb-3">
         <div className="max-w-[760px] mx-auto">
+          {chipRow}
           {composer}
           {footnote}
         </div>

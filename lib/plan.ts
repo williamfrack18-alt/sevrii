@@ -490,8 +490,9 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.agentTask, "agentTask (what the agent does with each customer, start to finish)");
     need(!p.exampleJob && p.yearsExperience === null, "exampleJob or yearsExperience (the owner's own experience with this)");
     need(!p.typicalCustomer, "typicalCustomer");
-    need(!p.state, "state (where the owner lives)");
-    need(!p.remoteScope, "remoteScope (customers in the whole US = us, only their state = state, other countries too = world)");
+    // An agent works online: where the owner lives only matters when it serves one state.
+    need(!p.remoteScope, "remoteScope (customers in the whole US = us, only one state = state, other countries too = world)");
+    need(p.remoteScope === "state" && !p.state, "state (the one state whose customers it serves)");
     need(!p.languages, "languages (es, en or both)");
     need(!p.agentKnowledge, "agentKnowledge (what they know and will teach the agent: method, notes, materials)");
     need(!p.agentEdge, "agentEdge (why someone would pay for THEIR agent instead of using ChatGPT for free: own method or cases, local or state rules, follow-up over weeks, a final check by the owner, a very specific niche)");
@@ -512,7 +513,8 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(p.yearsExperience === null, "yearsExperience");
     need(!p.languages, "languages (es, en or both)");
     need(!p.differentiators, "differentiators (what makes them different)");
-    need(!p.insured, "insured (yes / no)");
+    // Insurance matters for work done at people's homes, not for online services.
+    need(p.serviceMode !== "remote" && !p.insured, "insured (yes / no)");
     need(!p.businessName, "businessName");
   } else if (plan.stage === "interview") {
     need(!p.city || !p.state, "city and state");

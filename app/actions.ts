@@ -137,15 +137,11 @@ async function checkNewProject(newProject: boolean | undefined): Promise<NewProj
 function carriedSite(prev: BusinessRow | null): Partial<SiteData> {
   if (!prev) return {};
   const s = prev.site;
+  // Only how to reach the same person. Hours, years, licenses, reviews, logo
+  // and place belong to each service (a new one may be elsewhere or online).
   return {
     phone: s.phone,
     textEnabled: s.textEnabled,
-    hours: s.hours,
-    // License numbers are per trade: never carried to another service.
-    spanish: s.spanish,
-    yearsInBusiness: s.yearsInBusiness,
-    googleReviewsUrl: s.googleReviewsUrl,
-    logoUrl: s.logoUrl,
   };
 }
 
@@ -164,7 +160,7 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
     name: lang === "es" ? "Proyecto nuevo" : "New project",
     category: "",
     description: "",
-    city: prev?.city || null,
+    city: null,
     pitch: "",
     whatsapp: previous?.whatsapp ?? null,
     site: { ...EMPTY_SITE, ...carriedSite(previous), lang },
@@ -172,11 +168,10 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
       ...EMPTY_PLAN,
       mode: m,
       stage: "interview",
-      // Same person: where they work and the languages they speak carry over.
+      // Same person: the languages they speak carry over. Where they work is
+      // asked again (a new service may be in another city, or online).
       profile: {
         ...EMPTY_PLAN.profile,
-        city: prev?.city ?? "",
-        state: prev?.state ?? "",
         // An agent's languages are the ones it talks to customers in: asked again.
         languages: m === "agent" ? "" : prev?.languages ?? "",
         // An agent always works online, in the page chat.

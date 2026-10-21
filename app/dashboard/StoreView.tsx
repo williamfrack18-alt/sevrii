@@ -2,18 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import StoreChat from "./StoreChat";
-import AgentCard from "./AgentCard";
+import StoreSummary from "./StoreSummary";
+import type { ChatChip } from "./ChatPanel";
 import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
-import { fillStoreFromPlanAction, setPublishedAction } from "@/app/storeActions";
+import { fillStoreFromPlanAction, loadStoreAction, setPublishedAction } from "@/app/storeActions";
 import { planFingerprint, planReadyForStore } from "@/lib/planToStore";
 import type { PublishGap } from "@/lib/site";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
 
-// Store = one clean chat (like ChatGPT). The live page sits right below it.
+// Store = one chat that starts with a summary of the page (what it has, what
+// it lacks, the agent) and changes it; the page itself sits right below.
 export default function StoreView({
   business,
   services,
@@ -133,11 +135,47 @@ export default function StoreView({
   const liveUrl = `/site/${business.slug}`;
 
   // The Brain's expediente is approved and the page doesn't reflect it yet.
-  const fp = STORE_TEXT[lang].editor.fromPlan;
   const planPending = planReadyForStore(business.plan) && business.site.fromPlan !== planFingerprint(business.plan);
   const [filling, setFilling] = useState(false);
   const [fillError, setFillError] = useState(false);
   const [sync, setSync] = useState<{ key: number; messages: { id: string; role: string; content: string }[] } | undefined>();
+
+  // The Brain may have built the page (and written here) after this screen was
+  // loaded: start from what the server has now.
+  useEffect(() => {
+    let alive = true;
+    loadStoreAction()
+      .then((res) => {
+        if (!alive) return;
+        onUpdated(
+          toClientBusiness(res.business),
+          res.services.map((x) => ({ id: x.id, name: x.name, price: x.price, description: x.description }))
+        );
+        if (res.messages.length !== initialMessages.length) {
+          setSync({ key: Date.now(), messages: res.messages });
+          onMessages?.(res.messages);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business.id]);
+
+  const isAgent = business.plan.mode === "agent" || Boolean(business.serviceAgent.name);
+  const hasPage = services.length > 0 || Boolean(business.site.headline) || Boolean(business.serviceAgent.name) || planPending;
+  const es = lang === "es";
+  const chips: ChatChip[] = hasPage
+    ? [
+        ...(isAgent ? [{ label: es ? "Enseñarle mis apuntes" : "Teach it my notes", text: es ? "Estos son mis apuntes para el agente:\n" : "Here are my notes for the agent:\n" }] : []),
+        { label: es ? "Agregar fotos" : "Add photos", upload: true },
+        { label: es ? "Agregar un video" : "Add a video", upload: true },
+        { label: es ? "Cambiar el título" : "Change the headline", text: es ? "Cambia el título de mi página a: " : "Change my page headline to: " },
+        { label: es ? "Cambiar la oferta" : "Change the offer", text: es ? "Cambia la oferta: " : "Change the offer: " },
+        { label: es ? "Cambiar precios" : "Change prices", text: es ? "Cambia el precio de " : "Change the price of " },
+      ]
+    : [];
 
   async function fillFromPlan() {
     setFilling(true);
@@ -163,7 +201,7 @@ export default function StoreView({
     <div style={{ background: "#000" }}>
       {/* Chat: fills the screen, composer pinned at the bottom */}
       <section
-        className={`${business.published ? "h-[calc(100dvh-var(--hdr))] md:h-screen" : "h-[calc(100dvh-var(--hdr)-44px)] md:h-[calc(100vh-44px)]"} flex flex-col`}
+        className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col"
       >
         <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3">
           <span className="text-[17px] font-semibold text-white truncate min-w-0">
@@ -255,31 +293,6 @@ export default function StoreView({
             </button>
           </div>
         )}
-        {planPending && (
-          <div
-            className="shrink-0 mx-4 md:mx-6 mb-2 rounded-2xl px-4 py-4 md:px-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5"
-            style={{ background: "linear-gradient(135deg, rgba(46,122,85,.22), rgba(46,122,85,.08))", boxShadow: "0 0 0 1px rgba(46,122,85,.45)" }}
-          >
-            <div className="flex-1 min-w-0">
-              <div className="text-[15px] font-semibold text-white">{business.site.fromPlan ? fp.changedTitle : fp.newTitle}</div>
-              <p className="text-[13.5px] text-[#c9c9c9] mt-0.5 leading-relaxed">{business.site.fromPlan ? fp.changedText : fp.newText}</p>
-              <p className="text-[12.5px] text-[#8e8e8e] mt-1">
-                {fp.keep}
-                {services.length > 0 ? ` ${fp.replaceServices}` : ""}
-              </p>
-              {fillError && <p className="text-[12.5px] mt-1 text-red-400">{fp.failed}</p>}
-            </div>
-            <button
-              type="button"
-              disabled={filling}
-              onClick={fillFromPlan}
-              className="h-10 px-5 rounded-full text-[14px] font-semibold shrink-0 disabled:opacity-60 self-start sm:self-auto"
-              style={BRAND_BTN}
-            >
-              {filling ? fp.building : business.site.fromPlan ? fp.update : fp.build}
-            </button>
-          </div>
-        )}
         <StoreChat
           business={business}
           onBusiness={(b) => {
@@ -288,6 +301,24 @@ export default function StoreView({
           }}
           sync={sync}
           greeting={greeting}
+          chips={chips}
+          head={
+            hasPage ? (
+              <StoreSummary
+                business={business}
+                services={services}
+                planPending={planPending}
+                filling={filling}
+                fillError={fillError}
+                onFill={fillFromPlan}
+                onPayments={onPayments}
+                onUpdated={(b) => {
+                  onUpdated(b, services);
+                  setPreviewKey((k) => k + 1);
+                }}
+              />
+            ) : undefined
+          }
           initialMessages={initialMessages}
           onMessages={onMessages}
           onUpdated={(b, s) => {
@@ -297,24 +328,9 @@ export default function StoreView({
         />
       </section>
 
-      {/* While it's a draft: a quiet pointer to the page being built below. */}
-      {!business.published && (
-        <a
-          href="#store-page"
-          className="h-[44px] px-4 flex items-center justify-center gap-2 text-[13px] font-medium text-[#d4d4d4] hover:text-white transition-colors truncate"
-          style={{ background: "rgba(46,122,85,.12)", borderTop: "1px solid rgba(46,122,85,.3)" }}
-        >
-          <span className="truncate">{st.belowHint}</span>
-          <span aria-hidden="true" className="text-[#8e8e8e]">↓</span>
-        </a>
-      )}
-
       {/* The page, below the chat */}
       <section id="store-page" className="px-4 md:px-8 pt-6 pb-10" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-[1180px] mx-auto">
-          {(business.plan.mode === "agent" || business.serviceAgent.name) && (
-            <AgentCard business={business} onPayments={onPayments} onUpdated={(b) => { onUpdated(b, services); setPreviewKey((k) => k + 1); }} />
-          )}
           <div className="flex items-center justify-between gap-3 mb-4">
             <h2 className="text-[15px] font-semibold text-white">{st.yourPage}</h2>
             <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap text-[13px] text-muted hover:text-ink shrink-0">

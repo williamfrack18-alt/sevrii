@@ -516,10 +516,14 @@ export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number):
       ? `¡Hola! Ya tengo la estrategia que armaste en el Cerebro para "${b.plan.service}". Con eso armo la página de ${b.name}: título, puntos clave y tus paquetes con precio. ¿La armo así y luego la revisamos juntos?`
       : `Hi! I have the strategy you built in the Brain for "${b.plan.service}". I'll use it for ${b.name}'s page: headline, key points and your priced packages. Shall I build it that way and then we review it together?`;
   }
-  if (serviceCount > 0) {
+  if (serviceCount > 0 || b.site.headline) {
+    if (b.plan.mode === "agent" && b.serviceAgent.name)
+      return es
+        ? `Tu agente y su página ya están armados con lo que aprobamos. Arriba tienes el resumen y abajo la página. Aquí puedo enseñarle tus apuntes, cambiar sus precios, el título o la oferta, y agregar fotos o un video. ¿Qué quieres cambiar?`
+        : `Your agent and its page are built from what we approved. The summary is above and the page below. Here I can teach it your notes, change its prices, the headline or the offer, and add photos or a video. What do you want to change?`;
     return es
-      ? `¡Hola! Soy tu asistente de Sevrii y voy a armar contigo la página de ${b.name} para que más clientes te escriban. Ya tengo un borrador. Empecemos por lo que más vende: ¿cuáles son tus servicios y cuánto cobras por cada uno?`
-      : `Hi! I'm your Sevrii assistant and I'll build ${b.name}'s page with you so more customers message you. I already have a draft. Let's start with what sells most: what services do you offer and how much do you charge for each?`;
+      ? `Tu página ya está armada con lo que aprobamos. Arriba tienes el resumen y abajo la página. Aquí puedo agregar fotos o un video, cambiar el título, la oferta o los precios. ¿Qué quieres cambiar?`
+      : `Your page is built from what we approved. The summary is above and the page below. Here I can add photos or a video, change the headline, the offer or the prices. What do you want to change?`;
   }
   return es
     ? `¡Hola! Voy a armar contigo la página de ${b.name} para que más clientes te escriban. Para empezar: ¿qué servicio quieres vender y cuánto cuesta?`

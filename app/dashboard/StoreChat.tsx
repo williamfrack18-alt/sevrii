@@ -3,7 +3,7 @@
 import { useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { sendStoreChatAction, setStoreVideoAction, uploadStoreImageAction } from "@/app/storeActions";
-import ChatPanel, { type Msg } from "./ChatPanel";
+import ChatPanel, { type ChatChip, type Msg } from "./ChatPanel";
 import { prepareImage } from "@/lib/clientImage";
 import { upload } from "@vercel/blob/client";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
@@ -16,7 +16,11 @@ export default function StoreChat({
   onUpdated,
   onMessages,
   sync,
+  head,
+  chips,
 }: {
+  head?: React.ReactNode;
+  chips?: ChatChip[];
   business: ClientBusiness;
   onBusiness: (b: ClientBusiness) => void;
   sync?: { key: number; messages: Msg[] };
@@ -32,6 +36,8 @@ export default function StoreChat({
       greeting={greeting}
       initialMessages={initialMessages}
       sync={sync}
+      head={head}
+      chips={chips}
       texts={{
         placeholder: t.chatPlaceholder,
         emptyTitle: t.emptyTitle,
