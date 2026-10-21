@@ -4,6 +4,8 @@ import { allow, clientIp } from "@/lib/guard";
 import { notifyPaymentReceived } from "@/lib/notify";
 import { getBusinessById, getPaymentLink } from "@/lib/db";
 import { paySessionState } from "@/lib/payments";
+import { recordAffiliateSessionById } from "@/lib/affiliates";
+import AffRef from "@/app/site/[slug]/AffRef";
 import { payAction } from "./actions";
 import "./pay.css";
 
@@ -92,12 +94,14 @@ export default async function PayPage({
       if (state === "paid") {
         const biz = business;
         after(() => notifyPaymentReceived(biz, sessionId));
+        after(() => recordAffiliateSessionById(biz, sessionId));
       }
     }
   }
 
   return (
     <div className="pay" lang={lang} style={{ ["--accent" as string]: accent } as React.CSSProperties}>
+      {business?.affiliate.enabled && <AffRef businessId={business.id} slug={business.slug} />}
       <main className="pay-card">
         {business && (
           <div className="pay-biz">

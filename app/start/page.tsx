@@ -16,6 +16,8 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const sp = (await searchParams) ?? {};
+  // Came from "Quiero ser afiliado" and has no business: straight to the affiliate panel.
+  if (!user.business && (await cookies()).get("sevrii_path")?.value === "affiliate") redirect("/panel-afiliado");
   const isNew = Boolean(user.business) && sp.new === "1";
   // Came from "Crear mi agente" (sevrii.com): that option starts picked.
   const initial = sp.path === "agent" || (await cookies()).get("sevrii_path")?.value === "agent" ? "agent" : null;
@@ -65,6 +67,9 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
       </div>
 
       <PathPicker newProject={isNew} initial={initial} />
+      <Link href="/panel-afiliado" className="mt-8 text-[13.5px] text-muted hover:text-ink underline underline-offset-4">
+        {t.start.affiliateLink}
+      </Link>
     </div>
   );
 }

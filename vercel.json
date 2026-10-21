@@ -1,5 +1,8 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
-  "crons": [{ "path": "/api/cron/agent", "schedule": "0 13 * * *" }]
+  "crons": [
+    { "path": "/api/cron/agent", "schedule": "0 13 * * *" },
+    { "path": "/api/cron/affiliates", "schedule": "30 14 * * *" }
+  ]
 }

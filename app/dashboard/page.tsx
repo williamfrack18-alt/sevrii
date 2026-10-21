@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getLang } from "@/lib/lang";
 import { storeGreeting } from "@/lib/storeAgent";
 import { marketingGreeting } from "@/lib/marketingBrain";
@@ -16,7 +17,8 @@ export default async function DashboardPage({
 }) {
   let user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!user.business) redirect("/start");
+  // Someone who only wants to be an affiliate (no project) lands on that panel.
+  if (!user.business) redirect((await cookies()).get("sevrii_path")?.value === "affiliate" ? "/panel-afiliado" : "/start");
 
   const sp = (await searchParams) ?? {};
   // Back from paying: turn the plan on now (the webhook may arrive a bit later).

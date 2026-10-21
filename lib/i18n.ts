@@ -100,6 +100,7 @@ const es = {
     newProjectNewText: "Quiero empezar a ofrecer algo que todavía no hago. Ayúdame a escoger según mi experiencia, mi tiempo y mi dinero.",
     agentTitle: "Crear un agente",
     agentText: "Una IA que hace mi servicio sola, en el chat de mi página, las 24 horas, y cobra por usarlo.",
+    affiliateLink: "¿Solo quieres recomendar servicios y ganar comisiones? Entra como afiliado →",
   },
   onboarding: {
     title: "Armemos tu página",
@@ -337,6 +338,7 @@ const en: Dict = {
     newProjectNewText: "I want to start offering something new. Help me pick the most profitable one for my experience.",
     agentTitle: "Create an agent",
     agentText: "An AI that delivers my service by itself, in my page chat, 24/7, and charges for it.",
+    affiliateLink: "Just want to recommend services and earn commissions? Join as an affiliate →",
   },
   onboarding: {
     title: "Let’s build your page",

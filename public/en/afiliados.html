@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Sevrii language detection: EN/ES auto-switch -->
+<script>
+(function(){
+  var BASENAME = 'afiliados';
+  try {
+    var path = window.location.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i,'');
+    if (path === '') path = '/';
+    var isEn = path === '/en' || path.indexOf('/en/') === 0;
+    var enTarget = (BASENAME === 'index') ? '/en' : '/en/' + BASENAME;
+    var stored = localStorage.getItem('sevrii_lang');
+    if (stored) {
+      // Ya visitó antes: solo actualizamos la preferencia guardada,
+      // nunca lo sacamos de la página en la que ya está (evita el loop /en -> /).
+      localStorage.setItem('sevrii_lang', isEn ? 'en' : 'es');
+    } else {
+      // Primera visita sin preferencia: detecta el idioma del navegador una sola vez.
+      if (isEn) {
+        localStorage.setItem('sevrii_lang', 'en');
+      } else {
+        var lang = ((navigator.language || (navigator.languages && navigator.languages[0]) || '') + '').toLowerCase();
+        // English for everyone, unless the browser prefers Spanish.
+        if (lang.indexOf('es') === 0) {
+          localStorage.setItem('sevrii_lang', 'es');
+        } else {
+          localStorage.setItem('sevrii_lang', 'en');
+          if (path !== enTarget) { window.location.href = enTarget; }
+        }
+      }
+    }
+    // Share the choice with the app (login, signup, dashboard) via a cookie.
+    document.cookie = 'sevrii_lang=' + localStorage.getItem('sevrii_lang') + '; path=/; max-age=31536000; samesite=lax';
+  } catch(e) {}
+})();
+</script>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1606497581185286');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sevrii Affiliates | Earn money recommending services</title>
+<meta name="description" content="Recommend services and AI agents from businesses on Sevrii and earn a commission on every sale. Or open your service so others sell it for you.">
+<meta property="og:title" content="Sevrii Affiliates | Earn money recommending services">
+<meta property="og:description" content="Recommend services and AI agents from businesses on Sevrii and earn a commission on every sale. Or open your service so others sell it for you.">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,300..500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--fg:#fff;--dim:#a3a3a3;--line:rgba(255,255,255,.14);--green:#3ddc84;--mint:#8ff0bb;--deep:#1f6644}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.w{font-family:"Archivo",-apple-system,BlinkMacSystemFont,sans-serif;font-stretch:112%;font-variation-settings:"wdth" 112}
+.in{max-width:1180px;margin:0 auto;padding:0 32px}
+.nav{position:sticky;top:0;z-index:20;background:rgba(0,0,0,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08)}
+.nav .in{height:72px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.brand{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:700}
+.brand img{height:40px;width:auto;display:block}
+.brand small{font-size:21px;font-weight:400;color:#9a9a9a}
+.links{display:flex;gap:28px;font-size:14px;color:#d9dbde}
+.links a:hover{color:#fff}
+.links a.lang{color:#8a8f98}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:999px;font-size:14px;font-weight:600;background:#fff;color:#000;white-space:nowrap}
+.pill:hover{background:#e6e6e6}
+.ghost{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:999px;font-size:15px;font-weight:500;border:1px solid rgba(255,255,255,.4);color:#fff;white-space:nowrap}
+.ghost:hover{border-color:#fff}
+.big{padding:14px 26px;font-size:15.5px}
+.label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--mint)}
+.hero{position:relative;overflow:hidden;background:radial-gradient(ellipse 60% 70% at 78% 40%,rgba(61,220,132,.16),transparent 70%),#000}
+.hero .in{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;padding-top:96px;padding-bottom:110px}
+h1{font-weight:400;font-size:clamp(38px,5.4vw,76px);line-height:1;letter-spacing:.005em;text-transform:uppercase;margin:22px 0 22px}
+.lede{font-size:18px;line-height:1.6;color:#d6d6d6;max-width:540px;margin:0}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
+.card{background:#fff;color:#111;border-radius:22px;padding:22px;box-shadow:0 40px 90px -40px rgba(61,220,132,.45);max-width:420px;margin-left:auto;display:flex;flex-direction:column;gap:14px}
+.card .k{font-size:12px;color:#6b6e64;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.card .link{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#f3f4f1;border:1px solid #e4e5e1;border-radius:12px;padding:10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .row{display:flex;justify-content:space-between;align-items:baseline;font-size:14.5px;padding:10px 0;border-top:1px solid #ececea}
+.card .row b{font-size:15px}
+.card .earn{font-size:30px;font-weight:800;color:#137a3d;letter-spacing:-.01em}
+.card .note{font-size:12.5px;color:#6b6e64}
+.cap{display:block;text-align:right;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:14px}
+section.s{padding:96px 0;border-top:1px solid rgba(255,255,255,.08)}
+.h2{font-weight:400;font-size:clamp(28px,3.4vw,46px);line-height:1.04;text-transform:uppercase;margin:14px 0 16px;max-width:760px}
+.sub{font-size:16.5px;line-height:1.6;color:#bdbdbd;max-width:620px;margin:0}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:44px}
+.step{border:1px solid var(--line);border-radius:20px;padding:26px;display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.02)}
+.step .n{font-size:14px;color:#8f8f8f}
+.step h3{font-size:19px;font-weight:500;margin:0}
+.step p{font-size:15px;line-height:1.55;color:#bdbdbd;margin:0}
+.light{background:#ecedeb;color:#0b0b0b}
+.light .label{color:var(--deep)}
+.light .sub,.light .step p{color:#3b3b3b}
+.light .step{background:#fff;border-color:rgba(0,0,0,.08)}
+.light .step .n{color:#6b6b6b}
+.dark{display:inline-flex;align-items:center;gap:8px;padding:14px 26px;border-radius:999px;font-size:15.5px;font-weight:600;background:#0b0b0b;color:#fff;margin-top:34px}
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:40px}
+.rule{display:flex;gap:14px;padding:20px;border:1px solid var(--line);border-radius:18px}
+.rule i{font-style:normal;width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;background:rgba(61,220,132,.14);color:var(--mint)}
+.rule.no i{background:rgba(255,107,107,.14);color:#ff8a8a}
+.rule b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
+.rule span{font-size:14.5px;line-height:1.55;color:#bdbdbd}
+.faq{margin-top:36px;border-top:1px solid var(--line)}
+.faq details{border-bottom:1px solid var(--line);padding:20px 0}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:20px;font-size:17px;font-weight:500}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary span:last-child{color:#8f8f8f;transition:transform .2s}
+.faq details[open] summary span:last-child{transform:rotate(45deg)}
+.faq p{font-size:15.5px;line-height:1.6;color:#bdbdbd;margin:12px 0 0;max-width:760px}
+.final{text-align:center;padding:110px 0;background:radial-gradient(ellipse 50% 70% at 50% 100%,rgba(61,220,132,.16),transparent 70%),#000;border-top:1px solid rgba(255,255,255,.08)}
+.final .h2{margin-left:auto;margin-right:auto}
+.final .cta{justify-content:center}
+footer{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:28px 32px;font-size:13px;color:#8a8a8a;border-top:1px solid rgba(255,255,255,.08)}
+footer nav{display:flex;gap:20px;flex-wrap:wrap}
+footer a:hover{color:#fff}
+@media (max-width:900px){
+  .links{display:none}
+  .in{padding:0 18px}
+  .hero .in{grid-template-columns:1fr;padding-top:56px;padding-bottom:72px;gap:40px}
+  .card{margin-left:0;max-width:none}
+  .cap{text-align:left}
+  .steps,.rules{grid-template-columns:1fr}
+  section.s{padding:68px 0}
+  footer{padding:24px 18px}
+}
+</style>
+</head>
+<body>
+<header class="nav"><div class="in">
+  <a class="brand" href="/en"><img src="/assets/sevrii-logo.png" alt="Sevrii">Sevrii<small>Affiliates</small></a>
+  <nav class="links"><a href="#como">How it works</a><a href="#negocios">For businesses</a><a href="#reglas">Rules</a><a href="#faq">FAQ</a><a class="lang" href="/afiliados">ES</a></nav>
+  <a class="pill" href="/ser-afiliado">Become an affiliate</a>
+</div></header>
+
+<section class="hero"><div class="in">
+  <div>
+    <div class="label w">Sevrii · Affiliates</div>
+    <h1 class="w">Earn money recommending services</h1>
+    <p class="lede">Pick a service or an AI agent you like, share your link and earn a commission for every customer who pays. No inventory, no customer service, free.</p>
+    <div class="cta"><a class="pill big" href="/ser-afiliado">Become an affiliate <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a><a class="ghost big" href="#negocios">I have a service</a></div>
+  </div>
+  <div role="img" aria-label="Illustrative example">
+    <div class="card" aria-hidden="true">
+      <span class="k">Your link</span>
+      <div class="link">sevrii.com/site/tutor-tx?ref=ana2026</div>
+      <div class="row"><span>Sale</span><b>Monthly access · $89</b></div>
+      <div class="row"><span>Business&#x27;s commission</span><b>20%</b></div>
+      <span class="k">You earn</span>
+      <span class="earn">$17.80</span>
+      <span class="note">Paid to your bank 30 days after the sale.</span>
+    </div>
+    <span class="cap w">Illustrative example</span>
+  </div>
+</div></section>
+
+<section class="s" id="como"><div class="in">
+  <div class="label w">For affiliates</div>
+  <h2 class="h2 w">Three steps and you start earning</h2>
+  <p class="sub">Anyone with a Sevrii account can be an affiliate. You don&#x27;t need a business.</p>
+  <div class="steps"><div class="step"><span class="n w">01</span><h3>Pick a service</h3><p>In the Affiliates section you see the open services, what they charge and the commission each one pays.</p></div><div class="step"><span class="n w">02</span><h3>Share your link</h3><p>Your link is unique. Post it on your social media, your group chats, your channel or your site. Each visit is remembered for 30 days.</p></div><div class="step"><span class="n w">03</span><h3>Get your commission</h3><p>When the customer pays through Sevrii, the commission is yours. We send it to your bank 30 days later, with Stripe.</p></div></div>
+</div></section>
+
+<section class="s light" id="negocios"><div class="in">
+  <div class="label w">For businesses</div>
+  <h2 class="h2 w">Let others sell your service for you</h2>
+  <p class="sub">Open your service to affiliates and let creators, promoters and happy customers bring you sales. You only pay when they sell.</p>
+  <div class="steps"><div class="step"><span class="n w">01</span><h3>Open your service</h3><p>One switch in Affiliates. Your page must be published with Payments connected.</p></div><div class="step"><span class="n w">02</span><h3>Set your commission</h3><p>From 5% to 50% of each sale. Write a note for affiliates: who your service is for and what not to promise.</p></div><div class="step"><span class="n w">03</span><h3>Pay only for results</h3><p>The commission is charged automatically at payment, with Payments&#x27; 5%. No sales, no cost.</p></div></div>
+  <a class="dark" href="/dashboard?view=affiliates">Open my service <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
+</div></section>
+
+<section class="s" id="reglas"><div class="in">
+  <div class="label w">Clear rules</div>
+  <h2 class="h2 w">What counts and what doesn&#x27;t</h2>
+  <div class="rules"><div class="rule"><i>✓</i><div><b>Payments made through Sevrii</b><span>Payment links and AI agent access count. Cash or outside payments can&#x27;t be verified.</span></div></div><div class="rule"><i>✓</i><div><b>30 days from the visit</b><span>If the customer comes through your link and pays within 30 days, the sale is yours.</span></div></div><div class="rule"><i>✓</i><div><b>Monthly payments too</b><span>If you sell monthly access to an agent, you earn a commission every month the customer keeps paying.</span></div></div><div class="rule"><i>✓</i><div><b>Refunds</b><span>If the customer gets a refund before the 30 days, the commission is voided.</span></div></div><div class="rule no"><i>!</i><div><b>Always say you earn a commission</b><span>It&#x27;s the law in the US and it protects your trust. No fake reviews.</span></div></div><div class="rule no"><i>!</i><div><b>No spam or false promises</b><span>Don&#x27;t promise what the service doesn&#x27;t, don&#x27;t run ads with the business&#x27;s brand without permission, and don&#x27;t buy with your own link.</span></div></div></div>
+</div></section>
+
+<section class="s" id="faq"><div class="in">
+  <h2 class="h2 w">Frequently asked questions</h2>
+  <div class="faq"><details><summary><span>How much does it cost to be an affiliate?</span><span aria-hidden="true">+</span></summary><p>Nothing. Sign up for free on Sevrii and open the Affiliates section.</p></details><details><summary><span>Do I need a business?</span><span aria-hidden="true">+</span></summary><p>No. You can be just an affiliate. If you also have a business, you can open it to affiliates.</p></details><details><summary><span>When and how do I get paid?</span><span aria-hidden="true">+</span></summary><p>30 days after each sale, straight to your bank account with Stripe. The first time you connect your account in Affiliates; Stripe asks for your details so it can pay you.</p></details><details><summary><span>What can I promote?</span><span aria-hidden="true">+</span></summary><p>What owners opened to affiliates: services done by people and AI agents that deliver a service by themselves.</p></details><details><summary><span>How do I know what I earned?</span><span aria-hidden="true">+</span></summary><p>In Affiliates you see your visits, your sales, what is pending and what was already paid.</p></details><details><summary><span>I own a business, what does it cost me?</span><span aria-hidden="true">+</span></summary><p>Only the commission you choose, and only on sales an affiliate brings. It&#x27;s charged with Payments&#x27; 5%.</p></details></div>
+</div></section>
+
+<section class="final"><div class="in">
+  <h2 class="h2 w">Start earning with your link</h2>
+  <p class="sub" style="margin:0 auto">Sign up for free, pick a service and share.</p>
+  <div class="cta"><a class="pill big" href="/ser-afiliado">Become an affiliate <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a></div>
+</div></section>
+
+<footer><span>© 2026 Sevrii · Affiliates</span><nav><a href="/en">Marketplace</a><a href="/en/ofrecerservicios">Offer services</a><a href="/en/terminos">Terms</a><a href="/en/privacidad">Privacy</a></nav></footer>
+</body>
+</html>

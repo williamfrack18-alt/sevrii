@@ -3,6 +3,7 @@ import type { MarketingData, CampaignSpec } from "@/lib/marketing";
 import type { BusinessRow, ProjectSummary } from "@/lib/db";
 import type { BusinessPlan } from "@/lib/plan";
 import type { ServiceAgent } from "@/lib/serviceAgentConfig";
+import type { AffiliateSettings } from "@/lib/affiliateConfig";
 
 // Shared by the server page and the client components (no "use client" here,
 // so the server can call these functions).
@@ -26,6 +27,7 @@ export type ClientBusiness = {
   plan: BusinessPlan;
   serviceAgent: ServiceAgent;
   payReady: boolean; // Payments connected: customers can pay (e.g. for the agent)
+  affiliate: AffiliateSettings;
 };
 
 export function toClientBusiness(b: BusinessRow): ClientBusiness {
@@ -49,6 +51,7 @@ export function toClientBusiness(b: BusinessRow): ClientBusiness {
     plan: b.plan,
     serviceAgent: b.serviceAgent,
     payReady: b.payStatus === "ready" && Boolean(b.stripeAccountId),
+    affiliate: b.affiliate,
   };
 }
 
@@ -69,6 +72,6 @@ export type ClientMsg = { id: string; role: string; content: string };
 
 export type ClientProject = ProjectSummary;
 
-export type DashboardView = "projects" | "plan" | "store" | "chats" | "marketing" | "payments" | "capital" | "plans";
-export const DASHBOARD_VIEWS: DashboardView[] = ["projects", "plan", "store", "chats", "marketing", "payments", "capital", "plans"];
+export type DashboardView = "projects" | "plan" | "store" | "chats" | "marketing" | "payments" | "affiliates" | "capital" | "plans";
+export const DASHBOARD_VIEWS: DashboardView[] = ["projects", "plan", "store", "chats", "marketing", "payments", "affiliates", "capital", "plans"];
 

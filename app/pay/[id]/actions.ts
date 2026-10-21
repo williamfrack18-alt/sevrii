@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getBusinessById, getPaymentLink } from "@/lib/db";
 import { allow, clientIp } from "@/lib/guard";
 import { checkoutForLink, refreshPayStatus } from "@/lib/payments";
+import { affiliateForCheckout } from "@/lib/affiliates";
 
 // A client tapped "Pay": open Stripe Checkout on the business's own account.
 export async function payAction(formData: FormData): Promise<void> {
@@ -20,7 +21,7 @@ export async function payAction(formData: FormData): Promise<void> {
   try {
     // Make sure the account can still take payments right now.
     if ((await refreshPayStatus(business)) !== "ready") redirect(back);
-    url = await checkoutForLink(business, link);
+    url = await checkoutForLink(business, link, await affiliateForCheckout(business));
   } catch (err) {
     // redirect() throws on purpose; let it through.
     if ((err as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) throw err;

@@ -11,6 +11,7 @@ import { PLANS_TEXT } from "@/lib/plansI18n";
 import { PLANS, type ClientPlan } from "@/lib/plans";
 import ComingSoonView from "./ComingSoonView";
 import PaymentsView from "./PaymentsView";
+import AffiliatesView from "./AffiliatesView";
 import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
 import { useT, useLang } from "@/components/LangProvider";
@@ -73,6 +74,14 @@ const ICONS: Record<DashboardView, React.JSX.Element> = {
       <rect x="2.5" y="6" width="19" height="13" rx="2" />
       <path d="M2.5 10h19" />
       <path d="M6 15h4" />
+    </>
+  ),
+  affiliates: (
+    <>
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="17" cy="15" r="3" />
+      <path d="M10.4 9.8l4.2 3.4" />
+      <path d="M3.5 20a4.5 4.5 0 0 1 8 -2.8" />
     </>
   ),
   capital: (
@@ -181,7 +190,8 @@ export default function DashboardTabs({
     { id: "store", label: t.dashboard.store, n: "02" },
     { id: "marketing", label: t.dashboard.marketing, n: "03" },
     { id: "payments", label: "Payments", n: "04" },
-    { id: "capital", label: "Capital", n: "05", soon: true },
+    { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates", n: "05" },
+    { id: "capital", label: "Capital", n: "06", soon: true },
   ];
 
   function NavIcon({ id, on }: { id: DashboardView; on: boolean }) {
@@ -231,7 +241,7 @@ export default function DashboardTabs({
     { id: "marketing", label: t.dashboard.marketing },
     { id: "more", label: lang === "es" ? "Más" : "More" },
   ];
-  const inMore = view === "projects" || view === "payments" || view === "capital" || view === "plans";
+  const inMore = view === "projects" || view === "payments" || view === "affiliates" || view === "capital" || view === "plans";
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     if (!moreOpen) return;
@@ -283,6 +293,7 @@ export default function DashboardTabs({
   const sheetRows: { id: DashboardView; label: string; meta?: React.ReactNode }[] = [
     { id: "projects", label: pt.nav.projects, meta: projects.length > 1 ? <span className="text-[13px] text-[#8e8e8e]">{projects.length}</span> : undefined },
     { id: "payments", label: "Payments" },
+    { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates" },
     { id: "capital", label: "Capital", meta: <span className="dash-soon">{t.dashboard.soon}</span> },
     {
       id: "plans",
@@ -611,6 +622,7 @@ export default function DashboardTabs({
           />
         )}
         {view === "payments" && <PaymentsView business={currentBusiness} services={currentServices} />}
+        {view === "affiliates" && <AffiliatesView business={currentBusiness} onNavigate={setView} />}
         {view === "capital" && <ComingSoonView pillar="capital" onBack={() => setView("projects")} onPlans={() => setView("plans")} />}
       </main>
     </div>

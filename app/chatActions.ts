@@ -44,6 +44,7 @@ import { runForUser, serviceAgentAccount, serviceAgentGate, visitorAiAccount, vi
 import { runServiceAgent, type AgentMode } from "@/lib/serviceAgent";
 import { agentMissing, offerPriceLabel, welcomeFor } from "@/lib/serviceAgentConfig";
 import { agentSubscriptionEnd, checkoutForAgentOffer, getPaidAgentSession, paymentsReady } from "@/lib/payments";
+import { affiliateForCheckout, recordAffiliateSessionById } from "@/lib/affiliates";
 import { normalizePhone } from "@/lib/site";
 import { runVisitorAi } from "@/lib/visitorChat";
 import { defang, emailVisitorReply, notifyChatOwner } from "@/lib/notify";
@@ -527,7 +528,7 @@ export async function agentCheckoutAction(input: { slug: string; token: string; 
   try {
     // The welcome discount only on this chat's first purchase.
     const first = (await countAgentAccess(conv.id)) === 0;
-    return { url: await checkoutForAgentOffer(b, offer, b.serviceAgent.name, conv.id, first ? welcomeFor(b.serviceAgent, offer) : 0) };
+    return { url: await checkoutForAgentOffer(b, offer, b.serviceAgent.name, conv.id, first ? welcomeFor(b.serviceAgent, offer) : 0, await affiliateForCheckout(b)) };
   } catch (err) {
     console.error("[agent] checkout failed", (err as Error)?.message);
     return { error: "failed" };
@@ -544,6 +545,7 @@ export async function agentClaimAction(input: { slug: string; token: string; ses
   const conv = await getConversationByToken(b.id, hashToken(token));
   if (!conv) return { ok: false, messages: [] };
   const paid = await getPaidAgentSession(b, clean(input.sessionId, 260));
+  if (paid) after(() => recordAffiliateSessionById(b, clean(input.sessionId, 260)));
   if (paid && paid.conversationId === conv.id) {
     const offer = b.serviceAgent.offers.find((o) => o.id === paid.offerId);
     const monthly = Boolean(paid.subscriptionId);

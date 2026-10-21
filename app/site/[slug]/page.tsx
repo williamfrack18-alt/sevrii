@@ -14,6 +14,7 @@ import { activeOffer, storeTheme } from "@/lib/site";
 import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, type MediaItem } from "./StoreParts";
 import { ChatJump } from "./ChatWidget";
 import AgentPage from "./AgentPage";
+import AffRef from "./AffRef";
 import { agentMissing, offerPriceLabel, welcomeLabel } from "@/lib/serviceAgentConfig";
 import "./store.css";
 
@@ -138,7 +139,14 @@ export default async function PublicBusinessPage({
         }
       : null;
   // A service agent gets its own page: the chat is the product.
-  if (business.plan.mode === "agent" || sa.name) return <AgentPage business={business} live={live} campaign={campaign} chatAgent={chatAgent} />;
+  const affRef = business.affiliate.enabled ? <AffRef businessId={business.id} slug={business.slug} /> : null;
+  if (business.plan.mode === "agent" || sa.name)
+    return (
+      <>
+        {affRef}
+        <AgentPage business={business} live={live} campaign={campaign} chatAgent={chatAgent} />
+      </>
+    );
 
   const reach = resolveReach(site, business.city, business.plan.profile);
   const area = site.serviceArea || reachLabel(reach, site.lang) || business.city || "";
@@ -219,6 +227,7 @@ export default async function PublicBusinessPage({
   return (
     <div className="mt" lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
       {live && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson }} />}
+      {affRef}
       {!live && <div className="draft-bar">{t.draftBanner}</div>}
 
       <header className="mt-header">

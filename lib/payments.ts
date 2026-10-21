@@ -46,7 +46,7 @@ function form(params: Record<string, string>): string {
     .join("&");
 }
 
-async function stripe<T = Record<string, unknown>>(
+export async function stripe<T = Record<string, unknown>>(
   method: "GET" | "POST",
   path: string,
   params: Record<string, string> = {},
@@ -76,7 +76,7 @@ async function stripe<T = Record<string, unknown>>(
 // fees. Payments still use v1 Checkout with the Stripe-Account header.
 const V2_VERSION = process.env.STRIPE_V2_VERSION || "2026-09-30.preview";
 
-async function stripeV2<T = Record<string, unknown>>(
+export async function stripeV2<T = Record<string, unknown>>(
   method: "GET" | "POST",
   path: string,
   body?: Record<string, unknown>,
@@ -215,9 +215,14 @@ export async function refreshPayStatus(business: BusinessRow): Promise<PayStatus
 }
 
 // ---------- Charging a client ----------
-export async function checkoutForLink(business: BusinessRow, link: PaymentLinkRow): Promise<string> {
+// An affiliate who brought the customer: their commission is collected with
+// Sevrii's fee and paid to them later (see lib/affiliates.ts).
+export type CheckoutAffiliate = { userId: string; percent: number };
+
+export async function checkoutForLink(business: BusinessRow, link: PaymentLinkRow, aff: CheckoutAffiliate | null = null): Promise<string> {
   if (!business.stripeAccountId) throw new Error("business has no Stripe account");
-  const fee = sevriiFeeCents(link.amountCents);
+  const commission = aff ? Math.floor((link.amountCents * aff.percent) / 100) : 0;
+  const fee = sevriiFeeCents(link.amountCents) + commission;
   const back = `${siteUrl()}/pay/${link.id}`;
   const params: Record<string, string> = {
     mode: "payment",
@@ -233,6 +238,7 @@ export async function checkoutForLink(business: BusinessRow, link: PaymentLinkRo
     "metadata[sevriiLinkId]": link.id,
     "metadata[sevriiBusinessId]": business.id,
     "metadata[sevriiTitle]": link.title.slice(0, 120),
+    ...(aff ? { "metadata[sevriiAff]": aff.userId, "metadata[sevriiAffPct]": String(aff.percent) } : {}),
     success_url: `${back}?paid=1&s={CHECKOUT_SESSION_ID}`,
     cancel_url: back,
   };
@@ -294,7 +300,7 @@ export async function listReceivedPayments(business: BusinessRow): Promise<Recei
       amountCents: amount - refunded,
       // Approximate total taken (Stripe's standard fee + Sevrii's part), on
       // the original amount: those fees aren't given back on a refund.
-      feeCents: Math.min(amount - refunded, totalFeeCents(amount)),
+      feeCents: Math.min(amount - refunded, totalFeeCents(amount) + Math.floor((amount * (Number(s.metadata?.sevriiAffPct) || 0)) / 100)),
       email: s.customer_details?.email ?? null,
       name: s.customer_details?.name ?? null,
       createdAt: new Date(s.created * 1000).toISOString(),
@@ -351,7 +357,8 @@ export async function checkoutForAgentOffer(
   offer: { id: string; title: string; detail: string; priceCents: number; billing: "once" | "monthly" },
   agentName: string,
   conversationId: string,
-  welcomePct = 0 // a new customer's first purchase (already capped at the $15 minimum)
+  welcomePct = 0, // a new customer's first purchase (already capped at the $15 minimum)
+  aff: CheckoutAffiliate | null = null
 ): Promise<string> {
   if (!business.stripeAccountId) throw new Error("business has no Stripe account");
   const account = business.stripeAccountId;
@@ -362,6 +369,7 @@ export async function checkoutForAgentOffer(
   // coupon on the first month only.
   const firstCents = offer.billing === "once" && pct ? Math.round(offer.priceCents * (1 - pct / 100)) : offer.priceCents;
   const fee = sevriiFeeCents(firstCents);
+  const affPct = aff ? Math.max(0, Math.min(50, aff.percent)) : 0;
   const params: Record<string, string> = {
     mode: offer.billing === "monthly" ? "subscription" : "payment",
     "payment_method_types[0]": "card",
@@ -372,6 +380,7 @@ export async function checkoutForAgentOffer(
     "metadata[sevriiBusinessId]": business.id,
     "metadata[sevriiKind]": "agent",
     "metadata[sevriiWelcome]": String(pct),
+    ...(aff ? { "metadata[sevriiAff]": aff.userId, "metadata[sevriiAffPct]": String(affPct) } : {}),
     "metadata[sevriiOffer]": offer.id,
     "metadata[sevriiConv]": conversationId,
     "metadata[sevriiTitle]": name,
@@ -384,12 +393,18 @@ export async function checkoutForAgentOffer(
     params["subscription_data[metadata][sevriiBusinessId]"] = business.id;
     params["subscription_data[metadata][sevriiConv]"] = conversationId;
     // Subscriptions take a percent: the same share as a one-time charge.
-    const feePct = Math.floor((fee / offer.priceCents) * 10000) / 100;
-    if (feePct > 0) params["subscription_data[application_fee_percent]"] = String(feePct);
+    // Every month: Sevrii's share plus the affiliate's commission.
+    const feePct = Math.floor((fee / offer.priceCents) * 10000) / 100 + affPct;
+    if (feePct > 0) params["subscription_data[application_fee_percent]"] = String(Math.min(feePct, 60));
+    if (aff) {
+      params["subscription_data[metadata][sevriiAff]"] = aff.userId;
+      params["subscription_data[metadata][sevriiAffPct]"] = String(affPct);
+    }
     if (pct) params["discounts[0][coupon]"] = await welcomeCoupon(account, pct);
   } else {
     params["payment_intent_data[description]"] = name.slice(0, 200);
-    if (fee > 0) params["payment_intent_data[application_fee_amount]"] = String(fee);
+    const total = fee + Math.floor((firstCents * affPct) / 100);
+    if (total > 0) params["payment_intent_data[application_fee_amount]"] = String(total);
   }
   const s = await stripe<{ url: string }>("POST", "checkout/sessions", params, { account });
   return s.url;

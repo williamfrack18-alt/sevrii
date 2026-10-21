@@ -4,6 +4,7 @@ import { ownsBlob, parseSite, type SiteData } from "./site";
 import { parseMarketing, parseCampaignSpec, type MarketingData, type CampaignSpec } from "./marketing";
 import { parsePlan, type BusinessPlan } from "./plan";
 import { parseServiceAgent, type ServiceAgent } from "./serviceAgentConfig";
+import { parseAffiliate, type AffiliateSettings } from "./affiliateConfig";
 
 // The Neon Vercel integration injects several connection-string env vars;
 // POSTGRES_URL / DATABASE_URL are the pooled connection, which is what a
@@ -430,6 +431,43 @@ async function migrate(): Promise<void> {
       `;
       await sql`CREATE INDEX IF NOT EXISTS agent_access_conv_idx ON agent_access ("conversationId", "endsAt")`;
       await sql`CREATE INDEX IF NOT EXISTS agent_access_biz_idx ON agent_access ("businessId", "createdAt")`;
+      // Affiliates: owners open a service to people who promote it for a
+      // commission on payments made through Sevrii.
+      await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS affiliate JSONB NOT NULL DEFAULT '{}'::jsonb`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "affCode" TEXT`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "affAccountId" TEXT`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS "affPayStatus" TEXT NOT NULL DEFAULT 'none'`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_aff_code_idx ON users ("affCode") WHERE "affCode" IS NOT NULL`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS affiliate_sales (
+          id TEXT PRIMARY KEY,
+          key TEXT NOT NULL UNIQUE,
+          "businessId" TEXT NOT NULL,
+          "affiliateUserId" TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          "amountCents" INTEGER NOT NULL,
+          "commissionCents" INTEGER NOT NULL,
+          "paymentIntentId" TEXT,
+          "subscriptionId" TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          "transferId" TEXT,
+          "payableAt" TIMESTAMPTZ NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS affiliate_sales_aff_idx ON affiliate_sales ("affiliateUserId", "createdAt")`;
+      await sql`CREATE INDEX IF NOT EXISTS affiliate_sales_biz_idx ON affiliate_sales ("businessId", "createdAt")`;
+      await sql`CREATE INDEX IF NOT EXISTS affiliate_sales_due_idx ON affiliate_sales (status, "payableAt")`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS affiliate_visits (
+          "businessId" TEXT NOT NULL,
+          "affiliateUserId" TEXT NOT NULL,
+          day TEXT NOT NULL,
+          n INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY ("businessId", "affiliateUserId", day)
+        )
+      `;
     }
   }
 }
@@ -509,6 +547,9 @@ export type UserRow = {
   stripeSubscriptionId?: string | null;
   googleSub?: string | null;
   emailVerifiedAt?: string | null;
+  affCode?: string | null;
+  affAccountId?: string | null;
+  affPayStatus?: string;
 };
 
 export async function createUser(
@@ -582,6 +623,7 @@ export type BusinessRow = {
   marketing: MarketingData;
   plan: BusinessPlan;
   serviceAgent: ServiceAgent;
+  affiliate: AffiliateSettings;
   marketCategory: string | null;
   stripeAccountId?: string | null;
   payStatus?: string;
@@ -598,6 +640,7 @@ function toBusiness(row: Record<string, unknown> | undefined): BusinessRow | und
     marketing: parseMarketing(row.marketing),
     plan: parsePlan(row.plan),
     serviceAgent: parseServiceAgent(row.serviceAgent),
+    affiliate: parseAffiliate(row.affiliate),
   };
 }
 
@@ -654,6 +697,7 @@ export async function createBusiness(input: {
     marketing: parseMarketing({}),
     plan,
     serviceAgent: parseServiceAgent({}),
+    affiliate: parseAffiliate({}),
     marketCategory: null,
     createdAt,
   };
@@ -1471,6 +1515,7 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM campaign_events WHERE "businessId" = ${id}`;
   await sql`DELETE FROM agent_items WHERE "businessId" = ${id}`;
   await sql`DELETE FROM agent_access WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM affiliate_visits WHERE "businessId" = ${id}`;
   await sql`DELETE FROM marketing_posts WHERE "businessId" = ${id}`;
   await sql`DELETE FROM meta_connections WHERE "businessId" = ${id}`;
   await sql`DELETE FROM chat_messages WHERE "businessId" = ${id}`;
@@ -1502,6 +1547,7 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM campaign_events WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM agent_items WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM agent_access WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM affiliate_visits WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM marketing_posts WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM meta_connections WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM chat_messages WHERE "businessId" = ANY(${ids})`;
@@ -2069,4 +2115,167 @@ export async function listAgentAccess(businessId: string, limit = 50): Promise<A
   await ensureSchema();
   const rows = (await sql`SELECT * FROM agent_access WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT ${limit}`) as Record<string, unknown>[];
   return rows.map(accessRow);
+}
+
+// ---------- Affiliates ----------
+export async function setBusinessAffiliate(businessId: string, a: AffiliateSettings): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE businesses SET affiliate = ${JSON.stringify(parseAffiliate(a))}::jsonb WHERE id = ${businessId}`;
+}
+
+// The person's affiliate code (made once, 8 letters and numbers).
+export async function ensureAffCode(userId: string): Promise<string> {
+  await ensureSchema();
+  const rows = (await sql`SELECT "affCode" FROM users WHERE id = ${userId}`) as { affCode: string | null }[];
+  if (rows[0]?.affCode) return rows[0].affCode;
+  for (let i = 0; i < 6; i++) {
+    const code = randomBytes(6).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, 8).toLowerCase();
+    if (code.length < 6) continue;
+    try {
+      const done = (await sql`UPDATE users SET "affCode" = ${code} WHERE id = ${userId} AND "affCode" IS NULL RETURNING "affCode"`) as { affCode: string }[];
+      if (done[0]) return done[0].affCode;
+      const again = (await sql`SELECT "affCode" FROM users WHERE id = ${userId}`) as { affCode: string | null }[];
+      if (again[0]?.affCode) return again[0].affCode;
+    } catch {
+      // taken: try another
+    }
+  }
+  throw new Error("could not make an affiliate code");
+}
+
+export async function getUserByAffCode(code: string): Promise<UserRow | undefined> {
+  await ensureSchema();
+  if (!/^[a-z0-9]{6,12}$/.test(code)) return undefined;
+  const rows = (await sql`SELECT * FROM users WHERE "affCode" = ${code}`) as UserRow[];
+  return rows[0];
+}
+
+export async function setAffAccount(userId: string, accountId: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE users SET "affAccountId" = ${accountId} WHERE id = ${userId}`;
+}
+export async function setAffPayStatus(userId: string, status: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE users SET "affPayStatus" = ${status} WHERE id = ${userId}`;
+}
+
+export async function addAffiliateVisit(businessId: string, affiliateUserId: string): Promise<void> {
+  await ensureSchema();
+  const day = nowISO().slice(0, 10);
+  await sql`
+    INSERT INTO affiliate_visits ("businessId", "affiliateUserId", day, n) VALUES (${businessId}, ${affiliateUserId}, ${day}, 1)
+    ON CONFLICT ("businessId", "affiliateUserId", day) DO UPDATE SET n = affiliate_visits.n + 1
+  `;
+}
+
+export type AffiliateSaleRow = {
+  id: string;
+  key: string;
+  businessId: string;
+  affiliateUserId: string;
+  kind: string;
+  title: string;
+  amountCents: number;
+  commissionCents: number;
+  paymentIntentId: string | null;
+  subscriptionId: string | null;
+  status: "pending" | "paid" | "void" | "held";
+  transferId: string | null;
+  payableAt: string;
+  createdAt: string;
+};
+
+function saleRow(r: Record<string, unknown>): AffiliateSaleRow {
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : "");
+  return {
+    id: String(r.id),
+    key: String(r.key),
+    businessId: String(r.businessId),
+    affiliateUserId: String(r.affiliateUserId),
+    kind: String(r.kind),
+    title: String(r.title ?? ""),
+    amountCents: Number(r.amountCents) || 0,
+    commissionCents: Number(r.commissionCents) || 0,
+    paymentIntentId: r.paymentIntentId ? String(r.paymentIntentId) : null,
+    subscriptionId: r.subscriptionId ? String(r.subscriptionId) : null,
+    status: (["pending", "paid", "void", "held"].includes(String(r.status)) ? r.status : "pending") as AffiliateSaleRow["status"],
+    transferId: r.transferId ? String(r.transferId) : null,
+    payableAt: iso(r.payableAt),
+    createdAt: iso(r.createdAt),
+  };
+}
+
+// One commission per payment (key = the Stripe session or invoice).
+export async function addAffiliateSale(a: Omit<AffiliateSaleRow, "id" | "status" | "transferId" | "createdAt">): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO affiliate_sales (id, key, "businessId", "affiliateUserId", kind, title, "amountCents", "commissionCents", "paymentIntentId", "subscriptionId", "payableAt")
+    VALUES (${newId()}, ${a.key}, ${a.businessId}, ${a.affiliateUserId}, ${a.kind}, ${a.title}, ${a.amountCents}, ${a.commissionCents}, ${a.paymentIntentId}, ${a.subscriptionId}, ${a.payableAt})
+    ON CONFLICT (key) DO NOTHING
+    RETURNING id
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+export async function listAffiliateSales(affiliateUserId: string, limit = 50): Promise<AffiliateSaleRow[]> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM affiliate_sales WHERE "affiliateUserId" = ${affiliateUserId} ORDER BY "createdAt" DESC LIMIT ${limit}`) as Record<string, unknown>[];
+  return rows.map(saleRow);
+}
+
+export async function listBusinessAffiliateSales(businessId: string, limit = 50): Promise<AffiliateSaleRow[]> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM affiliate_sales WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT ${limit}`) as Record<string, unknown>[];
+  return rows.map(saleRow);
+}
+
+export async function listDueAffiliateSales(limit = 50): Promise<AffiliateSaleRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM affiliate_sales WHERE status IN ('pending', 'held') AND "payableAt" <= now()
+    ORDER BY "payableAt" ASC LIMIT ${limit}
+  `) as Record<string, unknown>[];
+  return rows.map(saleRow);
+}
+
+export async function setAffiliateSaleStatus(id: string, status: AffiliateSaleRow["status"], transferId: string | null = null): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE affiliate_sales SET status = ${status}, "transferId" = COALESCE(${transferId}, "transferId") WHERE id = ${id}`;
+}
+
+// Monthly accesses sold through an affiliate: their renewals pay commission too.
+export async function listAffiliateSubscriptions(limit = 200): Promise<{ businessId: string; affiliateUserId: string; subscriptionId: string; title: string }[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT DISTINCT ON ("subscriptionId") "businessId", "affiliateUserId", "subscriptionId", title
+    FROM affiliate_sales WHERE "subscriptionId" IS NOT NULL AND status <> 'void'
+    ORDER BY "subscriptionId", "createdAt" ASC LIMIT ${limit}
+  `) as { businessId: string; affiliateUserId: string; subscriptionId: string; title: string }[];
+  return rows;
+}
+
+export async function businessAffiliateStats(businessId: string): Promise<{ affiliates: number; visits: number; sales: number; salesCents: number; commissionCents: number }> {
+  await ensureSchema();
+  const v = (await sql`SELECT COUNT(DISTINCT "affiliateUserId")::int AS a, COALESCE(SUM(n), 0)::int AS v FROM affiliate_visits WHERE "businessId" = ${businessId}`) as { a: number; v: number }[];
+  const s = (await sql`
+    SELECT COUNT(*)::int AS n, COALESCE(SUM("amountCents"), 0)::int AS amt, COALESCE(SUM("commissionCents"), 0)::int AS com
+    FROM affiliate_sales WHERE "businessId" = ${businessId} AND status <> 'void'
+  `) as { n: number; amt: number; com: number }[];
+  return { affiliates: v[0]?.a ?? 0, visits: v[0]?.v ?? 0, sales: s[0]?.n ?? 0, salesCents: s[0]?.amt ?? 0, commissionCents: s[0]?.com ?? 0 };
+}
+
+export async function affiliateVisitsByBusiness(affiliateUserId: string): Promise<Record<string, number>> {
+  await ensureSchema();
+  const rows = (await sql`SELECT "businessId", COALESCE(SUM(n), 0)::int AS v FROM affiliate_visits WHERE "affiliateUserId" = ${affiliateUserId} GROUP BY "businessId"`) as { businessId: string; v: number }[];
+  return Object.fromEntries(rows.map((r) => [r.businessId, r.v]));
+}
+
+// Published businesses open to affiliates (the caller checks plans and payments).
+export async function listOpenAffiliateBusinesses(limit = 200): Promise<BusinessRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM businesses WHERE published = 1 AND (affiliate->>'enabled') = 'true' AND "payStatus" = 'ready'
+    ORDER BY "createdAt" DESC LIMIT ${limit}
+  `) as Record<string, unknown>[];
+  return rows.map((r) => toBusiness(r)!).filter(Boolean);
 }
