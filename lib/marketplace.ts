@@ -152,14 +152,16 @@ export async function marketplaceListings(visitor: Visitor | null = null, lang: 
     }
     const site = r.site;
     const reach = resolveReach(site, r.city, r.profile);
-    const fit = serves(reach, visitor);
+    // Online services and agents serve from anywhere: they always show.
+    const fit = reach.mode === "remote" ? { ok: true, miles: null } : serves(reach, visitor);
     out.push({
       slug: r.slug,
       name: r.name,
       title: ((r.agentOn ? site.headline : "") || r.serviceName || site.headline || r.name).slice(0, 90),
       category: category as MarketCategory,
       location: (site.serviceArea || r.city || "").slice(0, 60),
-      price: (r.servicePrice || "").slice(0, 30),
+      // "Desde": the cheapest real price (an agent's cheapest access, else the cheapest service).
+      price: cheapestPrice(r) || (r.servicePrice || "").slice(0, 30),
       logoUrl: site.logoUrl || "",
       coverUrl: site.coverUrl || site.gallery[0] || "",
       spanish: site.spanish,
@@ -176,4 +178,22 @@ export async function marketplaceListings(visitor: Visitor | null = null, lang: 
   // Closest local services first, then online ones, then the rest.
   const rank = (l: MarketListing) => (l.serves ? (l.reach === "local" ? 0 : 1) : 2);
   return out.sort((a, b) => rank(a) - rank(b) || (a.miles ?? 9999) - (b.miles ?? 9999));
+}
+
+// "$25" from the cheapest price the page really sells.
+function cheapestPrice(r: { agentOn: boolean; agentOffers: unknown; servicePrices: string[] | null }): string {
+  const cents: number[] = [];
+  if (r.agentOn && Array.isArray(r.agentOffers))
+    for (const o of r.agentOffers) {
+      const c = Number((o as { priceCents?: unknown })?.priceCents);
+      if (Number.isFinite(c) && c > 0) cents.push(c);
+    }
+  if (!cents.length)
+    for (const p of r.servicePrices ?? []) {
+      const m = /\$\s?(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)/.exec(p || "");
+      if (m) cents.push(Math.round(Number(m[1].replace(/,/g, "")) * 100));
+    }
+  if (!cents.length) return "";
+  const min = Math.min(...cents) / 100;
+  return `$${Number.isInteger(min) ? min : min.toFixed(2)}`;
 }

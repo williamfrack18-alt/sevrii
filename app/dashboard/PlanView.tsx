@@ -8,6 +8,7 @@ import { approveBlockAction, chooseIdeaAction, finishPlanAction, noOfferAction, 
 import { MAX_IDEA_ROUNDS } from "@/lib/plan";
 import ChatPanel, { type ChatToken, type Msg } from "./ChatPanel";
 import MindMap, { type MindNode } from "./MindMap";
+import ProjectDock, { BelowChat } from "./ProjectDock";
 import { toClientBusiness, type ClientBusiness, type ClientService, type DashboardView } from "./types";
 import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
 
@@ -209,6 +210,48 @@ export default function PlanView({
       <StatusChip>{t.approvedShort(doneCount, APPROVAL_BLOCKS.length)}</StatusChip>
     ) : null;
 
+  // This project's map, as the last card of its own conversation.
+  const es = lang === "es";
+  const savedFacts = Object.keys(PROFILE_LABELS[lang]).filter((k) => {
+    const v = plan.profile[k as keyof Profile];
+    return v !== null && v !== "" && v !== undefined;
+  }).length;
+  const hasDock = savedFacts > 0 || plan.stage !== "interview" || plan.ideas.length > 0;
+  const dock = hasDock ? (
+    <ProjectDock
+      eyebrow={es ? "Mapa de tu proyecto" : "Your project map"}
+      title={plan.service || (plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea]?.title : "") || business.name}
+      status={<StatusChip tone={plan.stage === "approved" ? "done" : inPipeline && !pipeErr ? "live" : undefined}>{stages[current]}</StatusChip>}
+      link={{ label: es ? "Ver mapa completo ↓" : "See the full map ↓", href: "#plan-result" }}
+    >
+      {isStrategy ? (
+        <div className="flex flex-col gap-2.5">
+          <span className="text-[13px] text-[#a1a1a1]">{t.approvedShort(doneCount, APPROVAL_BLOCKS.length)}</span>
+          <div className="flex flex-wrap gap-2">
+            {APPROVAL_BLOCKS.map((b) => (
+              <span
+                key={b}
+                className="inline-flex items-center gap-1.5 text-[12.5px] px-3 py-1.5 rounded-full"
+                style={plan.approvals[b] ? { background: "rgba(46,122,85,0.22)", color: GREEN } : { background: "rgba(255,255,255,0.04)", color: "#a1a1a1", boxShadow: `inset 0 0 0 1px ${HAIR}` }}
+              >
+                {plan.approvals[b] ? <Check size={11} /> : <span className="h-1.5 w-1.5 rounded-full" style={{ background: b === reviewing ? "#fff" : "#5b5b5b" }} />}
+                {t.blocks[b]}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : plan.stage === "choose" ? (
+        <span className="text-[13px] text-[#a1a1a1]">{es ? `${plan.ideas.length} ideas para escoger, aquí arriba.` : `${plan.ideas.length} ideas to pick from, above.`}</span>
+      ) : inPipeline ? (
+        <span className="text-[13px] text-[#a1a1a1]">{plan.stage === "ideas_research" ? (plan.mode === "agent" ? t.lockedIdeasC : t.lockedIdeas) : t.locked}</span>
+      ) : (
+        <span className="text-[13px] text-[#a1a1a1]">
+          {es ? `${savedFacts} ${savedFacts === 1 ? "dato guardado" : "datos guardados"} en tu expediente.` : `${savedFacts} ${savedFacts === 1 ? "fact" : "facts"} saved in your file.`}
+        </span>
+      )}
+    </ProjectDock>
+  ) : undefined;
+
   return (
     <div className="overflow-x-clip" style={{ background: "#000" }}>
       <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
@@ -218,8 +261,8 @@ export default function PlanView({
               <span className="hidden md:inline">
                 Sevrii <span className="text-[#8e8e8e] font-normal">· </span>
               </span>
-              {t.nav.plan}
-              <span className="text-[#52525b] font-normal hidden lg:inline"> · {business.name}</span>
+              {business.name}
+              <span className="text-[#8e8e8e] font-normal"> · {t.nav.plan}</span>
             </span>
             {chip}
           </div>
@@ -248,6 +291,7 @@ export default function PlanView({
           renderToken={renderToken}
           tail={tail}
           tailKey={tailKey}
+          dock={dock}
           onSend={async (text) => {
             const res = await sendPlanChatAction(text);
             onUpdated(toClientBusiness(res.business), res.services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description })));
@@ -259,8 +303,8 @@ export default function PlanView({
         />
       </section>
 
-      <section id="plan-result" className="px-4 md:px-8 pt-8 md:pt-10 pb-14" style={{ borderTop: `1px solid ${HAIR}` }}>
-        <div className={`max-w-[1100px] mx-auto flex flex-col gap-5 min-w-0 transition-opacity ${busy ? "opacity-70" : ""}`}>
+      <BelowChat id="plan-result" label={es ? "Mapa de tu proyecto · se arma con tu chat" : "Your project map · built from your chat"}>
+        <div className={`flex flex-col gap-5 min-w-0 transition-opacity ${busy ? "opacity-70" : ""}`}>
           {notice && (
             <p className="text-[13.5px] leading-relaxed rounded-xl px-4 py-3" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)", color: "#f3e3b5" }}>
               {notice}
@@ -337,7 +381,7 @@ export default function PlanView({
 
           {!isStrategy && plan.market.researchedAt && <MarketCard plan={plan} />}
         </div>
-      </section>
+      </BelowChat>
     </div>
   );
 }
@@ -1055,6 +1099,9 @@ const PROFILE_LABELS: Record<"es" | "en", Partial<Record<keyof Profile, string>>
     licenseStatus: "Licencia",
     insured: "Seguro",
     toolsReady: "Herramientas listas",
+    agentInterest: "Le interesa",
+    agentTask: "Cómo trabaja el agente",
+    agentLimits: "Límites del agente",
     businessName: "Nombre del negocio",
   },
   en: {
@@ -1079,6 +1126,9 @@ const PROFILE_LABELS: Record<"es" | "en", Partial<Record<keyof Profile, string>>
     licenseStatus: "License",
     insured: "Insurance",
     toolsReady: "Tools ready",
+    agentInterest: "Interested in",
+    agentTask: "How the agent works",
+    agentLimits: "Agent limits",
     businessName: "Business name",
   },
 };

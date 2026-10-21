@@ -953,6 +953,8 @@ export type MarketplaceRow = {
   category: string;
   profile: { city: string; state: string; radiusMiles: number | null; serviceMode: string; remoteScope: string };
   agentOn: boolean; // a service agent that works in the page chat
+  agentOffers: unknown; // its access prices (priceCents)
+  servicePrices: string[] | null;
   rating: number | null; // average of its reviews
   reviews: number;
 };
@@ -965,6 +967,8 @@ export async function listMarketplaceRows(limit = 300): Promise<MarketplaceRow[]
            u.email, u.plan, u."planStatus", u."planRenewsAt", u."googleSub", u."emailVerifiedAt",
            s.name AS "serviceName", s.price AS "servicePrice",
            COALESCE((b."serviceAgent"->>'enabled')::boolean, false) AS "agentOn",
+           b."serviceAgent"->'offers' AS "agentOffers",
+           ARRAY(SELECT price FROM services WHERE "businessId" = b.id AND price IS NOT NULL) AS "servicePrices",
            r.avg AS rating, COALESCE(r.n, 0)::int AS reviews
     FROM businesses b
     JOIN users u ON u.id = b."userId"

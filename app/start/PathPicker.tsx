@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useT } from "@/components/LangProvider";
 import { startProjectAction } from "@/app/actions";
 
-export default function PathPicker({ newProject = false, initial = null }: { newProject?: boolean; initial?: "agent" | null }) {
+export default function PathPicker({ newProject = false, initial = null }: { newProject?: boolean; initial?: "existing" | "new" | "agent" | null }) {
   const [selected, setSelected] = useState<"existing" | "new" | "agent" | null>(initial);
   const [pending, start] = useTransition();
   const t = useT();

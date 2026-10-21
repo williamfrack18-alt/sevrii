@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { logoutAction } from "@/app/actions";
+import { keepProjectAction, logoutAction } from "@/app/actions";
 import StoreView from "./StoreView";
 import MarketingView from "./MarketingView";
 import ProjectsView from "./ProjectsView";
@@ -154,6 +154,20 @@ export default function DashboardTabs({
     setViewState(initialView);
   }, [initialView]);
   const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
+  // This tab's project stays the active one whenever the tab is in front
+  // (see keepProjectAction): each project keeps its own chats.
+  useEffect(() => {
+    const keep = () => {
+      if (document.visibilityState === "visible") keepProjectAction(business.id).catch(() => {});
+    };
+    keep();
+    window.addEventListener("focus", keep);
+    document.addEventListener("visibilitychange", keep);
+    return () => {
+      window.removeEventListener("focus", keep);
+      document.removeEventListener("visibilitychange", keep);
+    };
+  }, [business.id]);
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
   const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);
   const [storeMessages, setStoreMessages] = useState<ClientMsg[]>(editorMessages);

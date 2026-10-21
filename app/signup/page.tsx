@@ -8,12 +8,16 @@ import { ACCENT } from "@/lib/brand";
 import GoogleButton, { OrDivider } from "@/components/GoogleButton";
 import RotatingHeadline from "@/components/RotatingHeadline";
 import { googleReady } from "@/lib/google";
+import { cookies } from "next/headers";
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const t = getDict(await getLang());
   const sp = (await searchParams) ?? {};
   const err = sp.error === "google_cancel" ? t.auth.errGoogleCancel : sp.error ? t.auth.errGoogle : null;
   const google = googleReady();
+  // Came from a button that already chose a path ("Crear mi agente"): say where they'll land.
+  const path = (await cookies()).get("sevrii_path")?.value ?? "";
+  const subtitle = t.auth.signupSubtitleFor[path] ?? t.auth.signupSubtitle;
   return (
     <div className="theme-dark flex">
       <div
@@ -43,7 +47,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
                 {t.auth.signupEyebrow}
               </span>
               <h2 className="font-serif text-[40px] leading-[1.08]">{t.auth.signupTitle}</h2>
-              <p className="text-muted text-[16px]">{t.auth.signupSubtitle}</p>
+              <p className="text-muted text-[16px]">{subtitle}</p>
             </div>
             {err && <p className="text-[13px] text-red-600">{err}</p>}
             {google && (

@@ -184,6 +184,19 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
   redirect("/dashboard?view=plan");
 }
 
+// Each browser tab works on the project it shows. When a tab comes back to the
+// front (another tab may have opened or switched to another project), its
+// project becomes the active one again, so its chats never write into another
+// project's thread.
+export async function keepProjectAction(projectId: string): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user || typeof projectId !== "string" || projectId.length > 64) return false;
+  if (user.business?.id === projectId) return true;
+  if (!(await getBusinessForUser(user.id, projectId))) return false;
+  await setActiveProject(projectId);
+  return true;
+}
+
 export async function switchProjectAction(projectId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

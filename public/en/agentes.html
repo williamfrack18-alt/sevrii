@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Sevrii language detection: EN/ES auto-switch -->
+<script>
+(function(){
+  var BASENAME = 'agentes';
+  try {
+    var path = window.location.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i,'');
+    if (path === '') path = '/';
+    var isEn = path === '/en' || path.indexOf('/en/') === 0;
+    var enTarget = (BASENAME === 'index') ? '/en' : '/en/' + BASENAME;
+    var stored = localStorage.getItem('sevrii_lang');
+    if (stored) {
+      // Ya visitó antes: solo actualizamos la preferencia guardada,
+      // nunca lo sacamos de la página en la que ya está (evita el loop /en -> /).
+      localStorage.setItem('sevrii_lang', isEn ? 'en' : 'es');
+    } else {
+      // Primera visita sin preferencia: detecta el idioma del navegador una sola vez.
+      if (isEn) {
+        localStorage.setItem('sevrii_lang', 'en');
+      } else {
+        var lang = ((navigator.language || (navigator.languages && navigator.languages[0]) || '') + '').toLowerCase();
+        if (lang.indexOf('en') === 0) {
+          localStorage.setItem('sevrii_lang', 'en');
+          if (path !== enTarget) { window.location.href = enTarget; }
+        } else {
+          localStorage.setItem('sevrii_lang', 'es');
+        }
+      }
+    }
+    // Share the choice with the app (login, signup, dashboard) via a cookie.
+    document.cookie = 'sevrii_lang=' + localStorage.getItem('sevrii_lang') + '; path=/; max-age=31536000; samesite=lax';
+  } catch(e) {}
+})();
+</script>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1606497581185286');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI agents | Sevrii</title>
+<meta name="description" content="Create an AI agent that solves a problem by chat, 24/7, and charges for it. Sevrii&#x27;s Brain proposes what to build.">
+<link rel="icon" type="image/png" href="../assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#000;
+    --text:#f5f5f5;
+    --muted:#9aa0a8;
+    --muted-2:#6b7178;
+    --green:#3ddc84;
+    --green-dark:#0d2818;
+    --border:rgba(255,255,255,.1);
+
+    /* Shopify-inspired system — scoped to everything after the hero.
+       Values below (weights, sizes, radii, colors) were read directly
+       off shopify.com's computed styles, not eyeballed. */
+    --sp-bg:#050505;
+    --sp-bg-raised:#0e100e;
+    --sp-border:rgba(255,255,255,.08);
+    --sp-border-2:rgba(255,255,255,.16);
+    --sp-text:#f5f6f5;
+    --sp-text-2:rgba(245,246,245,.7);
+    --sp-text-3:rgba(245,246,245,.46);
+    --sp-muted:#a1a1aa;
+    --sp-accent:#3ddc84;
+    --sp-accent-soft:rgba(61,220,132,.14);
+    --sp-font:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 40px;}
+
+  header{
+    position:sticky;top:0;z-index:50;
+    background:transparent;border-bottom:1px solid transparent;
+    transition:background .25s ease, border-color .25s ease, backdrop-filter .25s ease;
+  }
+  header.scrolled{
+    background:rgba(0,0,0,.75);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  nav.wrap{display:flex;align-items:center;justify-content:space-between;height:78px;}
+  .logo{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px;}
+  .logo img{height:44px;width:auto;display:block;}
+  .nav-links{display:flex;gap:30px;font-size:14px;color:#d9dbde;}
+  .nav-links a:hover{color:#fff;}
+  .nav-actions{display:flex;gap:14px;align-items:center;}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;border:1px solid var(--border);cursor:pointer;}
+  .btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);}
+  .btn-outline:hover{background:rgba(255,255,255,.08);}
+  .btn-primary{background:#fff;color:#000;border:none;}
+  .btn-primary:hover{background:#e6e6e6;}
+  .btn-green{background:var(--green);color:#04150c;border:none;}
+  .btn-green:hover{background:#5ee89b;}
+
+  section{padding:120px 24px;}
+  h2.section-title{font-size:clamp(28px,4.5vw,44px);font-weight:600;text-align:center;letter-spacing:-0.5px;}
+
+  /* HERO — untouched */
+  .hero{
+    min-height:calc(85vh + 78px);
+    margin-top:-78px;padding-top:78px;
+    display:flex;flex-direction:column;justify-content:center;
+    position:relative;overflow:hidden;
+    background:#020a06;
+  }
+  .hero .video-bg{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;}
+  .hero .video-bg iframe{
+    position:absolute;top:50%;left:50%;
+    width:100vw;height:56.25vw;
+    min-height:100%;min-width:177.78vh;
+    transform:translate(-50%,-50%);
+  }
+  .hero .video-overlay{
+    position:absolute;inset:0;z-index:1;
+    background:linear-gradient(to bottom, rgba(2,10,6,.72) 0%, rgba(2,10,6,.55) 45%, rgba(2,10,6,.85) 100%);
+  }
+  .hero .network{position:absolute;inset:0;z-index:2;pointer-events:none;}
+  .hero .horizon{
+    position:absolute;left:-10%;right:-10%;bottom:-38%;height:42%;
+    border-radius:50%;
+    background:radial-gradient(ellipse at center, #163d2c 0%, #0d2818 35%, #06130c 60%, transparent 78%);
+    box-shadow:0 -2px 50px rgba(61,220,132,.12);
+    z-index:1;
+  }
+  .hero-content{
+    position:relative;z-index:3;
+    padding:0 60px;
+  }
+  .hero-inner{max-width:600px;text-align:left;}
+  .hero h1{
+    font-size:clamp(38px,6vw,72px);font-weight:300;line-height:1.12;letter-spacing:-1.8px;
+    margin-bottom:28px;
+  }
+  .hero h1 span{display:block;}
+  .hero h1 .l1{color:#fff;}
+  .hero h1 .l2{color:rgba(255,255,255,.65);}
+  .hero h1 .l3{color:rgba(255,255,255,.4);}
+  .hero p{color:var(--muted);font-size:18px;max-width:520px;margin-bottom:40px;}
+
+  /* ============ Everything after the hero: explainer video + the 4 pillars (Store, Marketing, Payments, Capital), modeled on shopify.com's homepage ============
+     Measured from shopify.com (getComputedStyle): display headings weight 330 with
+     ~-2% tracking, card titles 18px/450, body 14px/420 in rgb(161,161,170),
+     pill buttons weight 550, feature cards radius 12px with a big media area on top
+     and short text below, horizontal carousels, full-bleed colored blocks. */
+
+  .sections{
+    --s-bg:#000;
+    --s-card:#0c0f0d;
+    --s-line:rgba(255,255,255,.1);
+    --s-text:#fff;
+    --s-muted:#a1a1aa;
+    --s-green:#3ddc84;
+    --s-font:'Inter',Helvetica,Arial,sans-serif;
+    background:var(--s-bg);color:var(--s-text);font-family:var(--s-font);
+  }
+  .sections section{padding:0;}
+  .s-wrap{max-width:1280px;margin:0 auto;padding:0 40px;}
+  .sections .s-block{padding:120px 0;}
+
+  .s-h2{font-size:clamp(34px,4.6vw,56px);font-weight:330;letter-spacing:-0.02em;line-height:1.08;max-width:760px;}
+  .s-lead{font-size:18px;font-weight:420;line-height:1.5;color:var(--s-muted);max-width:560px;margin-top:20px;}
+  .s-eyebrow{font-size:14px;font-weight:450;color:var(--s-green);margin-bottom:18px;}
+  .s-head{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;margin-bottom:48px;}
+
+  .s-btn{display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 24px;border-radius:9999px;font-size:16px;font-weight:550;border:2px solid transparent;transition:background .2s ease,color .2s ease,border-color .2s ease;white-space:nowrap;}
+  .s-btn-white{background:#fff;color:#000;}
+  .s-btn-white:hover{background:#e6e6e6;}
+  .s-btn-outline{background:transparent;color:#fff;border-color:#fff;}
+  .s-btn-outline:hover{background:#fff;color:#000;}
+  .s-btn-green{background:var(--s-green);color:#04150c;}
+  .s-btn-green:hover{background:#5ee89b;}
+  .s-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:36px;}
+
+  .s-link{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.4);}
+  .s-link:hover{text-decoration-color:#fff;}
+
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .7s ease,transform .7s ease;}
+  .reveal.is-visible{opacity:1;transform:none;}
+
+  /* ---------- Explainer video ---------- */
+  .sections .s-video{padding:110px 0 80px;}
+  .s-video-head{margin-bottom:40px;}
+  .s-player{
+    position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;
+    background:#0b120e;border:1px solid var(--s-line);
+  }
+  .s-player iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+  .s-poster{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
+    background:
+      radial-gradient(ellipse 60% 70% at 50% 45%, rgba(61,220,132,.16), transparent 70%),
+      linear-gradient(180deg,#0b120e 0%,#050806 100%);
+    border:0;width:100%;color:#fff;font-family:var(--s-font);cursor:default;
+  }
+  .s-player.has-video .s-poster{cursor:pointer;}
+  .s-play{
+    width:88px;height:88px;border-radius:50%;background:#fff;color:#000;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 20px 50px -10px rgba(0,0,0,.6);transition:transform .25s ease;
+  }
+  .s-player.has-video .s-poster:hover .s-play{transform:scale(1.06);}
+  .s-play svg{width:30px;height:30px;margin-left:5px;}
+  .s-poster-label{font-size:16px;font-weight:450;color:rgba(255,255,255,.8);}
+
+  @media(max-width:700px){
+    .sections .s-video{padding:72px 0 48px;}
+    .s-video-head{margin-bottom:28px;}
+    .s-player{border-radius:12px;}
+    .s-play{width:68px;height:68px;}
+    .s-play svg{width:24px;height:24px;}
+  }
+
+  /* ---------- Overview of the 4 pillars ---------- */
+  .sections .s-overview{padding:120px 0 72px;}
+  .s-ov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:56px;}
+  .s-ov{display:block;border-top:1px solid var(--s-line);padding-top:24px;transition:border-color .2s ease;}
+  .s-ov:hover{border-color:var(--s-green);}
+  .s-ov .n{font-size:14px;font-weight:450;color:var(--s-green);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+  .s-ov h3{font-size:24px;font-weight:450;letter-spacing:-.01em;margin-bottom:8px;}
+  .s-ov p{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);margin-bottom:16px;}
+  .s-ov .go{font-size:14px;font-weight:450;color:#fff;}
+  .s-tag{display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:9999px;font-size:11px;font-weight:550;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);}
+
+  /* ---------- Sticky pillar nav ---------- */
+  .s-pnav{position:sticky;top:78px;z-index:40;background:rgba(0,0,0,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--s-line);border-bottom:1px solid var(--s-line);}
+  .s-pnav .s-wrap{display:flex;gap:8px;height:64px;align-items:center;overflow-x:auto;scrollbar-width:none;}
+  .s-pnav .s-wrap::-webkit-scrollbar{display:none;}
+  .s-pnav a{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:9999px;font-size:15px;font-weight:450;color:rgba(255,255,255,.7);white-space:nowrap;transition:background .2s ease,color .2s ease;}
+  .s-pnav a span{font-size:12px;color:rgba(255,255,255,.45);}
+  .s-pnav a:hover{color:#fff;background:rgba(255,255,255,.08);}
+  .s-pnav a.on{background:#fff;color:#000;}
+  .s-pnav a.on span{color:rgba(0,0,0,.5);}
+
+  /* ---------- One section per pillar ---------- */
+  .sections .s-pillar{padding:120px 0;scroll-margin-top:142px;}
+  .s-pillar-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:72px;align-items:center;}
+  .s-pillar.flip .s-pillar-text{order:2;}
+  .s-pillar .n{font-size:15px;font-weight:450;color:var(--s-green);margin-bottom:18px;display:flex;align-items:center;gap:12px;}
+  .s-pillar .s-h2{max-width:520px;}
+  .s-points{list-style:none;margin-top:36px;border-top:1px solid var(--s-line);}
+  .s-points li{padding:18px 0;border-bottom:1px solid var(--s-line);}
+  .s-points b{display:block;font-size:16px;font-weight:450;margin-bottom:4px;}
+  .s-points span{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);}
+  .s-pillar .s-media{height:560px;border-radius:16px;}
+  .s-pillar.is-green{background:linear-gradient(160deg,#0f4d34 0%,#0a3322 45%,#061c13 100%);border-radius:40px;margin:0 12px;}
+  .s-pillar.is-green .s-lead,.s-pillar.is-green .s-points span{color:rgba(255,255,255,.72);}
+  .s-pillar.is-green .s-points,.s-pillar.is-green .s-points li{border-color:rgba(255,255,255,.16);}
+  .s-pillar.is-green .n{color:#8ff0bb;}
+  .s-pillar.is-green + .s-pillar.is-green{margin-top:12px;}
+  .s-pillar.is-glow{background:radial-gradient(ellipse 50% 60% at 75% 50%, rgba(61,220,132,.14), transparent 70%),#000;}
+
+  /* ---------- Pillar visuals: photo + light Sevrii UI on top ---------- */
+  .s-media{
+    position:relative;height:460px;border-radius:12px;overflow:hidden;background:#0c1410;
+  }
+  .s-media > img.s-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .s-media::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.35) 100%);pointer-events:none;}
+  .s-soon{
+    position:absolute;top:18px;left:18px;z-index:3;
+    background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    color:#fff;font-size:12px;font-weight:550;padding:7px 14px;border-radius:9999px;border:1px solid rgba(255,255,255,.2);
+  }
+
+  /* Light product UI floating over the media, like shopify.com's editor overlays.
+     Colors/radii mirror the real Sevrii app (tailwind: ink #122118, mint #EFF3F1,
+     border #E4E0D6, cream #F6F4EF). */
+  .ui{position:absolute;z-index:2;font-family:var(--s-font);color:#122118;}
+  .ui-window{background:#fff;border-radius:12px;box-shadow:0 30px 60px -20px rgba(0,0,0,.6);overflow:hidden;}
+  .ui-bar{height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#F6F4EF;border-bottom:1px solid #E4E0D6;}
+  .ui-bar i{width:8px;height:8px;border-radius:50%;background:#DAD6C9;display:block;}
+  .ui-bar span{margin-left:10px;font-size:10.5px;color:#9A968A;}
+  .ui-serif{font-family:Georgia,'Times New Roman',serif;}
+  .ui-muted{color:#6E7268;}
+  .ui-pill{display:inline-flex;align-items:center;height:28px;padding:0 14px;border-radius:9999px;color:#fff;font-size:11px;font-weight:600;}
+  .ui-bubble{padding:9px 12px;font-size:12px;line-height:1.4;max-width:230px;}
+  .ui-bubble.user{background:#122118;color:#fff;border-radius:12px 12px 3px 12px;margin-left:auto;}
+  .ui-bubble.ai{background:#EFF3F1;color:#122118;border-radius:12px 12px 12px 3px;}
+  .ui-card{background:#fff;border:1px solid #E4E0D6;border-radius:16px;}
+
+  /* Store slide */
+  .ui-store{left:8%;right:22%;bottom:-20px;}
+  .ui-store .body{padding:18px 20px 34px;}
+  .ui-store .top{display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid #E4E0D6;margin-bottom:14px;}
+  .ui-store .name{font-size:15px;font-weight:600;color:#9b3b5a;}
+  .ui-store .cat{font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .ui-store h4{font-size:22px;font-weight:600;line-height:1.15;margin-bottom:6px;}
+  .ui-store .pitch{font-size:12px;line-height:1.45;margin-bottom:14px;}
+  .ui-store .svc{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .ui-store .svc div{border:1px solid #E4E0D6;border-radius:10px;padding:9px 10px;font-size:11.5px;font-weight:600;}
+  .ui-store .svc small{display:block;font-weight:400;color:#6E7268;margin-top:2px;}
+  .ui-store-chat{right:5%;top:40px;width:230px;display:flex;flex-direction:column;gap:8px;}
+  .ui-store-chat .ui-bubble{box-shadow:0 12px 30px -10px rgba(0,0,0,.5);}
+
+  /* Marketing slide — green radar graphic like shopify's "Controla todo" card */
+  .s-radar{position:absolute;inset:0;background:radial-gradient(circle at 70% 55%,#1c5a3d 0%,#0e2c1f 35%,#07140e 70%);}
+  .s-radar i{position:absolute;left:70%;top:55%;border:1px solid rgba(61,220,132,.22);border-radius:50%;transform:translate(-50%,-50%);display:block;}
+  .s-radar i:nth-child(1){width:180px;height:180px;}
+  .s-radar i:nth-child(2){width:360px;height:360px;}
+  .s-radar i:nth-child(3){width:560px;height:560px;}
+  .s-radar i:nth-child(4){width:780px;height:780px;}
+  .s-chip{position:absolute;z-index:2;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.22);color:#fff;font-size:13px;font-weight:450;padding:8px 16px;border-radius:9999px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+  .ui-campaign{left:7%;top:50%;transform:translateY(-50%);width:300px;padding:16px;}
+  .ui-campaign .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;}
+  .ui-campaign .t{font-size:13px;font-weight:600;}
+  .ui-campaign .st{font-size:10px;font-weight:500;color:#6E7268;background:#EFF3F1;padding:3px 8px;border-radius:9999px;}
+  .ui-campaign p{font-size:11px;line-height:1.45;color:#6E7268;margin-bottom:3px;}
+  /* Agents slide: the agent's chat with its pay buttons */
+  .s-agentbg{position:absolute;inset:0;background:radial-gradient(circle at 60% 45%,#1c5a3d 0%,#0e2c1f 38%,#07140e 72%);}
+  .ui-agent{left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,86%);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 30px 70px -20px rgba(0,0,0,.7);}
+  .ui-agent .hd{display:flex;align-items:center;gap:9px;padding:11px 13px;background:linear-gradient(135deg,#12432a,#0b2918);color:#fff;}
+  .ui-agent .av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+  .ui-agent .nm{font-size:12.5px;font-weight:700;}
+  .ui-agent .st{font-size:10px;opacity:.85;}
+  .ui-agent .ls{background:#F6F4EF;padding:12px;display:flex;flex-direction:column;gap:7px;}
+  .ui-agent .ui-bubble{max-width:88%;}
+  .ui-agent .ui-bubble.ai{background:#fff;border:1px solid #E4E0D6;}
+  .ui-agent .of{background:#fff;border:1px solid #DAD6C9;border-radius:11px;padding:8px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;width:88%;}
+  .ui-agent .of b{font-size:11.5px;}
+  .ui-agent .of span{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:9999px;background:#163a27;color:#fff;}
+  .ui-agent .of em{font-style:normal;font-size:10px;font-weight:600;color:#137a3d;}
+  .ui-sale{right:5%;top:28px;}
+
+  .ui-campaign p b{color:#122118;font-weight:600;}
+  .ui-campaign .ad{background:#EFF3F1;border-radius:10px;padding:9px 10px;margin-top:10px;}
+  .ui-campaign .ad strong{display:block;font-size:11.5px;margin-bottom:2px;}
+  .ui-campaign .ad span{font-size:10.5px;color:#6E7268;}
+
+  /* Payments slide (concept) */
+  .ui-pay{right:8%;bottom:28px;width:250px;padding:18px;}
+  .ui-pay .lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9A968A;margin-bottom:8px;}
+  .ui-pay .svc{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .ui-pay .amt{font-size:26px;font-weight:600;letter-spacing:-.01em;margin-bottom:14px;}
+  .ui-pay .pay{display:flex;align-items:center;justify-content:center;height:38px;border-radius:9999px;background:#122118;color:#fff;font-size:12px;font-weight:600;}
+  .ui-pay .url{font-size:10px;color:#9A968A;text-align:center;margin-top:8px;}
+  .ui-toast{right:8%;top:28px;display:flex;align-items:center;gap:8px;background:#fff;border-radius:9999px;padding:8px 14px 8px 8px;font-size:12px;font-weight:600;box-shadow:0 14px 30px -10px rgba(0,0,0,.5);}
+  .ui-toast b{width:22px;height:22px;border-radius:50%;background:#3ddc84;color:#04150c;display:flex;align-items:center;justify-content:center;font-size:12px;}
+
+  /* Capital slide (concept) */
+  .ui-capital{left:8%;bottom:28px;width:290px;padding:18px;}
+  .ui-capital .lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9A968A;margin-bottom:4px;}
+  .ui-capital .t{font-size:14px;font-weight:600;margin-bottom:14px;}
+  .ui-bars{display:flex;align-items:flex-end;gap:8px;height:90px;padding-bottom:6px;border-bottom:1px solid #E4E0D6;}
+  .ui-bars span{flex:1;background:#EFF3F1;border-radius:5px 5px 0 0;}
+  .ui-bars span.on{background:#3ddc84;}
+  .ui-capital .offer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:11.5px;font-weight:600;}
+  .ui-capital .offer em{font-style:normal;font-size:10px;font-weight:500;color:#6E7268;background:#EFF3F1;padding:3px 8px;border-radius:9999px;}
+
+  /* ---------- Closing (like shopify's starfield + glow section) ---------- */
+  .sections .s-close{
+    position:relative;overflow:hidden;padding:160px 0 170px;
+    background:
+      radial-gradient(ellipse 55% 60% at 30% 75%, rgba(61,220,132,.16), transparent 70%),
+      linear-gradient(180deg,#000 0%,#06140d 100%);
+  }
+  .s-close::before{
+    content:'';position:absolute;inset:0;pointer-events:none;opacity:.7;
+    background-image:
+      radial-gradient(1.5px 1.5px at 8% 18%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 22% 8%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 35% 30%, rgba(255,255,255,.7) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 52% 12%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 64% 26%, rgba(255,255,255,.6) 50%, transparent 51%),
+      radial-gradient(1px 1px at 76% 9%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 88% 22%, rgba(255,255,255,.8) 50%, transparent 51%),
+      radial-gradient(1px 1px at 94% 40%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 14% 44%, rgba(255,255,255,.5) 50%, transparent 51%),
+      radial-gradient(1px 1px at 44% 52%, rgba(255,255,255,.5) 50%, transparent 51%);
+  }
+  .s-close .s-wrap{position:relative;display:flex;justify-content:flex-end;}
+  .s-close .s-inner{max-width:560px;}
+
+  /* ---------- Footer ---------- */
+  .s-foot{padding:80px 0 40px;border-top:1px solid var(--s-line);}
+  .s-foot-top{display:grid;grid-template-columns:1.2fr repeat(3,1fr);gap:32px;margin-bottom:64px;}
+  .s-foot .logo img{height:40px;}
+  .s-foot h4{font-size:16px;font-weight:450;margin-bottom:18px;}
+  .s-foot ul{list-style:none;display:flex;flex-direction:column;gap:12px;}
+  .s-foot li a{font-size:14px;font-weight:420;color:var(--s-muted);}
+  .s-foot li a:hover{color:#fff;}
+  .s-foot-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;padding-top:28px;border-top:1px solid var(--s-line);font-size:14px;font-weight:420;color:var(--s-muted);}
+  .s-foot-bottom a:hover{color:#fff;}
+  .s-foot-bottom .links{display:flex;gap:28px;}
+
+  @media(max-width:1000px){
+    .s-ov-grid{grid-template-columns:1fr 1fr;row-gap:40px;}
+    .s-pillar-grid{grid-template-columns:1fr;gap:44px;}
+    .s-pillar.flip .s-pillar-text{order:0;}
+    .s-pillar .s-h2{max-width:none;}
+    .s-foot-top{grid-template-columns:1fr 1fr;}
+    .s-foot-top > div:first-child{grid-column:1 / -1;}
+  }
+  @media(max-width:900px){
+    .nav-links{display:none;}
+  }
+  @media(max-width:700px){
+    .s-wrap{padding:0 20px;}
+    .sections .s-overview{padding:80px 0 48px;}
+    .s-ov-grid{grid-template-columns:1fr;gap:28px;margin-top:36px;}
+    .s-pnav .s-wrap{height:56px;padding:0 12px;}
+    .s-pnav a{height:36px;padding:0 13px;font-size:14px;}
+    .s-pnav a span{display:none;}
+    .sections .s-pillar{padding:80px 0;scroll-margin-top:134px;}
+    .s-pillar .s-media{height:400px;border-radius:12px;}
+    .s-pillar.is-green{border-radius:28px;margin:0 8px;}
+    .ui-store{left:5%;right:5%;}
+    .ui-store-chat{display:none;}
+    .ui-campaign{left:5%;right:5%;width:auto;top:auto;bottom:22px;transform:none;}
+    .s-chip.c3,.s-chip.c4{display:none;}
+    .ui-pay{right:5%;left:5%;width:auto;}
+    .ui-capital{left:5%;right:5%;width:auto;}
+    .sections .s-close{padding:110px 0 120px;}
+    .s-close .s-wrap{justify-content:flex-start;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .reveal{opacity:1;transform:none;transition:none;}
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+  /* Sevrii Robotics: vision section, styled after a studio-robot product page */
+  .sx{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .sx *{box-sizing:border-box;}
+  .sx-wide{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .sx-btn{display:inline-flex;align-items:center;gap:22px;height:50px;padding:0 20px;border:1px solid rgba(255,255,255,.85);border-radius:10px;color:#fff;font-size:15px;font-weight:500;text-decoration:none;white-space:nowrap;transition:background .2s ease,color .2s ease;}
+  .sx-btn:hover{background:#fff;color:#000;}
+  .sx-btn svg{width:13px;height:13px;flex-shrink:0;}
+  .sx-hero{position:relative;height:min(100vh,920px);min-height:600px;overflow:hidden;background:#000;}
+  .sx-hero .sx-bg{animation:sxZoom 26s ease-in-out infinite alternate;transform-origin:64% 60%;}
+  @keyframes sxZoom{from{transform:scale(1)}to{transform:scale(1.045)}}
+  @media (prefers-reduced-motion: reduce){.sx-hero .sx-bg{animation:none}}
+  .sx-hero video,.sx-hero .sx-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 15%;}
+  .sx-hit{position:absolute;inset:0;z-index:1;}
+  .sx-close .sx-hit{z-index:3;}
+  .sx-bottom,.sx-top{pointer-events:none;}
+  .sx-bottom > *,.sx-top > *{pointer-events:auto;}
+  .sx-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.6) 100%);pointer-events:none;}
+  .sx-top{position:absolute;top:30px;left:50px;z-index:2;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.9);}
+  .sx-bottom{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:0 50px 54px;}
+  .sx-h{font-weight:400;font-size:clamp(24px,2.3vw,34px);line-height:1.1;letter-spacing:.01em;text-transform:uppercase;margin:0 0 16px;max-width:600px;}
+  .sx-p{font-size:16.5px;line-height:1.6;color:#ececec;max-width:480px;margin:0;}
+  .sx-band{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:76px 50px;}
+  .sx-band .sx-p{color:#d9d9d9;}
+  .sx-close{position:relative;height:min(80vh,780px);min-height:420px;overflow:hidden;background:#000;}
+  .sx-close img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;}
+  .sx-cap{position:absolute;left:50px;bottom:28px;z-index:2;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.8);}
+  .sx-index{position:relative;background:#dcdddb;color:#0b0b0b;overflow:hidden;}
+  .sx-index .sx-blur{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px);opacity:.2;}
+  .sx-index-in{position:relative;display:grid;grid-template-columns:1fr 1.15fr;gap:64px;padding:96px 50px 90px;}
+  .sx-word{font-weight:400;font-size:clamp(52px,7.4vw,118px);line-height:.9;letter-spacing:.32em;margin:0;}
+  .sx-sub{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#3c3c3c;margin-top:16px;}
+  .sx-keep{margin-top:56px;max-width:440px;}
+  .sx-keep h3{font-size:22px;font-weight:500;margin:0 0 8px;color:#0b0b0b;}
+  .sx-keep p{font-size:15.5px;line-height:1.55;color:#2b2b2b;margin:0;}
+  .sx-dark{display:inline-flex;align-items:center;gap:12px;height:50px;padding:0 24px;border-radius:999px;background:#0b0b0b;color:#fff;font-size:15px;font-weight:500;text-decoration:none;margin-top:24px;}
+  .sx-dark svg{width:13px;height:13px;}
+  .sx-keep .sx-note{font-size:12.5px;line-height:1.5;color:#555;margin-top:20px;}
+  .sx-list{align-self:center;}
+  .sx-row{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:16px;padding:20px 0;border-bottom:1px solid rgba(0,0,0,.18);}
+  .sx-row:first-child{padding-top:0;}
+  .sx-num{font-size:20px;color:#1a1a1a;}
+  .sx-title{font-weight:400;font-size:clamp(34px,4.6vw,68px);line-height:1;text-transform:uppercase;color:#0b0b0b;}
+  .sx-row.dim .sx-title{color:#6b6b6b;}
+  .sx-st{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:#3a3a3a;white-space:nowrap;}
+  .sx-row.on .sx-st{color:#1f6644;}
+  @media (max-width:860px){
+    .sx-top{left:16px;top:20px;}
+    .sx-bottom{flex-direction:column;align-items:flex-start;padding:0 16px 32px;}
+    .sx-hero{height:86vh;min-height:560px;}
+    .sx-hero video,.sx-hero .sx-bg{object-position:50% 0%;}
+    .sx-band{grid-template-columns:1fr;padding:48px 16px;gap:28px;}
+    .sx-band > div:first-child{order:2;}
+    .sx-close{height:56vh;min-height:320px;}
+    .sx-cap{left:16px;}
+    .sx-index-in{grid-template-columns:1fr;padding:64px 16px;gap:48px;}
+    .sx-keep{margin-top:36px;}
+    .sx-row{grid-template-columns:34px 1fr auto;gap:10px;}
+    .sx-title{font-size:30px;}
+    .sx-st{font-size:10.5px;letter-spacing:.04em;}
+    .sx-word{letter-spacing:.24em;}
+  }
+  .sx-hero .sx-bg{object-position:50% 40%;}
+  .sx-hero::after{background:linear-gradient(180deg,rgba(0,0,0,.25) 0,rgba(0,0,0,0) 25%,rgba(0,0,0,.15) 50%,rgba(0,0,0,.8) 100%),linear-gradient(90deg,rgba(0,0,0,.55) 0,rgba(0,0,0,0) 55%) !important;}
+  .sx-hero .sx-h{font-size:clamp(28px,3.2vw,52px);line-height:1.04;max-width:min(640px,48vw);}
+  .sx-split{position:relative;height:min(100vh,900px);min-height:560px;overflow:hidden;background:#000;}
+  .sx-split img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:36% 22%;}
+  .sx-split-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(0,0,0,.85) 0,rgba(0,0,0,.5) 34%,rgba(0,0,0,0) 58%),linear-gradient(0deg,rgba(0,0,0,.5) 0,rgba(0,0,0,0) 30%);pointer-events:none;}
+  .sx-split-in{position:absolute;left:50px;top:0;bottom:0;z-index:4;display:flex;flex-direction:column;justify-content:center;max-width:min(520px,40vw);pointer-events:none;}
+  .sx-split-in > *{pointer-events:auto;}
+  .sx-split .sx-h{font-size:clamp(26px,2.8vw,44px);line-height:1.05;margin:18px 0 18px;}
+  .sx-split .sx-p{color:#d9d9d9;margin-bottom:30px;}
+  .sx-split .sx-btn{align-self:flex-start;}
+  .sx-label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#7dbf9c;}
+  .sx-split .sx-hit{z-index:3;}
+  .sx-split .sx-cap{z-index:4;}
+  @media (max-width:860px){
+    .sx-hero .sx-h{max-width:none;font-size:clamp(28px,8vw,36px);}
+    .sx-hero::after{background:linear-gradient(180deg,rgba(0,0,0,.25) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,.55) 55%,rgba(0,0,0,.92) 100%) !important;}
+    .sx-hero .sx-bg{object-position:42% 50%;}
+    .sx-split{height:auto;min-height:0;padding-top:118vw;}
+    .sx-split img{height:130vw;bottom:auto;object-position:50% 0%;}
+    .sx-split-shade{background:linear-gradient(180deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 55%,rgba(0,0,0,.85) 80%,#000 100%);height:130vw;bottom:auto;}
+    .sx-split-in{position:relative;left:auto;top:auto;bottom:auto;max-width:none;padding:0 16px 56px;}
+    .sx-split .sx-cap{display:none;}
+  }
+  /* Headings like the hero of Ofrecer servicios: light, tight, sentence case */
+  .sx-h.sx-wide,.ax-h.sx-wide,.af-h,.sx-title.sx-wide{font-weight:300;letter-spacing:-.025em;text-transform:none;line-height:1.08;}
+  .sx-word.sx-wide{font-weight:300;}
+  /* Pearl white pillars (the look of the Sevrii Robotics index) */
+  .s-pillar.is-pearl{position:relative;overflow:hidden;background:#dcdddb;color:#0b0b0b;border-radius:40px;margin:0 12px;}
+  .s-pillar.is-pearl::before{content:"";position:absolute;inset:-40px;background:url('/assets/robotics/blur.jpg') center/cover;filter:blur(28px);opacity:.2;pointer-events:none;}
+  .s-pillar.is-pearl::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 45% 60% at 70% 40%,rgba(255,255,255,.45),transparent 70%);pointer-events:none;}
+  .s-pillar.is-pearl > .s-wrap{position:relative;z-index:1;}
+  .s-pillar.is-pearl .s-h2,.s-pillar.is-pearl .s-points b{color:#0b0b0b;}
+  .s-pillar.is-pearl .s-lead,.s-pillar.is-pearl .s-points span{color:#3a3a3a;}
+  .s-pillar.is-pearl .s-points,.s-pillar.is-pearl .s-points li{border-color:rgba(0,0,0,.14);}
+  .s-pillar.is-pearl .n{color:#2f6f4f;}
+  .s-pillar.is-pearl .s-tag{color:#0b0b0b;background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.16);}
+  .s-pillar.is-pearl .s-btn-white{background:#0b0b0b;color:#fff;}
+  .s-pillar.is-pearl .s-btn-white:hover{background:#262626;}
+  .s-pillar.is-pearl .s-btn-outline{color:#0b0b0b;border-color:#0b0b0b;}
+  .s-pillar.is-pearl .s-btn-outline:hover{background:#0b0b0b;color:#fff;}
+  .s-pillar.is-pearl + .s-pillar.is-pearl{margin-top:12px;}
+  .s-points li[id]{scroll-margin-top:160px;}
+  .s-points b .s-tag{margin-left:8px;vertical-align:1px;}
+  @media (max-width:860px){.s-pillar.is-pearl{border-radius:28px;margin:0 8px;}}
+  /* Agents page */
+  .ag-ideas{left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,86%);padding:16px;}
+  .ag-ideas .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .ag-ideas .t{font-size:13px;font-weight:600;}
+  .ag-ideas .st{font-size:10px;font-weight:500;color:#6E7268;background:#EFF3F1;padding:3px 8px;border-radius:9999px;}
+  .ag-ideas .row{border:1px solid #E4E0D6;border-radius:11px;padding:9px 10px;margin-bottom:7px;}
+  .ag-ideas .row b{display:block;font-size:12px;font-weight:600;}
+  .ag-ideas .row span{font-size:10.5px;color:#6E7268;}
+  .ag-ideas .row:first-of-type{border-color:#2e7a55;box-shadow:0 0 0 1px #2e7a55;}
+  .ag-ideas .nt{font-size:10.5px;color:#6E7268;margin-top:6px;}
+  .ag-req{left:50%;top:50%;transform:translate(-50%,-50%);width:min(300px,86%);padding:18px;}
+  .ag-req .t{font-size:13px;font-weight:600;margin-bottom:10px;}
+  .ag-req li{list-style:none;display:flex;gap:9px;align-items:center;font-size:12.5px;padding:8px 0;border-top:1px solid #EFECE4;}
+  .ag-req li i{font-style:normal;width:18px;height:18px;border-radius:50%;background:#2e7a55;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .s-faq{padding:110px 0;}
+  .s-faq .s-h2{margin-bottom:34px;}
+  .s-faq details{border-top:1px solid var(--s-line);padding:22px 0;max-width:860px;}
+  .s-faq details:last-child{border-bottom:1px solid var(--s-line);}
+  .s-faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:20px;font-size:18px;font-weight:450;}
+  .s-faq summary::-webkit-details-marker{display:none;}
+  .s-faq summary span{color:var(--s-green);font-size:22px;line-height:1;transition:transform .2s ease;}
+  .s-faq details[open] summary span{transform:rotate(45deg);}
+  .s-faq p{color:var(--s-muted);font-size:16px;line-height:1.6;margin-top:12px;max-width:720px;}
+  @media (max-width:860px){.s-faq{padding:72px 0;}}
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="wrap">
+    <a href="index.html" class="logo"><img src="../assets/sevrii-logo.png" alt="Sevrii">Sevrii</a>
+    <div class="nav-links">
+      <a href="#que-es">What it is</a>
+      <a href="#como">How to build one</a>
+      <a href="#ganas">How you earn</a>
+      <a href="#requisitos">Requirements</a>
+      <a href="#preguntas">FAQ</a>
+      <a href="/agentes" onclick="try{localStorage.setItem('sevrii_lang','es')}catch(e){}" style="color:var(--muted);">ES</a>
+    </div>
+    <div class="nav-actions">
+      <a href="/crear-agente" class="btn btn-primary">Create my agent</a>
+    </div>
+  </nav>
+</header>
+
+<section class="hero" id="inicio">
+  <div class="video-bg">
+    <iframe src="https://www.youtube.com/embed/EsrX_WSx2UM?autoplay=1&mute=1&loop=1&playlist=EsrX_WSx2UM&controls=0&showinfo=0&modestbranding=1&rel=0&disablekb=1" title="Sevrii background video" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+  <div class="video-overlay"></div>
+  <canvas class="network" id="network"></canvas>
+  <div class="horizon"></div>
+  <div class="hero-content">
+    <div class="hero-inner">
+      <h1>
+        <span class="l1">Create an agent</span>
+        <span class="l2">that works</span>
+        <span class="l3">for you.</span>
+      </h1>
+      <p>A new kind of digital product: an AI that solves a specific problem and delivers the service by itself, by chat, 24/7. It doesn&#x27;t have to be your trade: Sevrii&#x27;s Brain proposes what to build.</p>
+      <a href="/crear-agente" class="btn btn-primary" style="padding:16px 32px;font-size:15px;">Create my agent</a>
+    </div>
+  </div>
+</section>
+
+<div class="sections">
+
+<!-- The pillars of an agent, with a sticky nav -->
+<div class="s-pillars" id="agentes">
+  <nav class="s-pnav" aria-label="AI agents | Sevrii">
+    <div class="s-wrap">
+      <a href="#que-es" data-pillar="que-es"><span>01</span>What it is</a>
+      <a href="#como" data-pillar="como"><span>02</span>How to build one</a>
+      <a href="#ganas" data-pillar="ganas"><span>03</span>How you earn</a>
+      <a href="#requisitos" data-pillar="requisitos"><span>04</span>Requirements</a>
+    </div>
+  </nav>
+
+  <section class="s-pillar is-pearl" id="que-es">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">01 · What it is</div>
+        <h2 class="s-h2">A new digital product.</h2>
+        <p class="s-lead">Like courses and info products were. An agent is an AI that solves a specific problem and delivers the service by itself, in its page chat, any time.</p>
+        <ul class="s-points"><li><b>Solves it start to finish</b><span>It guides step by step, checks what the customer prepares and stays until it&#x27;s done.</span></li><li><b>It doesn&#x27;t have to be your trade</b><span>The agent is the product: you can build one on a topic you don&#x27;t master.</span></li><li><b>Honest with the customer</b><span>It says it&#x27;s an AI you created, cites official sources and never promises results.</span></li></ul>
+        <div class="s-actions"><a href="/crear-agente" class="s-btn s-btn-white">Create my agent</a></div>
+      </div>
+      <div class="s-media reveal" aria-hidden="true">
+        <div class="s-agentbg"></div>
+        <div class="ui ui-agent">
+          <div class="hd"><span class="av">G</span><div><div class="nm">DMV License Guide AI</div><div class="st">AI agent · replies instantly</div></div></div>
+          <div class="ls">
+            <div class="ui-bubble ai">Do you already have your learner&#x27;s permit, or do we start there?</div>
+            <div class="ui-bubble user">Not yet, I&#x27;m starting from zero</div>
+            <div class="ui-bubble ai">Step 1: gather these documents. Here&#x27;s your state&#x27;s official link to confirm them.</div>
+          </div>
+        </div>
+        <span class="s-soon" style="top:auto;bottom:18px">Illustrative example</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="s-pillar is-glow flip" id="como">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">02 · How to build one</div>
+        <h2 class="s-h2">The Brain proposes what to build.</h2>
+        <p class="s-lead">You don&#x27;t need to know the topic. The Brain looks for problems people already pay to solve and proposes 3 agent ideas, with what people pay today, the demand and what the agent can&#x27;t do by law.</p>
+        <ul class="s-points"><li><b>Pick an idea or bring yours</b><span>If you bring your own idea, the Brain researches it like the others before going on.</span></li><li><b>It researches the official steps</b><span>Documents, fees and deadlines, each with its official link. That&#x27;s what your agent knows.</span></li><li><b>Your page, ready to publish</b><span>The agent&#x27;s page, prices, free trial and campaign. If you want, teach it more from your Store.</span></li></ul>
+        
+      </div>
+      <div class="s-media reveal" aria-hidden="true">
+        <div class="s-radar"><i></i><i></i><i></i><i></i></div>
+        <div class="ui ui-card ag-ideas">
+          <div class="hd"><span class="t">Your 3 ideas</span><span class="st">Brain</span></div>
+          <div class="row"><b>Guide to your DMV license</b><span>People pay today: $50–$150</span></div><div class="row"><b>Help with your first tax return</b><span>People pay today: $75–$200</span></div><div class="row"><b>Get ready for your job interview</b><span>People pay today: $40–$120</span></div>
+          <div class="nt">Each idea says what the agent can&#x27;t do by law.</div>
+        </div>
+        <span class="s-soon" style="top:auto;bottom:18px">Illustrative example</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="s-pillar is-pearl" id="ganas">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">03 · How you earn</div>
+        <h2 class="s-h2">Get paid while it works.</h2>
+        <p class="s-lead">Customers try it for free and, to keep going, pay by card by the day or by the month. The money reaches your account with Sevrii&#x27;s fee already taken out.</p>
+        <ul class="s-points"><li><b>Free trial with a clear limit</b><span>A few free replies, then payment, inside the same chat.</span></li><li><b>By the day or by the month</b><span>You set the prices, from $15. You can offer a welcome discount.</span></li><li><b>An alert with every sale</b><span>See your sales in your dashboard and join any conversation.</span></li></ul>
+        
+      </div>
+      <div class="s-media reveal" aria-hidden="true">
+        <div class="s-agentbg"></div>
+        <div class="ui ui-toast ui-sale"><b>✓</b>Your agent made a sale: $29</div>
+        <div class="ui ui-card ui-pay">
+          <div class="lbl">Access to your agent</div>
+          <div class="svc">Monthly access</div>
+          <div class="amt">$29</div>
+          <div class="pay">Pay now</div>
+          <div class="url">Secure card payment</div>
+        </div>
+        <span class="s-soon" style="top:auto;bottom:18px;left:18px;right:auto">Illustrative example</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="s-pillar is-glow flip" id="requisitos">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">04 · Requirements</div>
+        <h2 class="s-h2">What you need.</h2>
+        <p class="s-lead">Creating your agent and testing it costs nothing. To publish it and charge, this is what you need:</p>
+        <ul class="s-points"><li><b>Starter plan</b><span>To publish your agent&#x27;s page and appear in Sevrii&#x27;s marketplace.</span></li><li><b>Payments</b><span>To charge by card. 5% per payment, all included (Stripe&#x27;s fee included).</span></li><li><b>What your agent doesn&#x27;t do</b><span>It guides and accompanies: it doesn&#x27;t file paperwork for the customer or replace a licensed professional when the law requires one.</span></li></ul>
+        <div class="s-actions"><a href="/crear-agente" class="s-btn s-btn-white">Create my agent</a></div>
+      </div>
+      <div class="s-media reveal" aria-hidden="true">
+        <div class="s-radar"><i></i><i></i><i></i><i></i></div>
+        <div class="ui ui-card ag-req">
+          <div class="t">Before you publish</div>
+          <ul><li><i>✓</i>Your agent, built with the Brain</li><li><i>✓</i>Tested by you on its page</li><li><i>✓</i>Starter plan to publish</li><li><i>✓</i>Payments to charge</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Questions -->
+<section class="s-faq" id="preguntas">
+  <div class="s-wrap">
+    <h2 class="s-h2 reveal">Frequently asked questions</h2>
+      <details class="reveal"><summary>Do I need to know my agent&#x27;s topic? <span aria-hidden="true">+</span></summary><p>No. The agent is the product. The Brain researches the official steps and that&#x27;s what your agent knows. If you know the topic, you can teach it more.</p></details>
+      <details class="reveal"><summary>What can&#x27;t an agent do? <span aria-hidden="true">+</span></summary><p>It doesn&#x27;t file or sign anything for the customer, doesn&#x27;t replace an official office or a licensed professional, and never promises results. It only works by chat.</p></details>
+      <details class="reveal"><summary>How do I get paid? <span aria-hidden="true">+</span></summary><p>The customer pays by card inside the chat. The money reaches your Payments account with Sevrii&#x27;s fee already taken out.</p></details>
+      <details class="reveal"><summary>Can I check what my agent does? <span aria-hidden="true">+</span></summary><p>Yes. You see all its conversations, get an alert with every sale, can join the chat any time and pause it whenever you want.</p></details>
+      <details class="reveal"><summary>Where do customers find it? <span aria-hidden="true">+</span></summary><p>On its own page and in Sevrii&#x27;s marketplace, under AI agents. The Brain also prepares its campaign.</p></details>
+  </div>
+</section>
+
+<!-- Cierre -->
+<section class="s-close">
+  <div class="s-wrap">
+    <div class="s-inner reveal">
+      <h2 class="s-h2">Ready to create your agent?</h2>
+      <p class="s-lead">Create your account and go straight to building your agent with the Brain. Testing it is free.</p>
+      <div class="s-actions">
+        <a href="/crear-agente" class="s-btn s-btn-white">Create my agent</a>
+        <a href="/login" class="s-btn s-btn-outline">Log in</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="s-foot">
+  <div class="s-wrap">
+    <div class="s-foot-top">
+      <div><a href="/en" class="logo"><img src="/assets/sevrii-logo.png" alt="Sevrii">Sevrii</a></div>
+      <div>
+        <h4>Sevrii</h4>
+        <ul><li><a href="/en">Services marketplace</a></li><li><a href="/en/ofrecerservicios">Offer services</a></li></ul>
+      </div>
+      <div>
+        <h4>Agents</h4>
+        <ul><li><a href="#que-es">What it is</a></li><li><a href="#como">How to build one</a></li><li><a href="#ganas">How you earn</a></li><li><a href="#requisitos">Requirements</a></li></ul>
+      </div>
+      <div>
+        <h4>Get started</h4>
+        <ul><li><a href="/crear-agente">Create my agent</a></li><li><a href="/login">Log in</a></li></ul>
+      </div>
+    </div>
+    <div class="s-foot-bottom">
+      <span>© 2026 Sevrii. All rights reserved.</span>
+      <div class="links"><a href="privacidad.html">Privacy</a><a href="terminos.html">Terms</a></div>
+    </div>
+  </div>
+</footer>
+
+</div><!-- /.sections -->
+
+<script>
+  (function(){
+    const canvas = document.getElementById('network');
+    if(!canvas) return;
+    const hero = canvas.closest('.hero');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+
+    function resize(){
+      W = canvas.width = hero.clientWidth;
+      H = canvas.height = hero.clientHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const N = 80;
+    const points = [];
+    for (let i=0;i<N;i++){
+      points.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        vx: (Math.random()-0.5)*0.25,
+        vy: (Math.random()-0.5)*0.25
+      });
+    }
+
+    const mouse = {x:0, y:0, active:false};
+    hero.addEventListener('mousemove', e=>{
+      const rect = hero.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+      mouse.active = true;
+    });
+    hero.addEventListener('mouseleave', ()=>{ mouse.active = false; });
+
+    function step(){
+      ctx.clearRect(0,0,W,H);
+
+      points.forEach(p=>{
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > W) p.vx *= -1;
+        if (p.y < 0 || p.y > H) p.vy *= -1;
+        if (mouse.active){
+          const dx = p.x - mouse.x, dy = p.y - mouse.y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 130 && dist > 0){
+            const force = (130 - dist) / 130 * 0.6;
+            p.x += (dx/dist) * force;
+            p.y += (dy/dist) * force;
+          }
+        }
+      });
+
+      for (let i=0;i<points.length;i++){
+        for (let j=i+1;j<points.length;j++){
+          const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 140){
+            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/140) * 0.3})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(points[i].x, points[i].y);
+            ctx.lineTo(points[j].x, points[j].y);
+            ctx.stroke();
+          }
+        }
+        if (mouse.active){
+          const dx = points[i].x - mouse.x, dy = points[i].y - mouse.y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 180){
+            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/180) * 0.45})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(points[i].x, points[i].y);
+            ctx.lineTo(mouse.x, mouse.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      points.forEach(p=>{
+        ctx.fillStyle = 'rgba(255,255,255,.55)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+        ctx.fill();
+      });
+
+      requestAnimationFrame(step);
+    }
+    step();
+  })();
+</script>
+
+<script>
+  // Transparent nav over the hero video; solid once scrolled past it, so
+  // links stay readable over the lighter sections further down the page.
+  (function(){
+    var header = document.querySelector('header');
+    if (!header) return;
+    function onScroll(){
+      header.classList.toggle('scrolled', window.scrollY > 40);
+    }
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  })();
+</script>
+
+<script>
+  // Post-hero interactions: explainer video, sticky pillar nav, subtle fade-in on scroll.
+  (function(){
+    var p = document.getElementById('explainer');
+    if (p) {
+      var id = (p.getAttribute('data-youtube-id') || '').trim();
+      var poster = p.querySelector('.s-poster');
+      if (id) {
+        p.classList.add('has-video');
+        p.querySelector('.s-poster-label').textContent = p.getAttribute('data-label-play');
+        poster.addEventListener('click', function(){
+          p.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) +
+            '?autoplay=1&rel=0&modestbranding=1" title="Sevrii" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        });
+      } else {
+        poster.disabled = true;
+      }
+    }
+
+    // Sticky pillar nav: highlight the pillar currently on screen.
+    var links = document.querySelectorAll('.s-pnav a[data-pillar]');
+    if (links.length && 'IntersectionObserver' in window) {
+      var setOn = function(id){
+        links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('data-pillar') === id); });
+        var on = document.querySelector('.s-pnav a.on');
+        if (on && on.scrollIntoView && window.innerWidth < 700) {
+          var bar = on.parentElement;
+          bar.scrollTo({ left: on.offsetLeft - 12, behavior: 'smooth' });
+        }
+      };
+      var spy = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){ if (e.isIntersecting) setOn(e.target.id); });
+      }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
+      links.forEach(function(a){
+        var sec = document.getElementById(a.getAttribute('data-pillar'));
+        if (sec) spy.observe(sec);
+      });
+    }
+
+    var els = document.querySelectorAll('.reveal');
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!els.length) return;
+    if (reduce || !('IntersectionObserver' in window)) {
+      els.forEach(function(el){ el.classList.add('is-visible'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: .12 });
+    els.forEach(function(el){ io.observe(el); });
+  })();
+</script>
+
+</body>
+</html>

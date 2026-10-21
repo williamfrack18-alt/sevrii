@@ -11,6 +11,7 @@ import { getDict } from "@/lib/i18n";
 import { ACCENT } from "@/lib/brand";
 import { logoutAction } from "@/app/actions";
 import { cookies } from "next/headers";
+import { isStartPath } from "@/lib/startPath";
 
 export default async function StartPage({ searchParams }: { searchParams: Promise<{ new?: string; path?: string }> }) {
   const user = await getCurrentUser();
@@ -19,8 +20,10 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   // Came from "Quiero ser afiliado" and has no business: straight to the affiliate panel.
   if (!user.business && (await cookies()).get("sevrii_path")?.value === "affiliate") redirect("/panel-afiliado");
   const isNew = Boolean(user.business) && sp.new === "1";
-  // Came from "Crear mi agente" (sevrii.com): that option starts picked.
-  const initial = sp.path === "agent" || (await cookies()).get("sevrii_path")?.value === "agent" ? "agent" : null;
+  // Came from a button that already says what they want ("Crear mi agente",
+  // "Crear mi tienda"): that path starts picked (they can still change it).
+  const remembered = sp.path || (await cookies()).get("sevrii_path")?.value;
+  const initial = isStartPath(remembered) ? remembered : null;
   if (user.business && !isNew) redirect("/dashboard");
   if (isNew && (await countProjects(user.id)) >= limitsFor(user).projects) redirect("/dashboard?view=plans&need=projects");
   const t = getDict(await getLang());

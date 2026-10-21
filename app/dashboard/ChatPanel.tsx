@@ -54,6 +54,7 @@ export default function ChatPanel({
   tail,
   tailKey,
   head,
+  dock,
   chips,
 }: {
   greeting: string;
@@ -78,6 +79,8 @@ export default function ChatPanel({
   // Shown at the top of the conversation (e.g. a summary of the page). With a
   // head the chat never shows its empty "first question" screen.
   head?: React.ReactNode;
+  // The project's card, always the last item of the conversation (see ProjectDock).
+  dock?: React.ReactNode;
   chips?: ChatChip[];
 }) {
   const lang = useLang();
@@ -91,7 +94,8 @@ export default function ChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const empty = messages.length === 0 && !head;
+  const dockRef = useRef<HTMLDivElement>(null);
+  const empty = messages.length === 0 && !head && !dock;
 
   function pickChip(c: ChatChip) {
     if (busy) return;
@@ -136,7 +140,10 @@ export default function ChatPanel({
     if (!el) return;
     const first = firstScroll.current;
     firstScroll.current = false;
-    const go = () => el.scrollTo({ top: el.scrollHeight, behavior: first ? "auto" : "smooth" });
+    // With a project card at the end, stop where the newest message ends (the
+    // card is right below it, one scroll away).
+    const bottom = () => el.scrollHeight - el.clientHeight - (dockRef.current && !first ? dockRef.current.offsetHeight + 28 : 0);
+    const go = () => el.scrollTo({ top: bottom(), behavior: first ? "auto" : "smooth" });
     const raf = requestAnimationFrame(go);
     // Fonts and cards below can still shift the layout right after opening.
     const late = first ? setTimeout(() => el.scrollTo({ top: el.scrollHeight }), 400) : undefined;
@@ -381,6 +388,7 @@ export default function ChatPanel({
             );
           })}
           {tail}
+          {dock && <div ref={dockRef}>{dock}</div>}
           {uploadRow}
           {pending && (
             <div className="flex items-center gap-1.5 h-6" aria-label={texts.thinking}>

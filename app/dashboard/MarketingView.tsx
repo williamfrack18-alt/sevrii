@@ -16,6 +16,7 @@ import { maxDailySpend, type CampaignSpec } from "@/lib/marketing";
 import { activeOffer } from "@/lib/site";
 import { sendMarketingChatAction } from "@/app/marketingActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
+import ProjectDock, { BelowChat } from "./ProjectDock";
 import AgentPanel from "./AgentPanel";
 import { toClientBusiness, type ClientBusiness, type ClientCampaign } from "./types";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
@@ -177,6 +178,30 @@ export default function MarketingView({
   const nodes = buildNodes({ business, campaigns: withSpec, approved, agent: agent ?? null, results, lang });
   const hasMap = Boolean(strategy) || withSpec.length > 0;
   const profile = business.marketing.profile;
+  const es = lang === "es";
+  // This project's marketing, as the last card of its own conversation.
+  const dock = hasMap ? (
+    <ProjectDock
+      eyebrow={es ? "Mapa de tu marketing" : "Your marketing map"}
+      title={profile.goal || m.goalFallback(profile.mainService || business.plan.service || "")}
+      status={
+        <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11.5px] font-medium" style={{ background: TINT, color: ACCENT }}>
+          {t.flow.steps[step]}
+        </span>
+      }
+      link={{ label: es ? "Ver mapa completo ↓" : "See the full map ↓", href: "#mk-plan" }}
+    >
+      <span className="text-[13px] text-[#a1a1a1]">
+        {[
+          active.length ? (es ? `${active.length} ${active.length === 1 ? "campaña" : "campañas"}` : `${active.length} ${active.length === 1 ? "campaign" : "campaigns"}`) : "",
+          profile.monthlyBudgetUsd ? m.budgetMonth(usd(profile.monthlyBudgetUsd)) : "",
+          approved ? (es ? "estrategia aprobada" : "strategy approved") : es ? "estrategia por aprobar" : "strategy to approve",
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </span>
+    </ProjectDock>
+  ) : undefined;
 
   return (
     <div style={{ background: "#000" }} className="overflow-x-clip">
@@ -184,7 +209,7 @@ export default function MarketingView({
       <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
         <div className="shrink-0 h-12 md:h-14 px-4 md:px-6 flex items-center justify-between gap-3">
           <span className="min-w-0 truncate text-[16px] md:text-[17px] font-semibold text-white">
-            Sevrii <span className="text-[#8e8e8e] font-normal">· {t.flow.title}</span>
+            {business.name} <span className="text-[#8e8e8e] font-normal">· {t.flow.title}</span>
           </span>
           <Stepper steps={t.flow.steps} current={step} />
         </div>
@@ -192,6 +217,7 @@ export default function MarketingView({
           greeting={greeting}
           initialMessages={initialMessages}
           texts={{ ...t.chat, seeBelowHref: "#mk-plan" }}
+          dock={dock}
           onSend={async (text) => {
             const res = await sendMarketingChatAction(text);
             onMessages?.(res.messages);
@@ -204,8 +230,8 @@ export default function MarketingView({
       </section>
 
       {/* The strategy as a mind map */}
-      <section id="mk-plan" className="px-4 md:px-8 pt-8 pb-12 scroll-mt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
-        <div className="max-w-[1100px] mx-auto flex flex-col gap-5">
+      <BelowChat id="mk-plan" label={es ? "Mapa de tu marketing · se arma con tu chat" : "Your marketing map · built from your chat"}>
+        <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <h2 className="text-[20px] font-semibold text-white tracking-tight">{t.plan}</h2>
             {strategy?.summary && <p className="text-[14.5px] leading-relaxed text-[#d4d4d4] max-w-[760px]">{strategy.summary}</p>}
@@ -250,7 +276,7 @@ export default function MarketingView({
             <EmptyMap lang={lang} />
           )}
         </div>
-      </section>
+      </BelowChat>
 
       {/* 3. En marcha: what the agent does */}
       {approved && agent === undefined && (
