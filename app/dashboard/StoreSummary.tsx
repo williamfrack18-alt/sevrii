@@ -25,7 +25,7 @@ const TEXT = {
     hours: "Horario",
     noHours: "Sin horario",
     missing: "Para que venda más te falta:",
-    items: { photos: "fotos de tus trabajos", video: "un video corto tuyo", hours: "tu horario", owner: "tu nombre (lo ven al chatear)" },
+    items: { photos: "fotos de tus trabajos", photo: "tu foto (para que vean quién lo creó)", video: "un video corto tuyo", hours: "tu horario", owner: "tu nombre (lo ven al chatear)" },
     planNew: "Tu estrategia está aprobada y tu página aún no la tiene.",
     planChanged: "Cambiaste tu estrategia en el Cerebro. Tu página todavía muestra la anterior.",
     build: "Armar mi página",
@@ -59,7 +59,7 @@ const TEXT = {
     hours: "Hours",
     noHours: "No hours",
     missing: "To sell more it still needs:",
-    items: { photos: "photos of your work", video: "a short video of you", hours: "your hours", owner: "your name (shown in the chat)" },
+    items: { photos: "photos of your work", photo: "your photo (so people see who made it)", video: "a short video of you", hours: "your hours", owner: "your name (shown in the chat)" },
     planNew: "Your strategy is approved and your page doesn't have it yet.",
     planChanged: "You changed your strategy in the Brain. Your page still shows the old one.",
     build: "Build my page",
@@ -120,7 +120,7 @@ export default function StoreSummary({
         ? t.local(s.baseCity, s.baseState, s.reachRadius)
         : "";
   const missing = [
-    s.gallery.length === 0 && !s.coverUrl ? t.items.photos : "",
+    isAgent ? (!s.ownerPhotoUrl && !s.coverUrl ? t.items.photo : "") : s.gallery.length === 0 && !s.coverUrl ? t.items.photos : "",
     !s.videoUrl ? t.items.video : "",
     !isAgent && !s.hours ? t.items.hours : "",
     !s.ownerName ? t.items.owner : "",
@@ -180,9 +180,9 @@ export default function StoreSummary({
         </div>
       )}
 
-      {(where || s.hours || s.offer) && (
+      {(where || (!isAgent && s.hours) || s.offer) && (
         <div className="flex flex-wrap gap-2">
-          {[where, s.hours ? `${t.hours}: ${s.hours}` : "", s.offer ? `${t.offer}: ${s.offer.label}` : ""].filter(Boolean).map((x) => (
+          {[where, !isAgent && s.hours ? `${t.hours}: ${s.hours}` : "", s.offer ? `${t.offer}: ${s.offer.label}` : ""].filter(Boolean).map((x) => (
             <span key={x} className="text-[12.5px] text-[#d4d4d4] px-3 py-1.5 rounded-full max-w-full truncate" style={{ background: "rgba(255,255,255,0.04)", boxShadow: `inset 0 0 0 1px ${HAIR}` }}>
               {x}
             </span>

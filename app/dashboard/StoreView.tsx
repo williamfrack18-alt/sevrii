@@ -164,7 +164,7 @@ export default function StoreView({
   }, [business.id]);
 
   const isAgent = business.plan.mode === "agent" || Boolean(business.serviceAgent.name);
-  const hasPage = services.length > 0 || Boolean(business.site.headline) || Boolean(business.serviceAgent.name) || planPending;
+  const hasPage = services.length > 0 || Boolean(business.site.headline || business.pitch || business.category) || Boolean(business.serviceAgent.name) || planPending;
   const es = lang === "es";
   const chips: ChatChip[] = hasPage
     ? [
