@@ -357,7 +357,15 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
       const title = str(input.title, 90);
       if (!title) return { out: "error: no title" };
-      const own = { title, why: str(input.what, 300), typicalPrice: "", startCost: "", license: "", demand: "", pros: "", cons: "", score: 0, sources: [] };
+      // C: their idea goes through the same research and scoring before going on.
+      if (plan.mode === "agent") {
+        if (!(await researchWouldStart(b.userId, { budgetOnly: true })))
+          return { out: "error: the plan's AI budget for this month is used up, so their idea can't be researched now. Help them pick one of the current ideas, or they can upgrade in Plans." };
+        const what = str(input.what, 300);
+        await updateBusinessPlan(b.id, parsePlan({ ...requestMoreIdeas(plan, ""), ownIdea: `${title}${what ? `: ${what}` : ""}` }));
+        return { out: "evaluating their idea with the same research (1-2 minutes). Tell them in one line you'll check their idea against what people pay and need, and show it here next to 2 alternatives.", startPipeline: true };
+      }
+      const own = { title, why: str(input.what, 300), typicalPrice: "", startCost: "", license: "", demand: "", how: "", pros: "", cons: "", score: 0, sources: [] };
       const ideas = [...plan.ideas.slice(0, 4), own];
       await updateBusinessPlan(b.id, parsePlan(chooseIdea({ ...plan, ideas }, ideas.length - 1)));
       return { out: `chosen their own idea: ${title}. Now ask the remaining readiness questions (see missing).` };

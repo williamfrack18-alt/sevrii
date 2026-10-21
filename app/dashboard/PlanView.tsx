@@ -729,12 +729,22 @@ function IdeasCard({ plan, busy, live, onChoose }: { plan: BusinessPlan; busy: b
           </div>
           <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed">{idea.why}</p>
           <Facts
-            rows={[
-              [L.typicalPrice, idea.typicalPrice],
-              [L.startCost, idea.startCost],
-              [L.license, idea.license && !/^no\b/i.test(idea.license.trim()) ? idea.license : ""],
-              [L.demand, idea.demand],
-            ]}
+            rows={
+              plan.mode === "agent"
+                ? [
+                    [t.ideasC.how, idea.how],
+                    [L.typicalPrice, idea.typicalPrice],
+                    [L.demand, idea.demand],
+                    [L.license, idea.license],
+                    [L.startCost, idea.startCost],
+                  ]
+                : [
+                    [L.typicalPrice, idea.typicalPrice],
+                    [L.startCost, idea.startCost],
+                    [L.license, idea.license && !/^no\b/i.test(idea.license.trim()) ? idea.license : ""],
+                    [L.demand, idea.demand],
+                  ]
+            }
           />
           {(idea.pros || idea.cons) && (
             <div className="flex flex-col gap-1.5">

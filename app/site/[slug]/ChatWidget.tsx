@@ -1,11 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { agentCheckoutAction, agentClaimAction, visitorChatPollAction, visitorChatSendAction, type ChatMsg } from "@/app/chatActions";
+import { agentCheckoutAction, agentClaimAction, agentReviewAction, agentReviewStateAction, visitorChatPollAction, visitorChatSendAction, type ChatMsg, type MyReview } from "@/app/chatActions";
 
 // The page chat as the owner's service agent (see lib/serviceAgent.ts).
 export type ChatAgent = { name: string; greeting: string; offers: { id: string; title: string; detail: string; label: string; welcome?: string }[] };
 const PAY = /\s*\[\[pay\]\]\s*$/;
+// Official links the agent cites (and the owner's WhatsApp) open in a new tab.
+const URL_RE = /(https?:\/\/[^\s<>()]+[^\s<>().,;:!?¿¡"'])/g;
+function Linked({ text }: { text: string }) {
+  const parts = text.split(URL_RE);
+  return (
+    <>
+      {parts.map((p, i) =>
+        i % 2 === 1 ? (
+          <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow" className="cw-link">
+            {p.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)}
+          </a>
+        ) : (
+          p
+        )
+      )}
+    </>
+  );
+}
 
 const TEXT = {
   es: {
@@ -31,6 +49,14 @@ const TEXT = {
     paying: "Abriendo el pago…",
     payFailed: "No se pudo abrir el pago. Inténtalo de nuevo.",
     securePay: "Pago seguro con tarjeta. Al terminar vuelves a este chat.",
+    rate: (name: string) => `Califica a ${name}`,
+    myRating: "Tu reseña",
+    edit: "Cambiar",
+    reviewText: "¿Qué tal te ayudó? (opcional)",
+    reviewName: "Tu nombre (opcional)",
+    reviewSend: "Publicar reseña",
+    reviewThanks: "Gracias, tu reseña ya está en la página.",
+    star: (n: number) => `${n} de 5`,
   },
   en: {
     open: "Chat with us",
@@ -55,6 +81,14 @@ const TEXT = {
     paying: "Opening checkout…",
     payFailed: "Couldn't open checkout. Please try again.",
     securePay: "Secure card payment. You'll come back to this chat when done.",
+    rate: (name: string) => `Rate ${name}`,
+    myRating: "Your review",
+    edit: "Edit",
+    reviewText: "How did it help you? (optional)",
+    reviewName: "Your name (optional)",
+    reviewSend: "Post review",
+    reviewThanks: "Thanks, your review is on the page now.",
+    star: (n: number) => `${n} of 5`,
   },
 };
 
@@ -347,7 +381,7 @@ export default function ChatWidget({
                       <span>{agent ? agent.name : t.assistant(businessName)}</span>
                     </div>
                   )}
-                  <div className={`cw-msg ${m.role}`}>{m.content.replace(PAY, "").replace(/\*\*(.+?)\*\*/g, "$1")}</div>
+                  <div className={`cw-msg ${m.role}`}>{m.role === "visitor" ? m.content : <Linked text={m.content.replace(PAY, "").replace(/\*\*(.+?)\*\*/g, "$1")} />}</div>
                   {i === payAt && agent && agent.offers.length > 0 && (
                     <div className="cw-offers">
                       {agent.offers.map((o) => (
@@ -403,6 +437,7 @@ export default function ChatWidget({
             </button>
           </form>
           {ownerHere && <div className="cw-note">{`${t.talkingWith(ownerLabel)} · ${t.ownerOf(businessName)}`}</div>}
+          {agent && token && <AgentReview slug={slug} token={token} name={agent.name} lang={lang} refreshKey={msgs.length} />}
       </div>
     </div>
   );
@@ -434,5 +469,74 @@ export function ChatJump({ lang, label }: { lang: "es" | "en"; label?: string })
       </svg>
       <span className="cw-fab-label" aria-hidden>{label || TEXT[lang].open}</span>
     </button>
+  );
+}
+
+// Customers who paid for the agent can rate it (one review per chat, editable).
+function AgentReview({ slug, token, name, lang, refreshKey }: { slug: string; token: string; name: string; lang: "es" | "en"; refreshKey: number }) {
+  const t = TEXT[lang];
+  const [state, setState] = useState<MyReview | null>(null);
+  const [open, setOpen] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [text, setText] = useState("");
+  const [who, setWho] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const paidCheck = state?.canReview ? 1 : refreshKey;
+
+  useEffect(() => {
+    let alive = true;
+    agentReviewStateAction({ slug, token })
+      .then((r) => {
+        if (!alive) return;
+        setState(r);
+        setRating(r.rating);
+        setText(r.text);
+        setWho(r.name);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [slug, token, paidCheck]);
+
+  if (!state?.canReview) return null;
+  if (!open)
+    return done ? (
+      <div className="cw-rate done">{t.reviewThanks}</div>
+    ) : (
+      <button type="button" className="cw-rate" onClick={() => setOpen(true)}>
+        {state.rating ? `${t.myRating}: ${"★".repeat(state.rating)} · ${t.edit}` : `★ ${t.rate(name)}`}
+      </button>
+    );
+  return (
+    <form
+      className="cw-review"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!rating || busy) return;
+        setBusy(true);
+        const res = await agentReviewAction({ slug, token, rating, text, name: who }).catch(() => ({ ok: false }));
+        setBusy(false);
+        if (res.ok) {
+          setState({ canReview: true, rating, text, name: who });
+          setDone(true);
+          setOpen(false);
+        }
+      }}
+    >
+      <div className="cw-stars" role="radiogroup" aria-label={t.rate(name)}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} type="button" role="radio" aria-checked={rating === n} aria-label={t.star(n)} className={n <= rating ? "on" : ""} onClick={() => setRating(n)}>
+            ★
+          </button>
+        ))}
+      </div>
+      <textarea value={text} maxLength={600} rows={2} placeholder={t.reviewText} onChange={(e) => setText(e.target.value)} />
+      <input value={who} maxLength={40} placeholder={t.reviewName} onChange={(e) => setWho(e.target.value)} />
+      <button type="submit" disabled={!rating || busy}>
+        {t.reviewSend}
+      </button>
+    </form>
   );
 }

@@ -91,6 +91,7 @@ export type Idea = {
   startCost: string;
   license: string; // "No" or what is required
   demand: string; // evidence of demand in the city
+  how: string; // C: how the agent does it with each customer, step by step
   pros: string;
   cons: string;
   score: number; // 0-25
@@ -132,6 +133,8 @@ export type BusinessPlan = {
   // B: ideas the person turned down, and what they said they'd prefer.
   rejectedIdeas: string[];
   ideaPrefs: string;
+  // C: an idea the person brought, evaluated with the same research before going on.
+  ownIdea: string;
   ideaRounds: number;
   // How the owner shows up on the page: a video script and photos to take.
   videoScript: string;
@@ -212,6 +215,7 @@ export const EMPTY_PLAN: BusinessPlan = {
   guard: { block: [], warn: [] },
   rejectedIdeas: [],
   ideaPrefs: "",
+  ownIdea: "",
   ideaRounds: 0,
   videoScript: "",
   photoIdeas: [],
@@ -383,6 +387,7 @@ export function parseIdeas(v: unknown): Idea[] {
         startCost: clip(i.startCost, 120),
         license: str(i.license, 160),
         demand: clip(i.demand, 300),
+        how: clip(i.how, 400),
         pros: str(i.pros, 240),
         cons: str(i.cons, 240),
         score: num(i.score, 0, 25) ?? 0,
@@ -469,6 +474,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
     guard: { block: list(g.block, 8, 240), warn: list(g.warn, 8, 240) },
     rejectedIdeas: list(o.rejectedIdeas, 20, 120),
     ideaPrefs: typeof o.ideaPrefs === "string" ? o.ideaPrefs.trim().slice(0, 600) : "",
+    ownIdea: typeof o.ownIdea === "string" ? o.ownIdea.trim().slice(0, 400) : "",
     ideaRounds: num(o.ideaRounds, 0, 50) ?? 0,
     videoScript: typeof o.videoScript === "string" ? o.videoScript.trim().slice(0, 1200) : "",
     photoIdeas: list(o.photoIdeas, 6, 160),
@@ -579,12 +585,17 @@ export function planProgress(p: BusinessPlan): number {
 // Deterministic honesty checks (the AI Guardian adds to these).
 const BANNED_CLAIMS = /\b(guarantee[ds]?|garantizad[oa]s?|#\s?1|n[uú]mero\s?1|the best|el mejor|los mejores|top[- ]rated|5[- ]star|5 estrellas|\d+\+?\s*(clientes|customers|reviews|reseñas))\b/i;
 
+const PROMISED_RESULT = /\b(vas a aprobar|aprobar[aá]s|aprobaci[oó]n (segura|garantizada)|asegura(mos)? (tu|la) (licencia|aprobaci[oó]n)|obt(endr[aá]s|ienes) (tu|la) licencia (seguro|s[ií] o s[ií])|100\s?% (aprobado|garantizado)|you will pass|guaranteed (pass|approval|license))\b/i;
+
 // final=false while it is still a proposal: a suggested offer has no date yet.
 export function codeChecks(p: BusinessPlan, today: string, final = true): { block: string[]; warn: string[] } {
   const block: string[] = [];
   const warn: string[] = [];
   const texts = [p.promise, ...p.differentiators, ...p.packages.map((x) => `${x.name} ${x.includes}`), p.offer?.label ?? "", p.offer?.detail ?? ""];
   for (const t of texts) if (t && BANNED_CLAIMS.test(t)) block.push(`claim: "${t.slice(0, 80)}" uses a claim that needs proof`);
+  // Agents guide; they never promise the outcome (passing, approvals, licenses).
+  const outcome = [...texts, p.agent?.role ?? "", ...(p.agent?.edge ?? []).map((e) => `${e.title} ${e.text}`), ...p.faq.map((f) => f.a)];
+  for (const t of outcome) if (t && PROMISED_RESULT.test(t)) block.push(`promise: "${t.slice(0, 80)}" promises a result; say it guides and accompanies instead`);
   if (final && p.offer && !p.offer.endsAt && !p.offer.forNewClients) block.push("offer: the offer needs a real end date");
   if (final && p.offer && p.offer.endsAt && p.offer.endsAt < today) block.push("offer: the end date already passed");
   if (/\b(credit repair|reparaci[oó]n de cr[eé]dito|notari|immigration|inmigraci[oó]n|migratori|loan|pr[eé]stamo)/i.test(`${p.service} ${p.profile.mainService}`))

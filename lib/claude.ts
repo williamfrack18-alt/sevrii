@@ -18,7 +18,21 @@ export const MODELS = {
 export function getClaude(timeoutMs = 45_000): Anthropic | null {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  const client = new Anthropic({ apiKey, maxRetries: 2, timeout: timeoutMs });
+  return metered(new Anthropic({ apiKey, maxRetries: 2, timeout: timeoutMs }));
+}
+
+// The service agents' chat with customers runs on Meta's Muse Spark, through
+// its Anthropic-compatible Messages API (dev.meta.ai/docs/protocols/messages).
+// The model is fixed here on purpose. MODEL_API_KEY is set in Vercel; our
+// Anthropic key is never sent there (apiKey: null).
+export const AGENT_MODEL = "muse-spark-1.3";
+export function getAgentModel(timeoutMs = 60_000): Anthropic | null {
+  const token = process.env.MODEL_API_KEY;
+  if (!token) return null;
+  return metered(new Anthropic({ baseURL: "https://api.meta.ai", apiKey: null, authToken: token, maxRetries: 2, timeout: timeoutMs }));
+}
+
+function metered(client: Anthropic): Anthropic {
   // Charge every call to the account being served (see lib/usage.ts).
   const create = client.messages.create.bind(client.messages);
   client.messages.create = (async (body: Parameters<typeof create>[0], opts?: Parameters<typeof create>[1]) => {

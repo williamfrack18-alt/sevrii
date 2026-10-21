@@ -468,6 +468,22 @@ async function migrate(): Promise<void> {
           PRIMARY KEY ("businessId", "affiliateUserId", day)
         )
       `;
+      // Reviews of service agents: only customers who paid for access, one per
+      // conversation (they can edit it).
+      await sql`
+        CREATE TABLE IF NOT EXISTS agent_reviews (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          "conversationId" TEXT NOT NULL UNIQUE,
+          rating INTEGER NOT NULL,
+          text TEXT NOT NULL DEFAULT '',
+          name TEXT NOT NULL DEFAULT '',
+          hidden BOOLEAN NOT NULL DEFAULT false,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS agent_reviews_biz_idx ON agent_reviews ("businessId", "createdAt")`;
     }
   }
 }
@@ -936,6 +952,9 @@ export type MarketplaceRow = {
   servicePrice: string | null;
   category: string;
   profile: { city: string; state: string; radiusMiles: number | null; serviceMode: string; remoteScope: string };
+  agentOn: boolean; // a service agent that works in the page chat
+  rating: number | null; // average of its reviews
+  reviews: number;
 };
 
 // Published pages for the marketplace, newest first, with their main service.
@@ -944,9 +963,14 @@ export async function listMarketplaceRows(limit = 300): Promise<MarketplaceRow[]
   const rows = (await sql`
     SELECT b.id, b.slug, b.name, b.city, b.site, jsonb_build_object('profile', b.plan->'profile') AS "businessPlan", b."marketCategory", b.category,
            u.email, u.plan, u."planStatus", u."planRenewsAt", u."googleSub", u."emailVerifiedAt",
-           s.name AS "serviceName", s.price AS "servicePrice"
+           s.name AS "serviceName", s.price AS "servicePrice",
+           COALESCE((b."serviceAgent"->>'enabled')::boolean, false) AS "agentOn",
+           r.avg AS rating, COALESCE(r.n, 0)::int AS reviews
     FROM businesses b
     JOIN users u ON u.id = b."userId"
+    LEFT JOIN LATERAL (
+      SELECT AVG(rating)::float AS avg, COUNT(*) AS n FROM agent_reviews WHERE "businessId" = b.id AND hidden = false
+    ) r ON true
     LEFT JOIN LATERAL (
       SELECT name, price FROM services WHERE "businessId" = b.id
       ORDER BY featured DESC, "sortOrder" ASC LIMIT 1
@@ -1515,6 +1539,7 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM campaign_events WHERE "businessId" = ${id}`;
   await sql`DELETE FROM agent_items WHERE "businessId" = ${id}`;
   await sql`DELETE FROM agent_access WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM agent_reviews WHERE "businessId" = ${id}`;
   await sql`DELETE FROM affiliate_visits WHERE "businessId" = ${id}`;
   await sql`DELETE FROM marketing_posts WHERE "businessId" = ${id}`;
   await sql`DELETE FROM meta_connections WHERE "businessId" = ${id}`;
@@ -2278,4 +2303,50 @@ export async function listOpenAffiliateBusinesses(limit = 200): Promise<Business
     ORDER BY "createdAt" DESC LIMIT ${limit}
   `) as Record<string, unknown>[];
   return rows.map((r) => toBusiness(r)!).filter(Boolean);
+}
+
+// ---------- Agent reviews ----------
+export type AgentReviewRow = { id: string; businessId: string; conversationId: string; rating: number; text: string; name: string; createdAt: string };
+
+function reviewRow(r: Record<string, unknown>): AgentReviewRow {
+  return {
+    id: String(r.id),
+    businessId: String(r.businessId),
+    conversationId: String(r.conversationId),
+    rating: Number(r.rating),
+    text: String(r.text ?? ""),
+    name: String(r.name ?? ""),
+    createdAt: new Date(String(r.createdAt)).toISOString(),
+  };
+}
+
+// Did this conversation ever pay for the agent? (only buyers can review)
+export async function conversationPaidAgent(conversationId: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`SELECT 1 FROM agent_access WHERE "conversationId" = ${conversationId} LIMIT 1`) as unknown[];
+  return rows.length > 0;
+}
+
+export async function getAgentReviewByConversation(conversationId: string): Promise<AgentReviewRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM agent_reviews WHERE "conversationId" = ${conversationId}`) as Record<string, unknown>[];
+  return rows[0] ? reviewRow(rows[0]) : null;
+}
+
+export async function saveAgentReview(input: { businessId: string; conversationId: string; rating: number; text: string; name: string }): Promise<AgentReviewRow> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO agent_reviews (id, "businessId", "conversationId", rating, text, name)
+    VALUES (${newId()}, ${input.businessId}, ${input.conversationId}, ${input.rating}, ${input.text}, ${input.name})
+    ON CONFLICT ("conversationId") DO UPDATE SET rating = EXCLUDED.rating, text = EXCLUDED.text, name = EXCLUDED.name, "updatedAt" = now()
+    RETURNING *
+  `) as Record<string, unknown>[];
+  return reviewRow(rows[0]);
+}
+
+export async function listAgentReviews(businessId: string, limit = 12): Promise<{ list: AgentReviewRow[]; avg: number | null; count: number }> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM agent_reviews WHERE "businessId" = ${businessId} AND hidden = false ORDER BY "createdAt" DESC LIMIT ${limit}`) as Record<string, unknown>[];
+  const stats = (await sql`SELECT AVG(rating)::float AS avg, COUNT(*)::int AS n FROM agent_reviews WHERE "businessId" = ${businessId} AND hidden = false`) as { avg: number | null; n: number }[];
+  return { list: rows.map(reviewRow), avg: stats[0]?.avg ?? null, count: stats[0]?.n ?? 0 };
 }

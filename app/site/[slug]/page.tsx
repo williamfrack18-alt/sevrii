@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { cache } from "react";
-import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, addCampaignEvent, campaignBelongs, type BusinessRow } from "@/lib/db";
+import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, addCampaignEvent, campaignBelongs, listAgentReviews, type BusinessRow } from "@/lib/db";
 import { cleanCampaignId } from "@/lib/campaignLink";
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
@@ -144,7 +144,7 @@ export default async function PublicBusinessPage({
     return (
       <>
         {affRef}
-        <AgentPage business={business} live={live} campaign={campaign} chatAgent={chatAgent} />
+        <AgentPage business={business} live={live} campaign={campaign} chatAgent={chatAgent} reviews={await listAgentReviews(business.id, 9).catch(() => ({ list: [], avg: null, count: 0 }))} />
       </>
     );
 

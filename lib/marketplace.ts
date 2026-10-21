@@ -125,6 +125,10 @@ export type MarketListing = {
   reachText: string;
   miles: number | null;
   serves: boolean;
+  // A service agent (AI) that works in its page chat, and its reviews.
+  agent: boolean;
+  rating: number | null;
+  reviews: number;
 };
 
 // The published pages change rarely; keep them a minute in memory.
@@ -152,7 +156,7 @@ export async function marketplaceListings(visitor: Visitor | null = null, lang: 
     out.push({
       slug: r.slug,
       name: r.name,
-      title: (r.serviceName || site.headline || r.name).slice(0, 90),
+      title: ((r.agentOn ? site.headline : "") || r.serviceName || site.headline || r.name).slice(0, 90),
       category: category as MarketCategory,
       location: (site.serviceArea || r.city || "").slice(0, 60),
       price: (r.servicePrice || "").slice(0, 30),
@@ -163,6 +167,9 @@ export async function marketplaceListings(visitor: Visitor | null = null, lang: 
       reachText: reachLabel(reach, lang),
       miles: fit.miles,
       serves: fit.ok,
+      agent: Boolean(r.agentOn),
+      rating: r.reviews > 0 && r.rating !== null ? Math.round(Number(r.rating) * 10) / 10 : null,
+      reviews: Number(r.reviews) || 0,
     });
   }
   if (saves.length) void Promise.allSettled(saves);

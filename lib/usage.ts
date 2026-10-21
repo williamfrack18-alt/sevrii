@@ -11,6 +11,8 @@ const PRICES: { match: RegExp; input: number; output: number; cacheWrite: number
   { match: /opus/, input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
   { match: /sonnet/, input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 },
   { match: /haiku/, input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 },
+  // Meta Muse Spark (service agents' chat), dev.meta.ai/models/muse-spark.
+  { match: /muse-spark/, input: 1.25, output: 4.25, cacheWrite: 1.25, cacheRead: 0.15 },
 ];
 const WEB_SEARCH_USD = 0.01; // $10 per 1,000 searches
 

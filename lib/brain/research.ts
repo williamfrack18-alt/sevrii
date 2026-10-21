@@ -92,13 +92,14 @@ function agentIdeasTask(plan: BusinessPlan, out: string): string {
   const p = plan.profile;
   return `Tarea: IDEAS de agentes de IA para vender en EE. UU.
 Un agente de IA es un producto digital: trabaja solo por chat (texto), las 24 horas, y resuelve un problema concreto de principio a fin. Guía paso a paso, revisa lo que el cliente le escribe, le dice exactamente qué preparar, llenar y llevar, arma listas y textos, y le da seguimiento varios días. No envía archivos, no llama, no firma ni presenta trámites en nombre del cliente, y no da asesoría legal, migratoria, médica ni financiera.
-Lo que le interesa a quien lo crea: ${p.agentInterest || "abierto a cualquier idea"}. A quién le gustaría ayudar: ${p.typicalCustomer || "a cualquiera"}. Idioma del agente: ${p.languages === "en" ? "inglés" : p.languages === "both" ? "español e inglés" : "español"}.
-Las ideas NO tienen que estar relacionadas con la experiencia de quien lo crea: el agente es el producto.
+Lo que le interesa a quien lo crea: ${p.agentInterest || "abierto a cualquier idea"} (si eso ya es una idea concreta de agente, evalúala como la primera idea de la lista). A quién le gustaría ayudar: ${p.typicalCustomer || "a cualquiera"}. Idioma del agente: ${p.languages === "en" ? "inglés" : p.languages === "both" ? "español e inglés" : "español"}.
+Las ideas NO tienen que estar relacionadas con la experiencia de quien lo crea: el agente es el producto.${plan.ownIdea ? `
+La persona trae su propia idea: "${plan.ownIdea}". Evalúala con la misma investigación y los mismos datos, y devuélvela como la PRIMERA idea de la lista, tal cual (si tiene debilidades, dilas con honestidad en "why"). Después propón 4 alternativas cercanas a lo que busca.` : ""}
 Propón 5 problemas concretos y frecuentes por los que la gente en EE. UU. YA paga hoy (a gestores, agencias, freelancers, cursos o apps) y que un agente por chat puede resolver mejor que preguntarle gratis a un chat general, porque exige pasos exactos verificados en fuentes oficiales, reglas que cambian por estado, acompañamiento de varios días o revisar lo que el cliente prepara. Que sean distintos entre sí. Busca para cada uno evidencia de demanda y cuánto se paga hoy por resolverlo.${plan.rejectedIdeas.length ? `
 Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
 Lo que dijo que prefiere o no quiere: ${plan.ideaPrefs}. Respétalo.` : ""}
 No propongas: reparación de crédito, asesoría legal o migratoria, préstamos, salud, ni nada que necesite una licencia profesional para darlo.
-Forma: {"ideas":[{"title":"el agente en pocas palabras, máx. 90 caracteres","why":"qué problema resuelve, para quién y por qué un agente lo hace mejor que un chat gratis","typicalPrice":"lo que se paga hoy por resolverlo, rango corto (máx. 40 caracteres)","startCost":"qué necesita el agente para funcionar bien (fuentes oficiales, material), una frase corta (máx. 100 caracteres)","license":"No (o el límite legal que debe respetar, en una línea)","demand":"evidencia de que mucha gente lo busca o lo paga","sources":[{"title":"…","url":"…"}]}]}
+Forma: {"ideas":[{"title":"el agente en pocas palabras, máx. 90 caracteres","why":"qué problema resuelve, para quién y por qué un agente lo hace mejor que un chat gratis","typicalPrice":"lo que se paga hoy por resolverlo, rango corto (máx. 40 caracteres)","startCost":"qué necesita el agente para funcionar bien (fuentes oficiales, material), una frase corta (máx. 100 caracteres)","license":"lo que el agente NO puede hacer por ley en este tema (por ejemplo: no presenta el trámite por la persona, solo la guía), en una línea","demand":"evidencia de que mucha gente lo busca o lo paga","how":"cómo lo ejecuta el agente con cada cliente, en 3 pasos cortos separados por ' → '","sources":[{"title":"…","url":"…"}]}]}
 ${out}`;
 }
 
@@ -185,6 +186,7 @@ function cleanResearch(kind: ResearchKind, d: Record<string, unknown>, seen: See
               startCost: str(o.startCost, 2000),
               license: str(o.license, 160),
               demand: str(o.demand, 2000),
+              how: str(o.how, 2000),
               sources: seen.filter(o.sources, 3),
             };
           })

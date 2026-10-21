@@ -274,6 +274,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   .result-by{font-size:13px; color:var(--s-text-faint); margin-bottom:2px;}
   .result-loc{font-size:13px; color:var(--s-text-faint); margin-bottom:10px;}
+  .result-tag + .result-tag{margin-left:6px;}
   .result-rating{display:flex; align-items:center; gap:6px; font-size:13.5px; font-variant-numeric:tabular-nums;}
   .result-rating .star{color:var(--s-star);}
   .result-rating .count{color:var(--s-text-faint);}
@@ -281,6 +282,7 @@ document.addEventListener('DOMContentLoaded', function(){
   .result-thumb img.cover{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .result-thumb img.logo{width:58%; height:58%; object-fit:contain;}
   .result-price{font-size:14px; font-weight:600; color:var(--s-text);}
+  .result-rating{font-size:13px; font-weight:600; color:#b07d00; margin-top:4px;}
   .result-tag{display:inline-block; margin-top:8px; font-size:11.5px; color:var(--s-text-faint); border:1px solid var(--s-border); border-radius:999px; padding:2px 8px;}
   .no-results a{color:inherit; font-weight:600; text-decoration:underline; text-underline-offset:3px;}
 
@@ -498,6 +500,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <section class="category-bar">
   <div class="wrap">
+    <a href="#explorar" class="category-item" data-category="Agentes de IA"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 9h.01M15 9h.01M9 13c.8.7 1.8 1 3 1s2.2-.3 3-1"></path></svg><span>AI agents</span></a>
     <a href="#explorar" class="category-item" data-category="Finanzas y Crédito"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg><span>Finance & Credit</span></a>
     <a href="#explorar" class="category-item" data-category="Mudanzas"><svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg><span>Moving</span></a>
     <a href="#explorar" class="category-item" data-category="Hogar y Limpieza"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg><span>Home & Cleaning</span></a>
@@ -794,6 +797,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // their area; online services show everywhere. Category and search filter too.
   // Category keys (data-category) are the Spanish names; these are the English ones.
   var CAT_EN = {
+    'Agentes de IA': 'AI agents',
     'Finanzas y Crédito': 'Finance & Credit', 'Mudanzas': 'Moving', 'Hogar y Limpieza': 'Home & Cleaning',
     'Belleza y Cuidado': 'Beauty & Care', 'Reparaciones': 'Repairs', 'Legal y Trámites': 'Legal & Paperwork',
     'Eventos': 'Events', 'Tecnología': 'Technology', 'Salud y Bienestar': 'Health & Wellness',
@@ -810,6 +814,7 @@ document.addEventListener('DOMContentLoaded', function(){
     geoTimeout: 'Getting your location took too long. Try again or type your city or ZIP code.',
     geoUnavailable: "We couldn't get your location. Type your city or ZIP code.",
     by: 'by ', from: 'From ', spanish: 'Se habla español',
+    agent: 'AI agent · 24/7',
     one: 'service found', many: 'services found',
     miles: function(m){ return m < 1 ? 'Very close to you' : m + ' miles from you'; },
     online: 'Online · serves you wherever you are',
@@ -872,6 +877,7 @@ document.addEventListener('DOMContentLoaded', function(){
     a.href = '/site/' + encodeURIComponent(l.slug);
     a.setAttribute('data-category', l.category);
     a.setAttribute('data-serves', l.serves ? '1' : '0');
+    if (l.agent) a.setAttribute('data-agent', '1');
     a.setAttribute('data-search', [l.title, l.name, l.location, l.category].join(' '));
     var thumb = el('div', 'result-thumb');
     var cover = safeImg(l.coverUrl), logo = safeImg(l.logoUrl);
@@ -891,6 +897,8 @@ document.addEventListener('DOMContentLoaded', function(){
     var where = l.reachText || l.location;
     if (where && l.reach !== 'remote') body.appendChild(el('div', 'result-loc', where));
     if (l.price) body.appendChild(el('div', 'result-price', /^(desde|from)\b/i.test(l.price) ? l.price : T.from + l.price));
+    if (l.rating && l.reviews) body.appendChild(el('div', 'result-rating', '★ ' + l.rating.toFixed(1) + ' (' + l.reviews + ')'));
+    if (l.agent) body.appendChild(el('span', 'result-tag', T.agent));
     if (l.spanish) body.appendChild(el('span', 'result-tag', T.spanish));
     a.appendChild(body);
     return a;
@@ -901,7 +909,8 @@ document.addEventListener('DOMContentLoaded', function(){
     var visible = 0;
     document.querySelectorAll('.result-card[data-category]').forEach(function(c){
       var cat = c.getAttribute('data-category') || '';
-      var matchesCategory = !activeCategory || cat === activeCategory;
+      // "Agentes de IA" shows every agent, whatever its own category.
+      var matchesCategory = !activeCategory || cat === activeCategory || (activeCategory === 'Agentes de IA' && c.getAttribute('data-agent') === '1');
       var haystack = normalize((c.getAttribute('data-search') || '') + ' ' + T.catName(cat) + ' ' + c.textContent);
       // Fixed online cards serve all of the US (same rule as online pages from the API).
       var servesHere = showAll || (c.getAttribute('data-reach') === 'remote-us'

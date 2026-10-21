@@ -39,6 +39,12 @@ const TEXT = {
     faqTitle: "Antes de empezar",
     finalTitle: (name: string) => `Prueba ${name} ahora`,
     finalText: "Escríbele en el chat. Sin registrarte, sin tarjeta para la prueba.",
+    always: "Te guía y te acompaña paso a paso, pero no hace el trámite por ti ni reemplaza a la oficina oficial ni a un profesional con licencia cuando la ley lo pide. No promete resultados.",
+    reviewsEyebrow: "Reseñas",
+    reviewsTitle: "Lo que dicen sus clientes",
+    reviewsNone: "Todavía no tiene reseñas. Solo quienes pagan su acceso pueden calificarlo.",
+    reviewsCount: (n: number) => (n === 1 ? "1 reseña" : `${n} reseñas`),
+    verified: "Compró acceso",
   },
   en: {
     kicker: "AI agent · available 24/7",
@@ -69,6 +75,12 @@ const TEXT = {
     faqTitle: "Before you start",
     finalTitle: (name: string) => `Try ${name} now`,
     finalText: "Write to it in the chat. No sign-up, no card for the trial.",
+    always: "It guides you step by step, but it doesn't do the paperwork for you or replace the official office or a licensed professional when the law requires one. It doesn't promise results.",
+    reviewsEyebrow: "Reviews",
+    reviewsTitle: "What its customers say",
+    reviewsNone: "No reviews yet. Only people who pay for access can rate it.",
+    reviewsCount: (n: number) => (n === 1 ? "1 review" : `${n} reviews`),
+    verified: "Bought access",
   },
 };
 
@@ -77,7 +89,9 @@ export default function AgentPage({
   live,
   campaign,
   chatAgent,
+  reviews,
 }: {
+  reviews: { list: { id: string; rating: number; text: string; name: string; createdAt: string }[]; avg: number | null; count: number };
   business: BusinessRow;
   live: boolean;
   campaign: string;
@@ -93,7 +107,10 @@ export default function AgentPage({
   const offer = activeOffer(site);
   const cheapest = a.offers.length ? Math.min(...a.offers.map((o) => o.priceCents)) : 0;
   const edge = a.edge.length ? a.edge : site.keyPoints.slice(0, 4);
-  const photo = site.ownerPhotoUrl || site.coverUrl;
+  const photo = site.ownerPhotoUrl;
+  // "Created by": only the creator's name, never credentials or a story.
+  const creator = site.ownerName || a.creator.split(/[·,|(]/)[0].trim() || business.name;
+  const stars = (n: number) => "★★★★★".slice(0, Math.round(n)) + "☆☆☆☆☆".slice(0, 5 - Math.round(n));
 
   return (
     <div className="mt ag" lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
@@ -126,6 +143,11 @@ export default function AgentPage({
                 <span>{t.free(a.freeReplies)}</span>
                 <span>{t.instant}</span>
                 {cheapest > 0 && <span>{t.from(money(cheapest))}</span>}
+                {reviews.count > 0 && reviews.avg !== null && (
+                  <span>
+                    ★ {reviews.avg.toFixed(1)} · {t.reviewsCount(reviews.count)}
+                  </span>
+                )}
               </div>
               {offer && <div className="ag-offer">{offer.label}</div>}
               <div className="ag-cta">
@@ -138,17 +160,17 @@ export default function AgentPage({
                   </a>
                 )}
               </div>
-              {(a.creator || site.ownerName) && (
+              {creator && (
                 <div className="ag-creator">
                   {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photo} alt="" />
                   ) : (
-                    <span className="ag-initial">{owner.slice(0, 1).toUpperCase()}</span>
+                    <span className="ag-initial">{creator.slice(0, 1).toUpperCase()}</span>
                   )}
                   <div>
                     <div className="ag-by">{t.createdBy}</div>
-                    <div className="ag-who">{a.creator || owner}</div>
+                    <div className="ag-who">{creator}</div>
                   </div>
                 </div>
               )}
@@ -245,22 +267,50 @@ export default function AgentPage({
           </section>
         )}
 
-        {a.limits.length > 0 && (
-          <section className="block ag-limits">
-            <div className="wrap ag-limits-in">
-              <div className="section-head">
-                <span className="eyebrow grad-text">{t.limitsEyebrow}</span>
-                <h2>{t.limitsTitle(name)}</h2>
-                <p className="ag-lede">{t.honest(owner)}</p>
-              </div>
-              <ul>
-                {a.limits.map((l, i) => (
-                  <li key={i}>{l}</li>
-                ))}
-              </ul>
+        <section className="block ag-limits">
+          <div className="wrap ag-limits-in">
+            <div className="section-head">
+              <span className="eyebrow grad-text">{t.limitsEyebrow}</span>
+              <h2>{t.limitsTitle(name)}</h2>
+              <p className="ag-lede">{t.honest(owner)}</p>
             </div>
-          </section>
-        )}
+            <ul>
+              <li>{t.always}</li>
+              {a.limits.map((l, i) => (
+                <li key={i}>{l}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="block ag-reviews" id="resenas">
+          <div className="wrap">
+            <div className="section-head">
+              <span className="eyebrow grad-text">{t.reviewsEyebrow}</span>
+              <h2>{t.reviewsTitle}</h2>
+              {reviews.count > 0 && reviews.avg !== null && (
+                <p className="ag-lede">
+                  <span className="ag-stars" aria-hidden>{stars(reviews.avg)}</span> {reviews.avg.toFixed(1)} · {t.reviewsCount(reviews.count)}
+                </p>
+              )}
+            </div>
+            {reviews.list.length ? (
+              <div className={`ag-grid n${Math.min(reviews.list.length, 3)}`}>
+                {reviews.list.map((r) => (
+                  <div key={r.id} className="ag-card ag-review">
+                    <span className="ag-stars" aria-label={`${r.rating}/5`}>{stars(r.rating)}</span>
+                    {r.text && <p>{r.text}</p>}
+                    <span className="ag-review-by">
+                      {r.name} · {t.verified}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="ag-note">{t.reviewsNone}</p>
+            )}
+          </div>
+        </section>
 
         {site.faq.length > 0 && (
           <section className="block wrap">

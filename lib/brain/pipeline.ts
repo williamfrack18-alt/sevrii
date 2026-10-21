@@ -120,7 +120,7 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     if (researched.length === 0) throw new Error("no ideas researched");
     const { ideas, message } = await pickIdeas(plan, researched, lang);
     if (ideas.length === 0) throw new Error("no ideas picked");
-    plan = { ...plan, ideas, chosenIdea: null, stage: "choose" };
+    plan = { ...plan, ideas, chosenIdea: null, stage: "choose", ownIdea: "" };
     await savePlan(businessId, plan);
     await addChatMessage(
       businessId,

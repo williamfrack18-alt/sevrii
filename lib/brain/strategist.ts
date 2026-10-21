@@ -205,7 +205,7 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
 export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: Lang): Promise<{ ideas: Idea[]; message: string }> {
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
-    `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\nEscoge las 3 mejores con su puntaje.`,
+    `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\n${plan.ownIdea ? "La idea de índice 0 es la que trajo la persona: inclúyela siempre entre las 3, con su puntaje real y sus pros y contras honestos; en message di en una línea cómo salió frente a las otras. " : ""}Escoge las 3 mejores con su puntaje.`,
     IDEAS_SCHEMA
   );
   const picked: Idea[] = [];
@@ -216,6 +216,13 @@ export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: La
     const pts = ["fit", "demand", "cost", "requirements", "speed"].reduce((a, k) => a + Math.max(0, Math.min(5, Number(o[k]) || 0)), 0);
     picked.push({ ...base, pros: str(o.pros, 240), cons: str(o.cons, 240), score: pts });
     if (picked.length === 3) break;
+  }
+  // Their own idea (researched first) is always shown, with its score.
+  const own = plan.ownIdea ? researched[0] : null;
+  if (own && !picked.some((p) => p.title === own.title)) picked.splice(2, 1), picked.unshift({ ...own, score: 0 });
+  else if (own) {
+    const i = picked.findIndex((p) => p.title === own.title);
+    if (i > 0) picked.unshift(...picked.splice(i, 1));
   }
   return { ideas: parseIdeas(picked), message: str(d.message, 700) };
 }

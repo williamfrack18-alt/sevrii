@@ -32,6 +32,9 @@ import {
   endAgentAccess,
   claimAgentFree,
   countAgentAccess,
+  conversationPaidAgent,
+  getAgentReviewByConversation,
+  saveAgentReview,
   type AgentAccessRow,
   type BusinessRow,
   type ConvMessageRow,
@@ -583,4 +586,36 @@ export async function agentClaimAction(input: { slug: string; token: string; ses
     }
   }
   return { ok: true, messages: (await listConvMessages(conv.id, 0, 60)).map(pub) };
+}
+
+// ---------- Reviews of a service agent (only customers who paid) ----------
+export type MyReview = { canReview: boolean; rating: number; text: string; name: string };
+
+export async function agentReviewStateAction(input: { slug: string; token: string }): Promise<MyReview> {
+  const none = { canReview: false, rating: 0, text: "", name: "" };
+  const b = await openBusiness(input.slug);
+  const token = clean(input.token, 100);
+  if (!b || !token || !b.serviceAgent.name) return none;
+  const conv = await getConversationByToken(b.id, hashToken(token));
+  if (!conv || !(await conversationPaidAgent(conv.id))) return none;
+  const r = await getAgentReviewByConversation(conv.id);
+  return { canReview: true, rating: r?.rating ?? 0, text: r?.text ?? "", name: r?.name ?? "" };
+}
+
+export async function agentReviewAction(input: { slug: string; token: string; rating: number; text: string; name: string }): Promise<{ ok: boolean }> {
+  const b = await openBusiness(input.slug);
+  const token = clean(input.token, 100);
+  const rating = Math.round(Number(input.rating));
+  if (!b || !token || !b.serviceAgent.name || !(rating >= 1 && rating <= 5)) return { ok: false };
+  if (!(await allow(`agent:review:${await clientIp()}`, 10, 60 * 60))) return { ok: false };
+  const conv = await getConversationByToken(b.id, hashToken(token));
+  if (!conv || !(await conversationPaidAgent(conv.id))) return { ok: false };
+  await saveAgentReview({
+    businessId: b.id,
+    conversationId: conv.id,
+    rating,
+    text: clean(input.text, 600),
+    name: clean(input.name, 40) || (b.site.lang === "en" ? "Customer" : "Cliente"),
+  });
+  return { ok: true };
 }
