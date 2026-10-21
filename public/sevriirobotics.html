@@ -70,7 +70,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
-.w{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-weight:500}
+.w{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 .pad{padding-left:50px;padding-right:50px}
 .btn{display:inline-flex;align-items:center;gap:22px;height:50px;padding:0 20px;border:1px solid rgba(255,255,255,.85);border-radius:10px;font-size:15px;font-weight:500;white-space:nowrap;transition:background .2s,color .2s}
 .btn:hover{background:#fff;color:#000}
@@ -315,6 +315,9 @@ footer a:hover{color:#fff}
   .end .in{grid-template-columns:1fr;gap:40px;padding-top:72px;padding-bottom:64px}
   .word{letter-spacing:.24em}
 }
+/* Headings like the hero of Ofrecer servicios: light, tight, sentence case */
+h1.w,h2.w,h3.w,p.w:not(.word),.t.w{font-weight:300;letter-spacing:-.025em;text-transform:none;line-height:1.08}
+.word.w{font-weight:300}
 </style>
 </head>
 <body>
