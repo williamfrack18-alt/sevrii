@@ -530,6 +530,24 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   /* Headings like the hero of Ofrecer servicios: light, tight, sentence case */
   .sx-h.sx-wide,.ax-h.sx-wide,.af-h,.sx-title.sx-wide{font-weight:300;letter-spacing:-.025em;text-transform:none;line-height:1.08;}
   .sx-word.sx-wide{font-weight:300;}
+  /* Pearl white pillars (the look of the Sevrii Robotics index) */
+  .s-pillar.is-pearl{position:relative;overflow:hidden;background:#dcdddb;color:#0b0b0b;border-radius:40px;margin:0 12px;}
+  .s-pillar.is-pearl::before{content:"";position:absolute;inset:-40px;background:url('/assets/robotics/blur.jpg') center/cover;filter:blur(28px);opacity:.2;pointer-events:none;}
+  .s-pillar.is-pearl::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 45% 60% at 70% 40%,rgba(255,255,255,.45),transparent 70%);pointer-events:none;}
+  .s-pillar.is-pearl > .s-wrap{position:relative;z-index:1;}
+  .s-pillar.is-pearl .s-h2,.s-pillar.is-pearl .s-points b{color:#0b0b0b;}
+  .s-pillar.is-pearl .s-lead,.s-pillar.is-pearl .s-points span{color:#3a3a3a;}
+  .s-pillar.is-pearl .s-points,.s-pillar.is-pearl .s-points li{border-color:rgba(0,0,0,.14);}
+  .s-pillar.is-pearl .n{color:#2f6f4f;}
+  .s-pillar.is-pearl .s-tag{color:#0b0b0b;background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.16);}
+  .s-pillar.is-pearl .s-btn-white{background:#0b0b0b;color:#fff;}
+  .s-pillar.is-pearl .s-btn-white:hover{background:#262626;}
+  .s-pillar.is-pearl .s-btn-outline{color:#0b0b0b;border-color:#0b0b0b;}
+  .s-pillar.is-pearl .s-btn-outline:hover{background:#0b0b0b;color:#fff;}
+  .s-pillar.is-pearl + .s-pillar.is-pearl{margin-top:12px;}
+  .s-points li[id]{scroll-margin-top:160px;}
+  .s-points b .s-tag{margin-left:8px;vertical-align:1px;}
+  @media (max-width:860px){.s-pillar.is-pearl{border-radius:28px;margin:0 8px;}}
 </style>
 </head>
 <body>
@@ -597,24 +615,23 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
       <a href="#store" data-pillar="store"><span>01</span>Store</a>
       <a href="#marketing" data-pillar="marketing"><span>02</span>Marketing</a>
       <a href="#payments" data-pillar="payments"><span>03</span>Payments</a>
-      <a href="#agentes" data-pillar="agentes"><span>04</span>Agentes</a>
-      <a href="#capital" data-pillar="capital"><span>05</span>Capital</a>
+      <a href="#capital" data-pillar="capital"><span>04</span>Capital</a>
     </div>
   </nav>
 
   <!-- 01. Store -->
-  <section class="s-pillar is-green" id="store">
+  <section class="s-pillar is-pearl" id="store">
     <div class="s-wrap s-pillar-grid">
       <div class="s-pillar-text reveal">
         <div class="n">01 · Store</div>
         <h2 class="s-h2">Tu tienda de servicios, hecha para vender.</h2>
-        <p class="s-lead">Le cuentas a tu agente de IA cómo es tu negocio y él arma tu tienda dentro de Sevrii, con una plantilla diseñada para que te compren.</p>
+        <p class="s-lead">Aquí ofreces tu servicio. Le cuentas a tu agente de IA cómo es tu negocio y él arma tu tienda dentro de Sevrii, con una plantilla diseñada para que te compren.</p>
         <ul class="s-points">
-          <li><b>Se arma por chat</b><span>Dile a tu agente qué haces y tu página queda lista al instante.</span></li>
-          <li><b>Plantilla que convierte</b><span>Diseñada para que quien la visite te contrate, no solo para verse bien.</span></li>
-          <li><b>Cámbiala cuando quieras</b><span>Pide cambios en el chat: servicios, precios, textos o colores.</span></li>
+          <li><b>Ya ofreces un servicio</b><span>Publica tu negocio tal como es y empieza a recibir clientes.</span></li>
+          <li><b>Quieres independizarte</b><span>El Cerebro investiga tu zona y te ayuda a crear un servicio nuevo que la gente busque.</span></li>
+          <li id="agentes"><b>Un agente lo hace por ti <span class="s-tag">Nuevo</span></b><span>Creas un agente de IA con tu conocimiento. Atiende en el chat de tu página, hace el servicio y cobra, las 24 horas.</span></li>
         </ul>
-        <div class="s-actions"><a href="/signup" class="s-btn s-btn-white">Crear mi tienda</a></div>
+        <div class="s-actions"><a href="/signup" class="s-btn s-btn-white">Crear mi tienda</a><a href="/crear-agente" class="s-btn s-btn-outline">Crear mi agente</a></div>
       </div>
       <div class="s-media reveal">
         <img class="s-photo" src="https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=1240&q=70" alt="Estilista peinando a una clienta" loading="lazy">
@@ -668,7 +685,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   </section>
 
   <!-- 03. Payments -->
-  <section class="s-pillar is-green" id="payments">
+  <section class="s-pillar is-pearl" id="payments">
     <div class="s-wrap s-pillar-grid">
       <div class="s-pillar-text reveal">
         <div class="n">03 · Payments</div>
@@ -694,39 +711,12 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
     </div>
   </section>
 
-  <!-- 04. Agents -->
-  <section class="s-pillar is-glow flip" id="agentes">
-    <div class="s-wrap s-pillar-grid">
-      <div class="s-pillar-text reveal">
-        <div class="n">04 · Agentes <span class="s-tag">Nuevo</span></div>
-        <h2 class="s-h2">Un agente que hace tu servicio por ti.</h2>
-        <p class="s-lead">Crea un agente de IA con tu conocimiento. Atiende a tus clientes en el chat de tu página, hace el servicio y cobra por usarlo, las 24 horas.</p>
-        <ul class="s-points"><li><b>Lo armas con el Cerebro</b><span>Le cuentas qué sabes y cómo trabajas; investiga el mercado y te propone el agente, sus precios y su campaña.</span></li><li><b>Le enseñas lo tuyo</b><span>Le pegas tus apuntes y tus reglas. Siempre dice que es una IA creada por ti y nunca promete resultados.</span></li><li><b>Cobra mientras duermes</b><span>Tus clientes lo prueban gratis y pagan por días o por mes. Tú recibes un aviso con cada venta y entras al chat cuando quieras.</span></li></ul>
-        <div class="s-actions"><a href="/crear-agente" class="s-btn s-btn-white">Crear mi agente</a></div>
-      </div>
-      <div class="s-media reveal" role="img" aria-label="Ejemplo ilustrativo">
-        <div class="s-agentbg"></div>
-        <div class="ui ui-toast ui-sale"><b>✓</b>Venta de tu agente: $29</div>
-        <div class="ui ui-agent" aria-hidden="true">
-          <div class="hd"><span class="av">T</span><div><div class="nm">Tutor de Licencia IA</div><div class="st">Agente de IA · responde al instante</div></div></div>
-          <div class="ls">
-            <div class="ui-bubble ai">¿Qué tema del examen te cuesta más?</div>
-            <div class="ui-bubble user">Los cálculos de carga</div>
-            <div class="ui-bubble ai">Hasta aquí llega la prueba gratis. Para seguir, escoge una opción:</div>
-            <div class="of"><b>Práctica de 3 días</b><span>$15 · 3 días</span></div>
-            <div class="of"><b>Acceso mensual</b><span>$29 al mes</span><em>15% menos tu primer mes</em></div>
-          </div>
-        </div>
-        <span class="s-soon" style="top:auto;bottom:18px">Ejemplo ilustrativo</span>
-      </div>
-    </div>
-  </section>
 
-  <!-- 05. Capital -->
-  <section class="s-pillar is-green" id="capital"> <span id="socios"></span>
+  <!-- 04. Capital -->
+  <section class="s-pillar is-glow flip" id="capital"> <span id="socios"></span>
     <div class="s-wrap s-pillar-grid">
       <div class="s-pillar-text reveal">
-        <div class="n">05 · Capital <span class="s-tag">Próximamente</span></div>
+        <div class="n">04 · Capital <span class="s-tag">Próximamente</span></div>
         <h2 class="s-h2">Financiamiento para crecer.</h2>
         <p class="s-lead">Estamos preparando opciones de financiamiento con un socio financiero para los negocios que cobran con Sevrii. Sevrii no presta dinero y esto no es una oferta de crédito.</p>
         <ul class="s-points">
