@@ -519,8 +519,8 @@ export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number):
   if (serviceCount > 0 || b.site.headline) {
     if (b.plan.mode === "agent" && b.serviceAgent.name)
       return es
-        ? `Tu agente y su página ya están armados con lo que aprobamos. Arriba tienes el resumen y abajo la página. Aquí puedo enseñarle tus apuntes, cambiar sus precios, el título o la oferta, y agregar fotos o un video. ¿Qué quieres cambiar?`
-        : `Your agent and its page are built from what we approved. The summary is above and the page below. Here I can teach it your notes, change its prices, the headline or the offer, and add photos or a video. What do you want to change?`;
+        ? `Tu agente y su página ya están armados con lo que aprobamos. Arriba tienes el resumen y abajo la página. Aquí puedo darle más información, cambiar sus precios, el título o la oferta, y agregar fotos o un video. ¿Qué quieres cambiar?`
+        : `Your agent and its page are built from what we approved. The summary is above and the page below. Here I can give it more information, change its prices, the headline or the offer, and add photos or a video. What do you want to change?`;
     return es
       ? `Tu página ya está armada con lo que aprobamos. Arriba tienes el resumen y abajo la página. Aquí puedo agregar fotos o un video, cambiar el título, la oferta o los precios. ¿Qué quieres cambiar?`
       : `Your page is built from what we approved. The summary is above and the page below. Here I can add photos or a video, change the headline, the offer or the prices. What do you want to change?`;

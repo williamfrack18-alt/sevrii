@@ -44,7 +44,10 @@ export type Profile = {
   notWant: string;
   goal: "extra" | "fulltime" | "";
   toolsReady: "yes" | "no" | "";
-  // C: an AI agent that delivers the service by itself
+  // C: an AI agent that delivers the service by itself. It is a product of
+  // its own (like a course or a physical product): it doesn't have to be about
+  // what the creator knows. The Brain proposes ideas from the creator's interests.
+  agentInterest: string; // topics, problems or markets they'd like it to solve ("open" is fine)
   agentTask: string; // what the agent does for each customer, start to finish
   agentKnowledge: string; // what the owner knows and will teach it (materials, method)
   agentLimits: string; // what it must never do, and when the owner steps in
@@ -172,6 +175,7 @@ export const EMPTY_PROFILE: Profile = {
   notWant: "",
   goal: "",
   toolsReady: "",
+  agentInterest: "",
   agentTask: "",
   agentKnowledge: "",
   agentLimits: "",
@@ -298,6 +302,7 @@ export function parseProfile(raw: unknown): Profile {
     notWant: str(p.notWant, 240),
     goal: oneOf(p.goal, ["extra", "fulltime"] as const),
     toolsReady: oneOf(p.toolsReady, ["yes", "no"] as const),
+    agentInterest: str(p.agentInterest, 400),
     agentTask: str(p.agentTask, 600),
     agentKnowledge: str(p.agentKnowledge, 1200),
     agentLimits: str(p.agentLimits, 400),
@@ -340,7 +345,7 @@ export function parseMarket(raw: unknown): Market {
         };
       })
       .filter((r) => r.item)
-      .slice(0, 6),
+      .slice(0, 10),
     faq: parseFaq(m.faq),
     sources: sources(m.sources, 12),
     researchedAt: isoDate(m.researchedAt),
@@ -486,19 +491,10 @@ export function missingProfile(plan: BusinessPlan): string[] {
     if (cond) out.push(key);
   };
   if (plan.stage === "interview" && plan.mode === "agent") {
-    need(!p.mainService, "mainService (the service the agent will deliver, e.g. tutoring for the Texas electrician exam)");
-    need(!p.agentTask, "agentTask (what the agent does with each customer, start to finish)");
-    need(!p.exampleJob && p.yearsExperience === null, "exampleJob or yearsExperience (the owner's own experience with this)");
-    need(!p.typicalCustomer, "typicalCustomer");
-    // An agent works online: where the owner lives only matters when it serves one state.
-    need(!p.remoteScope, "remoteScope (customers in the whole US = us, only one state = state, other countries too = world)");
-    need(p.remoteScope === "state" && !p.state, "state (the one state whose customers it serves)");
-    need(!p.languages, "languages (es, en or both)");
-    need(!p.agentKnowledge, "agentKnowledge (what they know and will teach the agent: method, notes, materials)");
-    need(!p.agentEdge, "agentEdge (why someone would pay for THEIR agent instead of using ChatGPT for free: own method or cases, local or state rules, follow-up over weeks, a final check by the owner, a very specific niche)");
-    need(!p.agentLimits, "agentLimits (what the agent must never do, and when the owner should step in)");
-    need(!p.currentPrice, "currentPrice (what they charge or would like to charge, a guess is fine)");
-    need(!p.businessName, "businessName");
+    // Only enough to aim the ideas: the agent doesn't depend on the creator's trade.
+    need(!p.agentInterest, "agentInterest (topics, problems or markets they'd like their agent to solve; 'open to any idea' is a valid answer)");
+    need(!p.typicalCustomer, "typicalCustomer (who they'd like the agent to help; 'anyone' is a valid answer)");
+    need(!p.languages, "languages (the language(s) the agent will talk to customers in: es, en or both)");
   } else if (plan.stage === "interview" && plan.mode !== "new") {
     need(!p.mainService, "mainService");
     need(!p.exampleJob, "exampleJob (a recent real job)");
@@ -527,6 +523,12 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.languages, "languages (es, en or both)");
     need(!p.notWant, "notWant (work they don't want to do)");
     need(!p.goal, "goal (extra income or full time)");
+  } else if (plan.stage === "ready_check" && plan.mode === "agent") {
+    need(!p.agentTask, "agentTask (what the agent does with each customer, start to finish: propose it yourself from the chosen idea and ask them to confirm or adjust)");
+    need(!p.remoteScope, "remoteScope (customers in the whole US = us, only one state = state, other countries too = world)");
+    need(p.remoteScope === "state" && !p.state, "state (the one state whose customers it serves)");
+    need(!p.agentLimits, "agentLimits (what it must never do and when the creator steps in: propose sensible limits for this idea and ask them to confirm)");
+    need(!p.businessName, "businessName (last: suggest 2 short brand names for the agent)");
   } else if (plan.stage === "ready_check") {
     need(!p.serviceMode, "serviceMode (the chosen service: in person in an area = local, or remote/online = remote)");
     need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they will travel)");
@@ -563,7 +565,7 @@ export function allApproved(p: BusinessPlan): boolean {
 
 export function planProgress(p: BusinessPlan): number {
   const order: PlanStage[] =
-    p.mode === "new"
+    p.mode === "new" || p.mode === "agent"
       ? ["interview", "ideas_research", "choose", "ready_check", "research", "proposal", "approved"]
       : ["interview", "research", "proposal", "approved"];
   const i = Math.max(0, order.indexOf(p.stage));

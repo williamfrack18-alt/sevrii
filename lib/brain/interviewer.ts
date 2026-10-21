@@ -41,7 +41,7 @@ Cómo conversas:
 - Confirma en muy pocas palabras lo que guardaste (sin repetirlo todo) y sigue.
 - Máximo 60 palabras por mensaje. Sin títulos ni listas largas.
 
-Si mode es "C: an AI agent" la persona está creando un agente de IA que hará su servicio solo, en el chat de su página, y cobrará por usarlo. Pregunta por el servicio que dará el agente, qué hace con cada cliente de principio a fin, su experiencia, a quién le sirve, de qué estado es y si atiende solo su estado o todo EE. UU., idiomas, qué conocimiento le va a enseñar (su método, apuntes, materiales), qué no debe hacer nunca y cuándo entra él, cuánto cobraría, y por qué alguien pagaría por SU agente en vez de usar gratis ChatGPT (su método o casos reales, reglas de su estado u oficio, acompañamiento durante semanas, una revisión final hecha por él, un nicho muy concreto). Si su respuesta es floja, ayúdale con una pregunta concreta en vez de aceptarla tal cual; no es para desanimarlo, es para que su agente se venda. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA creada por él. El agente trabaja solo por chat, con texto: no envía archivos ni PDF, no llama por teléfono y no agenda citas; no lo sugieras.
+Si mode es "C: an AI agent" la persona va a crear un agente de IA: un producto digital nuevo, como un curso o un producto físico, que resuelve un problema por chat, solo, las 24 horas, y cobra por usarlo. El agente NO tiene que ser de su oficio ni de lo que ella sabe: no le preguntes por su experiencia, su método ni sus apuntes. En la entrevista solo necesitas lo justo para buscar ideas: qué temas, problemas o mercados le interesan (vale "estoy abierto a cualquier idea"), a quién le gustaría ayudar (vale "a cualquiera") y en qué idioma hablará el agente. Después tú investigas y le propones 3 ideas de agentes por los que la gente ya paga; si ella ya trae su propia idea, guárdala en agentInterest y dile que también la vas a evaluar. Cuando ya escogió una idea ("ready_check"), propón tú cómo trabaja el agente con cada cliente (agentTask) y sus límites (agentLimits) a partir de la idea, y pídele que los confirme o ajuste; pregunta si atiende todo EE. UU., un solo estado u otros países; al final sugiérele 2 nombres cortos. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA. El agente trabaja solo por chat, con texto: guía paso a paso, revisa lo que el cliente le escribe, prepara textos y listas; no envía archivos ni PDF, no llama, no agenda citas y no hace trámites en nombre del cliente; no lo sugieras.
 
 Qué no haces:
 - No das precios, ideas ni estrategia: eso viene después de investigar.
@@ -50,10 +50,11 @@ Qué no haces:
 
 Cuando save_profile responda que el perfil está completo, dile en una o dos líneas que ahora vas a investigar su zona (1 a 2 minutos) y que aquí mismo verá el avance y después la propuesta.`;
 
-const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las 3 ideas de servicio que aparecen en el estado ("ideas"); las ve en una tarjeta en este mismo chat, con un botón para escoger cada una. Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
+const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las 3 ideas que aparecen en el estado ("ideas"; si mode es C son ideas de agentes de IA); las ve en una tarjeta en este mismo chat, con un botón para escoger cada una. Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
 - Si dice cuál quiere, llama a choose_idea con su número (1, 2 o 3).
 - Si ninguna le convence ("no me gusta", "dame otras", "no me siento cómoda con eso"), pregúntale en una línea qué no le gustó o qué preferiría, si no lo dijo ya. Con su respuesta llama a more_ideas con ese feedback. No insistas en las ideas que rechazó.
-- Si "roundsLeft" es 0, no puedes buscar más: ayúdale a escoger entre las actuales o a describir un servicio concreto que quiera ofrecer.
+- Si trae su propia idea concreta ("quiero un agente que…", "prefiero ofrecer…"), llama a own_idea con un título corto y lo que hace.
+- Si "roundsLeft" es 0, no puedes buscar más: ayúdale a escoger entre las actuales o a describir su propia idea (own_idea).
 Máximo 70 palabras.`;
 
 const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí mismo en el chat, una parte a la vez y en este orden: servicio, presentación, paquetes, oferta, campaña y preguntas frecuentes. La parte que están viendo ahora es "currentPart" en el estado: el sistema la muestra en una tarjeta justo debajo de tu mensaje, con botones de Aprobar y Cambiar.
@@ -105,8 +106,9 @@ const PROFILE_PROPS: Record<string, unknown> = {
   notWant: { type: "string" },
   goal: { type: "string", enum: ["extra", "fulltime"] },
   toolsReady: { type: "string", enum: ["yes", "no"] },
+  agentInterest: { type: "string", description: "C only: topics, problems or markets they'd like the agent to solve, or their own agent idea ('open to any idea' is valid)" },
   agentTask: { type: "string", description: "C only: what the AI agent will do with each customer, start to finish" },
-  agentKnowledge: { type: "string", description: "C only: what the owner knows and will teach the agent (method, notes, materials)" },
+  agentKnowledge: { type: "string", description: "C only, optional: material or know-how the creator wants to add to the agent" },
   agentLimits: { type: "string", description: "C only: what the agent must never do, and when the owner steps in" },
   agentEdge: { type: "string", description: "C only: why someone would pay for THEIR agent instead of a free AI chat (own method or cases, local rules, follow-up, final human check, niche)" },
 };
@@ -128,6 +130,18 @@ const MORE_IDEAS: Tool = {
     type: "object",
     properties: { feedback: { type: "string", description: "What they didn't like and what they'd prefer, in their words" } },
     required: ["feedback"],
+  },
+};
+const OWN_IDEA: Tool = {
+  name: "own_idea",
+  description: "The person wants their own idea instead of the 3 proposed: save it as the chosen idea.",
+  input_schema: {
+    type: "object",
+    properties: {
+      title: { type: "string", description: "Short title, max 90 chars" },
+      what: { type: "string", description: "What it does and for whom, one line" },
+    },
+    required: ["title"],
   },
 };
 const UPDATE_PROPOSAL: Tool = {
@@ -215,7 +229,7 @@ export const LOCKED_STAGES: PlanStage[] = ["ideas_research", "research"];
 function stageOf(plan: BusinessPlan): { system: string; tools: Tool[] } {
   if (plan.stage === "interview" || plan.stage === "ready_check") return { system: INTERVIEWER, tools: [SAVE_PROFILE] };
   if (LOCKED_STAGES.includes(plan.stage)) return { system: INTERVIEWER, tools: [SAVE_PROFILE] };
-  if (plan.stage === "choose") return { system: CHOOSER, tools: [CHOOSE_IDEA, MORE_IDEAS] };
+  if (plan.stage === "choose") return { system: CHOOSER, tools: [CHOOSE_IDEA, MORE_IDEAS, OWN_IDEA] };
   return { system: EDITOR.replace("{TODAY}", today()), tools: [UPDATE_PROPOSAL, APPROVE_BLOCKS] };
 }
 
@@ -321,7 +335,8 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         await updateBusinessPlan(b.id, parsePlan(next));
         return { out: `saved${note}. still missing: ${left.join(", ")}` };
       }
-      const stage: PlanStage = plan.stage === "interview" && plan.mode === "new" ? "ideas_research" : "research";
+      // B and C start from ideas the Brain researches; A already has its service.
+      const stage: PlanStage = plan.stage === "interview" && (plan.mode === "new" || plan.mode === "agent") ? "ideas_research" : "research";
       if (!(await researchWouldStart(b.userId))) {
         await updateBusinessPlan(b.id, parsePlan(next));
         return { out: "saved. profile complete, BUT the research can't start: the owner reached this month's research limit (or AI budget) of their plan. Tell them kindly: everything is saved; they can upgrade in Plans to continue now, or continue next month right where they left off." };
@@ -337,6 +352,15 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (!idea) return { out: "error: unknown idea" };
       await updateBusinessPlan(b.id, parsePlan(chooseIdea(plan, i)));
       return { out: `chosen: ${idea.title}. Now ask the remaining readiness questions (see missing).` };
+    }
+    case "own_idea": {
+      if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
+      const title = str(input.title, 90);
+      if (!title) return { out: "error: no title" };
+      const own = { title, why: str(input.what, 300), typicalPrice: "", startCost: "", license: "", demand: "", pros: "", cons: "", score: 0, sources: [] };
+      const ideas = [...plan.ideas.slice(0, 4), own];
+      await updateBusinessPlan(b.id, parsePlan(chooseIdea({ ...plan, ideas }, ideas.length - 1)));
+      return { out: `chosen their own idea: ${title}. Now ask the remaining readiness questions (see missing).` };
     }
     case "more_ideas": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
@@ -498,8 +522,8 @@ export function planGreeting(lang: Lang, b: BusinessRow): string {
   const p = b.plan;
   if (p.mode === "agent") {
     return es
-      ? "¡Hola! Soy el Cerebro de Sevrii. Vamos a crear tu agente: una IA que hace tu servicio sola, en el chat de tu página, las 24 horas, y que cobra por usarlo. Primero te entiendo, después investigo el mercado y te propongo el agente, sus precios y su campaña. Para empezar: ¿qué servicio quieres que haga tu agente, y para quién?"
-      : "Hi! I'm Sevrii's Brain. Let's create your agent: an AI that delivers your service by itself, in your page chat, 24/7, and charges for it. First I'll get to know you, then I'll research the market and propose the agent, its prices and its campaign. To start: what service do you want your agent to deliver, and for whom?";
+      ? "¡Hola! Soy el Cerebro de Sevrii. Vamos a crear tu agente: un producto digital que resuelve un problema por chat, solo, las 24 horas, y cobra por usarlo. No tiene que ser de tu oficio: yo investigo qué problemas paga la gente por resolver y te propongo 3 ideas. Para empezar: ¿hay algún tema o tipo de problema que te interese, o quieres que te proponga ideas abiertas?"
+      : "Hi! I'm Sevrii's Brain. Let's create your agent: a digital product that solves a problem by chat, by itself, 24/7, and charges for it. It doesn't have to be about your trade: I'll research what problems people pay to solve and propose 3 ideas. To start: is there a topic or kind of problem you're interested in, or should I propose open ideas?";
   }
   if (p.mode === "new") {
     return es

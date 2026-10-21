@@ -86,8 +86,8 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   const es = lang === "es";
   if (b.plan.mode === "agent" && b.serviceAgent.name) {
     return es
-      ? `¡Listo! Armé tu agente, "${b.serviceAgent.name}", y su página con tu estrategia: sus pasos, sus límites y tus ${packages || "opciones de"} precios. Lo que más lo hace bueno ahora es tu conocimiento: pégame aquí tus apuntes, tu método o las respuestas que siempre das, y lo dejo listo para probarlo. Su tarjeta está aquí abajo.`
-      : `Done! I built your agent, "${b.serviceAgent.name}", and its page from your strategy: its steps, its limits and your ${packages || ""} prices. What makes it good now is your knowledge: paste your notes, your method or the answers you always give, and I'll get it ready to test. Its card is below.`;
+      ? `¡Listo! Armé tu agente, "${b.serviceAgent.name}", y su página con lo que aprobamos: sus pasos, sus límites, ${packages ? `tus ${packages} precios` : "sus precios"} y lo que verifiqué en fuentes oficiales, que es lo que ya sabe. Pruébalo en tu página antes de activarlo. Si quieres que sepa algo más, pégamelo aquí.`
+      : `Done! I built your agent, "${b.serviceAgent.name}", and its page from what we approved: its steps, its limits, ${packages ? `your ${packages} prices` : "its prices"} and what I verified in official sources, which is what it already knows. Try it on your page before switching it on. If you want it to know more, paste it here.`;
   }
   const s = b.site;
   const missing: string[] = [];
@@ -141,6 +141,24 @@ function welcomeFromPlan(plan: BusinessPlan): { welcomePercent: number; welcomeO
   return { welcomePercent: Number(m[1]), welcomeOn: on };
 }
 
+// What the research verified (official steps with their links, customers'
+// usual questions): the agent's starting knowledge, so it guides without
+// inventing. The creator can add more from Store.
+function knowledgeFromMarket(plan: BusinessPlan): string {
+  const m = plan.market;
+  const steps = m.requirements.filter((r) => r.item && r.applies !== "no");
+  const parts = [
+    steps.length
+      ? `Pasos y requisitos verificados (dilos con su enlace; si algo dice "verificar", pide al cliente confirmarlo en la página oficial):\n${steps
+          .map((r) => `- ${r.item}${r.note ? `: ${r.note}` : ""}${r.link ? ` (${r.link})` : ""}${r.applies === "check" ? " [verificar]" : ""}`)
+          .join("\n")}`
+      : "",
+    m.faq.length ? `Preguntas frecuentes de los clientes:\n${m.faq.map((f) => `- ${f.q} ${f.a}`).join("\n")}` : "",
+    m.prices ? `Lo que cobran otros por esto: ${[m.prices.low, m.prices.mid, m.prices.high].filter(Boolean).join(" / ")}` : "",
+  ].filter(Boolean);
+  return parts.join("\n\n").slice(0, 20000);
+}
+
 export function agentFromPlan(plan: BusinessPlan): ServiceAgent {
   const a = plan.agent;
   const p = plan.profile;
@@ -158,7 +176,7 @@ export function agentFromPlan(plan: BusinessPlan): ServiceAgent {
     name: a?.name || plan.service,
     role: a?.role || plan.serviceIncludes,
     instructions,
-    knowledge: p.agentKnowledge,
+    knowledge: [p.agentKnowledge, knowledgeFromMarket(plan)].filter(Boolean).join("\n\n"),
     limits: a?.limits.length ? a.limits : p.agentLimits ? [p.agentLimits] : [],
     greeting: a?.greeting || "",
     creator: a?.creator || "",

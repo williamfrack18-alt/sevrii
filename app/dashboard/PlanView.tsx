@@ -65,6 +65,8 @@ export default function PlanView({
   const t = PLAN_TEXT[lang];
   const plan = business.plan;
   const isB = plan.mode === "new";
+  // B and C (agent) both start from ideas the Brain researches.
+  const ideasFlow = isB || plan.mode === "agent";
   const inPipeline = PIPELINE.includes(plan.stage);
 
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -148,8 +150,8 @@ export default function PlanView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inPipeline, business.id, retryKey]);
 
-  const stages = isB ? t.stagesB : t.stagesA;
-  const order: PlanStage[] = isB
+  const stages = isB ? t.stagesB : plan.mode === "agent" ? t.stagesC : t.stagesA;
+  const order: PlanStage[] = ideasFlow
     ? ["interview", "ideas_research", "choose", "ready_check", "research", "proposal", "approved"]
     : ["interview", "research", "proposal", "approved"];
   const current = Math.max(0, order.indexOf(plan.stage));
@@ -236,7 +238,7 @@ export default function PlanView({
           locked={
             inPipeline && !pipeErr ? (
               <div className="flex flex-col gap-2.5 w-full">
-                <span>{plan.stage === "ideas_research" ? t.lockedIdeas : t.locked}</span>
+                <span>{plan.stage === "ideas_research" ? (plan.mode === "agent" ? t.lockedIdeasC : t.lockedIdeas) : t.locked}</span>
                 <Progress jobs={jobs} plan={plan} compact />
               </div>
             ) : undefined
@@ -701,6 +703,7 @@ function DoneCard({ live, onNavigate }: { live: boolean; onNavigate: (v: Dashboa
 function IdeasCard({ plan, busy, live, onChoose }: { plan: BusinessPlan; busy: boolean; live: boolean; onChoose: (i: number) => void }) {
   const t = PLAN_TEXT[useLang()];
   const chosen = plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
+  const L = plan.mode === "agent" ? t.ideasC : t;
   if (!live) {
     return (
       <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={INSET}>
@@ -718,17 +721,19 @@ function IdeasCard({ plan, busy, live, onChoose }: { plan: BusinessPlan; busy: b
               <span className="text-[#8e8e8e] font-normal">{i + 1}. </span>
               {idea.title}
             </span>
-            <span className="text-[12px] px-2 py-0.5 rounded-full shrink-0 font-medium" style={{ background: "rgba(46,122,85,0.26)", color: GREEN }}>
-              {t.fit(idea.score)}
-            </span>
+            {idea.score > 0 && (
+              <span className="text-[12px] px-2 py-0.5 rounded-full shrink-0 font-medium" style={{ background: "rgba(46,122,85,0.26)", color: GREEN }}>
+                {t.fit(idea.score)}
+              </span>
+            )}
           </div>
           <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed">{idea.why}</p>
           <Facts
             rows={[
-              [t.typicalPrice, idea.typicalPrice],
-              [t.startCost, idea.startCost],
-              [t.license, idea.license && !/^no\b/i.test(idea.license.trim()) ? idea.license : ""],
-              [t.demand, idea.demand],
+              [L.typicalPrice, idea.typicalPrice],
+              [L.startCost, idea.startCost],
+              [L.license, idea.license && !/^no\b/i.test(idea.license.trim()) ? idea.license : ""],
+              [L.demand, idea.demand],
             ]}
           />
           {(idea.pros || idea.cons) && (
@@ -968,6 +973,7 @@ function SectionHead({ title, sub }: { title: string; sub: string }) {
 function Progress({ jobs, plan, compact = false }: { jobs: Job[]; plan: BusinessPlan; compact?: boolean }) {
   const t = PLAN_TEXT[useLang()];
   const label = (k: string) => {
+    if (k === "ideas" && plan.mode === "agent") return t.ideasC.task;
     const v = t.tasks[k];
     if (typeof v === "function") return v(k === "prices" ? plan.profile.city : plan.profile.state);
     return v ?? k;

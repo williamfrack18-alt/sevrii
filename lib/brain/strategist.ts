@@ -10,13 +10,13 @@ const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, serv
 
 Persona A: entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, una oferta de bienvenida, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
 Persona B: primero entrega 3 ideas (de las 5 investigadas). Cuando escoja una, entrega la misma propuesta que la persona A.
-Persona C (mode "agent"): el dueño crea un agente de IA que hace el servicio él solo, en el chat de su página, las 24 horas (por ejemplo, un tutor para el examen de electricista de Texas). Entrega la misma propuesta y además "agent".
+Persona C (mode "agent"): la persona crea un agente de IA, un producto digital que resuelve un problema él solo, en el chat de su página, las 24 horas, y cobra por usarlo. No tiene que ser de su oficio: primero entrega 3 ideas de agente (de las 5 investigadas); cuando escoja una, entrega la misma propuesta y además "agent".
 
 Agente (solo persona C):
-- Prueba de valor (lo más importante): nadie paga por algo que un chat gratis como ChatGPT ya hace bien. Antes de armar nada, mira el servicio con los ojos del cliente: ¿lo resolvería gratis con ChatGPT o una plantilla? Si sí (por ejemplo, "te escribo tu currículum"), NO lo propongas así: reenfócalo en lo que solo este dueño puede dar, con las palancas que el expediente respalde: (1) su conocimiento propio que no está en internet (método, casos reales, lo que ve un reclutador por dentro); (2) reglas de un estado, ciudad u oficio, verificadas por él; (3) acompañamiento con un resultado (un plan de varias semanas, práctica diaria, simulacros calificados, seguimiento), no una respuesta suelta; (4) una revisión final hecha por el dueño en persona; (5) un nicho muy concreto (no "currículums", sino "currículum y entrevista para housekeeping en hoteles de Houston"); (6) material propio (bancos de preguntas, plantillas). Usa agentEdge y la investigación (gaps). Si reenfocaste el servicio, dilo en una línea en message.
+- Prueba de valor (lo más importante): nadie paga por algo que un chat gratis como ChatGPT ya hace bien. Mira el servicio con los ojos del cliente: ¿lo resolvería gratis con ChatGPT o una plantilla? Si sí, NO lo propongas así: reenfócalo con estas palancas: (1) pasos exactos verificados en fuentes oficiales (con sus enlaces), que el agente sigue sin inventar; (2) reglas de un estado, ciudad u oficio; (3) acompañamiento con un resultado (un plan de varios días o semanas, práctica, seguimiento hasta terminar), no una respuesta suelta; (4) revisar lo que el cliente prepara antes de que lo entregue; (5) un nicho muy concreto; (6) material propio (listas, bancos de preguntas, plantillas). Si el creador sabe del tema (agentEdge, agentKnowledge), súmalo; si no, el valor sale de la investigación (gaps, requisitos). Si reenfocaste el servicio, dilo en una línea en message.
 - agent.edge: 3 o 4 razones concretas y verdaderas para pagar por ESTE agente (title corto + text de una línea). agent.freeAlt: qué hace gratis un chat general con este mismo pedido, dicho con honestidad. agent.score: de 1 a 5, qué tan fuerte es la razón para pagar; si queda en 1 o 2 incluso reenfocado, dilo claro en message y en pricingNote.
-- agent.creator: quién lo creó y el respaldo que da (por ejemplo "Ana · 6 años en recursos humanos"), solo con datos del expediente.
-- Es un servicio en línea que entrega la IA con el método y el conocimiento del dueño (agentTask, agentKnowledge). El cliente lo prueba gratis unas respuestas y después paga.
+- agent.creator: quién lo creó (su nombre o la marca del expediente) y, solo si el expediente lo dice, su respaldo. Si no hay credenciales, solo el nombre: nunca inventes experiencia.
+- Es un servicio en línea que entrega la IA siguiendo agentTask y los pasos verificados en la investigación. El cliente lo prueba gratis unas respuestas y después paga.
 - Paquetes: 2 o 3 formas de pagar el acceso, pensadas para un agente: por uso (por ejemplo "Sesión de práctica: 1 día de acceso") y/o mensual ("Acceso mensual"). Cada precio es de al menos $15 (mínimo de pagos de Sevrii). Di en "includes" qué recibe y por cuánto tiempo, y en "note" para quién conviene. El dueño escoge la forma de cobrar: en pricingNote recomienda cuál conviene más y por qué (frecuencia de uso, competencia, costo de la IA).
 - Precio: compáralo con lo que cobran personas y plataformas por el mismo servicio. Un agente puede costar menos que una persona, pero no lo regales.
 - agent.limits: incluye siempre lo que agentLimits dice, que no promete resultados (aprobar un examen, ganar un caso) y que el dueño entra al chat para reembolsos o casos fuera del servicio.
@@ -28,6 +28,8 @@ Precios:
 - Parte del costo del dueño: materiales + horas × valor de su hora + traslado + permiso. Apunta a un margen de 30 % a 50 %.
 - Compáralo con el rango de la zona. Si queda fuera, explica por qué o ajústalo.
 - Paquetes básico, completo y premium. El del medio es el que más conviene vender.
+
+Ideas de agente (persona C), puntaje de 1 a 5 en cada punto (mismos campos): fit = encaje con lo que le interesa (no con su experiencia); demand = cuánta gente lo busca o ya lo paga; cost = disposición a pagar frente a un chat gratis; requirements = riesgo legal bajo (nada de asesoría que exija licencia); speed = qué tan completo lo puede resolver un agente solo por chat. Muestra las 3 mejores con pros y contras, sin prometer ingresos.
 
 Ideas (persona B), puntaje de 1 a 5 en cada punto:
 - Encaje con su experiencia y herramientas.
@@ -203,7 +205,7 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
 export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: Lang): Promise<{ ideas: Idea[]; message: string }> {
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
-    `Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\nEscoge las 3 mejores con su puntaje.`,
+    `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\nEscoge las 3 mejores con su puntaje.`,
     IDEAS_SCHEMA
   );
   const picked: Idea[] = [];

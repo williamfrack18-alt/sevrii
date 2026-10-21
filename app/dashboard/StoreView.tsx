@@ -168,7 +168,7 @@ export default function StoreView({
   const es = lang === "es";
   const chips: ChatChip[] = hasPage
     ? [
-        ...(isAgent ? [{ label: es ? "Enseñarle mis apuntes" : "Teach it my notes", text: es ? "Estos son mis apuntes para el agente:\n" : "Here are my notes for the agent:\n" }] : []),
+        ...(isAgent ? [{ label: es ? "Darle más información" : "Give it more information", text: es ? "Quiero que el agente sepa esto: " : "I want the agent to know this: " }] : []),
         { label: es ? "Agregar fotos" : "Add photos", upload: true },
         { label: es ? "Agregar un video" : "Add a video", upload: true },
         { label: es ? "Cambiar el título" : "Change the headline", text: es ? "Cambia el título de mi página a: " : "Change my page headline to: " },

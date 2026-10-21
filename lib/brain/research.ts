@@ -53,6 +53,14 @@ ${plan.mode === "agent" ? `Es un agente de IA que hace este servicio solo. Busca
 Forma: {"competitors":[{"name":"…","url":"…","offer":"qué ofrecen, en una línea","price":"precio publicado o 'no publica'","guarantee":"garantía que anuncian o 'no menciona'","languages":"idiomas que anuncian"}],"gaps":["algo que ninguno ofrece o comunica bien"],"sources":[{"title":"…","url":"…"}]}
 ${out}`;
     case "requirements":
+      // An agent's "requirements" are the official steps it must follow for
+      // its customers: they become what it knows.
+      if (plan.mode === "agent")
+        return `Tarea: PASOS OFICIALES para resolver "${service}" ${oneState ? `en ${p.state}` : "en EE. UU. (si cambia por estado, di cómo y da el ejemplo de 2 o 3 estados grandes)"}.
+Un agente de IA va a guiar a sus clientes con esto, así que debe ser exacto: los pasos en orden, los documentos que piden, las tarifas oficiales, los plazos y dónde se hace cada cosa, cada uno con la página oficial (.gov o del organismo) que lo dice. Al final, lo que un agente NO puede hacer por ley en este tema (si aplica).
+"applies": "yes" si la página oficial lo confirma; si no estás seguro, "check".
+Forma: {"requirements":[{"item":"paso, documento o tarifa, corto","applies":"yes|check","link":"…","note":"en una línea, qué hay que hacer exactamente"}],"sources":[{"title":"…","url":"…"}]}
+${out}`;
       return `Tarea: REQUISITOS para ofrecer "${service}" ${reqWhere}.
 Revisa lo básico para operar: registro del negocio (ciudad, condado o estado), seguro que se acostumbra y permisos del trabajo. Muchos servicios NO necesitan licencia: menciona una licencia solo si una fuente oficial dice que ese servicio la exige en ese estado; si no, no la incluyas.
 "applies": "yes" solo si una fuente oficial lo dice; "no" si una fuente oficial dice que no aplica; si no estás seguro, "check".
@@ -66,6 +74,7 @@ Las respuestas son una base general y honesta; no prometas nada en nombre del du
 Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en una línea","sources":[{"title":"…","url":"…"}]}
 6 a 8 preguntas. ${out}`;
     case "ideas":
+      if (plan.mode === "agent") return agentIdeasTask(plan, out);
       return `Tarea: IDEAS de servicio para alguien que quiere independizarse ${where}.
 Perfil: trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; no quiere: ${p.notWant || "-"}; meta: ${p.goal || "?"}.
 Propón 5 servicios rentables (locales en su ciudad o que se puedan hacer en línea desde casa; di cuál es cuál en "why") que encajen con lo que ya sabe hacer o con algo que pueda aprender rápido (en pocas semanas), con su dinero y su tiempo. Busca para cada uno el precio típico en su zona y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
@@ -75,6 +84,22 @@ No propongas: reparación de crédito, asesoría legal o migratoria, préstamos 
 Forma: {"ideas":[{"title":"…","why":"por qué encaja con su experiencia","typicalPrice":"rango corto, ej. '$15–$25 por hora' (máx. 40 caracteres)","startCost":"monto y en qué, en una frase corta (máx. 100 caracteres)","license":"No (solo si una fuente oficial dice que ese servicio exige licencia en el estado, escribe cuál)","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
 ${out}`;
   }
+}
+
+// C: ideas for an AI agent sold as a product. It doesn't have to match the
+// creator's trade; it has to solve a problem people already pay to solve.
+function agentIdeasTask(plan: BusinessPlan, out: string): string {
+  const p = plan.profile;
+  return `Tarea: IDEAS de agentes de IA para vender en EE. UU.
+Un agente de IA es un producto digital: trabaja solo por chat (texto), las 24 horas, y resuelve un problema concreto de principio a fin. Guía paso a paso, revisa lo que el cliente le escribe, le dice exactamente qué preparar, llenar y llevar, arma listas y textos, y le da seguimiento varios días. No envía archivos, no llama, no firma ni presenta trámites en nombre del cliente, y no da asesoría legal, migratoria, médica ni financiera.
+Lo que le interesa a quien lo crea: ${p.agentInterest || "abierto a cualquier idea"}. A quién le gustaría ayudar: ${p.typicalCustomer || "a cualquiera"}. Idioma del agente: ${p.languages === "en" ? "inglés" : p.languages === "both" ? "español e inglés" : "español"}.
+Las ideas NO tienen que estar relacionadas con la experiencia de quien lo crea: el agente es el producto.
+Propón 5 problemas concretos y frecuentes por los que la gente en EE. UU. YA paga hoy (a gestores, agencias, freelancers, cursos o apps) y que un agente por chat puede resolver mejor que preguntarle gratis a un chat general, porque exige pasos exactos verificados en fuentes oficiales, reglas que cambian por estado, acompañamiento de varios días o revisar lo que el cliente prepara. Que sean distintos entre sí. Busca para cada uno evidencia de demanda y cuánto se paga hoy por resolverlo.${plan.rejectedIdeas.length ? `
+Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
+Lo que dijo que prefiere o no quiere: ${plan.ideaPrefs}. Respétalo.` : ""}
+No propongas: reparación de crédito, asesoría legal o migratoria, préstamos, salud, ni nada que necesite una licencia profesional para darlo.
+Forma: {"ideas":[{"title":"el agente en pocas palabras, máx. 90 caracteres","why":"qué problema resuelve, para quién y por qué un agente lo hace mejor que un chat gratis","typicalPrice":"lo que se paga hoy por resolverlo, rango corto (máx. 40 caracteres)","startCost":"qué necesita el agente para funcionar bien (fuentes oficiales, material), una frase corta (máx. 100 caracteres)","license":"No (o el límite legal que debe respetar, en una línea)","demand":"evidencia de que mucha gente lo busca o lo paga","sources":[{"title":"…","url":"…"}]}]}
+${out}`;
 }
 
 export type ResearchResult = { data: Record<string, unknown> | null; sources: PlanSource[]; usedWeb: boolean };
@@ -131,7 +156,7 @@ function cleanResearch(kind: ResearchKind, d: Record<string, unknown>, seen: See
       };
     case "requirements":
       return {
-        requirements: (Array.isArray(d.requirements) ? d.requirements : []).slice(0, 6).map((r) => {
+        requirements: (Array.isArray(d.requirements) ? d.requirements : []).slice(0, 10).map((r) => {
           const o = (r ?? {}) as Record<string, unknown>;
           const link = seenUrl(o.link);
           // "Applies" without a page that says so is downgraded to "check".

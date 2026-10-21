@@ -101,9 +101,13 @@ export async function chooseIdeaAction(index: number): Promise<PlanChatResponse>
     business.id,
     CHANNEL,
     "ai",
-    lang === "es"
-      ? `¡Buena elección! Antes de investigar tu zona, veamos si estás listo para arrancar. ¿Tienes seguro de responsabilidad civil (general liability) o todavía no?`
-      : `Great choice! Before I research your area, let's check you're ready to start. Do you have general liability insurance yet?`
+    plan.mode === "agent"
+      ? lang === "es"
+        ? `¡Buena elección! Antes de investigar el mercado, definamos tu agente en dos o tres mensajes. ¿Atenderá a clientes de todo EE. UU., de un solo estado o también de otros países?`
+        : `Great choice! Before I research the market, let's define your agent in two or three messages. Will it serve customers in the whole US, in one state only, or in other countries too?`
+      : lang === "es"
+        ? `¡Buena elección! Antes de investigar tu zona, veamos si estás listo para arrancar. ¿Tienes seguro de responsabilidad civil (general liability) o todavía no?`
+        : `Great choice! Before I research your area, let's check you're ready to start. Do you have general liability insurance yet?`
   );
   revalidatePath("/dashboard");
   return respond(business);
