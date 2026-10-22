@@ -456,6 +456,31 @@ document.addEventListener('DOMContentLoaded', function(){
   /* Headings like the hero of Ofrecer servicios: light, tight, sentence case */
   .sx-h.sx-wide,.ax-h.sx-wide,.af-h,.sx-title.sx-wide{font-weight:300;letter-spacing:-.025em;text-transform:none;line-height:1.08;}
   .sx-word.sx-wide{font-weight:300;}
+  /* Agents section on pearl white (the look of the Sevrii Robotics index), so it
+     reads apart from the black Affiliates section right after it. */
+  .ax{position:relative;overflow:hidden;background:#dcdddb;color:#0b0b0b;border-top:0;}
+  .ax::before{content:"";position:absolute;inset:-40px;background:url('/assets/robotics/blur.jpg') center/cover;filter:blur(28px);opacity:.2;pointer-events:none;}
+  .ax::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 45% 60% at 72% 45%,rgba(255,255,255,.45),transparent 70%);pointer-events:none;}
+  .ax-in{position:relative;z-index:1;}
+  .ax-label{color:#3a3a3a;}
+  .ax-live{color:#2f6f4f;border-color:rgba(47,111,79,.45);}
+  .ax-p{color:#2b2b2b;}
+  .ax-steps li{border-top-color:rgba(0,0,0,.14);}
+  .ax-n{color:#6b6b6b;}
+  .ax-steps h3{color:#0b0b0b;}
+  .ax-steps p{color:#4a4a4a;}
+  .ax-btn{background:#0b0b0b;color:#fff;}
+  .ax-btn:hover{background:#262626;}
+  .ax-link{color:#2b2b2b;}
+  .ax-link:hover{color:#000;}
+  .ax-note{color:#555;}
+  .ax-chat{box-shadow:0 40px 90px -40px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.06);}
+  .ax-cap{color:rgba(0,0,0,.5);}
+  /* The Affiliates section stays black and reuses these buttons in white. */
+  .af .ax-btn{background:#fff;color:#000;}
+  .af .ax-btn:hover{background:#e6e6e6;}
+  .af .ax-link{color:#cfcfcf;}
+  .af .ax-link:hover{color:#fff;}
 </style>
 </head>
 <body>
