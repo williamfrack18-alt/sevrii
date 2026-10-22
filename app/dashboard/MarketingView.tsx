@@ -16,7 +16,7 @@ import { maxDailySpend, type CampaignSpec } from "@/lib/marketing";
 import { activeOffer } from "@/lib/site";
 import { sendMarketingChatAction } from "@/app/marketingActions";
 import ChatPanel, { type Msg } from "./ChatPanel";
-import ProjectDock, { BelowChat } from "./ProjectDock";
+import ProjectDock, { Sheet, StepList, type StepItem } from "./ProjectDock";
 import AgentPanel from "./AgentPanel";
 import { toClientBusiness, type ClientBusiness, type ClientCampaign } from "./types";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
@@ -153,7 +153,8 @@ export default function MarketingView({
       }
       setAgent(res.state);
       await refresh();
-      setTimeout(() => document.getElementById("mk-agent")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+      // What the agent put in motion opens from the chat.
+      setRunningOpen(true);
     } catch {
       setApproveErr(m.failed);
     } finally {
@@ -179,27 +180,65 @@ export default function MarketingView({
   const hasMap = Boolean(strategy) || withSpec.length > 0;
   const profile = business.marketing.profile;
   const es = lang === "es";
-  // This project's marketing, as the last card of its own conversation.
+  // Everything stays in the chat: the strategy is the last card of the
+  // conversation, each part opens in place, and what's running opens from it.
+  const plan = business.plan;
+  const media: StepItem[] =
+    plan.videoScript || plan.photoIdeas.length
+      ? [
+          {
+            id: "media",
+            label: es ? "Video y fotos" : "Video and photos",
+            title: plan.videoScript ? (es ? "Guion de tu video listo" : "Your video script is ready") : es ? `${plan.photoIdeas.length} ideas de fotos` : `${plan.photoIdeas.length} photo ideas`,
+            summary: es ? "Para tus anuncios y tu página. Pídeme cambios aquí." : "For your ads and your page. Ask me for changes here.",
+            detail: (
+              <div className="flex flex-col gap-4 min-w-0">
+                {plan.videoScript && <p className="text-[14px] text-white leading-relaxed whitespace-pre-line rounded-xl p-4 break-words" style={{ background: "rgba(255,255,255,0.04)" }}>{plan.videoScript}</p>}
+                {plan.photoIdeas.length > 0 && (
+                  <ul className="flex flex-col gap-2">
+                    {plan.photoIdeas.map((p, i) => (
+                      <li key={i} className="text-[14px] text-[#ececec] leading-relaxed">
+                        {i + 1}. {p}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ),
+          },
+        ]
+      : [];
+  const [runningOpen, setRunningOpen] = useState(false);
   const dock = hasMap ? (
     <ProjectDock
-      eyebrow={es ? "Mapa de tu marketing" : "Your marketing map"}
+      eyebrow={es ? "Tu estrategia de marketing" : "Your marketing strategy"}
       title={profile.goal || m.goalFallback(profile.mainService || business.plan.service || "")}
       status={
         <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11.5px] font-medium" style={{ background: TINT, color: ACCENT }}>
           {t.flow.steps[step]}
         </span>
       }
-      link={{ label: es ? "Ver mapa completo ↓" : "See the full map ↓", href: "#mk-plan" }}
     >
-      <span className="text-[13px] text-[#a1a1a1]">
-        {[
-          active.length ? (es ? `${active.length} ${active.length === 1 ? "campaña" : "campañas"}` : `${active.length} ${active.length === 1 ? "campaign" : "campaigns"}`) : "",
-          profile.monthlyBudgetUsd ? m.budgetMonth(usd(profile.monthlyBudgetUsd)) : "",
-          approved ? (es ? "estrategia aprobada" : "strategy approved") : es ? "estrategia por aprobar" : "strategy to approve",
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-      </span>
+      {strategy?.summary && <p className="text-[13.5px] leading-relaxed text-[#d4d4d4]">{strategy.summary}</p>}
+      <span className="text-[12.5px] text-[#8e8e8e]">{profile.monthlyBudgetUsd ? m.budgetMonth(usd(profile.monthlyBudgetUsd)) : m.noBudget}</span>
+      {plan.guard.warn.length > 0 && (
+        <div className="rounded-xl p-3 flex flex-col gap-1.5" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)" }}>
+          <span className="text-[12px] font-semibold text-[#f5c451]">{es ? "Ten en cuenta" : "Keep in mind"}</span>
+          {plan.guard.warn.map((x, i) => (
+            <span key={i} className="text-[13px] text-[#f3e3b5] leading-relaxed">
+              {x}
+            </span>
+          ))}
+        </div>
+      )}
+      <StepList items={[...nodes, ...media]} />
+      <div className="pt-1">{footer}</div>
+      {approved && agent === undefined && <span className="text-[13px] text-[#a1a1a1]">{t.agent.loading}</span>}
+      {showAgent && agent && (
+        <button type="button" onClick={() => setRunningOpen(true)} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
+          {es ? "Ver lo que está en marcha" : "See what's running"}
+        </button>
+      )}
     </ProjectDock>
   ) : undefined;
 
@@ -216,7 +255,7 @@ export default function MarketingView({
         <ChatPanel
           greeting={greeting}
           initialMessages={initialMessages}
-          texts={{ ...t.chat, seeBelowHref: "#mk-plan" }}
+          texts={{ ...t.chat, seeBelow: "", seeBelowHref: "" }}
           dock={dock}
           onSend={async (text) => {
             const res = await sendMarketingChatAction(text);
@@ -229,65 +268,11 @@ export default function MarketingView({
         />
       </section>
 
-      {/* The strategy as a mind map */}
-      <BelowChat id="mk-plan" label={es ? "Mapa de tu marketing · se arma con tu chat" : "Your marketing map · built from your chat"}>
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
-            <h2 className="text-[20px] font-semibold text-white tracking-tight">{t.plan}</h2>
-            {strategy?.summary && <p className="text-[14.5px] leading-relaxed text-[#d4d4d4] max-w-[760px]">{strategy.summary}</p>}
-            {hasMap && <p className="text-[12.5px] text-[#8e8e8e]">{m.sub}</p>}
-          </div>
-          {hasMap ? (
-            <MindMap
-              center={{
-                eyebrow: m.eyebrow,
-                title: profile.goal || m.goalFallback(profile.mainService || business.plan.service || ""),
-                subtitle: profile.monthlyBudgetUsd ? m.budgetMonth(usd(profile.monthlyBudgetUsd)) : m.noBudget,
-                footer,
-              }}
-              groups={
-                lang === "es"
-                  ? [
-                      { id: "who", label: "A quién y qué decir" },
-                      { id: "plan", label: "El plan y el dinero" },
-                      { id: "run", label: "Campañas y publicaciones" },
-                      { id: "measure", label: "Cómo medimos" },
-                    ]
-                  : [
-                      { id: "who", label: "Who and what to say" },
-                      { id: "plan", label: "The plan and the money" },
-                      { id: "run", label: "Campaigns and posts" },
-                      { id: "measure", label: "How we measure" },
-                    ]
-              }
-              nodes={nodes.map((n) => ({
-                ...n,
-                group:
-                  n.id === "audience" || n.id === "message"
-                    ? "who"
-                    : n.id === "budget" || n.id.startsWith("stage-")
-                      ? "plan"
-                      : n.id === "measure"
-                        ? "measure"
-                        : "run",
-              }))}
-            />
-          ) : (
-            <EmptyMap lang={lang} />
-          )}
-        </div>
-      </BelowChat>
-
-      {/* 3. En marcha: what the agent does */}
-      {approved && agent === undefined && (
-        <section className="px-4 md:px-8 py-8" style={{ borderTop: `1px solid ${HAIR}` }}>
-          <div className="max-w-[1100px] mx-auto flex items-center gap-3">
-            <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
-            <span className="text-[14px] text-[#a1a1a1]">{t.agent.loading}</span>
-          </div>
-        </section>
+      {showAgent && agent && (
+        <Sheet open={runningOpen} title={es ? "Lo que está en marcha" : "What's running"} onClose={() => setRunningOpen(false)} wide>
+          <AgentPanel business={business} lang={lang} state={agent} setState={setAgent} onChanged={refresh} />
+        </Sheet>
       )}
-      {showAgent && agent && <AgentPanel business={business} lang={lang} state={agent} setState={setAgent} onChanged={refresh} />}
     </div>
   );
 }

@@ -176,6 +176,9 @@ export async function businessFacts(b: BusinessRow) {
           campaignType: p.campaignType,
           channels: p.channels,
           photoIdeas: p.photoIdeas,
+          videoScript: p.videoScript,
+          // What to keep in mind for ads (e.g. Meta's special ad categories).
+          notes: p.guard.warn,
         }
       : null,
     marketingProfile: b.marketing.profile,

@@ -12,7 +12,7 @@ import {
 } from "../db";
 import type { Lang } from "../i18n";
 import { researchGate } from "../usage";
-import { IDEAS_TOKEN, nextPartMessage } from "./walk";
+import { IDEAS_TOKEN, MARKET_TOKEN, nextPartMessage } from "./walk";
 import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanStage } from "../plan";
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
@@ -196,7 +196,8 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
         ? `\n\nAntes de aprobar, revisa esto: ${guard.block.join(" ")}`
         : `\n\nBefore approving, check this: ${guard.block.join(" ")}`
       : "";
-    await addChatMessage(businessId, "plan", "ai", base + note + walk);
+    // The research shows right here in the chat, as a card that opens in place.
+    await addChatMessage(businessId, "plan", "ai", `${base}${note}${walk}${plan.market.researchedAt ? `\n\n${MARKET_TOKEN}` : ""}`);
     const first = nextPartMessage(plan, lang);
     if (first) await addChatMessage(businessId, "plan", "ai", first);
     return;

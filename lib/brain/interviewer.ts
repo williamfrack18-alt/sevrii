@@ -40,6 +40,8 @@ Cómo conversas:
 - Cuando ayude, ofrece las opciones en la misma pregunta (por ejemplo: "¿español, inglés o los dos?").
 - Confirma en muy pocas palabras lo que guardaste (sin repetirlo todo) y sigue.
 - Máximo 60 palabras por mensaje. Sin títulos ni listas largas.
+- Nunca menciones el estado, el JSON, nombres de campos (como "languages" o "missing"), herramientas ni notas internas: habla solo de lo que la persona entiende.
+- Si la persona te hace una pregunta, respóndela primero, en una o dos frases, y después sigue con lo que falta.
 
 Si mode es "C: an AI agent" la persona va a crear un agente de IA: un producto digital nuevo, como un curso o un producto físico, que resuelve un problema por chat, solo, las 24 horas, y cobra por usarlo. El agente NO tiene que ser de su oficio ni de lo que ella sabe: no le preguntes por su experiencia, su método ni sus apuntes. En la entrevista solo necesitas lo justo para buscar ideas: qué temas, problemas o mercados le interesan (vale "estoy abierto a cualquier idea"), a quién le gustaría ayudar (vale "a cualquiera") y en qué idioma hablará el agente. Después tú investigas y le propones 3 ideas de agentes por los que la gente ya paga; si ella ya trae su propia idea, guárdala en agentInterest y dile que también la vas a evaluar. Cuando ya escogió una idea ("ready_check"), propón tú cómo trabaja el agente con cada cliente (agentTask) y sus límites (agentLimits) a partir de la idea, y pídele que los confirme o ajuste; pregunta si atiende todo EE. UU., un solo estado u otros países; al final sugiérele 2 nombres cortos. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA. El agente trabaja solo por chat, con texto: guía paso a paso, revisa lo que el cliente le escribe, prepara textos y listas; no envía archivos ni PDF, no llama, no agenda citas y no hace trámites en nombre del cliente; no lo sugieras.
 
@@ -57,7 +59,7 @@ const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre la
 - Si "roundsLeft" es 0, no puedes buscar más: ayúdale a escoger entre las actuales o a describir su propia idea (own_idea).
 Máximo 70 palabras.`;
 
-const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí mismo en el chat, una parte a la vez y en este orden: servicio, presentación, paquetes, oferta, campaña y preguntas frecuentes. La parte que están viendo ahora es "currentPart" en el estado: el sistema la muestra en una tarjeta justo debajo de tu mensaje, con botones de Aprobar y Cambiar.
+const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí mismo en el chat, una parte a la vez y en este orden: servicio, presentación, paquetes, oferta y preguntas frecuentes. Aquí solo se diseña la oferta: la campaña, los anuncios, el video y las fotos se deciden después en Marketing; si pregunta por eso, díselo en una línea. La parte que están viendo ahora es "currentPart" en el estado: el sistema la muestra en una tarjeta justo debajo de tu mensaje, con botones de Aprobar y Cambiar.
 - No repitas el contenido de la tarjeta ni hagas listas: ya la está viendo. Habla de la parte actual, en 1 a 3 frases.
 - Si dice que está bien ("sí", "me gusta", "dale", "apruebo"), llama a approve_blocks con currentPart y no digas nada de la siguiente: el sistema la muestra sola. Responde solo algo corto como "Perfecto, aprobado."
 - Si pide un cambio, hazlo con update_proposal (solo los campos que cambian) y confírmalo en una línea; la tarjeta actualizada aparece sola debajo. Cambiar una parte ya aprobada le quita la aprobación y vuelve a mostrarse.
@@ -68,7 +70,8 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 - Precios: si los cambia, explica en una línea cómo queda el margen frente a sus costos y al rango de la zona.
 - Oferta: solo si él la quiere. Una oferta de bienvenida para clientes nuevos (solo su primer servicio) no necesita fecha: guárdala con forNewClients=true. Cualquier otra promoción necesita una fecha de fin real (YYYY-MM-DD, hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true y apruébala.
 - Si la propuesta ya está aprobada ("stage": "approved"), ayuda con cambios igual que antes.
-- Máximo 60 palabras. Sin títulos ni listas.`;
+- Máximo 60 palabras. Sin títulos ni listas.
+- Nunca menciones el estado, el JSON, nombres de campos, herramientas ni notas como "(Tarjeta mostrada…)".`;
 
 const PROFILE_PROPS: Record<string, unknown> = {
   businessName: { type: "string" },
@@ -178,8 +181,6 @@ const UPDATE_PROPOSAL: Tool = {
         required: ["label"],
       },
       noOffer: { type: "boolean", description: "true if the owner doesn't want an offer" },
-      campaignType: { type: "string" },
-      channels: { type: "array", items: { type: "object", properties: { channel: { type: "string" }, why: { type: "string" } }, required: ["channel", "why"] } },
       faq: { type: "array", items: { type: "object", properties: { q: { type: "string" }, a: { type: "string" } }, required: ["q", "a"] } },
       agent: {
         type: "object",
@@ -218,8 +219,6 @@ const FIELD_BLOCK: Record<string, ApprovalBlock> = {
   pricingNote: "packages",
   offer: "offer",
   noOffer: "offer",
-  campaignType: "campaign",
-  channels: "campaign",
   faq: "faq",
   agent: "service",
 };
@@ -261,8 +260,6 @@ function state(b: BusinessRow) {
       pricingNote: p.pricingNote,
       offer: p.offer,
       noOffer: p.noOffer,
-      campaignType: p.campaignType,
-      channels: p.channels,
       faq: p.faq,
       ...(p.mode === "agent" ? { agent: p.agent } : {}),
     },
@@ -522,6 +519,11 @@ export async function runPlanChatTurn(opts: {
   if (!reply && startPipeline) {
     reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.";
   }
+  // Never show the owner our internal notes (they sometimes get echoed).
+  reply = reply
+    .replace(/^\s*\((Tarjeta mostrada|Card shown)[^)\n]*\)\s*$/gim, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
   return { reply: reply || (es ? "Listo." : "Done."), business, startPipeline, debug };
 }
 

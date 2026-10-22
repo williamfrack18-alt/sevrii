@@ -320,10 +320,15 @@ export default function ChatPanel({
 
   const footnote = (
     <p className="text-center text-[11.5px] md:text-[12px] text-[#8e8e8e] pt-2 md:pt-2.5 px-2 md:px-4">
-      {texts.disclaimer}{" "}
-      <a href={texts.seeBelowHref} className="underline underline-offset-2 hover:text-white">
-        {texts.seeBelow}
-      </a>
+      {texts.disclaimer}
+      {texts.seeBelow && texts.seeBelowHref && (
+        <>
+          {" "}
+          <a href={texts.seeBelowHref} className="underline underline-offset-2 hover:text-white">
+            {texts.seeBelow}
+          </a>
+        </>
+      )}
     </p>
   );
 

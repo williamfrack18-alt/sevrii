@@ -86,7 +86,7 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   const es = lang === "es";
   if (b.plan.mode === "agent" && b.serviceAgent.name) {
     return es
-      ? `¡Listo! Armé tu agente, "${b.serviceAgent.name}", y su página con lo que aprobamos: sus pasos, sus límites, ${packages ? `tus ${packages} precios` : "sus precios"} y lo que verifiqué en fuentes oficiales, que es lo que ya sabe. Pruébalo en tu página antes de activarlo. Si quieres que sepa algo más, pégamelo aquí.`
+      ? `¡Listo! Armé tu agente, "${b.serviceAgent.name}", y su página con lo que aprobamos: sus pasos, sus límites, ${packages ? `tus ${packages} precios` : "sus precios"} y lo que verifiqué en fuentes oficiales, que es lo que ya sabe. Pruébalo en tu página («Ver mi página») antes de activarlo. Si quieres que sepa algo más, pégamelo aquí.`
       : `Done! I built your agent, "${b.serviceAgent.name}", and its page from what we approved: its steps, its limits, ${packages ? `your ${packages} prices` : "its prices"} and what I verified in official sources, which is what it already knows. Try it on your page before switching it on. If you want it to know more, paste it here.`;
   }
   const s = b.site;
@@ -96,8 +96,8 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   if (!s.hours) missing.push(es ? "tu horario" : "your hours");
   if (!s.videoUrl) missing.push(es ? "un video corto tuyo" : "a short video of you");
   const built = es
-    ? `¡Listo! Armé tu página con tu expediente: título, puntos clave, cómo trabajas, preguntas frecuentes${packages ? ` y tus ${packages} paquetes con precio` : ""}. Mírala aquí abajo.`
-    : `Done! I built your page from your expediente: headline, key points, how you work, FAQ${packages ? ` and your ${packages} priced packages` : ""}. See it below.`;
+    ? `¡Listo! Armé tu página con tu expediente: título, puntos clave, cómo trabajas, preguntas frecuentes${packages ? ` y tus ${packages} paquetes con precio` : ""}. Toca «Ver mi página» en la tarjeta para verla completa.`
+    : `Done! I built your page from your expediente: headline, key points, how you work, FAQ${packages ? ` and your ${packages} priced packages` : ""}. Tap "See my page" on the card to see it in full.`;
   if (!s.reachMode) missing.unshift(es ? "dónde atiendes (en persona en tu zona o en línea)" : "where you serve (in person in your area, or online)");
   const media = s.gallery.length === 0 && !s.coverUrl || !s.videoUrl;
   if (!missing.length) return `${built} ${es ? "Si quieres cambiar algo, dímelo aquí." : "If you want to change anything, tell me here."}`;

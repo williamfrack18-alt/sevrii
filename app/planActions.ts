@@ -14,7 +14,7 @@ import { getDict } from "@/lib/i18n";
 import { APPROVAL_BLOCKS, MAX_IDEA_ROUNDS, allApproved, requestMoreIdeas, type ApprovalBlock } from "@/lib/plan";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { applyApprovals, chooseIdea, planGreeting, runPlanChatTurn } from "@/lib/brain/interviewer";
-import { DONE_TOKEN, cardAfterTurn, forModel, nextPartMessage, partName } from "@/lib/brain/walk";
+import { DONE_TOKEN, cardAfterTurn, forModel, nextPartMessage } from "@/lib/brain/walk";
 import type { BusinessPlan } from "@/lib/plan";
 
 const CHANNEL = "plan";
@@ -129,7 +129,7 @@ export async function approveBlockAction(block: string, approved: boolean): Prom
   }
   if (plan.stage !== "proposal" || plan.approvals[block as ApprovalBlock]) return respond(business);
   if (!(await allow(`brain:approve:${business.id}`, 60, 10 * 60))) return respond(business);
-  await addChatMessage(business.id, CHANNEL, "user", lang === "es" ? `Aprobado: ${partName(block as ApprovalBlock, lang)}` : `Approved: ${partName(block as ApprovalBlock, lang)}`);
+  // The card itself shows it as approved (once): no extra message for it.
   const { plan: next, refused } = applyApprovals(plan, [block as ApprovalBlock], lang);
   await updateBusinessPlan(business.id, next);
   await walkOn(business, next, refused, lang);

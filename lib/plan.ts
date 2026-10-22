@@ -98,8 +98,10 @@ export type Idea = {
   sources: PlanSource[];
 };
 
-export type ApprovalBlock = "service" | "pitch" | "packages" | "offer" | "campaign" | "faq";
-export const APPROVAL_BLOCKS: ApprovalBlock[] = ["service", "pitch", "packages", "offer", "campaign", "faq"];
+// The Brain designs the offer only. The campaign type and the video/photos it
+// still suggests (campaignType, channels, videoScript, photoIdeas) are decided in Marketing.
+export type ApprovalBlock = "service" | "pitch" | "packages" | "offer" | "faq";
+export const APPROVAL_BLOCKS: ApprovalBlock[] = ["service", "pitch", "packages", "offer", "faq"];
 
 export type BusinessPlan = {
   mode: "existing" | "new" | "agent" | "";
@@ -558,8 +560,6 @@ export function blockHasContent(p: BusinessPlan, b: ApprovalBlock): boolean {
       return p.packages.length > 0;
     case "offer":
       return Boolean(p.offer) || p.noOffer;
-    case "campaign":
-      return Boolean(p.campaignType);
     case "faq":
       return p.faq.length > 0;
   }

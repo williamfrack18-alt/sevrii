@@ -7,8 +7,8 @@ import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage,
 import { approveBlockAction, chooseIdeaAction, finishPlanAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
 import { MAX_IDEA_ROUNDS } from "@/lib/plan";
 import ChatPanel, { type ChatToken, type Msg } from "./ChatPanel";
-import MindMap, { type MindNode } from "./MindMap";
-import ProjectDock, { BelowChat } from "./ProjectDock";
+import type { MindNode } from "./MindMap";
+import ProjectDock, { StepList } from "./ProjectDock";
 import { toClientBusiness, type ClientBusiness, type ClientService, type DashboardView } from "./types";
 import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
 
@@ -32,7 +32,6 @@ const GUARD_HINTS: Record<ApprovalBlock, RegExp> = {
   pitch: /(promesa|promise|afirmaci|claim|garantiz|guarantee|el mejor|the best|rese[nñ]a|review|cifra|presenta)/i,
   packages: /(precio|price|paquete|package|tarifa|\$\s?\d)/i,
   offer: /(oferta|offer|promo|descuento|discount|fecha de fin|end date)/i,
-  campaign: /(campa[nñ]a|campaign|anuncio|\bads?\b|\bmeta\b|urgencia|urgency|[uú]ltimos cupos|solo hoy)/i,
   faq: /(pregunta|\bfaq\b|question)/i,
 };
 
@@ -78,7 +77,6 @@ export default function PlanView({
   const [busy, startAction] = useTransition();
   const [retryKey, setRetryKey] = useState(0);
   // The map's detail panel opens only when the owner taps a part.
-  const [openId, setOpenId] = useState<string | null>(null);
   // The chat's messages, to know which card in it is the live one.
   const [msgs, setMsgs] = useState<Msg[]>(initialMessages);
 
@@ -160,7 +158,6 @@ export default function PlanView({
   const act = (fn: () => Promise<PlanChatResponse>) => startAction(async () => applyAction(await fn()));
   // "Cambiar" closes the map's panel and starts the request in the chat.
   const change = (block: ApprovalBlock) => {
-    setOpenId(null);
     setPrefill({ key: Date.now(), text: t.changePrefix(t.blocks[block]) });
   };
   const approve = (block: ApprovalBlock) => act(() => approveBlockAction(block, true));
@@ -183,6 +180,7 @@ export default function PlanView({
     if (kind === "part" && isBlock(arg)) return msgId === liveId ? partCard(arg) : <PartRow id={arg} plan={plan} stale={arg === reviewing} />;
     if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} onChoose={(i) => act(() => chooseIdeaAction(i))} /> : null;
     if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} />;
+    if (kind === "market") return <MarketInChat plan={plan} />;
     return null;
   };
   // No live card in the chat yet (an older chat, or a final check stopped
@@ -210,47 +208,54 @@ export default function PlanView({
       <StatusChip>{t.approvedShort(doneCount, APPROVAL_BLOCKS.length)}</StatusChip>
     ) : null;
 
-  // This project's map, as the last card of its own conversation.
+  // Everything stays in the chat: while it gets to know you, your file; once
+  // approved, the final card with the whole strategy (each part opens in place).
   const es = lang === "es";
   const savedFacts = Object.keys(PROFILE_LABELS[lang]).filter((k) => {
     const v = plan.profile[k as keyof Profile];
     return v !== null && v !== "" && v !== undefined;
   }).length;
-  const hasDock = savedFacts > 0 || plan.stage !== "interview" || plan.ideas.length > 0;
-  const dock = hasDock ? (
-    <ProjectDock
-      eyebrow={es ? "Mapa de tu proyecto" : "Your project map"}
-      title={plan.service || (plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea]?.title : "") || business.name}
-      status={<StatusChip tone={plan.stage === "approved" ? "done" : inPipeline && !pipeErr ? "live" : undefined}>{stages[current]}</StatusChip>}
-      link={{ label: es ? "Ver mapa completo ↓" : "See the full map ↓", href: "#plan-result" }}
-    >
-      {isStrategy ? (
-        <div className="flex flex-col gap-2.5">
-          <span className="text-[13px] text-[#a1a1a1]">{t.approvedShort(doneCount, APPROVAL_BLOCKS.length)}</span>
-          <div className="flex flex-wrap gap-2">
-            {APPROVAL_BLOCKS.map((b) => (
-              <span
-                key={b}
-                className="inline-flex items-center gap-1.5 text-[12.5px] px-3 py-1.5 rounded-full"
-                style={plan.approvals[b] ? { background: "rgba(46,122,85,0.22)", color: GREEN } : { background: "rgba(255,255,255,0.04)", color: "#a1a1a1", boxShadow: `inset 0 0 0 1px ${HAIR}` }}
-              >
-                {plan.approvals[b] ? <Check size={11} /> : <span className="h-1.5 w-1.5 rounded-full" style={{ background: b === reviewing ? "#fff" : "#5b5b5b" }} />}
-                {t.blocks[b]}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : plan.stage === "choose" ? (
-        <span className="text-[13px] text-[#a1a1a1]">{es ? `${plan.ideas.length} ideas para escoger, aquí arriba.` : `${plan.ideas.length} ideas to pick from, above.`}</span>
-      ) : inPipeline ? (
-        <span className="text-[13px] text-[#a1a1a1]">{plan.stage === "ideas_research" ? (plan.mode === "agent" ? t.lockedIdeasC : t.lockedIdeas) : t.locked}</span>
-      ) : (
-        <span className="text-[13px] text-[#a1a1a1]">
-          {es ? `${savedFacts} ${savedFacts === 1 ? "dato guardado" : "datos guardados"} en tu expediente.` : `${savedFacts} ${savedFacts === 1 ? "fact" : "facts"} saved in your file.`}
-        </span>
+  const dock =
+    plan.stage === "approved" ? (
+      <ProjectDock eyebrow={es ? "Tu estrategia" : "Your strategy"} title={plan.service || business.name} status={<StatusChip tone="done">{t.approved}</StatusChip>}>
+        <StepList items={strategyNodes({ plan, t, onChange: change })} />
+      </ProjectDock>
+    ) : (plan.stage === "interview" || plan.stage === "ready_check") && savedFacts > 0 ? (
+      <ProjectDock
+        eyebrow={t.expediente}
+        title={(plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea]?.title : "") || plan.profile.mainService || business.name}
+        status={<StatusChip>{es ? `${savedFacts} ${savedFacts === 1 ? "dato" : "datos"}` : `${savedFacts} ${savedFacts === 1 ? "fact" : "facts"}`}</StatusChip>}
+      >
+        <StepList numbered={false} items={[{ id: "file", label: es ? "Lo que ya sé de ti" : "What I know so far", title: es ? "Toca para verlo" : "Tap to see it", detail: <ProfileCard plan={plan} bare /> }]} />
+      </ProjectDock>
+    ) : undefined;
+  // Notices and errors also show inside the chat, after the last message.
+  const alerts = (
+    <>
+      {notice && (
+        <p className="text-[13.5px] leading-relaxed rounded-xl px-4 py-3" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)", color: "#f3e3b5" }}>
+          {notice}
+        </p>
       )}
-    </ProjectDock>
-  ) : undefined;
+      {pipeErr && (
+        <div className="rounded-2xl p-4 md:p-5 flex items-center justify-between gap-4 flex-wrap" style={CARD}>
+          <span className="text-[14px] leading-relaxed min-w-0" style={{ color: pipeErr === "limit" ? AMBER : RED }}>
+            {pipeErr === "limit" ? t.limit : t.failed}
+          </span>
+          {pipeErr === "limit" && (
+            <button type="button" onClick={() => onNavigate("plans")} className="h-10 px-5 rounded-full text-[14px] font-semibold shrink-0" style={BRAND_BTN}>
+              {t.seePlans}
+            </button>
+          )}
+          {pipeErr === "failed" && (
+            <button type="button" onClick={() => setRetryKey((k) => k + 1)} className="h-10 px-5 rounded-full text-[14px] font-semibold shrink-0" style={BRAND_BTN}>
+              {t.retry}
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="overflow-x-clip" style={{ background: "#000" }}>
@@ -276,7 +281,8 @@ export default function PlanView({
             ...t.chat,
             emptyTitle: isB ? t.chat.emptyTitleB : plan.mode === "agent" ? t.chat.emptyTitleC : t.chat.emptyTitleA,
             emptySub: isB ? t.chat.emptySubB : plan.mode === "agent" ? t.chat.emptySubC : t.chat.emptySubA,
-            seeBelowHref: "#plan-result",
+            seeBelow: "",
+            seeBelowHref: "",
           }}
           locked={
             inPipeline && !pipeErr ? (
@@ -289,8 +295,13 @@ export default function PlanView({
           sync={sync}
           prefill={prefill}
           renderToken={renderToken}
-          tail={tail}
-          tailKey={tailKey}
+          tail={
+            <>
+              {alerts}
+              {tail}
+            </>
+          }
+          tailKey={`${tailKey}:${notice}:${pipeErr}`}
           dock={dock}
           onSend={async (text) => {
             const res = await sendPlanChatAction(text);
@@ -303,85 +314,6 @@ export default function PlanView({
         />
       </section>
 
-      <BelowChat id="plan-result" label={es ? "Mapa de tu proyecto · se arma con tu chat" : "Your project map · built from your chat"}>
-        <div className={`flex flex-col gap-5 min-w-0 transition-opacity ${busy ? "opacity-70" : ""}`}>
-          {notice && (
-            <p className="text-[13.5px] leading-relaxed rounded-xl px-4 py-3" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)", color: "#f3e3b5" }}>
-              {notice}
-            </p>
-          )}
-
-          {pipeErr && (
-            <div className="rounded-2xl p-4 md:p-5 flex items-center justify-between gap-4 flex-wrap" style={CARD}>
-              <span className="text-[14px] leading-relaxed min-w-0" style={{ color: pipeErr === "limit" ? AMBER : RED }}>
-                {pipeErr === "limit" ? t.limit : t.failed}
-              </span>
-              {pipeErr === "limit" && (
-                <button type="button" onClick={() => onNavigate("plans")} className="h-10 px-5 rounded-full text-[14px] font-semibold shrink-0" style={BRAND_BTN}>
-                  {t.seePlans}
-                </button>
-              )}
-              {pipeErr === "failed" && (
-                <button type="button" onClick={() => setRetryKey((k) => k + 1)} className="h-10 px-5 rounded-full text-[14px] font-semibold shrink-0" style={BRAND_BTN}>
-                  {t.retry}
-                </button>
-              )}
-            </div>
-          )}
-
-          {(plan.stage === "interview" || plan.stage === "ready_check") && <ProfileCard plan={plan} />}
-
-          {isStrategy && (
-            <div className="flex flex-col gap-5">
-              <SectionHead title={plan.stage === "approved" ? t.approvedTitle : t.proposalTitle} sub={plan.stage === "approved" ? t.mapSubDone : t.mapSub} />
-              {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
-
-              <div className="pt-1 md:pt-3">
-                <MindMap
-                  center={{
-                    eyebrow: t.strategyEyebrow,
-                    title: plan.service || business.name,
-                    subtitle: oneLine(plan.customer || plan.promise) || undefined,
-                    footer: <CenterFooter plan={plan} done={doneCount} t={t} />,
-                  }}
-                  groups={lang === "es"
-                    ? [
-                        { id: "sell", label: "Lo que vendes" },
-                        { id: "how", label: "Cómo lo vendes" },
-                        { id: "market", label: "Tu mercado" },
-                      ]
-                    : [
-                        { id: "sell", label: "What you sell" },
-                        { id: "how", label: "How you sell it" },
-                        { id: "market", label: "Your market" },
-                      ]}
-                  nodes={strategyNodes({ plan, t, onChange: change }).map((n) => ({
-                    ...n,
-                    group: ["service", "packages", "offer"].includes(n.id) ? "sell" : ["zone", "requirements"].includes(n.id) ? "market" : "how",
-                    step: ["service", "pitch", "packages", "offer", "campaign", "faq"].includes(n.id),
-                  }))}
-                  openId={openId}
-                  onOpenChange={setOpenId}
-                  guide={false}
-                />
-              </div>
-
-              {plan.stage === "approved" && (
-                <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                  <button type="button" onClick={() => onNavigate("store")} className="h-11 px-5 rounded-full text-[14.5px] font-semibold" style={BRAND_BTN}>
-                    {t.goStore} →
-                  </button>
-                  <button type="button" onClick={() => onNavigate("marketing")} className="h-11 px-5 rounded-full text-[14.5px] font-medium" style={GHOST_BTN}>
-                    {t.goMarketing} →
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!isStrategy && plan.market.researchedAt && <MarketCard plan={plan} />}
-        </div>
-      </BelowChat>
     </div>
   );
 }
@@ -479,27 +411,6 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
         </div>
       ) : (
         <span className="text-[14px] text-[#a1a1a1]">{t.offerNone}</span>
-      );
-    case "campaign":
-      return (
-        <div className="flex flex-col gap-3 min-w-0">
-          <p className="text-[15px] font-medium text-white leading-relaxed">{plan.campaignType}</p>
-          {plan.channels.length > 0 && (
-            <ol className="flex flex-col gap-2.5">
-              {plan.channels.map((c, i) => (
-                <li key={i} className="flex gap-3 text-[13.5px] leading-relaxed">
-                  <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-px" style={{ background: "rgba(255,255,255,0.06)", color: "#a1a1a1" }}>
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0 text-[#a1a1a1]">
-                    <span className="text-[#ececec] font-medium">{c.channel}</span>
-                    {c.why ? ` — ${c.why}` : ""}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
       );
     case "faq":
       return (
@@ -861,54 +772,7 @@ function strategyNodes({ plan, t, onChange }: { plan: BusinessPlan; t: T; onChan
   });
   const offerState = plan.offer ? (plan.offer.endsAt ? t.endsOn(plan.offer.endsAt) : plan.offer.forNewClients ? t.forNewClients : t.offerNeedsDate) : undefined;
   nodes.push({ id: "offer", label: t.blocks.offer, title: plan.offer?.label || t.offerNone, summary: offerState, ...status("offer"), detail: detail("offer") });
-  nodes.push({
-    id: "campaign",
-    label: t.blocks.campaign,
-    title: plan.campaignType,
-    summary: plan.channels.map((c) => c.channel).join(" · ") || undefined,
-    ...status("campaign"),
-    detail: detail("campaign"),
-  });
   nodes.push({ id: "faq", label: t.blocks.faq, title: t.faqCount(plan.faq.length), summary: plan.faq[0]?.q, ...status("faq"), detail: detail("faq") });
-
-  // Video y fotos (not an approval block)
-  if (plan.videoScript || plan.photoIdeas.length > 0) {
-    nodes.push({
-      id: "media",
-      label: t.mediaLabel,
-      title: plan.videoScript ? t.mediaScriptReady : t.photoCount(plan.photoIdeas.length),
-      summary: plan.videoScript && plan.photoIdeas.length ? t.photoCount(plan.photoIdeas.length) : undefined,
-      tone: "idle",
-      detail: (
-        <div className="flex flex-col gap-4 min-w-0">
-          <p className="text-[13.5px] text-[#a1a1a1] leading-relaxed">{t.mediaSub}</p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {plan.videoScript && (
-              <div className="flex flex-col gap-2 min-w-0">
-                <Label>{t.videoScript}</Label>
-                <p className="text-[14px] text-white leading-relaxed whitespace-pre-line rounded-xl p-4 break-words" style={INSET}>
-                  {plan.videoScript}
-                </p>
-              </div>
-            )}
-            {plan.photoIdeas.length > 0 && (
-              <div className="flex flex-col gap-2 min-w-0">
-                <Label>{t.photoIdeas}</Label>
-                <ul className="flex flex-col gap-2">
-                  {plan.photoIdeas.map((p, i) => (
-                    <li key={i} className="text-[14px] text-[#ececec] leading-relaxed flex gap-2.5">
-                      <Check />
-                      <span className="min-w-0">{p}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      ),
-    });
-  }
 
   // Tu zona (market research)
   const m = plan.market;
@@ -1138,7 +1002,7 @@ const VALUE: Record<"es" | "en", Record<string, string>> = {
   en: { has: "Has it", no: "No", not_needed: "Not needed", yes: "Yes", es: "Spanish", en: "English", both: "Spanish and English", extra: "Extra income", fulltime: "Full time" },
 };
 
-function ProfileCard({ plan }: { plan: BusinessPlan }) {
+function ProfileCard({ plan, bare = false }: { plan: BusinessPlan; bare?: boolean }) {
   const lang = useLang();
   const t = PLAN_TEXT[lang];
   const p = plan.profile;
@@ -1154,8 +1018,8 @@ function ProfileCard({ plan }: { plan: BusinessPlan }) {
   const idea = plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
   if (rows.length === 0 && !idea) return null;
   return (
-    <div className="rounded-2xl p-5 md:p-6 flex flex-col gap-3" style={CARD}>
-      <Label>{t.expediente}</Label>
+    <div className={bare ? "flex flex-col gap-3" : "rounded-2xl p-5 md:p-6 flex flex-col gap-3"} style={bare ? undefined : CARD}>
+      {!bare && <Label>{t.expediente}</Label>}
       {idea && <div className="text-[18px] font-semibold text-white">{idea.title}</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5">
         {rows.map(([k, v]) => (
@@ -1172,6 +1036,45 @@ function ProfileCard({ plan }: { plan: BusinessPlan }) {
 // ---------- market research ----------
 
 // Standalone card, used outside the strategy map (e.g. before the proposal).
+// The research, inside the chat right where it finished: a summary line that
+// opens in place, and what to keep in mind before going on.
+function MarketInChat({ plan }: { plan: BusinessPlan }) {
+  const t = PLAN_TEXT[useLang()];
+  const [open, setOpen] = useState(false);
+  const m = plan.market;
+  if (!m.researchedAt) return null;
+  const lo = m.prices?.low || m.prices?.mid || "";
+  const hi = m.prices?.high || m.prices?.mid || "";
+  const range = lo && hi && lo !== hi ? t.priceRange(lo, hi) : lo || hi;
+  const counts = [m.competitors.length ? t.competitorsCount(m.competitors.length) : "", m.gaps.length ? t.gapsCount(m.gaps.length) : ""].filter(Boolean).join(" · ");
+  return (
+    <div className="flex flex-col gap-3 min-w-0">
+      {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
+      <div className="rounded-2xl min-w-0" style={CARD}>
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-3 px-4 md:px-5 py-4 text-left">
+          <Globe />
+          <span className="flex-1 min-w-0 flex flex-col">
+            <span className="text-[14.5px] text-white font-medium">{t.market}</span>
+            <span className="text-[12.5px] text-[#a1a1a1] break-words">{[range ? t.zonePrices(range) : "", counts].filter(Boolean).join(" · ")}</span>
+          </span>
+          <span className="text-[12.5px] text-[#a1a1a1] shrink-0">{open ? t.hide : t.view}</span>
+        </button>
+        {open && (
+          <div className="px-4 md:px-5 pb-5 flex flex-col gap-5 min-w-0">
+            <MarketDetail plan={plan} />
+            {m.requirements.length > 0 && (
+              <div className="flex flex-col gap-3 pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+                <Label>{t.requirements}</Label>
+                <RequirementsList plan={plan} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MarketCard({ plan }: { plan: BusinessPlan }) {
   const t = PLAN_TEXT[useLang()];
   return (

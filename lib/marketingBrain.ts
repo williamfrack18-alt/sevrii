@@ -10,11 +10,13 @@ import {
   setAgentItemStatus,
   setCampaignStatus,
   updateBusinessMarketing,
+  updateBusinessPlan,
   updateCampaignSpec,
   type BusinessRow,
   type CampaignRow,
 } from "./db";
 import { maxDailySpend, normalizeCampaign, parseMarketing } from "./marketing";
+import { parsePlan } from "./plan";
 import { businessFacts, monthlyOf } from "./marketingAgent";
 
 // Marketing tab = one chat, and the chat is the strategist. It already knows
@@ -57,7 +59,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: "save_strategy",
-    description: "Save the marketing strategy (replaces the previous one). The owner sees it as a mind map below the chat.",
+    description: "Save the marketing strategy (replaces the previous one). The owner sees it as a card in this chat, each part opening in place.",
     input_schema: {
       type: "object",
       properties: {
@@ -114,6 +116,17 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    name: "save_media",
+    description: "Save the video script and/or the photo ideas for the owner's ads and page (send only what changes; photoIdeas replaces the list).",
+    input_schema: {
+      type: "object",
+      properties: {
+        videoScript: { type: "string", description: "30-60 second script in first person, to record with a phone; use [tu nombre] for their name" },
+        photoIdeas: { type: "array", items: { type: "string" } },
+      },
+    },
+  },
+  {
     name: "delete_campaign",
     description: "Delete a campaign by id (only if the owner asks, or to replace it with a better one). Live campaigns can't be deleted here.",
     input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
@@ -128,7 +141,8 @@ How to work:
 1) Ask ONLY what is missing and essential, ONE short question at a time, following "toAsk" — usually just the monthly ad budget (in USD, minimum $30), and the goal only if it isn't clear from the facts. Don't ask about Facebook pages or ad accounts: the agent handles that when launching. Save each answer right away with save_profile.
 2) As soon as you have the budget: in the SAME turn save the strategy (save_strategy) and its campaigns (save_campaign). Strategy = summary (2-3 plain sentences), up to 4 funnel stages (awareness = attract, consideration = convince, conversion = convert, retention = keep them coming back), each with a channel and one concrete action, and budgetPlan (how the monthly budget is split, in USD). Small budgets focus on conversion. Start from the Brain plan's promise, customer and recommended campaign type.
 3) Explain it in the chat in 3-5 short lines: who it's for, the message, each campaign with its money per day and per month, and the free posts the agent will prepare. Ask if they agree or want to change something. Change whatever they ask.
-4) When the owner agrees, tell them to tap the button "Aprobar estrategia y ponerla en marcha" ("Approve strategy and put it to work" in English) below the chat. Approving puts the agent to work: it asks their OK before launching each campaign and before any budget increase, prepares free posts for their pages, and checks results every day. On its own it may only pause an ad that spends without bringing chats and write new ad texts — never spend more.
+Marketing is the ONLY place for marketing: the campaign type, the ads, the posts, and the video and photos. The Brain plan only suggests them (recommended campaign type and channels, videoScript, photoIdeas) — use them as a starting point; when the owner wants to change the video script or the photo ideas, save them with save_media. If the facts have Brain plan "notes" (e.g. Meta's special ad category for legal, credit, housing or employment services), tell the owner about them in plain words when you present the strategy.
+4) When the owner agrees, tell them to tap the button "Aprobar estrategia y ponerla en marcha" ("Approve strategy and put it to work" in English) in their strategy card, right here in the chat. Approving puts the agent to work: it asks their OK before launching each campaign and before any budget increase, prepares free posts for their pages, and checks results every day. On its own it may only pause an ad that spends without bringing chats and write new ad texts — never spend more.
 
 State "approved": false → everything is a PROPOSAL. Never say a campaign is running, launched, published, active or spending.
 State "approved": true → the agent is executing the approved strategy. When the owner asks for changes, update the strategy or campaigns; new or changed campaigns wait for the owner again: tell them to tap "Aprobar cambios" ("Approve changes"). Campaigns with status live or paused are on Facebook: you may rewrite their ad texts, but their budget only changes through the agent's proposal that the owner approves (in "Needs your approval"). Don't promise results; the owner sees visits, chats and contacts in the agent panel.
@@ -198,6 +212,13 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     case "save_profile": {
       const m = parseMarketing({ ...b.marketing, profile: { ...b.marketing.profile, ...input } });
       await updateBusinessMarketing(b.id, m);
+      return "saved";
+    }
+    case "save_media": {
+      const patch: Record<string, unknown> = {};
+      if (typeof input.videoScript === "string") patch.videoScript = input.videoScript;
+      if (Array.isArray(input.photoIdeas)) patch.photoIdeas = input.photoIdeas;
+      await updateBusinessPlan(b.id, parsePlan({ ...b.plan, ...patch }));
       return "saved";
     }
     case "save_strategy": {
@@ -347,8 +368,8 @@ export function marketingGreeting(lang: Lang, b: BusinessRow): string {
   const budget = b.marketing.profile.monthlyBudgetUsd;
   if (b.marketing.strategy) {
     return es
-      ? "Aquí está tu estrategia de marketing, abajo en el mapa. Dime qué quieres cambiar o, si te gusta, toca «Aprobar estrategia y ponerla en marcha»."
-      : "Your marketing strategy is below, in the map. Tell me what you'd like to change or, if you like it, tap \"Approve strategy and put it to work\".";
+      ? "Aquí está tu estrategia de marketing, en la tarjeta de este chat. Dime qué quieres cambiar o, si te gusta, toca «Aprobar estrategia y ponerla en marcha»."
+      : "Your marketing strategy is in the card in this chat. Tell me what you'd like to change or, if you like it, tap \"Approve strategy and put it to work\".";
   }
   if (service && budget) {
     return es

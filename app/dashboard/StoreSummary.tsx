@@ -16,7 +16,7 @@ const TEXT = {
     eyebrow: "Tu página",
     draft: "Borrador",
     live: "Publicada",
-    see: "Verla abajo ↓",
+    see: "Ver mi página",
     services: "Servicios",
     more: (n: number) => `y ${n} más`,
     online: { us: "En línea · todo EE. UU.", state: (s: string) => `En línea · solo ${s}`, world: "En línea · EE. UU. y otros países" },
@@ -50,7 +50,7 @@ const TEXT = {
     eyebrow: "Your page",
     draft: "Draft",
     live: "Published",
-    see: "See it below ↓",
+    see: "See my page",
     services: "Services",
     more: (n: number) => `and ${n} more`,
     online: { us: "Online · all of the US", state: (s: string) => `Online · ${s} only`, world: "Online · US and other countries" },
@@ -91,6 +91,7 @@ export default function StoreSummary({
   filling,
   fillError,
   onFill,
+  onOpenPage,
   onUpdated,
   onPayments,
 }: {
@@ -100,6 +101,7 @@ export default function StoreSummary({
   filling: boolean;
   fillError: boolean;
   onFill: () => void;
+  onOpenPage: () => void;
   onUpdated: (b: ClientBusiness) => void;
   onPayments?: () => void;
 }) {
@@ -144,9 +146,9 @@ export default function StoreSummary({
             {business.published ? `${t.live}${category ? ` · ${category}` : ""}` : t.draft}
           </span>
         </div>
-        <a href="#store-page" className="text-[12.5px] text-[#a1a1a1] hover:text-white shrink-0">
+        <button type="button" onClick={onOpenPage} className="h-8 px-3.5 rounded-full text-[12.5px] font-semibold shrink-0" style={BRAND_BTN}>
           {t.see}
-        </a>
+        </button>
       </div>
 
       <div className="min-w-0 flex flex-col gap-1">
