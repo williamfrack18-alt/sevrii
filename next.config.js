@@ -22,8 +22,8 @@ const nextConfig = {
       { source: "/", destination: "/index.html" },
       { source: "/en", destination: "/en/index.html" },
       // Static marketing pages in public/ (don't rely only on Vercel's cleanUrls).
-      { source: "/:page(ofrecerservicios|terminos|privacidad|matheus-credito|sevriirobotics|afiliados|agentes)", destination: "/:page.html" },
-      { source: "/en/:page(ofrecerservicios|terminos|privacidad|matheus-credito|sevriirobotics|afiliados|agentes)", destination: "/en/:page.html" },
+      { source: "/:page(ofrecerservicios|terminos|privacidad|matheus-credito|sevriirobotics|afiliados|agentes|agentes-de-servicios)", destination: "/:page.html" },
+      { source: "/en/:page(ofrecerservicios|terminos|privacidad|matheus-credito|sevriirobotics|afiliados|agentes|agentes-de-servicios)", destination: "/en/:page.html" },
     ];
   },
 };

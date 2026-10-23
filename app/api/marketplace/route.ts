@@ -87,7 +87,10 @@ export async function GET(req: Request) {
     const { visitor, all, notFound } = visitorFrom(req);
     // A typed place we don't know: say so and let the page keep what it shows.
     if (notFound) return Response.json({ notFound: true }, { headers: { "Cache-Control": "private, max-age=60" } });
-    const listings = await marketplaceListings(visitor, lang);
+    // Two marketplaces: services done by people (sevrii.com) and AI agents
+    // (/agentes-de-servicios). Without "kind", both (older pages).
+    const kind = new URL(req.url).searchParams.get("kind");
+    const listings = (await marketplaceListings(visitor, lang)).filter((l) => (kind === "agents" ? l.agent : kind === "services" ? !l.agent : true));
     return Response.json(
       {
         listings,
