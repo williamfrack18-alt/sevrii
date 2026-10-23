@@ -54,7 +54,12 @@ const POSTS_REFILL = 6;
 const dayStr = (d: Date) => d.toISOString().slice(0, 10); // UTC
 const today = () => dayStr(new Date());
 const inDays = (n: number) => dayStr(new Date(Date.now() + n * DAY));
+// The page's language = the customers' language: ads and posts are written in it.
 const langOf = (b: BusinessRow): Lang => (b.site.lang === "en" ? "en" : "es");
+// What the owner reads (proposals, notes, errors) is in the owner's own
+// language, saved on their account — never the page's.
+const ownerLangOf = (owner: { lang?: string | null } | null | undefined, b: BusinessRow): Lang =>
+  owner?.lang === "es" || owner?.lang === "en" ? owner.lang : langOf(b);
 const floorCents = (n: number) => Math.floor(n * 100) / 100;
 const quote = (s: string, lang: Lang) => (lang === "es" ? `«${s}»` : `“${s}”`);
 
@@ -260,8 +265,7 @@ function cleanPosts(b: BusinessRow, raw: unknown, max: number): { channel: Agent
 }
 
 // ---------- putting the approved strategy to work ----------
-function launchTexts(b: BusinessRow, title: string, spec: CampaignSpec, audience: string, why: string) {
-  const lang = langOf(b);
+function launchTexts(b: BusinessRow, lang: Lang, title: string, spec: CampaignSpec, audience: string, why: string) {
   const d = spec.dailyBudgetUsd;
   const es = lang === "es";
   const special =
@@ -328,7 +332,7 @@ export async function executeStrategy(business: BusinessRow, lang: Lang, opts: {
     for (const c of toPropose) {
       const spec = c.spec!;
       await setCampaignStatus(b.id, c.id, "proposed");
-      const t = launchTexts(b, c.title, spec, b.marketing.profile.idealCustomer || b.plan.customer || "", c.goal || "");
+      const t = launchTexts(b, lang, c.title, spec, b.marketing.profile.idealCustomer || b.plan.customer || "", c.goal || "");
       await addAgentItem({
         businessId: b.id,
         kind: "launch",
@@ -394,9 +398,9 @@ export function metaFriendly(err: unknown, lang: Lang): string {
 export async function launchOnMeta(
   b: BusinessRow,
   c: CampaignRow,
-  conn: MetaConnectionRow
+  conn: MetaConnectionRow,
+  lang: Lang
 ): Promise<{ ok: true; meta: CampaignMeta } | { ok: false; error: string }> {
-  const lang = langOf(b);
   if (!c.spec || c.spec.platform !== "meta") return { ok: false, error: lang === "es" ? "Esta campaña no es para Facebook o Instagram." : "This campaign isn't for Facebook or Instagram." };
   // Same lock as the manual launch button, so both can't create it twice.
   if (!(await allow(`meta:launch:${b.id}:${c.id}`, 1, 120))) return { ok: false, error: lang === "es" ? "Ya se está publicando. Espera un momento." : "It's already being published. Wait a moment." };
@@ -418,8 +422,7 @@ export async function launchOnMeta(
   }
 }
 
-export function launchedText(b: BusinessRow, c: CampaignRow): { title: string; detail: string } {
-  const lang = langOf(b);
+export function launchedText(c: CampaignRow, lang: Lang): { title: string; detail: string } {
   const d = c.spec?.dailyBudgetUsd ?? 0;
   const days = c.spec?.durationDays ?? MONTH_DAYS;
   return lang === "es"
@@ -433,8 +436,7 @@ export function launchedText(b: BusinessRow, c: CampaignRow): { title: string; d
       };
 }
 
-export function readyToPublishText(b: BusinessRow, c: CampaignRow): { title: string; detail: string } {
-  const lang = langOf(b);
+export function readyToPublishText(c: CampaignRow, lang: Lang): { title: string; detail: string } {
   if (c.spec?.platform === "google")
     return lang === "es"
       ? { title: `Lista para Google: ${quote(c.title, lang)}`, detail: "Cópiala a Google Ads siguiendo los pasos de la campaña en Marketing. Usa su link para que Sevrii cuente lo que trae." }
@@ -498,7 +500,7 @@ export async function runDaily(businessId: string): Promise<string> {
   if (!limits.autoMarketing) return "agent not in plan (Pro)";
 
   return runForUser(b.userId, async () => {
-    const lang = langOf(b);
+    const lang = ownerLangOf(owner, b);
     const es = lang === "es";
     const done: string[] = [];
     const conn = usableConnection(await getMetaConnection(b.id));
@@ -517,9 +519,9 @@ export async function runDaily(businessId: string): Promise<string> {
 
         // Approved while Facebook wasn't connected: publish it now that it is.
         if (c.status === "approved" && !isLiveOnMeta(c) && conn && b.published && limits.canPublish && spec.platform === "meta") {
-          const r = await launchOnMeta(b, c, conn);
+          const r = await launchOnMeta(b, c, conn, lang);
           if (r.ok) {
-            await log({ kind: "launch", status: "auto", campaignId: c.id, ...launchedText(b, c) });
+            await log({ kind: "launch", status: "auto", campaignId: c.id, ...launchedText(c, lang) });
             done.push("launched");
           } else if (!recentItem(items, "launch", c.id, 3, ["error"])) {
             await log({ kind: "launch", status: "error", campaignId: c.id, title: es ? `No pude publicar ${quote(c.title, lang)}` : `I couldn't publish ${quote(c.title, lang)}`, detail: r.error });

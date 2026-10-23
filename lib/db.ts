@@ -484,6 +484,9 @@ async function migrate(): Promise<void> {
         )
       `;
       await sql`CREATE INDEX IF NOT EXISTS agent_reviews_biz_idx ON agent_reviews ("businessId", "createdAt")`;
+      // The owner's language: the whole dashboard, the chats and what the
+      // marketing agent writes them follow it (not the landing they browsed).
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS lang TEXT`;
     }
   }
 }
@@ -501,6 +504,30 @@ export async function getSessionUserId(tokenHash: string): Promise<string | null
     SELECT "userId" FROM sessions WHERE "tokenHash" = ${tokenHash} AND "expiresAt" > now()
   `) as { userId: string }[];
   return rows[0]?.userId ?? null;
+}
+
+// The signed-in owner's saved language, straight from the session (one query).
+export async function getSessionLang(tokenHash: string): Promise<string | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT u.lang FROM sessions s JOIN users u ON u.id = s."userId"
+    WHERE s."tokenHash" = ${tokenHash} AND s."expiresAt" > now()
+  `) as { lang: string | null }[];
+  return rows[0]?.lang ?? null;
+}
+
+export async function setUserLang(userId: string, lang: "es" | "en"): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE users SET lang = ${lang} WHERE id = ${userId} AND lang IS DISTINCT FROM ${lang}`;
+}
+
+// What the owner reads in Spanish or English (for messages written when
+// they're not on the dashboard, like the marketing agent's daily check).
+export async function getOwnerLang(userId: string, fallback: "es" | "en"): Promise<"es" | "en"> {
+  await ensureSchema();
+  const rows = (await sql`SELECT lang FROM users WHERE id = ${userId}`) as { lang: string | null }[];
+  const l = rows[0]?.lang;
+  return l === "es" || l === "en" ? l : fallback;
 }
 
 export async function deleteSessionRow(tokenHash: string): Promise<void> {
@@ -566,6 +593,7 @@ export type UserRow = {
   affCode?: string | null;
   affAccountId?: string | null;
   affPayStatus?: string;
+  lang?: string | null;
 };
 
 export async function createUser(

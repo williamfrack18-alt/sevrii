@@ -149,7 +149,7 @@ export async function approveStrategyAction(): Promise<AgentResult> {
 export async function setAgentBudgetAction(monthlyBudgetUsd: number): Promise<AgentResult> {
   const ctx = await context();
   if (!ctx.ok) return ctx;
-  const { t, user, business } = ctx;
+  const { t, lang, user, business } = ctx;
   if (!validBudget(monthlyBudgetUsd)) return { ok: false, error: t.budget };
   const budget = Math.round(monthlyBudgetUsd * 100) / 100;
   const m = parseMarketing({ ...business.marketing, profile: { ...business.marketing.profile, monthlyBudgetUsd: budget } });
@@ -159,7 +159,7 @@ export async function setAgentBudgetAction(monthlyBudgetUsd: number): Promise<Ag
   const campaigns = await listCampaigns(business.id);
   const total = plannedMonthly(campaigns);
   if (total > budget) {
-    const es = business.site.lang !== "en";
+    const es = lang === "es";
     const list = plannedCampaigns(campaigns)
       .map((c) => (es ? `«${c.title}» (${money(monthlyOf(c))} al mes)` : `“${c.title}” (${money(monthlyOf(c))} a month)`))
       .join(", ");
@@ -179,12 +179,12 @@ export async function setAgentBudgetAction(monthlyBudgetUsd: number): Promise<Ag
 export async function approveAgentItemAction(id: string): Promise<AgentResult> {
   const ctx = await context();
   if (!ctx.ok) return ctx;
-  const { t, user, business } = ctx;
+  const { t, lang, user, business } = ctx;
   if (!validId(id)) return { ok: false, error: t.notFound };
   const item = await getAgentItem(business.id, id);
   if (!item) return { ok: false, error: t.notFound };
   if (item.status !== "pending") return { ok: false, error: t.already };
-  const es = business.site.lang !== "en";
+  const es = lang === "es";
   const campaigns = await listCampaigns(business.id);
   const campaign = item.campaignId ? campaigns.find((c) => c.id === item.campaignId) : undefined;
   const conn = usableConnection(await getMetaConnection(business.id));
@@ -195,7 +195,7 @@ export async function approveAgentItemAction(id: string): Promise<AgentResult> {
     if (campaign.spec.platform !== "meta") {
       if (!(await resolveAgentItem(business.id, item.id, "done"))) return { ok: false, error: t.already };
       await setCampaignStatus(business.id, campaign.id, "approved");
-      const r = readyToPublishText(business, campaign);
+      const r = readyToPublishText(campaign, lang);
       await addAgentItem({ businessId: business.id, kind: "info", status: "auto", campaignId: campaign.id, title: r.title, detail: r.detail });
       return result(user, business.id);
     }
@@ -213,9 +213,9 @@ export async function approveAgentItemAction(id: string): Promise<AgentResult> {
     }
 
     if (conn) {
-      const r = await runForUser(user.id, () => launchOnMeta(business, c, conn));
+      const r = await runForUser(user.id, () => launchOnMeta(business, c, conn, lang));
       if (r.ok) {
-        const d = launchedText(business, c);
+        const d = launchedText(c, lang);
         await setAgentItemStatus(business.id, item.id, "done", `${d.title}. ${d.detail}`);
       } else {
         // Stays approved: the daily check publishes it once the problem is fixed.
@@ -225,7 +225,7 @@ export async function approveAgentItemAction(id: string): Promise<AgentResult> {
     } else {
       await setCampaignStatus(business.id, c.id, "approved");
       await setAgentItemStatus(business.id, item.id, "done");
-      const r = readyToPublishText(business, c);
+      const r = readyToPublishText(c, lang);
       await addAgentItem({ businessId: business.id, kind: "info", status: "auto", campaignId: c.id, title: r.title, detail: r.detail });
     }
     return result(user, business.id);

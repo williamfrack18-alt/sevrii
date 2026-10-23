@@ -95,7 +95,7 @@ export async function notifyPaymentReceived(business: BusinessRow, sessionId: st
     claimed = true;
     const owner = await getUserById(business.userId);
     if (!owner?.email) return true;
-    const t = TEXT[business.site.lang === "en" ? "en" : "es"];
+    const t = TEXT[owner.lang === "en" || owner.lang === "es" ? owner.lang : business.site.lang === "en" ? "en" : "es"];
     const amt = money(paid.amountCents);
     const who = paid.name || paid.email || t.someone;
     const client = [paid.name, paid.email].filter(Boolean).join(" · ");
@@ -151,7 +151,8 @@ export async function notifyChatOwner(business: BusinessRow, conv: ConversationR
   try {
     const owner = await getUserById(business.userId);
     if (!owner?.email) return;
-    const es = business.site.lang !== "en";
+    // The owner reads it: their language, not the page's.
+    const es = owner.lang === "es" || owner.lang === "en" ? owner.lang === "es" : business.site.lang !== "en";
     const who = conv.name ? defang(conv.name) : es ? "Un cliente" : "A customer";
     const items = [
       ...(conv.name ? [`${es ? "Nombre" : "Name"}: ${defang(conv.name)}`] : []),

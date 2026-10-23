@@ -4,6 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { after } from "next/server";
 import {
   addConvMessage,
+  getOwnerLang,
   addAiMessageIfStillAi,
   claimAiReply,
   setHandoffOnce,
@@ -53,6 +54,7 @@ import { runVisitorAi } from "@/lib/visitorChat";
 import { defang, emailVisitorReply, notifyChatOwner } from "@/lib/notify";
 import { pushPublicKey, pushToUser, pushToUserDetailed, type PushResult } from "@/lib/push";
 import { cleanCampaignId } from "@/lib/campaignLink";
+import { getLang } from "@/lib/lang";
 
 const MAX_CHARS = 600;
 // A service agent works with longer messages (a question with its details, a text to check).
@@ -191,7 +193,8 @@ async function notifyOwner(b: BusinessRow, conv: ConversationRow, why: Why, deta
     (await allow(`mail:biz:${b.id}`, 15, 60 * 60));
   if (!push && !mail) return;
   if (mail) await updateConversation(conv.id, { notified: true });
-  const es = b.site.lang !== "en";
+  // The owner reads it: their language, not the page's.
+  const es = (await getOwnerLang(b.userId, b.site.lang === "en" ? "en" : "es")) === "es";
   const who = conv.name ? defang(conv.name).slice(0, 40) : es ? "Un cliente" : "A customer";
   const title =
     why === "handoff"
@@ -507,7 +510,7 @@ export async function testPushDetailedAction(): Promise<PushResult[]> {
   const user = await getCurrentUser();
   if (!user?.business) return [];
   if (!(await allow(`pushtest:${user.id}`, 6, 10 * 60))) return [];
-  const es = user.business.site.lang !== "en";
+  const es = (await getLang()) === "es";
   return pushToUserDetailed(user.id, {
     title: es ? "✅ Notificaciones activadas" : "✅ Notifications are on",
     body: es ? `Así te avisaremos cuando alguien escriba en ${user.business.name}.` : `This is how we'll tell you when someone writes to ${user.business.name}.`,
@@ -576,8 +579,9 @@ export async function agentClaimAction(input: { slug: string; token: string; ses
       const owner = b.userId;
       const money = `$${(paid.amountCents / 100).toFixed(paid.amountCents % 100 ? 2 : 0)}`;
       after(async () => {
+        const ownerEs = (await getOwnerLang(owner, es ? "es" : "en")) === "es";
         await pushToUser(owner, {
-          title: es ? `Venta de tu agente: ${money}` : `Your agent made a sale: ${money}`,
+          title: ownerEs ? `Venta de tu agente: ${money}` : `Your agent made a sale: ${money}`,
           body: `${saved.title}${paid.email ? ` · ${paid.email}` : ""}`.slice(0, 180),
           url: `/dashboard?view=chats&c=${conv.id}`,
           tag: `agent-sale-${saved.id}`,

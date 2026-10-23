@@ -161,6 +161,14 @@ Campaign rules:
 
 Style: warm, plain, short sentences a neighbor would understand. Under 90 words (up to 140 when you present the strategy). No markdown headings, tables, bold or emojis.`;
 
+// One language for the owner, everywhere: what they read in this chat and
+// in the panel is never a mix. Only the ads and posts (what customers see) go
+// in the customers' language.
+function ownerLanguageRule(lang: Lang): string {
+  const name = lang === "es" ? "Spanish (neutral, 'tú')" : "English";
+  return `Language: the owner reads Sevrii in ${name}. Write in ${name} your replies AND every field the owner reads: the strategy (summary, stage actions, budgetPlan), the profile (goal, mainService, idealCustomer, area), each campaign's title, goal and audience, and the video script and photo ideas — even when the facts, the Brain plan or the owner's message are in another language (translate them). Only what customers see goes in the customers' language: the ad texts (primary text, headline, description) and the posts.`;
+}
+
 export type MarketingChatResult = { reply: string; business: BusinessRow; campaigns: CampaignRow[] };
 
 // Only what really has to be asked; everything else comes from the facts.
@@ -306,7 +314,7 @@ export async function runMarketingChatTurn(opts: {
     };
   }
 
-  const system = `${SYSTEM}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`;
+  const system = `${SYSTEM}\n\n${ownerLanguageRule(opts.lang)}`;
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
     { role: "user", content: `State (JSON):\n${JSON.stringify(await state(business, campaigns))}\n\nOwner: ${opts.message}` },

@@ -5,7 +5,7 @@ import { storeGreeting } from "@/lib/storeAgent";
 import { marketingGreeting } from "@/lib/marketingBrain";
 import { planGreeting } from "@/lib/planBrain";
 import { getCurrentUser } from "@/lib/session";
-import { listServices, listCampaigns, listChatMessages, listProjects } from "@/lib/db";
+import { listServices, listCampaigns, listChatMessages, listProjects, setUserLang } from "@/lib/db";
 import { clientPlan, syncCheckoutSession } from "@/lib/billing";
 import DashboardTabs from "./DashboardTabs";
 import { DASHBOARD_VIEWS, toClientBusiness, type DashboardView } from "./types";
@@ -41,6 +41,8 @@ export default async function DashboardPage({
   const marketingMessages = await listChatMessages(business.id, "brain");
   const editorMessages = await listChatMessages(business.id, "store");
   const lang = await getLang();
+  // Owners from before languages were saved: keep the one they're reading in.
+  if (user.lang !== "es" && user.lang !== "en") await setUserLang(user.id, lang).catch(() => {});
   const plan = await clientPlan(user);
   const storeGreetingText = storeGreeting(lang, business, services.length);
 

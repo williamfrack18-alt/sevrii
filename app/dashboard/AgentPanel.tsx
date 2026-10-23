@@ -292,7 +292,13 @@ function Dashboard({
       <div id="mk-posts" className="flex flex-col gap-3 scroll-mt-4">
         <div className="flex flex-col gap-1">
           <SectionTitle title={t.posts} />
-          {posts.length > 0 && <span className="text-[12.5px] text-[#8e8e8e]">{t.postsSub}</span>}
+          {posts.length > 0 && (
+            <span className="text-[12.5px] text-[#8e8e8e]">
+              {t.postsSub}
+              {/* Posts are in the customers' language: say so when it isn't the panel's. */}
+              {business.site.lang !== lang && (lang === "es" ? " Están en inglés, para tus clientes." : " They're in Spanish, for your customers.")}
+            </span>
+          )}
         </div>
         {posts.length === 0 ? (
           <p className="text-[13.5px] text-[#8e8e8e]">{t.noPosts}</p>

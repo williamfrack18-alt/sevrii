@@ -706,7 +706,11 @@ function CampaignDetail({
       {/* Ads: a swipeable row on phones, a grid on desktop */}
       {spec.platform === "meta" && spec.ads.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="text-[12px] text-[#8e8e8e]">{t.map.adTexts}</span>
+          <span className="text-[12px] text-[#8e8e8e]">
+            {t.map.adTexts}
+            {/* The ads are in the customers' language: say so when it isn't the panel's. */}
+            {spec.language !== lang && (lang === "es" ? (spec.language === "en" ? " · en inglés, para tus clientes" : "") : spec.language === "es" ? " · in Spanish, for your customers" : "")}
+          </span>
           <div className="-mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-px-4 no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible">
             {spec.ads.map((ad, i) => (
               <div key={i} className="w-[85%] shrink-0 snap-start md:w-auto flex flex-col gap-2">
