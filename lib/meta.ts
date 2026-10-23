@@ -6,7 +6,8 @@ import { isOurBlob } from "./site";
 
 // Meta (Facebook / Instagram) ads, through the Graph API directly (no SDK).
 // OFF until the founder creates a Meta app and sets, in Vercel:
-//   META_APP_ID, META_APP_SECRET, optional META_GRAPH_VERSION (default v23.0)
+//   META_APP_ID, META_APP_SECRET, META_CONFIG_ID (Facebook Login for Business),
+//   optional META_GRAPH_VERSION (default v23.0) and SEVRII_TOKEN_KEY
 // Rules: tokens are stored only encrypted and never logged; everything is
 // created PAUSED and only turned on when the owner taps "Activar" (or approves
 // the marketing agent's launch, which is the same OK to spend).
@@ -144,12 +145,15 @@ export function sameState(a: string, b: string): boolean {
 }
 
 export function metaDialogUrl(state: string): string {
+  // Apps made with the "Create & manage ads" use case log in with Facebook Login
+  // for Business: its configuration (META_CONFIG_ID) lists the permissions.
+  const configId = (process.env.META_CONFIG_ID || "").trim();
   const p = new URLSearchParams({
     client_id: process.env.META_APP_ID || "",
     redirect_uri: metaRedirectUri(),
     state,
-    scope: META_SCOPES,
     response_type: "code",
+    ...(configId ? { config_id: configId, override_default_response_type: "true" } : { scope: META_SCOPES }),
   });
   return `https://www.facebook.com/${graphVersion()}/dialog/oauth?${p}`;
 }
