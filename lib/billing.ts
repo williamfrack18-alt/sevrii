@@ -16,20 +16,27 @@ import { PLANS, type ClientPlan, type PlanId, type PlanLimits } from "./plans";
 //   STRIPE_PRICE_STARTER_MONTHLY, STRIPE_PRICE_STARTER_YEARLY (optional)
 // SEVRII_ADMIN_EMAILS (comma separated) get every feature, for testing.
 
-// SEVRII_TESTER_EMAILS (comma separated): temporary testers, same full access.
-// Remove an address from it to end that access.
-const ADMIN_EMAILS = [process.env.SEVRII_ADMIN_EMAILS, process.env.SEVRII_TESTER_EMAILS]
-  .join(",")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
+const emailList = (v: string | undefined) =>
+  (v || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+const ADMIN_EMAILS = emailList(process.env.SEVRII_ADMIN_EMAILS);
+// SEVRII_TESTER_EMAILS (comma separated): temporary test accounts with the same
+// full access. Being on the list IS the authorization: no email check, so test
+// accounts without a real inbox work with their email and password. Only list
+// accounts that already exist (an address nobody has registered could be
+// claimed by whoever signs up with it first). Remove it + redeploy to end it.
+const TESTER_EMAILS = emailList(process.env.SEVRII_TESTER_EMAILS);
 
 type Who = Pick<UserRow, "email"> & { googleSub?: string | null; emailVerifiedAt?: string | null };
 
-// Only once the email is proven theirs (Google or a reset link): anyone can
-// sign up typing an admin's address before the admin does.
+// Admins only once the email is proven theirs (Google or a reset link): anyone
+// can sign up typing an admin's address before the admin does. Testers: the list.
 export function isAdmin(user: Who): boolean {
-  return Boolean(user.googleSub || user.emailVerifiedAt) && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const email = user.email.toLowerCase();
+  if (TESTER_EMAILS.includes(email)) return true;
+  return Boolean(user.googleSub || user.emailVerifiedAt) && ADMIN_EMAILS.includes(email);
 }
 
 export function billingReady(): boolean {
