@@ -132,7 +132,9 @@ function Dashboard({
   const photos = [business.site.coverUrl, ...business.site.gallery].filter(Boolean);
   const posts = [...state.posts].sort((a, b) => a.day.localeCompare(b.day));
   const activity = state.activity.slice(0, 10);
-  const launchWithoutMeta = !state.metaConnected && state.pending.some((i) => i.kind === "launch");
+  // Facebook isn't connected yet: the button stays here (also after approving a
+  // campaign without it), so the owner can always connect and let it publish.
+  const launchWithoutMeta = !state.metaConnected && (state.started || state.pending.some((i) => i.kind === "launch"));
   const headerError = error && (error.key === "budget" || error.key === "run") ? error.msg : null;
 
   return (

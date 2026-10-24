@@ -16,7 +16,10 @@ import { PLANS, type ClientPlan, type PlanId, type PlanLimits } from "./plans";
 //   STRIPE_PRICE_STARTER_MONTHLY, STRIPE_PRICE_STARTER_YEARLY (optional)
 // SEVRII_ADMIN_EMAILS (comma separated) get every feature, for testing.
 
-const ADMIN_EMAILS = (process.env.SEVRII_ADMIN_EMAILS || "")
+// SEVRII_TESTER_EMAILS (comma separated): temporary testers, same full access.
+// Remove an address from it to end that access.
+const ADMIN_EMAILS = [process.env.SEVRII_ADMIN_EMAILS, process.env.SEVRII_TESTER_EMAILS]
+  .join(",")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);

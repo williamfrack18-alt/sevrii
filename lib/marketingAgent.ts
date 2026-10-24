@@ -284,8 +284,8 @@ function launchTexts(b: BusinessRow, lang: Lang, title: string, spec: CampaignSp
   return {
     title: es ? `Lanzar ${quote(title, lang)} — ${money(d)} al día por ${spec.durationDays} días` : `Launch ${quote(title, lang)} — ${money(d)} a day for ${spec.durationDays} days`,
     detail: es
-      ? `Para quién: ${audience || "clientes de tu zona"}. Dónde: ${where(b, spec, lang)}. Cuánto: ${money(d)} al día, unos ${money(d * spec.durationDays)} en total${peakEs}. Por qué: ${why || "trae gente a tu página para que te escriba por el chat"}. El anuncio lleva a tu página, donde te escriben por el chat.${special}`
-      : `Who: ${audience || "customers in your area"}. Where: ${where(b, spec, lang)}. How much: ${money(d)} a day, about ${money(d * spec.durationDays)} in total${peakEn}. Why: ${why || "it brings people to your page to write to you in the chat"}. The ad sends people to your page, where they write to you in the chat.${special}`,
+      ? `Para quién: ${audience || "clientes de tu zona"}. Dónde: ${clip(where(b, spec, lang))}. Cuánto: ${money(d)} al día, unos ${money(d * spec.durationDays)} en total${peakEs}. Por qué: ${why || "trae gente a tu página para que te escriba por el chat"}. El anuncio lleva a tu página, donde te escriben por el chat.${special}`
+      : `Who: ${audience || "customers in your area"}. Where: ${clip(where(b, spec, lang))}. How much: ${money(d)} a day, about ${money(d * spec.durationDays)} in total${peakEn}. Why: ${why || "it brings people to your page to write to you in the chat"}. The ad sends people to your page, where they write to you in the chat.${special}`,
   };
 }
 
