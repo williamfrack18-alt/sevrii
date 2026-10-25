@@ -18,10 +18,12 @@ export default function StoreChat({
   sync,
   head,
   dock,
+  dockLabel,
   chips,
 }: {
   head?: React.ReactNode;
   dock?: React.ReactNode;
+  dockLabel?: string;
   chips?: ChatChip[];
   business: ClientBusiness;
   onBusiness: (b: ClientBusiness) => void;
@@ -40,6 +42,7 @@ export default function StoreChat({
       sync={sync}
       head={head}
       dock={dock}
+      dockLabel={dockLabel}
       chips={chips}
       texts={{
         placeholder: t.chatPlaceholder,

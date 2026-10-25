@@ -10,6 +10,7 @@ import {
   type MetaCampaignInfo,
   type MetaResult,
 } from "@/app/metaActions";
+import { holdCampaignAction } from "@/app/agentActions";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
@@ -36,6 +37,10 @@ const TEXT = {
     updated: (d: string) => `Actualizado ${d}`,
     onMeta: "En Facebook e Instagram",
     failed: "No se pudo completar. Inténtalo de nuevo.",
+    approvedTitle: "Ya aprobaste su lanzamiento",
+    approvedLine: "Se publica sola cuando Facebook esté conectado: en la revisión diaria o con \"Revisar ahora\". Si todavía no quieres eso, haz que te pida el OK otra vez.",
+    hold: "Pedirme el OK otra vez",
+    held: "Listo: vuelve a esperar tu OK en \"Necesita tu aprobación\". Nada se publica hasta que la apruebes.",
   },
   en: {
     create: "Create on Facebook (paused)",
@@ -58,6 +63,10 @@ const TEXT = {
     updated: (d: string) => `Updated ${d}`,
     onMeta: "On Facebook and Instagram",
     failed: "Couldn't finish. Try again.",
+    approvedTitle: "You already approved its launch",
+    approvedLine: "It's published on its own once Facebook is connected: at the daily check or with \"Check now\". If you don't want that yet, have it ask for your OK again.",
+    hold: "Ask for my OK again",
+    held: "Done: it's waiting for your OK again in \"Needs your approval\". Nothing is published until you approve it.",
   },
 };
 
@@ -93,7 +102,51 @@ export default function MetaLaunch({
     };
   }, [campaign.id, isMeta]);
 
-  if (!isMeta || !info || !info.ready || !info.connected) return null;
+  if (!isMeta || !info || !info.ready) return null;
+
+  // Approved but not on Facebook yet: the daily check will publish it once
+  // Facebook is connected. The owner can take that OK back.
+  if (info.status === "approved" && !meta?.campaignId) {
+    return (
+      <div className="rounded-[20px] p-4 flex flex-col gap-2 bg-pbg">
+        <span className="text-[14px] font-medium text-pfg">{t.approvedTitle}</span>
+        <p className="text-[13px] text-psub leading-relaxed">{t.approvedLine}</p>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setNote("");
+              try {
+                const r = await holdCampaignAction(campaign.id);
+                if (r.ok) {
+                  setInfo({ ...info, status: "proposed" });
+                  setNote(t.held);
+                } else setNote(r.error);
+              } catch {
+                setNote(t.failed);
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className="h-10 px-5 rounded-full text-[13.5px] font-medium disabled:opacity-60"
+            style={BRAND_BTN}
+          >
+            {t.hold}
+          </button>
+          {info.connected && (
+            <button type="button" disabled={busy} onClick={() => run(() => launchCampaignOnMetaAction(campaign.id))} className="h-10 px-5 rounded-full text-[13.5px] font-medium disabled:opacity-60" style={ghost}>
+              {busy ? t.creating : t.create}
+            </button>
+          )}
+        </div>
+        {note && <p className="text-[12.5px] text-psub">{note}</p>}
+      </div>
+    );
+  }
+  if (note && info.status === "proposed" && !meta?.campaignId && !info.connected) return <p className="text-[12.5px] text-psub">{note}</p>;
+  if (!info.connected) return null;
 
   async function run(fn: () => Promise<MetaResult>) {
     setBusy(true);
@@ -141,7 +194,7 @@ export default function MetaLaunch({
     m.status === "active"
       ? { label: t.active, style: { background: TINT, color: ACCENT } }
       : m.status === "error"
-        ? { label: t.error, style: { background: "rgba(255,196,0,.12)", color: "#ffc400" } }
+        ? { label: t.error, style: { background: "rgba(245,158,11,.12)", color: "#B45309" } }
         : { label: t.paused, style: { background: "rgba(10,10,10,0.068)", color: "#52525B" } };
   const when = m.stats?.at ? new Date(m.stats.at).toLocaleString(lang === "es" ? "es-US" : "en-US", { dateStyle: "short", timeStyle: "short" }) : "";
 

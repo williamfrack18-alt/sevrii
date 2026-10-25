@@ -257,6 +257,7 @@ export default function MarketingView({
           initialMessages={initialMessages}
           texts={{ ...t.chat, seeBelow: "", seeBelowHref: "" }}
           dock={dock}
+          dockLabel={es ? "Tu estrategia de marketing" : "Your marketing strategy"}
           onSend={async (text) => {
             const res = await sendMarketingChatAction(text);
             onMessages?.(res.messages);

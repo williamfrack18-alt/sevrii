@@ -24,6 +24,7 @@ export type MetaStatus = {
 };
 
 export type MetaCampaignInfo = {
+  status: string; // the campaign's status in Sevrii (proposed, approved, live…)
   ready: boolean;
   connected: boolean;
   meta: CampaignMeta | null;
@@ -176,6 +177,7 @@ export async function getMetaCampaignAction(campaignId: string): Promise<MetaCam
   const { dailyCents, days } = campaignMoney(campaign.spec);
   const daily = dailyCents / 100;
   return {
+    status: campaign.status,
     ready: true,
     connected: Boolean(ctx.conn && ctx.conn.adAccountId && ctx.conn.pageId),
     meta: campaign.meta ?? null,

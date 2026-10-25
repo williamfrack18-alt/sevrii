@@ -5,7 +5,38 @@ import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
 import { approveBlockAction, chooseIdeaAction, finishPlanAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
-import { MAX_IDEA_ROUNDS } from "@/lib/plan";
+import { MAX_IDEA_ROUNDS, missingProfile } from "@/lib/plan";
+import type { ChatChip } from "./ChatPanel";
+
+// Quick answers for what the Brain is asking right now (one tap sends it).
+function answerChips(plan: BusinessPlan, es: boolean): ChatChip[] {
+  if (plan.stage !== "interview" && plan.stage !== "ready_check") return [];
+  const next = missingProfile(plan)[0]?.split(" ")[0] ?? "";
+  const s = (label: string, en: string): ChatChip => ({ label: es ? label : en, send: true });
+  switch (next) {
+    case "remoteScope":
+      return [s("Todo EE. UU.", "The whole US"), s("Solo un estado", "Only one state"), s("También otros países", "Other countries too")];
+    case "languages":
+      return [s("Español", "Spanish"), s("Inglés", "English"), s("Los dos", "Both")];
+    case "typicalCustomer":
+      return plan.mode === "agent" ? [s("A cualquiera", "Anyone")] : [];
+    case "agentInterest":
+      return [s("Propónme ideas abiertas", "Suggest open ideas")];
+    case "agentTask":
+    case "agentLimits":
+      return [s("Sí, confirmado", "Yes, confirmed"), { label: es ? "Quiero cambiar algo" : "I want to change something", text: es ? "Quiero cambiar esto: " : "I want to change this: " }];
+    case "serviceMode":
+      return [s("En persona, en mi zona", "In person, in my area"), s("En línea, a distancia", "Online, remote")];
+    case "insured":
+    case "hasVehicle":
+    case "toolsReady":
+      return [s("Sí", "Yes"), s("No", "No")];
+    case "goal":
+      return [s("Ingreso extra", "Extra income"), s("Tiempo completo", "Full time")];
+    default:
+      return [];
+  }
+}
 import ChatPanel, { type ChatToken, type Msg } from "./ChatPanel";
 import type { MindNode } from "./MindMap";
 import ProjectDock, { StepList } from "./ProjectDock";
@@ -294,6 +325,7 @@ export default function PlanView({
           }
           sync={sync}
           prefill={prefill}
+          chips={answerChips(plan, lang === "es")}
           renderToken={renderToken}
           tail={
             <>
@@ -303,6 +335,7 @@ export default function PlanView({
           }
           tailKey={`${tailKey}:${notice}:${pipeErr}`}
           dock={dock}
+          dockLabel={plan.stage === "approved" || plan.stage === "proposal" ? (lang === "es" ? "Tu estrategia" : "Your strategy") : lang === "es" ? "Lo que ya sé de ti" : "What I know about you"}
           onSend={async (text) => {
             const res = await sendPlanChatAction(text);
             onUpdated(toClientBusiness(res.business), res.services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description })));

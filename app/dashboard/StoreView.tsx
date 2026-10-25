@@ -238,6 +238,7 @@ export default function StoreView({
           sync={sync}
           greeting={greeting}
           chips={chips}
+          dockLabel={lang === "es" ? "Tu página: resumen y agente" : "Your page: summary and agent"}
           dock={
             hasPage ? (
               <StoreSummary

@@ -31,6 +31,7 @@ import {
   agentStarted,
   agentState,
   applyApprovedAds,
+  launchProposalText,
   executeStrategy,
   launchedText,
   launchOnMeta,
@@ -315,6 +316,32 @@ export async function approveAgentItemAction(id: string): Promise<AgentResult> {
 
   // Anything else that waits for an OK just gets marked done.
   if (!(await resolveAgentItem(business.id, item.id, "done"))) return { ok: false, error: t.already };
+  return result(user, business.id);
+}
+
+// The owner approved a launch while Facebook wasn't connected and changed
+// their mind: the campaign goes back to waiting for their OK, so connecting
+// Facebook publishes nothing until they approve it again.
+export async function holdCampaignAction(campaignId: string): Promise<AgentResult> {
+  const ctx = await context();
+  if (!ctx.ok) return ctx;
+  const { t, lang, user, business } = ctx;
+  if (!validId(campaignId)) return { ok: false, error: t.notFound };
+  const c = (await listCampaigns(business.id)).find((x) => x.id === campaignId);
+  if (!c || !c.spec) return { ok: false, error: t.notFound };
+  if (c.status !== "approved" || c.meta?.campaignId) return { ok: false, error: t.already };
+  const text = launchProposalText(business, lang, c);
+  if (!text) return { ok: false, error: t.notFound };
+  await setCampaignStatus(business.id, c.id, "proposed");
+  await addAgentItem({
+    businessId: business.id,
+    kind: "launch",
+    status: "pending",
+    title: text.title,
+    detail: text.detail,
+    campaignId: c.id,
+    payload: { dailyBudgetUsd: c.spec.dailyBudgetUsd, durationDays: c.spec.durationDays },
+  });
   return result(user, business.id);
 }
 

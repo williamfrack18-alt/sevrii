@@ -33,7 +33,18 @@ export type ChatToken = { kind: string; arg: string; msgId: string };
 
 // Quick actions above the composer: put a starter text in it, or open the
 // photo/video picker.
-export type ChatChip = { label: string; text?: string; upload?: boolean };
+// `send`: the chip is the answer itself and goes out right away.
+export type ChatChip = { label: string; text?: string; upload?: boolean; send?: boolean };
+
+// **bold** in assistant replies shows as bold (no stray asterisks).
+function Rich({ text }: { text: string }) {
+  const parts = text.split(/\*\*([^*\n][^*]*?)\*\*/g);
+  return (
+    <>
+      {parts.map((p, i) => (i % 2 ? <strong key={i} className="font-medium text-pfg">{p}</strong> : p.replace(/(^|\s)\*([^*\n]+)\*(?=\s|$)/g, "$1$2")))}
+    </>
+  );
+}
 
 const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mov|mp4|webm)$/i.test(f.name);
 
@@ -55,6 +66,7 @@ export default function ChatPanel({
   tailKey,
   head,
   dock,
+  dockLabel,
   chips,
 }: {
   greeting: string;
@@ -79,8 +91,10 @@ export default function ChatPanel({
   // Shown at the top of the conversation (e.g. a summary of the page). With a
   // head the chat never shows its empty "first question" screen.
   head?: React.ReactNode;
-  // The project's card, always the last item of the conversation (see ProjectDock).
+  // The project's card (see ProjectDock): beside the chat on wide screens,
+  // behind a summary button above the composer on phones and tablets.
   dock?: React.ReactNode;
+  dockLabel?: string;
   chips?: ChatChip[];
 }) {
   const lang = useLang();
@@ -94,8 +108,19 @@ export default function ChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const dockRef = useRef<HTMLDivElement>(null);
   const empty = messages.length === 0 && !head && !dock;
+  const [dockOpen, setDockOpen] = useState(false);
+  useEffect(() => {
+    if (!dockOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDockOpen(false);
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [dockOpen]);
 
   function pickChip(c: ChatChip) {
     if (busy) return;
@@ -104,6 +129,10 @@ export default function ChatPanel({
       return;
     }
     const text = c.text ?? "";
+    if (c.send) {
+      send(text || c.label);
+      return;
+    }
     setInput(text);
     setTimeout(() => {
       const el = inputRef.current;
@@ -140,10 +169,7 @@ export default function ChatPanel({
     if (!el) return;
     const first = firstScroll.current;
     firstScroll.current = false;
-    // With a project card at the end, stop where the newest message ends (the
-    // card is right below it, one scroll away).
-    const bottom = () => el.scrollHeight - el.clientHeight - (dockRef.current && !first ? dockRef.current.offsetHeight + 28 : 0);
-    const go = () => el.scrollTo({ top: bottom(), behavior: first ? "auto" : "smooth" });
+    const go = () => el.scrollTo({ top: el.scrollHeight, behavior: first ? "auto" : "smooth" });
     const raf = requestAnimationFrame(go);
     // Fonts and cards below can still shift the layout right after opening.
     const late = first ? setTimeout(() => el.scrollTo({ top: el.scrollHeight }), 400) : undefined;
@@ -347,8 +373,10 @@ export default function ChatPanel({
     );
   }
 
+  const label = dockLabel || (lang === "es" ? "Ver el resumen" : "See the summary");
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
+    <div className="flex-1 min-h-0 flex">
+    <div className="flex-1 min-w-0 min-h-0 flex flex-col">
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-6 md:pb-8 flex flex-col gap-6 md:gap-7">
           {head}
@@ -385,7 +413,7 @@ export default function ChatPanel({
               <div key={m.id} className="min-w-0 flex flex-col gap-3.5">
                 {text && (
                   <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: "#0A0A0A" }}>
-                    {text}
+                    <Rich text={text} />
                   </div>
                 )}
                 {card}
@@ -393,7 +421,6 @@ export default function ChatPanel({
             );
           })}
           {tail}
-          {dock && <div ref={dockRef}>{dock}</div>}
           {uploadRow}
           {pending && (
             <div className="flex items-center gap-1.5 h-6" aria-label={texts.thinking}>
@@ -404,11 +431,47 @@ export default function ChatPanel({
       </div>
       <div className="shrink-0 px-4 md:px-6 pt-1 md:pt-0 pb-3">
         <div className="max-w-[760px] mx-auto">
+          {dock && (
+            <button
+              type="button"
+              onClick={() => setDockOpen(true)}
+              className="lg:hidden w-full mb-2 h-12 px-4 rounded-full bg-pcard flex items-center gap-3 text-left"
+              style={{ boxShadow: "0 1px 2px rgba(10,10,10,.05), 0 0 0 1px rgba(10,10,10,.08)" }}
+            >
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: ACCENT }} />
+              <span className="grow min-w-0 truncate text-[14.5px] font-medium text-pfg">{label}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pmuted shrink-0" aria-hidden="true">
+                <path d="M6 15l6-6 6 6" />
+              </svg>
+            </button>
+          )}
           {chipRow}
           {composer}
           {footnote}
         </div>
       </div>
+    </div>
+
+    {/* Wide screens: the project's card stays beside the conversation */}
+    {dock && (
+      <aside className="hidden lg:block w-[400px] xl:w-[440px] shrink-0 min-h-0 overflow-y-auto px-5 pt-4 pb-6" aria-label={label}>
+        {dock}
+      </aside>
+    )}
+
+    {/* Phones and tablets: the same card in a sheet, back to the chat in one tap */}
+    {dock && dockOpen && (
+      <div className="lg:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={label}>
+        <button type="button" aria-label={lang === "es" ? "Cerrar" : "Close"} className="absolute inset-0 w-full bg-black/35" onClick={() => setDockOpen(false)} />
+        <div className="absolute left-0 right-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[28px] bg-pbg px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]">
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/15" />
+          {dock}
+          <button type="button" onClick={() => setDockOpen(false)} className="p-btn full mt-4">
+            {lang === "es" ? "Volver al chat" : "Back to chat"}
+          </button>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

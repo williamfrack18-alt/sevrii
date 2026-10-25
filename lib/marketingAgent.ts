@@ -289,6 +289,12 @@ function launchTexts(b: BusinessRow, lang: Lang, title: string, spec: CampaignSp
   };
 }
 
+// The launch proposal for one campaign (what "Necesita tu aprobación" shows).
+export function launchProposalText(b: BusinessRow, lang: Lang, c: CampaignRow): { title: string; detail: string } | null {
+  if (!c.spec) return null;
+  return launchTexts(b, lang, c.title, c.spec, b.marketing.profile.idealCustomer || b.plan.customer || "", c.goal || "");
+}
+
 export type ExecuteResult =
   | { ok: true; campaigns: number; posts: number }
   | { ok: false; reason: "no_strategy" | "no_campaigns" | "no_budget" | "over_budget"; totalUsd?: number; budgetUsd?: number };

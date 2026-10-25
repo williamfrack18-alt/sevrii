@@ -236,6 +236,9 @@ function Dashboard({
         </div>
       </div>
 
+      {/* Facebook: connect it (or see the connection) right here, always */}
+      {(state.started || launchWithoutMeta) && <MetaConnect lang={lang} />}
+
       {/* Needs approval */}
       <div className="flex flex-col gap-3">
         <SectionTitle title={t.needsYou} count={state.pending.length} />
@@ -255,7 +258,6 @@ function Dashboard({
                 onDismiss={() => act(item.id, () => dismissAgentItemAction(item.id), true)}
               />
             ))}
-            {launchWithoutMeta && <MetaConnect lang={lang} />}
           </div>
         )}
       </div>

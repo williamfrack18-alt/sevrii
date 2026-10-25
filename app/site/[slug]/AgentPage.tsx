@@ -4,10 +4,11 @@
 // chat, and needs to see who made it and why it's worth more than a free AI.
 import type { BusinessRow } from "@/lib/db";
 import { activeOffer, storeTheme } from "@/lib/site";
+import { reachLabel, resolveReach } from "@/lib/reach";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { money, offerPriceLabel, welcomeLabel } from "@/lib/serviceAgentConfig";
 import ChatWidget, { ChatJump, type ChatAgent } from "./ChatWidget";
-import { ChatIcon, ChatLink } from "./StoreParts";
+import { ChatIcon, ChatLink, Gallery, type MediaItem } from "./StoreParts";
 
 const TEXT = {
   es: {
@@ -45,6 +46,19 @@ const TEXT = {
     reviewsNone: "Todavía no tiene reseñas. Solo quienes pagan su acceso pueden calificarlo.",
     reviewsCount: (n: number) => (n === 1 ? "1 reseña" : `${n} reseñas`),
     verified: "Compró acceso",
+    agents: "Agentes de IA",
+    agentBadge: "Agente de IA",
+    accessKicker: "Acceso",
+    infoTitle: "Sobre el agente",
+    madeBy: "Creado por",
+    langs: "Idiomas",
+    langNames: { es: "Español", en: "Inglés", both: "Español e inglés" } as Record<string, string>,
+    where: "Atiende",
+    hours: "Horario",
+    always247: "24 horas, todos los días",
+    tryNote: (n: number) => (n ? `${n === 1 ? "1 respuesta gratis" : `${n} respuestas gratis`} · pagas solo si quieres seguir` : "Pagas dentro del chat, con tarjeta"),
+    trust: ["Siempre dice que es una IA", "Responde al instante, 24/7", "Pagas dentro del chat, con tarjeta"],
+    welcome: "Oferta de bienvenida",
   },
   en: {
     kicker: "AI agent · available 24/7",
@@ -81,6 +95,19 @@ const TEXT = {
     reviewsNone: "No reviews yet. Only people who pay for access can rate it.",
     reviewsCount: (n: number) => (n === 1 ? "1 review" : `${n} reviews`),
     verified: "Bought access",
+    agents: "AI agents",
+    agentBadge: "AI agent",
+    accessKicker: "Access",
+    infoTitle: "About the agent",
+    madeBy: "Created by",
+    langs: "Languages",
+    langNames: { es: "Spanish", en: "English", both: "English and Spanish" } as Record<string, string>,
+    where: "Serves",
+    hours: "Hours",
+    always247: "24 hours, every day",
+    tryNote: (n: number) => (n ? `${n === 1 ? "1 free reply" : `${n} free replies`} · pay only if you want to keep going` : "You pay inside the chat, by card"),
+    trust: ["Always says it's an AI", "Replies instantly, 24/7", "Pay inside the chat, by card"],
+    welcome: "Welcome offer",
   },
 };
 
@@ -110,6 +137,18 @@ export default function AgentPage({
   const photo = site.ownerPhotoUrl;
   // "Created by": only the creator's name, never credentials or a story.
   const creator = site.ownerName || a.creator.split(/[·,|(]/)[0].trim() || business.name;
+  const reach = resolveReach(site, business.city, business.plan.profile);
+  const area = site.serviceArea || reachLabel(reach, site.lang) || "";
+  const langs = t.langNames[business.plan.profile.languages] || (site.spanish ? t.langNames.both : "");
+  // The best first-purchase deal among the access options, if any.
+  const welcome = a.offers.map((o) => welcomeLabel(a, o, lang)).find(Boolean) || "";
+  // The left side: the creator's video and photos, then a card per access option.
+  const media: MediaItem[] = [];
+  if (site.videoUrl) media.push({ kind: "video", src: site.videoUrl, poster: site.coverUrl, label: name });
+  for (const src of [site.coverUrl, ...site.gallery].filter(Boolean)) media.push({ kind: "photo", src });
+  media.push({ kind: "slide", tone: "service", kicker: t.kicker, title: site.headline || name, price: cheapest > 0 ? t.from(money(cheapest)) : t.free(a.freeReplies), text: t.free(a.freeReplies) });
+  if (welcome) media.push({ kind: "slide", tone: "offer", kicker: t.welcome, title: welcome, price: "", text: name });
+  for (const o of a.offers.slice(0, 3)) media.push({ kind: "slide", tone: "service", kicker: t.accessKicker, title: o.title, price: offerPriceLabel(o, lang), text: o.detail || "" });
   const stars = (n: number) => "★★★★★".slice(0, Math.round(n)) + "☆☆☆☆☆".slice(0, 5 - Math.round(n));
 
   return (
@@ -131,51 +170,111 @@ export default function AgentPage({
       </header>
 
       <main>
-        <section className="ag-hero">
-          <div className="wrap ag-hero-in">
-            <div className="ag-copy">
-              <span className="ag-kicker">
-                <span className="ag-dot" aria-hidden /> {t.kicker}
-              </span>
-              <h1>{site.headline || name}</h1>
-              {business.pitch && <p className="ag-lede">{business.pitch}</p>}
-              <div className="ag-facts">
-                <span>{t.free(a.freeReplies)}</span>
-                <span>{t.instant}</span>
-                {cheapest > 0 && <span>{t.from(money(cheapest))}</span>}
-                {reviews.count > 0 && reviews.avg !== null && (
-                  <span>
-                    ★ {reviews.avg.toFixed(1)} · {t.reviewsCount(reviews.count)}
-                  </span>
-                )}
+        <div className="wrap breadcrumb">
+          <span>{t.agents}</span>
+          <span className="sep" aria-hidden>›</span>
+          <span className="current">{business.category || name}</span>
+        </div>
+
+        {/* Same product layout as every Sevrii page: media on the left, the
+            buy box (with the live chat, which is the product) on the right. */}
+        <section className="product wrap">
+          <div className="gallery-col">
+            <div className="gallery-title">{name}</div>
+            <Gallery items={media} alt={name} lang={site.lang} empty={<div className="stage-empty"><span className="stage-kicker">{t.kicker}</span><div className="stage-title">{site.headline || name}</div></div>} />
+          </div>
+
+          <div className="below-gallery">
+            {a.offers.length > 0 && (
+              <div className="pkg-card">
+                <div className="eyebrow grad-text">{t.accessTitle}</div>
+                <ul className="pkg-list">
+                  {a.offers.map((o, i) => (
+                    <li key={o.id} className={i === 0 ? "lead" : undefined}>
+                      <div className="pkg-main">
+                        <span className="pkg-name">{o.title}</span>
+                        {o.detail && <span className="pkg-desc">{o.detail}</span>}
+                      </div>
+                      <span className="pkg-price grad-text">{offerPriceLabel(o, lang)}</span>
+                      <ChatLink className="pkg-btn">{t.accessCta}</ChatLink>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              {offer && <div className="ag-offer">{offer.label}</div>}
-              <div className="ag-cta">
-                <ChatLink className="btn ag-btn">
-                  <ChatIcon /> {t.tryFree}
-                </ChatLink>
-                {a.offers.length > 0 && (
-                  <a href="#acceso" className="btn ghost ag-btn2">
-                    {t.seePrices}
-                  </a>
-                )}
-              </div>
+            )}
+            <div className="info-card">
+              <div className="eyebrow grad-text">{t.infoTitle}</div>
               {creator && (
-                <div className="ag-creator">
+                <div className="ag-maker">
                   {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photo} alt="" />
                   ) : (
-                    <span className="ag-initial">{creator.slice(0, 1).toUpperCase()}</span>
+                    <span className="ag-maker-initial">{creator.slice(0, 1).toUpperCase()}</span>
                   )}
-                  <div>
-                    <div className="ag-by">{t.createdBy}</div>
-                    <div className="ag-who">{creator}</div>
-                  </div>
+                  <span>
+                    <span className="k">{t.madeBy}</span>
+                    <span className="v">{creator}</span>
+                  </span>
                 </div>
               )}
+              {langs && (
+                <div className="info-row">
+                  <span className="k">{t.langs}</span>
+                  <span className="v">{langs}</span>
+                </div>
+              )}
+              {area && (
+                <div className="info-row">
+                  <span className="k">{t.where}</span>
+                  <span className="v">{area}</span>
+                </div>
+              )}
+              <div className="info-row">
+                <span className="k">{t.hours}</span>
+                <span className="v">{t.always247}</span>
+              </div>
             </div>
-            <div className="ag-chat" id="chat">
+          </div>
+
+          <div className="buybox">
+            <div className="badge-row">
+              <span className="badge">● {t.agentBadge}</span>
+              <span className="badge soft">{t.instant}</span>
+              {reviews.count > 0 && reviews.avg !== null && (
+                <a href="#resenas" className="badge soft">
+                  ★ {reviews.avg.toFixed(1)} · {t.reviewsCount(reviews.count)}
+                </a>
+              )}
+            </div>
+
+            {(welcome || offer) && (
+              <div className="deal">
+                <span className="deal-dot" />
+                <strong>{t.welcome}</strong> · {welcome || offer?.label}
+              </div>
+            )}
+
+            <h1>{site.headline || name}</h1>
+            {cheapest > 0 && (
+              <div className="from-price">
+                {t.from("")}
+                <strong className="grad-text">{money(cheapest)}</strong>
+              </div>
+            )}
+            {business.pitch && <p className="lede">{business.pitch}</p>}
+
+            {edge.length > 0 && (
+              <ul className="about-list">
+                {edge.slice(0, 4).map((e, i) => (
+                  <li key={i}>
+                    {e.title ? <strong>{e.title}:</strong> : null} {e.text}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div id="chat" className="buy-chat">
               <ChatWidget
                 slug={business.slug}
                 businessName={business.name}
@@ -187,28 +286,24 @@ export default function AgentPage({
                 agent={chatAgent}
               />
             </div>
+            <div className="micro">
+              <span className="dot" /> {t.tryNote(a.freeReplies)}
+            </div>
           </div>
         </section>
 
-        {edge.length > 0 && (
-          <section className="block ag-why">
-            <div className="wrap">
-              <div className="section-head">
-                <span className="eyebrow grad-text">{t.whyEyebrow}</span>
-                <h2>{t.whyTitle}</h2>
-              </div>
-              <div className={`ag-grid n${Math.min(edge.length, 4)}`}>
-                {edge.map((e, i) => (
-                  <div key={i} className="ag-card">
-                    <span className="ag-num">{String(i + 1).padStart(2, "0")}</span>
-                    {e.title && <h3>{e.title}</h3>}
-                    <p>{e.text}</p>
-                  </div>
-                ))}
-              </div>
+        <section className="trust">
+          <div className="wrap">
+            <div className="trust-grid">
+              {[...t.trust, ...(langs ? [langs] : []), ...(area ? [area] : [])].slice(0, 4).map((x) => (
+                <div key={x} className="trust-item">
+                  <div className="trust-icon">✓</div>
+                  <span>{x}</span>
+                </div>
+              ))}
             </div>
-          </section>
-        )}
+          </div>
+        </section>
 
         <section className="block ag-how">
           <div className="wrap">

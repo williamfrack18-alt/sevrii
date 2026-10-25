@@ -414,3 +414,12 @@
 .mt.ag .ag-review{display:flex;flex-direction:column;gap:10px}
 .mt.ag .ag-review p{margin:0}
 .mt.ag .ag-review-by{font-size:13px;opacity:.7}
+
+/* Agent page in the product layout: who made it, in the info card */
+.mt.ag .ag-maker { display: flex; align-items: center; gap: 12px; }
+.mt.ag .ag-maker img, .mt.ag .ag-maker-initial { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.mt.ag .ag-maker-initial { display: flex; align-items: center; justify-content: center; background: var(--accent-grad); color: var(--accent-on); font-weight: 800; font-size: 17px; }
+.mt.ag .ag-maker > span { display: flex; flex-direction: column; gap: 2px; }
+.mt.ag .ag-maker .k { font-size: 12.5px; color: var(--ink-dim); }
+.mt.ag .ag-maker .v { font-size: 15px; font-weight: 600; color: var(--ink); }
+.mt.ag .badge-row a.badge { text-decoration: none; }

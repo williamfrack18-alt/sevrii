@@ -17,13 +17,18 @@ function initials(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-// "carlos.ruiz88@…" → "Carlos"
-function firstName(owner: string, email: string): string {
-  const fromOwner = owner.trim().split(/\s+/)[0];
-  if (fromOwner) return fromOwner;
-  const local = email.split("@")[0].replace(/[\d_.+-]+/g, " ").trim().split(/\s+/)[0] || "";
-  return local ? local[0].toUpperCase() + local.slice(1).toLowerCase() : "";
+// The owner's first name as they wrote it on their page ("Carlos Ruiz" → "Carlos"); none → just "Hola".
+function firstName(owner: string): string {
+  return owner.trim().split(/\s+/)[0] || "";
 }
+
+// Photo-less project cards: Sevrii's colors, a different one per card.
+const FILLS = [
+  `linear-gradient(160deg, ${GREEN} 0%, ${DEEP} 72%)`,
+  "linear-gradient(160deg, #262626 0%, #0A0A0A 70%)",
+  `linear-gradient(160deg, #0B4A24 0%, ${DEEP} 70%)`,
+  `linear-gradient(160deg, #22C55E 0%, ${GREEN} 70%)`,
+];
 
 const TEXT = {
   es: {
@@ -145,7 +150,8 @@ export default function ProjectsView({
   const atLimit = projects.length >= Math.min(MAX_PROJECTS, projectLimit);
 
   const active = projects.find((p) => p.id === activeId);
-  const name = firstName(business.site.ownerName || active?.ownerName || "", userEmail);
+  const name = firstName(business.site.ownerName || active?.ownerName || projects.find((p) => p.ownerName)?.ownerName || "");
+  void userEmail;
   const approved = Boolean(business.marketing.approvedAt);
   const steps = [business.plan.ready, business.published, approved, business.payReady];
   const done = steps.filter(Boolean).length;
@@ -278,7 +284,7 @@ export default function ProjectsView({
           )}
 
           <div className={`p-rail -mx-4 px-4 md:mx-0 md:px-0 ${pending ? "opacity-60 pointer-events-none" : ""}`}>
-            {shown.map((p) => {
+            {shown.map((p, idx) => {
               const isOpen = p.id === activeId;
               return (
                 <div key={p.id} className="relative w-[248px] md:w-[280px]">
@@ -292,7 +298,7 @@ export default function ProjectsView({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: `linear-gradient(160deg, ${GREEN} 0%, ${DEEP} 70%)` }}>
+                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: FILLS[projects.indexOf(p) % FILLS.length] ?? FILLS[idx % FILLS.length] }}>
                         <span className="text-[64px] font-medium tracking-[-0.04em] text-white/90">{initials(p.name)}</span>
                       </div>
                     )}
