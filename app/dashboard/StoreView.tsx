@@ -13,7 +13,7 @@ import { fillStoreFromPlanAction, loadStoreAction, setPublishedAction } from "@/
 import { planFingerprint, planReadyForStore } from "@/lib/planToStore";
 import type { PublishGap } from "@/lib/site";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
-import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 
 // Store = one chat that starts with a summary of the page (what it has, what
 // it lacks, the agent) and changes it; the page itself sits right below.
@@ -134,18 +134,18 @@ export default function StoreView({
   }
 
   return (
-    <div style={{ background: "#000" }}>
+    <div style={{ background: "#F5F5F3" }}>
       {/* Chat: fills the screen, composer pinned at the bottom */}
       <section
         className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col"
       >
         <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3">
-          <span className="text-[17px] font-semibold text-white truncate min-w-0">
-            {business.name} <span className="text-[#8e8e8e] font-normal">· Store</span>
+          <span className="text-[17px] font-semibold text-pfg truncate min-w-0">
+            {business.name} <span className="text-pmuted font-normal">· Store</span>
           </span>
           <div className="flex items-center gap-2 shrink-0">
             {business.site.chat && (
-              <button type="button" onClick={onChats} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
+              <button type="button" onClick={onChats} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}>
                 {lang === "es" ? "Conversaciones" : "Conversations"}
               </button>
             )}
@@ -157,7 +157,7 @@ export default function StoreView({
                     target="_blank"
                     rel="noreferrer"
                     className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium"
-                    style={{ background: "rgba(255,255,255,.06)", color: "#d4d4d4" }}
+                    style={{ background: "rgba(10,10,10,0.051)", color: "#27272A" }}
                   >
                     {st.inMarket}: {lang === "es" ? business.marketCategory : MARKET_CATEGORY_EN[business.marketCategory as MarketCategory] ?? business.marketCategory}
                   </a>
@@ -170,14 +170,14 @@ export default function StoreView({
                   disabled={busy}
                   onClick={() => publish(false)}
                   className="tap text-[12px] px-3 py-1 rounded-full font-medium disabled:opacity-50"
-                  style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}
+                  style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}
                 >
                   {st.unpublish}
                 </button>
               </>
             ) : canPublish ? (
               <>
-                <a href="#" onClick={(e) => { e.preventDefault(); setPageOpen(true); }} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
+                <a href="#" onClick={(e) => { e.preventDefault(); setPageOpen(true); }} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}>
                   {st.draft}
                 </a>
                 <button
@@ -192,7 +192,7 @@ export default function StoreView({
               </>
             ) : (
               <>
-                <a href="#" onClick={(e) => { e.preventDefault(); setPageOpen(true); }} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,.08)", color: "#d4d4d4" }}>
+                <a href="#" onClick={(e) => { e.preventDefault(); setPageOpen(true); }} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}>
                   {st.draft}
                 </a>
                 <button type="button" onClick={onPlans} className="tap text-[12px] px-3 py-1 rounded-full font-semibold" style={{ background: TINT, color: ACCENT }}>
@@ -203,12 +203,12 @@ export default function StoreView({
           </div>
         </div>
         {notice && (
-          <div className="shrink-0 mx-4 md:mx-6 mb-2 rounded-xl px-4 py-3 text-[13.5px] text-[#ececec] flex items-start justify-between gap-3" style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,.1)" }}>
+          <div className="shrink-0 mx-4 md:mx-6 mb-2 rounded-xl px-4 py-3 text-[13.5px] text-pfg flex items-start justify-between gap-3" style={{ background: "#FFFFFF", boxShadow: "0 0 0 1px rgba(10,10,10,0.085)" }}>
             <div className="min-w-0">
               {notice.kind === "gaps" ? (
                 <>
                   <div className="font-medium">{st.gapsTitle}</div>
-                  <ul className="mt-1 text-[#a1a1aa] list-disc pl-5">
+                  <ul className="mt-1 text-psub list-disc pl-5">
                     {notice.gaps.map((g) => (
                       <li key={g}>{st.gaps[g]}</li>
                     ))}
@@ -224,7 +224,7 @@ export default function StoreView({
                 <span>{st.publishFailed}</span>
               )}
             </div>
-            <button type="button" onClick={() => setNotice(null)} className="tap text-[#8e8e8e] text-[16px] leading-none shrink-0" aria-label={st.close} title={st.close}>
+            <button type="button" onClick={() => setNotice(null)} className="tap text-pmuted text-[16px] leading-none shrink-0" aria-label={st.close} title={st.close}>
               ×
             </button>
           </div>
@@ -269,7 +269,7 @@ export default function StoreView({
       <Sheet open={pageOpen} title={st.yourPage} onClose={() => setPageOpen(false)} wide>
         <div className="flex flex-col h-full">
           <div className="shrink-0 px-4 md:px-5 py-2.5 flex justify-end">
-            <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap text-[13px] text-[#a1a1a1] hover:text-white">
+            <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap text-[13px] text-psub hover:text-pfg">
               {business.published ? t.dashboard.openLive : st.viewDraft} ↗
             </a>
           </div>

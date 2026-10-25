@@ -30,6 +30,7 @@ import { chatGate, runForUser } from "@/lib/usage";
 import {
   agentStarted,
   agentState,
+  applyApprovedAds,
   executeStrategy,
   launchedText,
   launchOnMeta,
@@ -272,6 +273,40 @@ export async function approveAgentItemAction(id: string): Promise<AgentResult> {
           ? `Listo: ${money(spec.dailyBudgetUsd)} → ${money(to)} al día (unos ${money(to * 30)} al mes).`
           : `Done: ${money(spec.dailyBudgetUsd)} → ${money(to)} a day (about ${money(to * 30)} a month).`
       );
+    } catch (err) {
+      await setAgentItemStatus(business.id, item.id, "error", metaFriendly(err, es ? "es" : "en"));
+    }
+    return result(user, business.id);
+  }
+
+  if (item.kind === "variation") {
+    if (!campaign) return { ok: false, error: t.notFound };
+    if (!(await resolveAgentItem(business.id, item.id, "approved"))) return { ok: false, error: t.already };
+    try {
+      const r = await applyApprovedAds(business, campaign, item.payload?.ads, conn);
+      if (r.ok) {
+        await setAgentItemStatus(
+          business.id,
+          item.id,
+          "done",
+          es
+            ? r.onMeta
+              ? "Listo: cambié los textos en tu anuncio de Facebook. Facebook los revisa antes de mostrarlos."
+              : "Listo: guardé los textos nuevos en la campaña."
+            : r.onMeta
+              ? "Done: I swapped the texts in your Facebook ad. Facebook reviews them before showing them."
+              : "Done: I saved the new texts in the campaign."
+        );
+      } else {
+        await setAgentItemStatus(
+          business.id,
+          item.id,
+          "error",
+          r.error === "reconnect"
+            ? es ? "Conecta Facebook de nuevo para poder cambiar los textos." : "Connect Facebook again so I can change the texts."
+            : es ? "No pude usar esos textos. Pídele unos nuevos al chat." : "I couldn't use those texts. Ask the chat for new ones."
+        );
+      }
     } catch (err) {
       await setAgentItemStatus(business.id, item.id, "error", metaFriendly(err, es ? "es" : "en"));
     }

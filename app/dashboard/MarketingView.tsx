@@ -19,13 +19,13 @@ import ChatPanel, { type Msg } from "./ChatPanel";
 import ProjectDock, { Sheet, StepList, type StepItem } from "./ProjectDock";
 import AgentPanel from "./AgentPanel";
 import { toClientBusiness, type ClientBusiness, type ClientCampaign } from "./types";
-import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 
 type Lang = "es" | "en";
 type Result = { link: string; stats: CampaignStats; week: CampaignStats };
 
 const usd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
-const HAIR = "rgba(255,255,255,0.08)";
+const HAIR = "rgba(10,10,10,0.068)";
 const RUNNING = ["live", "approved", "paused"];
 
 // Marketing in 3 stages:
@@ -94,14 +94,14 @@ export default function MarketingView({
 
   if (locked) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#000" }}>
-        <div className="max-w-[520px] w-full rounded-2xl p-7 flex flex-col items-center text-center gap-4" style={{ background: "#111", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#F5F5F3" }}>
+        <div className="max-w-[520px] w-full rounded-[24px] p-7 flex flex-col items-center text-center gap-4" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="5" y="11" width="14" height="9" rx="2" />
             <path d="M8 11V8a4 4 0 0 1 8 0v3" />
           </svg>
-          <h2 className="text-[22px] font-semibold text-white">{lk.marketingTitle}</h2>
-          <p className="text-[14.5px] text-[#a1a1aa] leading-relaxed">{lk.marketingSub}</p>
+          <h2 className="text-[22px] font-semibold text-pfg">{lk.marketingTitle}</h2>
+          <p className="text-[14.5px] text-psub leading-relaxed">{lk.marketingSub}</p>
           <button type="button" onClick={onPlans} className="h-11 px-6 rounded-full text-[14.5px] font-semibold" style={BRAND_BTN}>
             {lk.seePlans} →
           </button>
@@ -193,11 +193,11 @@ export default function MarketingView({
             summary: es ? "Para tus anuncios y tu página. Pídeme cambios aquí." : "For your ads and your page. Ask me for changes here.",
             detail: (
               <div className="flex flex-col gap-4 min-w-0">
-                {plan.videoScript && <p className="text-[14px] text-white leading-relaxed whitespace-pre-line rounded-xl p-4 break-words" style={{ background: "rgba(255,255,255,0.04)" }}>{plan.videoScript}</p>}
+                {plan.videoScript && <p className="text-[14px] text-pfg leading-relaxed whitespace-pre-line rounded-xl p-4 break-words" style={{ background: "rgba(10,10,10,0.034)" }}>{plan.videoScript}</p>}
                 {plan.photoIdeas.length > 0 && (
                   <ul className="flex flex-col gap-2">
                     {plan.photoIdeas.map((p, i) => (
-                      <li key={i} className="text-[14px] text-[#ececec] leading-relaxed">
+                      <li key={i} className="text-[14px] text-pfg leading-relaxed">
                         {i + 1}. {p}
                       </li>
                     ))}
@@ -219,13 +219,13 @@ export default function MarketingView({
         </span>
       }
     >
-      {strategy?.summary && <p className="text-[13.5px] leading-relaxed text-[#d4d4d4]">{strategy.summary}</p>}
-      <span className="text-[12.5px] text-[#8e8e8e]">{profile.monthlyBudgetUsd ? m.budgetMonth(usd(profile.monthlyBudgetUsd)) : m.noBudget}</span>
+      {strategy?.summary && <p className="text-[13.5px] leading-relaxed text-pfg2">{strategy.summary}</p>}
+      <span className="text-[12.5px] text-pmuted">{profile.monthlyBudgetUsd ? m.budgetMonth(usd(profile.monthlyBudgetUsd)) : m.noBudget}</span>
       {plan.guard.warn.length > 0 && (
         <div className="rounded-xl p-3 flex flex-col gap-1.5" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)" }}>
-          <span className="text-[12px] font-semibold text-[#f5c451]">{es ? "Ten en cuenta" : "Keep in mind"}</span>
+          <span className="text-[12px] font-semibold text-[#B45309]">{es ? "Ten en cuenta" : "Keep in mind"}</span>
           {plan.guard.warn.map((x, i) => (
-            <span key={i} className="text-[13px] text-[#f3e3b5] leading-relaxed">
+            <span key={i} className="text-[13px] text-[#78350F] leading-relaxed">
               {x}
             </span>
           ))}
@@ -233,7 +233,7 @@ export default function MarketingView({
       )}
       <StepList items={[...nodes, ...media]} />
       <div className="pt-1">{footer}</div>
-      {approved && agent === undefined && <span className="text-[13px] text-[#a1a1a1]">{t.agent.loading}</span>}
+      {approved && agent === undefined && <span className="text-[13px] text-psub">{t.agent.loading}</span>}
       {showAgent && agent && (
         <button type="button" onClick={() => setRunningOpen(true)} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
           {es ? "Ver lo que está en marcha" : "See what's running"}
@@ -243,12 +243,12 @@ export default function MarketingView({
   ) : undefined;
 
   return (
-    <div style={{ background: "#000" }} className="overflow-x-clip">
+    <div style={{ background: "#F5F5F3" }} className="overflow-x-clip">
       {/* 1. The strategist: the chat comes first, full height */}
       <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
         <div className="shrink-0 h-12 md:h-14 px-4 md:px-6 flex items-center justify-between gap-3">
-          <span className="min-w-0 truncate text-[16px] md:text-[17px] font-semibold text-white">
-            {business.name} <span className="text-[#8e8e8e] font-normal">· {t.flow.title}</span>
+          <span className="min-w-0 truncate text-[16px] md:text-[17px] font-semibold text-pfg">
+            {business.name} <span className="text-pmuted font-normal">· {t.flow.title}</span>
           </span>
           <Stepper steps={t.flow.steps} current={step} />
         </div>
@@ -293,17 +293,17 @@ function Stepper({ steps, current }: { steps: string[]; current: number }) {
     <ol className="flex items-center gap-1 shrink-0" aria-label={steps.join(" · ")}>
       {steps.map((label, i) => (
         <li key={label} className="flex items-center gap-1" aria-current={i === current ? "step" : undefined}>
-          {i > 0 && <span className="h-px w-2.5 sm:w-4" style={{ background: "rgba(255,255,255,0.14)" }} />}
+          {i > 0 && <span className="h-px w-2.5 sm:w-4" style={{ background: "rgba(10,10,10,0.119)" }} />}
           {i === current ? (
             <span className="h-6 px-2.5 rounded-full text-[11.5px] font-semibold flex items-center gap-1.5 whitespace-nowrap" style={{ background: TINT, color: ACCENT }}>
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: ACCENT }} />
               {label}
             </span>
           ) : (
-            <span className="h-6 flex items-center gap-1.5 text-[11.5px] whitespace-nowrap" style={{ color: i < current ? "#a1a1a1" : "#5c5c5c" }} title={label}>
+            <span className="h-6 flex items-center gap-1.5 text-[11.5px] whitespace-nowrap" style={{ color: i < current ? "#52525B" : "#5c5c5c" }} title={label}>
               <span
                 className="h-[18px] w-[18px] rounded-full flex items-center justify-center text-[10px] font-semibold"
-                style={i < current ? { background: "rgba(125,191,156,0.16)", color: ACCENT } : { boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.16)" }}
+                style={i < current ? { background: "rgba(125,191,156,0.16)", color: ACCENT } : { boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.136)" }}
               >
                 {i < current ? <Check /> : i + 1}
               </span>
@@ -342,34 +342,34 @@ function CenterAction({
 }) {
   const m = MK_TEXT[lang].map;
   const btn = "w-full min-h-11 px-5 py-2.5 rounded-full text-[14px] font-semibold leading-snug disabled:opacity-60";
-  const err = error && <span className="text-[12.5px] text-[#ff8a8a] leading-snug">{error}</span>;
+  const err = error && <span className="text-[12.5px] text-red-600 leading-snug">{error}</span>;
 
   if (approving) {
     return (
       <div className="flex flex-col items-center gap-1.5" aria-live="polite">
-        <span className="flex items-center gap-2 text-[13.5px] text-white">
+        <span className="flex items-center gap-2 text-[13.5px] text-pfg">
           <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
           {m.approving}
         </span>
-        <span className="text-[12px] text-[#8e8e8e]">{m.approvingSub}</span>
+        <span className="text-[12px] text-pmuted">{m.approvingSub}</span>
       </div>
     );
   }
   if (!approved) {
-    if (!canApprove) return <span className="text-[12.5px] text-[#8e8e8e]">{m.building}</span>;
+    if (!canApprove) return <span className="text-[12.5px] text-pmuted">{m.building}</span>;
     // Still checking the plan: don't flash a button the owner may not have.
     if (agentAllowed === undefined) return <span className="h-11" aria-hidden="true" />;
     if (!agentAllowed) {
       return (
         <div className="w-full flex flex-col items-center gap-2">
-          <span className="flex items-center gap-1.5 text-[13.5px] text-white font-medium leading-snug">
+          <span className="flex items-center gap-1.5 text-[13.5px] text-pfg font-medium leading-snug">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="5" y="11" width="14" height="9" rx="2" />
               <path d="M8 11V8a4 4 0 0 1 8 0v3" />
             </svg>
             {m.proTitle}
           </span>
-          <span className="text-[12px] text-[#a1a1a1] leading-snug">{m.proSub}</span>
+          <span className="text-[12px] text-psub leading-snug">{m.proSub}</span>
           {onPlans && (
             <button type="button" onClick={onPlans} className={btn} style={BRAND_BTN}>
               {m.proBtn} →
@@ -383,7 +383,7 @@ function CenterAction({
         <button type="button" onClick={onApprove} className={btn} style={BRAND_BTN}>
           {m.approve}
         </button>
-        <span className="text-[12px] text-[#a1a1a1] leading-snug">{m.approveHint}</span>
+        <span className="text-[12px] text-psub leading-snug">{m.approveHint}</span>
         {err}
       </div>
     );
@@ -391,7 +391,7 @@ function CenterAction({
   if (changed > 0) {
     return (
       <div className="w-full flex flex-col items-center gap-2">
-        <span className="text-[12.5px] text-[#f5c451] leading-snug">{m.changesHint(changed)}</span>
+        <span className="text-[12.5px] text-[#B45309] leading-snug">{m.changesHint(changed)}</span>
         <button type="button" onClick={onApprove} className={btn} style={BRAND_BTN}>
           {m.approveChanges}
         </button>
@@ -411,17 +411,17 @@ function CenterAction({
 function EmptyMap({ lang }: { lang: Lang }) {
   const m = MK_TEXT[lang].map;
   return (
-    <div className="rounded-2xl px-5 py-8 md:py-10 flex flex-col items-center text-center gap-3" style={{ background: "#101010", boxShadow: `0 0 0 1px ${HAIR}` }}>
+    <div className="rounded-[24px] px-5 py-8 md:py-10 flex flex-col items-center text-center gap-3" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
       <span className="text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: ACCENT }}>
         {m.eyebrow}
       </span>
-      <span className="text-[17px] font-semibold text-white">{m.emptyTitle}</span>
-      <p className="text-[14px] text-[#a1a1a1] leading-relaxed max-w-[520px]">{m.emptyText}</p>
+      <span className="text-[17px] font-semibold text-pfg">{m.emptyTitle}</span>
+      <p className="text-[14px] text-psub leading-relaxed max-w-[520px]">{m.emptyText}</p>
       <button
         type="button"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className="mt-1 h-10 px-5 rounded-full text-[13.5px] font-medium text-[#ececec] hover:text-white"
-        style={{ background: "rgba(255,255,255,0.08)" }}
+        className="mt-1 h-10 px-5 rounded-full text-[13.5px] font-medium text-pfg hover:text-pfg"
+        style={{ background: "rgba(10,10,10,0.068)" }}
       >
         {m.toChat}
       </button>
@@ -538,18 +538,18 @@ function buildNodes({
       tone: over ? "warn" : undefined,
       detail: (
         <div className="flex flex-col gap-3 text-[14px]">
-          {strategy?.budgetPlan && <p className="text-[#d4d4d4] leading-relaxed">{strategy.budgetPlan}</p>}
+          {strategy?.budgetPlan && <p className="text-pfg2 leading-relaxed">{strategy.budgetPlan}</p>}
           {active.length > 0 && (
-            <ul className="flex flex-col rounded-xl overflow-hidden" style={{ background: "#171717" }}>
+            <ul className="flex flex-col rounded-xl overflow-hidden" style={{ background: "#FFFFFF" }}>
               {active.map((c, i) => (
                 <li key={c.id} className="px-3.5 py-2.5 flex items-baseline justify-between gap-3" style={i > 0 ? { borderTop: `1px solid ${HAIR}` } : undefined}>
-                  <span className="text-white min-w-0 truncate">{c.title}</span>
-                  <span className="text-[#a1a1a1] text-[13px] whitespace-nowrap">{m.perDay(usd(c.spec!.dailyBudgetUsd), c.spec!.durationDays)}</span>
+                  <span className="text-pfg min-w-0 truncate">{c.title}</span>
+                  <span className="text-psub text-[13px] whitespace-nowrap">{m.perDay(usd(c.spec!.dailyBudgetUsd), c.spec!.durationDays)}</span>
                 </li>
               ))}
             </ul>
           )}
-          {max && active.length > 0 && <p className="text-[13px] leading-relaxed" style={{ color: over ? "#f5c451" : "#a1a1a1" }}>{over ? m.overMonth(usd(monthly), usd(max)) : m.sumMonth(usd(monthly), usd(max))}</p>}
+          {max && active.length > 0 && <p className="text-[13px] leading-relaxed" style={{ color: over ? "#B45309" : "#52525B" }}>{over ? m.overMonth(usd(monthly), usd(max)) : m.sumMonth(usd(monthly), usd(max))}</p>}
         </div>
       ),
     });
@@ -585,14 +585,14 @@ function buildNodes({
       detail: (
         <div className="flex flex-col gap-3">
           {ready.slice(0, 2).map((p) => (
-            <div key={p.id} className="rounded-xl px-3.5 py-3" style={{ background: "#171717" }}>
+            <div key={p.id} className="rounded-xl px-3.5 py-3" style={{ background: "#FFFFFF" }}>
               <div className="text-[11px] font-medium uppercase tracking-wider mb-1" style={{ color: ACCENT }}>
                 {t.agent.channels[p.channel]}
               </div>
-              <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed line-clamp-3">{p.text}</p>
+              <p className="text-[13.5px] text-pfg2 leading-relaxed line-clamp-3">{p.text}</p>
             </div>
           ))}
-          <a href="#mk-posts" className="text-[13.5px] text-[#a1a1a1] hover:text-white underline underline-offset-4 decoration-[rgba(255,255,255,.25)] self-start">
+          <a href="#mk-posts" className="text-[13.5px] text-psub hover:text-pfg underline underline-offset-4 decoration-[rgba(10,10,10,0.212)] self-start">
             {m.postsSee}
           </a>
         </div>
@@ -607,7 +607,7 @@ function buildNodes({
     title: m.measureTitle,
     summary: m.measureSummary,
     detail: (
-      <div className="flex flex-col gap-2 text-[14px] text-[#d4d4d4] leading-relaxed">
+      <div className="flex flex-col gap-2 text-[14px] text-pfg2 leading-relaxed">
         {m.measureText.map((p) => (
           <p key={p}>{p}</p>
         ))}
@@ -625,8 +625,8 @@ function Rows({ rows }: { rows: [string, string][] }) {
     <dl className="flex flex-col gap-3">
       {list.map(([k, v]) => (
         <div key={k} className="flex flex-col gap-0.5">
-          <dt className="text-[11.5px] text-[#8e8e8e]">{k}</dt>
-          <dd className="text-[14px] text-[#ececec] leading-relaxed">{v}</dd>
+          <dt className="text-[11.5px] text-pmuted">{k}</dt>
+          <dd className="text-[14px] text-pfg leading-relaxed">{v}</dd>
         </div>
       ))}
     </dl>
@@ -639,8 +639,8 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       type="button"
-      className="text-[12px] px-2.5 py-1 rounded-full text-[#d4d4d4] hover:text-white"
-      style={{ background: "rgba(255,255,255,0.07)" }}
+      className="text-[12px] px-2.5 py-1 rounded-full text-pfg2 hover:text-pfg"
+      style={{ background: "rgba(10,10,10,0.06)" }}
       onClick={() =>
         navigator.clipboard
           ?.writeText(text)
@@ -682,8 +682,8 @@ function CampaignDetail({
   return (
     <div className="flex flex-col gap-5 min-w-0">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        {campaign.goal && <span className="text-[13.5px] text-[#a1a1aa] leading-relaxed min-w-0 flex-1">{campaign.goal}</span>}
-        <span className="text-[11.5px] px-2.5 py-1 rounded-full shrink-0" style={live ? { background: TINT, color: ACCENT } : { background: HAIR, color: "#d4d4d4" }}>
+        {campaign.goal && <span className="text-[13.5px] text-psub leading-relaxed min-w-0 flex-1">{campaign.goal}</span>}
+        <span className="text-[11.5px] px-2.5 py-1 rounded-full shrink-0" style={live ? { background: TINT, color: ACCENT } : { background: HAIR, color: "#27272A" }}>
           {status}
         </span>
       </div>
@@ -695,10 +695,10 @@ function CampaignDetail({
         <Fact k={t.daily} v={`${usd(spec.dailyBudgetUsd)} × ${t.duration(spec.durationDays)}`} />
         <Fact k={t.total} v={usd(total)} />
       </div>
-      {spec.platform === "meta" && <p className="text-[12.5px] text-[#8e8e8e] -mt-2 leading-relaxed">{t.maxDay(usd(maxDailySpend(spec.dailyBudgetUsd)))}</p>}
+      {spec.platform === "meta" && <p className="text-[12.5px] text-pmuted -mt-2 leading-relaxed">{t.maxDay(usd(maxDailySpend(spec.dailyBudgetUsd)))}</p>}
 
       {spec.specialCategory !== "none" && (
-        <p className="text-[13px] rounded-xl px-3.5 py-2.5" style={{ background: "rgba(255,196,0,0.1)", color: "#ffd75e" }}>
+        <p className="text-[13px] rounded-xl px-3.5 py-2.5" style={{ background: "rgba(255,196,0,0.1)", color: "#92400E" }}>
           {t.special(t.specialNames[spec.specialCategory])}
         </p>
       )}
@@ -706,7 +706,7 @@ function CampaignDetail({
       {/* Ads: a swipeable row on phones, a grid on desktop */}
       {spec.platform === "meta" && spec.ads.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="text-[12px] text-[#8e8e8e]">
+          <span className="text-[12px] text-pmuted">
             {t.map.adTexts}
             {/* The ads are in the customers' language: say so when it isn't the panel's. */}
             {spec.language !== lang && (lang === "es" ? (spec.language === "en" ? " · en inglés, para tus clientes" : "") : spec.language === "es" ? " · in Spanish, for your customers" : "")}
@@ -715,18 +715,18 @@ function CampaignDetail({
             {spec.ads.map((ad, i) => (
               <div key={i} className="w-[85%] shrink-0 snap-start md:w-auto flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-[#8e8e8e]">{t.variation(i + 1)}</span>
+                  <span className="text-[12px] text-pmuted">{t.variation(i + 1)}</span>
                   <CopyButton text={`${ad.primaryText}\n\n${ad.headline}${ad.description ? `\n${ad.description}` : ""}`} />
                 </div>
                 {/* Facebook/Instagram feed preview */}
-                <div className="rounded-2xl overflow-hidden" style={{ background: "#fff", color: "#1c1e21" }}>
+                <div className="rounded-[24px] overflow-hidden" style={{ background: "#fff", color: "#1c1e21" }}>
                   <div className="flex items-center gap-2.5 px-3 pt-3">
-                    <span className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: business.accentColor === "#122118" ? "#234f36" : business.accentColor }}>
+                    <span className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-pfg shrink-0" style={{ background: business.accentColor === "#122118" ? "#234f36" : business.accentColor }}>
                       {business.name.slice(0, 2).toUpperCase()}
                     </span>
                     <div className="leading-tight min-w-0">
                       <div className="text-[13px] font-semibold truncate">{business.name}</div>
-                      <div className="text-[11px] text-[#65676b]">{t.sponsored}</div>
+                      <div className="text-[11px] text-pmuted">{t.sponsored}</div>
                     </div>
                   </div>
                   <p className="px-3 py-2.5 text-[13.5px] leading-snug whitespace-pre-line break-words">{ad.primaryText}</p>
@@ -734,13 +734,13 @@ function CampaignDetail({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={image} alt="" className="w-full aspect-[1.91/1] object-cover" />
                   ) : (
-                    <div className="w-full aspect-[1.91/1] flex items-center justify-center text-white text-[15px] font-semibold px-6 text-center" style={{ background: "linear-gradient(135deg,#234f36,#0b1a12)" }}>
+                    <div className="w-full aspect-[1.91/1] flex items-center justify-center text-pfg text-[15px] font-semibold px-6 text-center" style={{ background: "linear-gradient(135deg,#234f36,#0b1a12)" }}>
                       {business.site.headline || business.name}
                     </div>
                   )}
                   <div className="flex items-center justify-between gap-3 px-3 py-2.5" style={{ background: "#f0f2f5" }}>
                     <div className="min-w-0">
-                      <div className="text-[11px] text-[#65676b] uppercase truncate">sevrii.com</div>
+                      <div className="text-[11px] text-pmuted uppercase truncate">sevrii.com</div>
                       <div className="text-[13.5px] font-semibold truncate">{ad.headline}</div>
                     </div>
                     <span className="shrink-0 text-[12.5px] font-semibold px-3 py-1.5 rounded-md" style={{ background: "#e4e6eb" }}>
@@ -756,7 +756,7 @@ function CampaignDetail({
 
       {spec.platform === "google" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-2xl p-4 flex flex-col gap-1 self-start min-w-0" style={{ background: "#fff", color: "#202124" }}>
+          <div className="rounded-[24px] p-4 flex flex-col gap-1 self-start min-w-0" style={{ background: "#fff", color: "#202124" }}>
             <span className="text-[12px] truncate">
               <b>{t.googleSponsored}</b> · sevrii.com/site/{business.slug}
             </span>
@@ -780,16 +780,16 @@ function CampaignDetail({
       {spec.platform === "meta" && <AdImages campaignId={campaign.id} photoCount={photoCount} lang={lang} />}
 
       {spec.notes && (
-        <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed">
-          <span className="text-white font-medium">{t.note}:</span> {spec.notes}
+        <p className="text-[13.5px] text-pfg2 leading-relaxed">
+          <span className="text-pfg font-medium">{t.note}:</span> {spec.notes}
         </p>
       )}
 
       <details className="group">
-        <summary className="cursor-pointer list-none text-[13.5px] text-[#a1a1aa] hover:text-white">
+        <summary className="cursor-pointer list-none text-[13.5px] text-psub hover:text-pfg">
           {t.howTo} <span className="inline-block transition group-open:rotate-90">›</span>
         </summary>
-        <ol className="mt-3 flex flex-col gap-1.5 text-[13.5px] text-[#d4d4d4] list-decimal pl-5">
+        <ol className="mt-3 flex flex-col gap-1.5 text-[13.5px] text-pfg2 list-decimal pl-5">
           {(spec.platform === "meta" ? t.metaSteps : t.googleSteps).map((s) => (
             <li key={s}>{s}</li>
           ))}
@@ -801,9 +801,9 @@ function CampaignDetail({
 
 function Fact({ k, v }: { k: string; v: ReactNode }) {
   return (
-    <div className="rounded-xl px-3 py-2.5 min-w-0" style={{ background: "#171717" }}>
-      <div className="text-[11.5px] text-[#8e8e8e] mb-0.5">{k}</div>
-      <div className="text-white leading-snug break-words">{v}</div>
+    <div className="rounded-xl px-3 py-2.5 min-w-0" style={{ background: "#FFFFFF" }}>
+      <div className="text-[11.5px] text-pmuted mb-0.5">{k}</div>
+      <div className="text-pfg leading-snug break-words">{v}</div>
     </div>
   );
 }
@@ -813,12 +813,12 @@ function ListBlock({ title, items }: { title: string; items: string[] }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[12px] text-[#8e8e8e]">{title}</span>
+        <span className="text-[12px] text-pmuted">{title}</span>
         <CopyButton text={items.join("\n")} />
       </div>
       <div className="flex flex-wrap gap-1.5">
         {items.map((x) => (
-          <span key={x} className="text-[12.5px] px-2.5 py-1 rounded-full text-[#ececec]" style={{ background: "#1c1c1c" }}>
+          <span key={x} className="text-[12.5px] px-2.5 py-1 rounded-full text-pfg" style={{ background: "#FFFFFF" }}>
             {x}
           </span>
         ))}

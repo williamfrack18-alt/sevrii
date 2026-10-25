@@ -18,13 +18,13 @@ export default function AdImages({ campaignId, photoCount, lang }: { campaignId:
   const photos = count > 0 ? Array.from({ length: Math.min(3, count) }, (_, i) => i) : [0];
 
   return (
-    <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
-      <span className="text-[12.5px] font-medium text-white">{t.title}</span>
-      {count === 0 && <span className="text-[11.5px] text-[#8e8e8e] leading-snug -mt-1">{t.noPhoto}</span>}
+    <div className="rounded-[24px] p-4 flex flex-col gap-3" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
+      <span className="text-[12.5px] font-medium text-pfg">{t.title}</span>
+      {count === 0 && <span className="text-[11.5px] text-pmuted leading-snug -mt-1">{t.noPhoto}</span>}
       <div className="flex flex-col gap-4">
         {photos.map((p) => (
           <div key={p} className="flex flex-col gap-2">
-            {count > 1 && <span className="text-[11.5px] text-[#a1a1a1]">{t.photo(p + 1)}</span>}
+            {count > 1 && <span className="text-[11.5px] text-psub">{t.photo(p + 1)}</span>}
             <div className="flex items-end gap-3 flex-wrap">
               <Preview campaignId={campaignId} size="square" photo={p} lang={lang} />
               <Preview campaignId={campaignId} size="story" photo={p} lang={lang} />
@@ -47,10 +47,10 @@ function Preview({ campaignId, size, photo, lang }: { campaignId: string; size: 
     <div className="flex flex-col gap-1.5" style={{ width: w }}>
       <div
         className="relative rounded-xl overflow-hidden flex items-center justify-center"
-        style={{ width: w, height: h, background: "#0f0f0f", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}
+        style={{ width: w, height: h, background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}
       >
         {state !== "ok" && (
-          <span className="absolute inset-0 flex items-center justify-center px-2 text-center text-[10.5px] text-[#8e8e8e]">
+          <span className="absolute inset-0 flex items-center justify-center px-2 text-center text-[10.5px] text-pmuted">
             {state === "error" ? t.failed : t.loading}
           </span>
         )}
@@ -67,13 +67,13 @@ function Preview({ campaignId, size, photo, lang }: { campaignId: string; size: 
           />
         )}
       </div>
-      <span className="text-[10.5px] text-[#8e8e8e] leading-tight">{square ? t.square : t.story}</span>
+      <span className="text-[10.5px] text-pmuted leading-tight">{square ? t.square : t.story}</span>
       <a
         href={src}
         download={`sevrii-ad-${size}-${photo + 1}.png`}
         aria-disabled={state === "error"}
-        className="text-[11.5px] h-7 rounded-lg flex items-center justify-center font-medium text-[#d4d4d4] hover:text-white"
-        style={{ background: "rgba(255,255,255,0.08)", pointerEvents: state === "error" ? "none" : undefined, opacity: state === "error" ? 0.5 : 1 }}
+        className="text-[11.5px] h-7 rounded-lg flex items-center justify-center font-medium text-pfg2 hover:text-pfg"
+        style={{ background: "rgba(10,10,10,0.068)", pointerEvents: state === "error" ? "none" : undefined, opacity: state === "error" ? 0.5 : 1 }}
       >
         {t.download}
       </a>

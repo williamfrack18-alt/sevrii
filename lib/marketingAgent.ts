@@ -452,6 +452,27 @@ export function readyToPublishText(c: CampaignRow, lang: Lang): { title: string;
       };
 }
 
+// The owner approved new ad texts for a campaign already on Facebook: save
+// them and swap them into the ad (Facebook reviews them before showing them).
+export async function applyApprovedAds(b: BusinessRow, c: CampaignRow, raw: unknown, conn: MetaConnectionRow | null): Promise<{ ok: true; onMeta: boolean } | { ok: false; error: string; lang?: Lang }> {
+  if (!c.spec || c.spec.platform !== "meta") return { ok: false, error: "not_meta" };
+  const ads = (Array.isArray(raw) ? raw : [])
+    .map((x) => (x ?? {}) as Record<string, unknown>)
+    .filter((x) => typeof x.primaryText === "string" && typeof x.headline === "string")
+    .map((x) => ({ primaryText: String(x.primaryText).slice(0, 600), headline: String(x.headline).slice(0, 80), description: typeof x.description === "string" ? x.description.slice(0, 120) : "" }))
+    .slice(0, 3);
+  if (!ads.length) return { ok: false, error: "no_ads" };
+  const next = { ...c.spec, ads };
+  let onMeta = false;
+  if (c.meta?.campaignId && c.meta.adId) {
+    if (!conn) return { ok: false, error: "reconnect" };
+    await replaceAdCreative(conn, { ...c, spec: next }, c.meta, campaignLink(b.slug, c.id, siteUrl()), adImage(b));
+    onMeta = true;
+  }
+  await updateCampaignSpec(c.id, b.id, c.title, c.goal, next);
+  return { ok: true, onMeta };
+}
+
 // ---------- new ad texts ----------
 const ADS_SYSTEM = `You rewrite the ads of one Meta campaign for a small US service business. The current ads bring visits to the page but nobody writes in the chat. Write 3 NEW variations with different angles (a clear benefit, the offer or price if it exists in the facts, the owner and how the job works, an answer to a common worry). Keep the same service and the same facts. Benefit first, ≤125 characters of main text, headline ≤40 characters, and invite people to write through the chat on the page.
 
@@ -517,8 +538,10 @@ export async function runDaily(businessId: string): Promise<string> {
         // Proposals the owner hasn't approved: nothing to do.
         if (!spec || c.status === "proposed" || c.status === "declined") continue;
 
-        // Approved while Facebook wasn't connected: publish it now that it is.
-        if (c.status === "approved" && !isLiveOnMeta(c) && conn && b.published && limits.canPublish && spec.platform === "meta") {
+        // Approved (the owner's launch OK) while Facebook wasn't connected:
+        // publish it now that it is. Only campaigns never sent to Meta: one the
+        // owner created paused or paused by hand stays paused.
+        if (c.status === "approved" && !c.meta?.campaignId && conn && b.published && limits.canPublish && spec.platform === "meta") {
           const r = await launchOnMeta(b, c, conn, lang);
           if (r.ok) {
             await log({ kind: "launch", status: "auto", campaignId: c.id, ...launchedText(c, lang) });
@@ -611,26 +634,32 @@ export async function runDaily(businessId: string): Promise<string> {
         if (spec.platform === "meta" && w.views >= 40 && w.chats === 0 && !recentItem(items, "variation", c.id, 7) && (await canAi())) {
           const ads = await rewriteAds(b, c, w);
           if (ads.length) {
-            const next = { ...spec, ads };
-            await updateCampaignSpec(c.id, b.id, c.title, c.goal, next);
-            let onMeta = false;
-            if (isLiveOnMeta(c) && conn && c.meta) {
-              try {
-                await replaceAdCreative(conn, { ...c, spec: next }, c.meta, campaignLink(b.slug, c.id, siteUrl()), adImage(b));
-                onMeta = true;
-              } catch (err) {
-                console.error("[agent] creative swap failed", b.id, c.id, (err as Error)?.message);
-              }
+            const live = Boolean(c.meta?.campaignId);
+            if (live) {
+              // Already on Facebook: new texts are published only with the owner's OK.
+              await log({
+                kind: "variation",
+                status: "pending",
+                campaignId: c.id,
+                title: es ? `Anuncios nuevos para ${quote(c.title, lang)}` : `New ads for ${quote(c.title, lang)}`,
+                detail: es
+                  ? `En 7 días llegaron ${w.views} visitas y nadie escribió. Escribí textos nuevos con los mismos datos de tu negocio, sin subir el gasto. Si los apruebas, los cambio en tu anuncio de Facebook (Facebook los revisa antes de mostrarlos). Nuevo texto: "${ads[0].primaryText}"`
+                  : `In 7 days ${w.views} people visited and no one wrote. I wrote new texts using the same facts about your business, without raising spend. If you approve them, I'll swap them into your Facebook ad (Facebook reviews them first). New text: "${ads[0].primaryText}"`,
+                payload: { ads },
+              });
+            } else {
+              // Not on Facebook: it's only Sevrii's draft, nothing is published.
+              await updateCampaignSpec(c.id, b.id, c.title, c.goal, { ...spec, ads });
+              await log({
+                kind: "variation",
+                status: "auto",
+                campaignId: c.id,
+                title: es ? `Escribí anuncios nuevos para ${quote(c.title, lang)}` : `I wrote new ads for ${quote(c.title, lang)}`,
+                detail: es
+                  ? `En 7 días llegaron ${w.views} visitas y nadie escribió. Cambié los textos con los mismos datos de tu negocio, sin subir el gasto. Cópialos a tu anuncio para usarlos. Nuevo texto: "${ads[0].primaryText}"`
+                  : `In 7 days ${w.views} people visited and no one wrote. I changed the texts using the same facts about your business, without raising spend. Copy them into your ad to use them. New text: "${ads[0].primaryText}"`,
+              });
             }
-            await log({
-              kind: "variation",
-              status: "auto",
-              campaignId: c.id,
-              title: es ? `Escribí anuncios nuevos para ${quote(c.title, lang)}` : `I wrote new ads for ${quote(c.title, lang)}`,
-              detail: es
-                ? `En 7 días llegaron ${w.views} visitas y nadie escribió. Cambié los textos con los mismos datos de tu negocio, sin subir el gasto.${onMeta ? " Facebook los revisa antes de mostrarlos." : isLiveOnMeta(c) ? " Ya están en la campaña; en Facebook se verán cuando la vuelvas a publicar." : " Cópialos a tu anuncio para usarlos."} Nuevo texto: "${ads[0].primaryText}"`
-                : `In 7 days ${w.views} people visited and no one wrote. I changed the texts using the same facts about your business, without raising spend.${onMeta ? " Facebook reviews them before showing them." : isLiveOnMeta(c) ? " They're saved in the campaign; Facebook will show them when it's published again." : " Copy them into your ad to use them."} New text: "${ads[0].primaryText}"`,
-            });
             done.push("variation");
           }
         }

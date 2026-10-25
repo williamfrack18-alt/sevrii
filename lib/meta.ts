@@ -7,7 +7,7 @@ import { isOurBlob } from "./site";
 // Meta (Facebook / Instagram) ads, through the Graph API directly (no SDK).
 // OFF until the founder creates a Meta app and sets, in Vercel:
 //   META_APP_ID, META_APP_SECRET, META_CONFIG_ID (Facebook Login for Business),
-//   optional META_GRAPH_VERSION (default v23.0) and SEVRII_TOKEN_KEY
+//   optional META_GRAPH_VERSION (v26.0 or newer; default v26.0) and SEVRII_TOKEN_KEY
 // Rules: tokens are stored only encrypted and never logged; everything is
 // created PAUSED and only turned on when the owner taps "Activar" (or approves
 // the marketing agent's launch, which is the same OK to spend).
@@ -22,7 +22,9 @@ export function metaReady(): boolean {
 
 export function graphVersion(): string {
   const v = (process.env.META_GRAPH_VERSION || "").trim();
-  return /^v\d{1,3}\.\d{1,2}$/.test(v) ? v : "v23.0";
+  // Pinned to v26.0 (Meta's rules from Oct 27, 2026): an older value is ignored.
+  const m = /^v(\d{1,3})\.\d{1,2}$/.exec(v);
+  return m && Number(m[1]) >= 26 ? v : "v26.0";
 }
 
 export function metaRedirectUri(): string {
@@ -213,7 +215,8 @@ export async function listPages(token: string): Promise<FbPage[]> {
 
 // ---------- Launch ----------
 const SPECIAL: Record<string, string> = {
-  credit: "CREDIT",
+  // Meta replaced CREDIT with FINANCIAL_PRODUCTS_SERVICES (credit is part of it).
+  credit: "FINANCIAL_PRODUCTS_SERVICES",
   employment: "EMPLOYMENT",
   housing: "HOUSING",
   financial: "FINANCIAL_PRODUCTS_SERVICES",

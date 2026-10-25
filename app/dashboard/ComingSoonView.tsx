@@ -2,7 +2,7 @@
 
 import { useT, useLang } from "@/components/LangProvider";
 import { PLANS_TEXT } from "@/lib/plansI18n";
-import { ACCENT } from "@/lib/brand";
+import { ACCENT } from "@/lib/panel";
 
 // Payments and Capital don't exist yet. This screen explains what each one
 // will do and shows an illustrative preview — it never pretends to work.

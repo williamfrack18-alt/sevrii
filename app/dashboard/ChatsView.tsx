@@ -231,19 +231,19 @@ export default function ChatsView({ businessId, published, onStore }: { business
   const unread = (list ?? []).filter((c) => c.ownerUnread > 0).length;
   const needs = (list ?? []).filter((c) => c.handoff).length;
   const shown = (list ?? []).filter((c) => (filter === "needs" ? c.handoff : filter === "unread" ? c.ownerUnread > 0 : true));
-  const line = "1px solid rgba(255,255,255,0.08)";
-  const quiet = "h-10 md:h-8 px-3 rounded-lg text-[13px] text-[#a3a3a3] hover:text-white hover:bg-white/[0.06] inline-flex items-center gap-1.5 transition-colors";
+  const line = "1px solid rgba(10,10,10,0.068)";
+  const quiet = "h-10 md:h-8 px-3 rounded-lg text-[13px] text-psub hover:text-pfg hover:bg-black/[0.06] inline-flex items-center gap-1.5 transition-colors";
   const initial = (n: string) => (n || "?").trim().slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-var(--hdr))] md:h-screen bg-black text-[#ededed]">
+    <div className="flex flex-col h-[calc(100dvh-var(--hdr))] md:h-screen bg-pbg text-pfg">
       {/* Header */}
       <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3" style={{ borderBottom: line }}>
         <div className="flex items-baseline gap-2 min-w-0">
-          <h1 className="text-[15px] font-medium tracking-[-0.01em] text-white">{t.title}</h1>
-          {unread > 0 && <span className="text-[13px] text-[#8a8a8a]">{unread}</span>}
+          <h1 className="text-[15px] font-medium tracking-[-0.01em] text-pfg">{t.title}</h1>
+          {unread > 0 && <span className="text-[13px] text-pmuted">{unread}</span>}
         </div>
-        <button type="button" onClick={() => setShowAlerts((v) => !v)} className={`${quiet} -mr-2 md:mr-0 shrink-0`} style={showAlerts ? { color: "#fff", background: "rgba(255,255,255,0.06)" } : undefined}>
+        <button type="button" onClick={() => setShowAlerts((v) => !v)} className={`${quiet} -mr-2 md:mr-0 shrink-0`} style={showAlerts ? { color: "#0A0A0A", background: "rgba(10,10,10,0.051)" } : undefined}>
           <Icon d={I.bell} size={15} /> {t.alerts}
         </button>
       </div>
@@ -254,9 +254,9 @@ export default function ChatsView({ businessId, published, onStore }: { business
         </div>
       )}
       {!published && (
-        <div className="shrink-0 px-4 md:px-6 py-2.5 text-[13px] text-[#a3a3a3] flex flex-wrap items-center gap-x-3 gap-y-1" style={{ borderBottom: line }}>
+        <div className="shrink-0 px-4 md:px-6 py-2.5 text-[13px] text-psub flex flex-wrap items-center gap-x-3 gap-y-1" style={{ borderBottom: line }}>
           <span>{t.draft}</span>
-          <button type="button" onClick={onStore} className="text-white underline underline-offset-4 decoration-white/30 hover:decoration-white">
+          <button type="button" onClick={onStore} className="text-pfg underline underline-offset-4 decoration-white/30 hover:decoration-white">
             {t.goStore}
           </button>
         </div>
@@ -266,8 +266,8 @@ export default function ChatsView({ businessId, published, onStore }: { business
         <div className="flex-1" />
       ) : list.length === 0 ? (
         <div className="m-auto text-center px-6">
-          <p className="text-[15px] text-white">{t.empty}</p>
-          <p className="text-[13.5px] text-[#8a8a8a] mt-1.5">{t.emptySub}</p>
+          <p className="text-[15px] text-pfg">{t.empty}</p>
+          <p className="text-[13.5px] text-pmuted mt-1.5">{t.emptySub}</p>
         </div>
       ) : (
         <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)] md:grid-cols-[300px_minmax(0,1fr)]">
@@ -286,15 +286,15 @@ export default function ChatsView({ businessId, published, onStore }: { business
                   type="button"
                   onClick={() => setFilter(k)}
                   className="pb-2.5 pt-3 md:pt-0 text-[13px] -mb-px transition-colors whitespace-nowrap"
-                  style={filter === k ? { color: "#fff", borderBottom: "1.5px solid #fff" } : { color: "#8a8a8a", borderBottom: "1.5px solid transparent" }}
+                  style={filter === k ? { color: "#0A0A0A", borderBottom: "1.5px solid #0A0A0A" } : { color: "#8a8a8a", borderBottom: "1.5px solid transparent" }}
                 >
                   {label}
-                  {n ? <span className="ml-1.5 text-[#6b6b6b]">{n}</span> : null}
+                  {n ? <span className="ml-1.5 text-pfaint">{n}</span> : null}
                 </button>
               ))}
             </div>
             <div className="flex-1 overflow-y-auto">
-              {shown.length === 0 && <p className="text-[13px] text-[#6b6b6b] px-4 md:px-5 py-5">{t.noneFilter}</p>}
+              {shown.length === 0 && <p className="text-[13px] text-pfaint px-4 md:px-5 py-5">{t.noneFilter}</p>}
               {shown.map((c) => {
                 const on = c.id === openId;
                 return (
@@ -302,19 +302,19 @@ export default function ChatsView({ businessId, published, onStore }: { business
                     key={c.id}
                     type="button"
                     onClick={() => setOpenId(c.id)}
-                    className="w-full min-w-0 text-left px-4 md:px-5 py-3.5 flex items-center md:items-stretch gap-3 transition-colors hover:bg-white/[0.03] active:bg-white/[0.05]"
-                    style={{ background: on ? "rgba(255,255,255,0.05)" : undefined, borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                    className="w-full min-w-0 text-left px-4 md:px-5 py-3.5 flex items-center md:items-stretch gap-3 transition-colors hover:bg-black/[0.03] active:bg-black/[0.05]"
+                    style={{ background: on ? "rgba(10,10,10,0.043)" : undefined, borderBottom: "1px solid rgba(10,10,10,0.034)" }}
                   >
-                    <div className="w-11 h-11 md:w-9 md:h-9 rounded-full flex items-center justify-center text-[14px] md:text-[13px] font-medium shrink-0 text-[#d4d4d4]" style={{ background: "#1c1c1c" }}>
+                    <div className="w-11 h-11 md:w-9 md:h-9 rounded-full flex items-center justify-center text-[14px] md:text-[13px] font-medium shrink-0 text-pfg2" style={{ background: "#FFFFFF" }}>
                       {initial(c.name || t.visitor)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`min-w-0 text-[15px] md:text-[14px] truncate ${c.ownerUnread ? "text-white font-medium" : "text-[#d4d4d4]"}`}>{c.name || t.visitor}</span>
-                        <span className="text-[11.5px] text-[#6b6b6b] shrink-0">{when(c.lastMessageAt, lang)}</span>
+                        <span className={`min-w-0 text-[15px] md:text-[14px] truncate ${c.ownerUnread ? "text-pfg font-medium" : "text-pfg2"}`}>{c.name || t.visitor}</span>
+                        <span className="text-[11.5px] text-pfaint shrink-0">{when(c.lastMessageAt, lang)}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                        <span className={`min-w-0 text-[13.5px] md:text-[13px] truncate ${c.ownerUnread ? "text-[#bdbdbd]" : "text-[#737373]"}`}>{c.lastMessage.replace(/\s*\[\[pay\]\]\s*$/, "")}</span>
+                        <span className={`min-w-0 text-[13.5px] md:text-[13px] truncate ${c.ownerUnread ? "text-pfg2" : "text-pfaint"}`}>{c.lastMessage.replace(/\s*\[\[pay\]\]\s*$/, "")}</span>
                         {c.handoff && <span className="ml-auto shrink-0 text-[11px] text-[#e0b54a]">{t.needsYou}</span>}
                         {!c.handoff && c.ownerUnread > 0 && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
                       </div>
@@ -326,18 +326,18 @@ export default function ChatsView({ businessId, published, onStore }: { business
           </div>
 
           {/* Thread */}
-          <div className={`min-h-0 min-w-0 flex-col ${openId ? "flex max-md:fixed max-md:inset-0 max-md:z-50 max-md:bg-black max-md:pt-[env(safe-area-inset-top)]" : "hidden md:flex"}`}>
+          <div className={`min-h-0 min-w-0 flex-col ${openId ? "flex max-md:fixed max-md:inset-0 max-md:z-50 max-md:bg-pbg max-md:pt-[env(safe-area-inset-top)]" : "hidden md:flex"}`}>
             {!current ? (
-              <div className="m-auto text-[13.5px] text-[#6b6b6b]">{t.pick}</div>
+              <div className="m-auto text-[13.5px] text-pfaint">{t.pick}</div>
             ) : (
               <>
                 <div className="shrink-0 h-14 md:h-16 px-4 md:px-6 flex items-center gap-1 md:gap-3" style={{ borderBottom: line }}>
-                  <button type="button" className="md:hidden -ml-2 h-10 w-10 shrink-0 flex items-center justify-center text-white" onClick={() => setOpenId(null)} aria-label={t.back}>
+                  <button type="button" className="md:hidden -ml-2 h-10 w-10 shrink-0 flex items-center justify-center text-pfg" onClick={() => setOpenId(null)} aria-label={t.back}>
                     <Icon d={I.back} size={20} />
                   </button>
                   <div className="min-w-0 mr-auto">
-                    <div className="text-[15px] md:text-[14.5px] font-medium text-white truncate">{current.name || t.visitor}</div>
-                    <div className="text-[12.5px] text-[#737373] truncate">
+                    <div className="text-[15px] md:text-[14.5px] font-medium text-pfg truncate">{current.name || t.visitor}</div>
+                    <div className="text-[12.5px] text-pfaint truncate">
                       {[current.phone ? formatPhone(current.phone) : "", current.email].filter(Boolean).join("  ·  ") || (current.aiEnabled ? t.aiOn : t.aiOff)}
                     </div>
                   </div>
@@ -356,17 +356,17 @@ export default function ChatsView({ businessId, published, onStore }: { business
                       {t.resolve}
                     </button>
                   )}
-                  <button type="button" onClick={toggleAi} className="hidden md:inline-flex h-8 px-3 rounded-lg text-[13px] text-white items-center transition-colors" style={{ border: "1px solid rgba(255,255,255,0.14)" }}>
+                  <button type="button" onClick={toggleAi} className="hidden md:inline-flex h-8 px-3 rounded-lg text-[13px] text-pfg items-center transition-colors" style={{ border: "1px solid rgba(10,10,10,0.119)" }}>
                     {current.aiEnabled ? t.turnAiOff : t.turnAiOn}
                   </button>
                 </div>
                 {/* Mobile: the thread actions get their own row so the header never overflows */}
                 <div className="md:hidden shrink-0 px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar" style={{ borderBottom: line }}>
-                  <button type="button" onClick={toggleAi} className="h-10 px-4 rounded-full text-[13.5px] text-white inline-flex items-center shrink-0 whitespace-nowrap" style={{ border: "1px solid rgba(255,255,255,0.14)" }}>
+                  <button type="button" onClick={toggleAi} className="h-10 px-4 rounded-full text-[13.5px] text-pfg inline-flex items-center shrink-0 whitespace-nowrap" style={{ border: "1px solid rgba(10,10,10,0.119)" }}>
                     {current.aiEnabled ? t.turnAiOff : t.turnAiOn}
                   </button>
                   {current.handoff && (
-                    <button type="button" onClick={resolve} className="h-10 px-4 rounded-full text-[13.5px] text-[#d4d4d4] inline-flex items-center shrink-0 whitespace-nowrap" style={{ background: "rgba(255,255,255,0.06)" }}>
+                    <button type="button" onClick={resolve} className="h-10 px-4 rounded-full text-[13.5px] text-pfg2 inline-flex items-center shrink-0 whitespace-nowrap" style={{ background: "rgba(10,10,10,0.051)" }}>
                       {t.resolve}
                     </button>
                   )}
@@ -381,7 +381,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
                       return (
                         <div key={m.seq} className={`flex flex-col ${mine ? "items-end" : "items-start"} ${head ? "mt-4" : ""}`}>
                           {head && (
-                            <span className="text-[11.5px] text-[#6b6b6b] mb-1 px-1">
+                            <span className="text-[11.5px] text-pfaint mb-1 px-1">
                               {m.role === "visitor" ? current.name || t.visitor : m.role === "owner" ? (me?.name ? `${t.you} · ${me.name}` : t.you) : t.ai}
                             </span>
                           )}
@@ -389,10 +389,10 @@ export default function ChatsView({ businessId, published, onStore }: { business
                             className="max-w-[85%] md:max-w-[78%] px-3.5 py-2 text-[15px] md:text-[14px] leading-[1.5] md:leading-[1.55] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
                             style={
                               m.role === "visitor"
-                                ? { background: "#1c1c1c", color: "#ededed", borderRadius: 14 }
+                                ? { background: "#FFFFFF", color: "#0A0A0A", borderRadius: 14, boxShadow: "0 0 0 1px rgba(10,10,10,.06)" }
                                 : m.role === "owner"
-                                  ? { background: "#f5f5f5", color: "#0a0a0a", borderRadius: 14 }
-                                  : { background: "transparent", color: "#d4d4d4", borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)" }
+                                  ? { background: "#052E16", color: "#fff", borderRadius: 14 }
+                                  : { background: "transparent", color: "#27272A", borderRadius: 14, border: "1px solid rgba(10,10,10,0.102)" }
                             }
                           >
                             {m.content.replace(/\s*\[\[pay\]\]\s*$/, "").replace(/\*\*(.+?)\*\*/g, "$1")}
@@ -407,30 +407,30 @@ export default function ChatsView({ businessId, published, onStore }: { business
                   <div className="max-w-[720px] mx-auto">
                     {me && editName ? (
                       <div className="mb-3">
-                        <p className="text-[12.5px] text-[#a3a3a3] mb-2">{t.askName}</p>
+                        <p className="text-[12.5px] text-psub mb-2">{t.askName}</p>
                         <div className="flex gap-2">
                           <input
                             value={nameDraft}
                             onChange={(e) => setNameDraft(e.target.value)}
                             placeholder={t.namePh}
                             maxLength={40}
-                            className="flex-1 min-w-0 h-10 md:h-9 rounded-lg px-3 text-[16px] md:text-[13.5px] text-white outline-none bg-transparent placeholder:text-[#5c5c5c]"
-                            style={{ border: "1px solid rgba(255,255,255,0.14)" }}
+                            className="flex-1 min-w-0 h-10 md:h-9 rounded-lg px-3 text-[16px] md:text-[13.5px] text-pfg outline-none bg-transparent placeholder:text-pfaint"
+                            style={{ border: "1px solid rgba(10,10,10,0.119)" }}
                           />
-                          <button type="button" onClick={saveName} disabled={nameDraft.trim().length < 2} className="h-10 md:h-9 px-4 rounded-lg text-[13px] font-medium bg-white text-black disabled:opacity-40 shrink-0">
+                          <button type="button" onClick={saveName} disabled={nameDraft.trim().length < 2} className="h-10 md:h-9 px-4 rounded-lg text-[13px] font-medium bg-pfg text-pfg disabled:opacity-40 shrink-0">
                             {t.save}
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex max-md:flex-wrap items-center justify-between gap-x-3 gap-y-1 md:gap-3 mb-2 text-[12px] text-[#6b6b6b] min-w-0">
+                      <div className="flex max-md:flex-wrap items-center justify-between gap-x-3 gap-y-1 md:gap-3 mb-2 text-[12px] text-pfaint min-w-0">
                         <span>{current.aiEnabled ? t.aiOn : t.aiOff}</span>
                         {me?.name && (
                           <span className="min-w-0 break-words">
-                            {t.seenAs} <span className="text-[#bdbdbd]">{me.name}</span> ·{" "}
+                            {t.seenAs} <span className="text-pfg2">{me.name}</span> ·{" "}
                             <button
                               type="button"
-                              className="hover:text-white tap"
+                              className="hover:text-pfg tap"
                               onClick={() => {
                                 setNameDraft(me.name);
                                 setEditName(true);
@@ -444,7 +444,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
                     )}
                     <form
                       className="flex items-end gap-2 rounded-xl px-3 py-1.5 md:py-2"
-                      style={{ background: "#141414", border: "1px solid rgba(255,255,255,0.08)" }}
+                      style={{ background: "#FFFFFF", border: "1px solid rgba(10,10,10,0.068)" }}
                       onSubmit={(e) => {
                         e.preventDefault();
                         reply();
@@ -455,13 +455,13 @@ export default function ChatsView({ businessId, published, onStore }: { business
                         onChange={(e) => setDraft(e.target.value)}
                         placeholder={t.placeholder}
                         maxLength={2000}
-                        className="flex-1 min-w-0 h-10 md:h-9 bg-transparent text-[16px] md:text-[14px] text-white outline-none placeholder:text-[#5c5c5c]"
+                        className="flex-1 min-w-0 h-10 md:h-9 bg-transparent text-[16px] md:text-[14px] text-pfg outline-none placeholder:text-pfaint"
                       />
                       <button
                         type="submit"
                         disabled={busy || !draft.trim()}
                         aria-label={t.send}
-                        className="h-10 w-10 md:h-8 md:w-8 shrink-0 rounded-lg flex items-center justify-center bg-white text-black disabled:bg-[#2a2a2a] disabled:text-[#6b6b6b] transition-colors"
+                        className="h-10 w-10 md:h-8 md:w-8 shrink-0 rounded-lg flex items-center justify-center bg-pfg text-pfg disabled:bg-psoft disabled:text-pfaint transition-colors"
                       >
                         <Icon d={I.send} size={16} />
                       </button>

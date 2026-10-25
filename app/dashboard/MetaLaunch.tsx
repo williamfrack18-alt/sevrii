@@ -10,7 +10,7 @@ import {
   type MetaCampaignInfo,
   type MetaResult,
 } from "@/app/metaActions";
-import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
@@ -61,7 +61,7 @@ const TEXT = {
   },
 };
 
-const ghost = { background: "rgba(255,255,255,.08)", color: "#e5e5e5" };
+const ghost = { background: "rgba(10,10,10,0.068)", color: "#0A0A0A" };
 
 export default function MetaLaunch({
   campaign,
@@ -117,8 +117,8 @@ export default function MetaLaunch({
 
   if (!launched) {
     return (
-      <div className="rounded-xl p-4 flex flex-col gap-2" style={{ background: "#161616", boxShadow: "0 0 0 1px rgba(255,255,255,.07)" }}>
-        {meta?.status === "error" && meta.error && !note && <p className="text-[12.5px]" style={{ color: "#ffd75e" }}>{meta.error}</p>}
+      <div className="rounded-xl p-4 flex flex-col gap-2" style={{ background: "#FFFFFF", boxShadow: "0 0 0 1px rgba(10,10,10,0.06)" }}>
+        {meta?.status === "error" && meta.error && !note && <p className="text-[12.5px]" style={{ color: "#92400E" }}>{meta.error}</p>}
         <div>
           <button
             type="button"
@@ -130,8 +130,8 @@ export default function MetaLaunch({
             {busy ? t.creating : meta?.status === "error" ? t.retry : t.create}
           </button>
         </div>
-        <p className="text-[12.5px] text-[#a1a1a1]">{t.createLine}</p>
-        {note && <p className="text-[12.5px]" style={{ color: "#ffd75e" }}>{note}</p>}
+        <p className="text-[12.5px] text-psub">{t.createLine}</p>
+        {note && <p className="text-[12.5px]" style={{ color: "#92400E" }}>{note}</p>}
       </div>
     );
   }
@@ -142,23 +142,23 @@ export default function MetaLaunch({
       ? { label: t.active, style: { background: TINT, color: ACCENT } }
       : m.status === "error"
         ? { label: t.error, style: { background: "rgba(255,196,0,.12)", color: "#ffc400" } }
-        : { label: t.paused, style: { background: "rgba(255,255,255,.08)", color: "#a1a1a1" } };
+        : { label: t.paused, style: { background: "rgba(10,10,10,0.068)", color: "#52525B" } };
   const when = m.stats?.at ? new Date(m.stats.at).toLocaleString(lang === "es" ? "es-US" : "en-US", { dateStyle: "short", timeStyle: "short" }) : "";
 
   return (
-    <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: "#161616", boxShadow: "0 0 0 1px rgba(255,255,255,.07)" }}>
+    <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: "#FFFFFF", boxShadow: "0 0 0 1px rgba(10,10,10,0.06)" }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[13.5px] font-semibold text-white">{t.onMeta}</span>
+        <span className="text-[13.5px] font-semibold text-pfg">{t.onMeta}</span>
         <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={chip.style}>
           {chip.label}
         </span>
       </div>
-      {m.error && <p className="text-[12.5px]" style={{ color: "#ffd75e" }}>{m.error}</p>}
+      {m.error && <p className="text-[12.5px]" style={{ color: "#92400E" }}>{m.error}</p>}
 
       {confirm ? (
         <div className="flex flex-col gap-2 rounded-lg p-3" style={{ background: "rgba(255,196,0,.08)" }}>
-          <p className="text-[13px] text-white leading-relaxed">{t.confirm(usd(info.maxDailyUsd), info.durationDays)}</p>
-          <p className="text-[12px] text-[#a1a1a1]">{t.budgetNote(usd(info.dailyBudgetUsd))}</p>
+          <p className="text-[13px] text-pfg leading-relaxed">{t.confirm(usd(info.maxDailyUsd), info.durationDays)}</p>
+          <p className="text-[12px] text-psub">{t.budgetNote(usd(info.dailyBudgetUsd))}</p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -200,9 +200,9 @@ export default function MetaLaunch({
           [t.impressions, m.stats ? m.stats.impressions.toLocaleString("en-US") : "—"],
           [t.clicks, m.stats ? m.stats.clicks.toLocaleString("en-US") : "—"],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-lg px-3 py-2" style={{ background: "#0f0f0f" }}>
-            <div className="text-[11.5px] text-[#8e8e8e]">{k}</div>
-            <div className="text-[15px] font-semibold text-white">{v}</div>
+          <div key={k} className="rounded-lg px-3 py-2" style={{ background: "#FFFFFF" }}>
+            <div className="text-[11.5px] text-pmuted">{k}</div>
+            <div className="text-[15px] font-semibold text-pfg">{v}</div>
           </div>
         ))}
       </div>
@@ -216,9 +216,9 @@ export default function MetaLaunch({
         >
           {t.refresh}
         </button>
-        {when && <span className="text-[12px] text-[#8e8e8e]">{t.updated(when)}</span>}
+        {when && <span className="text-[12px] text-pmuted">{t.updated(when)}</span>}
       </div>
-      {note && <p className="text-[12.5px]" style={{ color: "#ffd75e" }}>{note}</p>}
+      {note && <p className="text-[12.5px]" style={{ color: "#92400E" }}>{note}</p>}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
-import { ACCENT, BRAND_BTN } from "@/lib/brand";
+import { BRAND_BTN, DEEP, GREEN as ACCENT } from "@/lib/panel";
 export type Msg = { id: string; role: string; content: string };
 
 export type ChatTexts = {
@@ -37,8 +37,8 @@ export type ChatChip = { label: string; text?: string; upload?: boolean };
 
 const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mov|mp4|webm)$/i.test(f.name);
 
-// Clean, ChatGPT-style chat in Sevrii's colors: black canvas, assistant text
-// without bubbles, the owner's messages in a soft gray bubble, one rounded
+// Clean chat in Sevrii's colors: light canvas, assistant text without
+// bubbles, the owner's messages in a deep green bubble, one rounded white
 // composer. Empty state = a centered question with the composer in the middle.
 // Used by Brain, Store and Marketing.
 export default function ChatPanel({
@@ -206,16 +206,16 @@ export default function ChatPanel({
   // Shown while a photo or video uploads, also in an empty chat.
   const uploadRow = uploading && (
     <div className="flex justify-end" role="status" aria-live="polite">
-      <div className="w-[240px] max-w-[78%] rounded-3xl px-5 py-3 flex flex-col gap-2" style={{ background: "#2a2a2a" }}>
-        <div className="flex items-center justify-between gap-3 text-[14px] text-[#d4d4d4]">
+      <div className="w-[240px] max-w-[78%] rounded-3xl px-5 py-3 flex flex-col gap-2 bg-pcard" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06)" }}>
+        <div className="flex items-center justify-between gap-3 text-[14px] text-pfg2">
           <span className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full animate-pulse shrink-0" style={{ background: ACCENT }} />
             {uploading.video ? texts.uploadingVideo ?? texts.attach : texts.uploadingPhoto ?? texts.attach}
           </span>
-          {uploading.video && <span className="tabular-nums text-[#a1a1aa]">{uploading.pct}%</span>}
+          {uploading.video && <span className="tabular-nums text-psub">{uploading.pct}%</span>}
         </div>
         {uploading.video && (
-          <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.1)" }}>
+          <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(10,10,10,0.085)" }}>
             <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${uploading.pct}%`, background: ACCENT }} />
           </div>
         )}
@@ -232,8 +232,8 @@ export default function ChatPanel({
             type="button"
             disabled={busy}
             onClick={() => pickChip(c)}
-            className="tap shrink-0 h-8 px-3.5 rounded-full text-[13px] text-[#d4d4d4] hover:text-white hover:bg-white/10 transition disabled:opacity-40 whitespace-nowrap"
-            style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12)" }}
+            className="tap shrink-0 h-9 px-4 rounded-full text-[13.5px] font-medium text-pfg bg-pcard hover:bg-pfg hover:text-white transition disabled:opacity-40 whitespace-nowrap"
+            style={{ boxShadow: "0 1px 2px rgba(10,10,10,.05), 0 0 0 1px rgba(10,10,10,.08)" }}
           >
             {c.label}
           </button>
@@ -244,8 +244,8 @@ export default function ChatPanel({
   const composer = locked ? (
     <div className="w-full">
       <div
-        className="flex items-start gap-3 rounded-[24px] px-5 py-4 text-[15px] text-[#d4d4d4]"
-        style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}
+        className="flex items-start gap-3 rounded-[24px] px-5 py-4 text-[15px] text-pfg2"
+        style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.16), 0 0 0 1px rgba(10,10,10,.06)" }}
       >
         <span className="h-2.5 w-2.5 mt-[7px] rounded-full animate-pulse shrink-0" style={{ background: ACCENT }} />
         {locked}
@@ -253,10 +253,10 @@ export default function ChatPanel({
     </div>
   ) : (
     <div className="w-full">
-      {error && <p className="text-[13px] text-[#ff6b6b] mb-2 px-4">{error}</p>}
+      {error && <p className="text-[13px] text-red-600 mb-2 px-4">{error}</p>}
       <form
         className="flex items-end gap-1.5 rounded-[26px] md:rounded-[28px] px-2 md:px-2.5 py-2 md:py-2.5"
-        style={{ background: "#1f1f1f", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}
+        style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.18), 0 0 0 1px rgba(10,10,10,.06)" }}
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
@@ -264,7 +264,7 @@ export default function ChatPanel({
       >
         {onUpload ? (
         <label
-          className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-[#d4d4d4] hover:bg-white/10 cursor-pointer transition ${busy ? "opacity-40 pointer-events-none" : ""}`}
+          className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-pfg2 hover:bg-black/10 cursor-pointer transition ${busy ? "opacity-40 pointer-events-none" : ""}`}
           title={texts.attach}
           aria-label={texts.attach}
         >
@@ -289,7 +289,7 @@ export default function ChatPanel({
           ref={inputRef}
           rows={1}
           autoFocus={empty}
-          className="flex-1 min-w-0 bg-transparent outline-none resize-none text-[16px] leading-[1.5] text-white placeholder:text-[#8e8e8e] py-2 max-h-[200px]"
+          className="flex-1 min-w-0 bg-transparent outline-none resize-none text-[16px] leading-[1.5] text-pfg placeholder:text-pmuted py-2 max-h-[200px]"
           placeholder={texts.placeholder}
           value={input}
           maxLength={2000}
@@ -307,7 +307,7 @@ export default function ChatPanel({
           aria-label={lang === "es" ? "Enviar" : "Send"}
           title={lang === "es" ? "Enviar" : "Send"}
           className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition"
-          style={canSend ? BRAND_BTN : { background: "#3a3a3a", color: "#8e8e8e" }}
+          style={canSend ? BRAND_BTN : { background: "#F0F0ED", color: "#A1A1AA" }}
           disabled={!canSend}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -319,12 +319,12 @@ export default function ChatPanel({
   );
 
   const footnote = (
-    <p className="text-center text-[11.5px] md:text-[12px] text-[#8e8e8e] pt-2 md:pt-2.5 px-2 md:px-4">
+    <p className="text-center text-[11.5px] md:text-[12px] text-pmuted pt-2 md:pt-2.5 px-2 md:px-4">
       {texts.disclaimer}
       {texts.seeBelow && texts.seeBelowHref && (
         <>
           {" "}
-          <a href={texts.seeBelowHref} className="underline underline-offset-2 hover:text-white">
+          <a href={texts.seeBelowHref} className="underline underline-offset-2 hover:text-pfg">
             {texts.seeBelow}
           </a>
         </>
@@ -337,8 +337,8 @@ export default function ChatPanel({
       <div className="flex-1 min-h-0 flex flex-col items-center px-4 overflow-y-auto">
         <div className="w-full max-w-[760px] my-auto py-4 md:py-0 flex flex-col items-center gap-6 md:gap-8">
           <div className="text-center flex flex-col gap-3">
-            <h1 className="text-[24px] md:text-[32px] leading-tight font-medium tracking-[-0.02em] text-white">{texts.emptyTitle}</h1>
-            <p className="text-[15px] text-[#a1a1aa] max-w-[560px]">{texts.emptySub}</p>
+            <h1 className="text-[24px] md:text-[32px] leading-tight font-medium tracking-[-0.02em] text-pfg">{texts.emptyTitle}</h1>
+            <p className="text-[15px] text-psub max-w-[560px]">{texts.emptySub}</p>
           </div>
           {uploadRow && <div className="w-full px-1">{uploadRow}</div>}
           {composer}
@@ -353,7 +353,7 @@ export default function ChatPanel({
         <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-6 md:pb-8 flex flex-col gap-6 md:gap-7">
           {head}
           {messages.length === 0 && greeting && (
-            <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words" style={{ color: "#e8e8e8" }}>
+            <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words" style={{ color: "#0A0A0A" }}>
               {greeting}
             </div>
           )}
@@ -369,7 +369,7 @@ export default function ChatPanel({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photo[1]} alt="" className="max-w-[min(240px,85%)] md:max-w-[240px] rounded-3xl" />
                   ) : (
-                    <div className="max-w-[85%] md:max-w-[78%] rounded-3xl px-4 md:px-5 py-2.5 md:py-3 text-[15px] md:text-[15.5px] leading-[1.55] md:leading-[1.6] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ background: "#2a2a2a", color: "#fff" }}>
+                    <div className="max-w-[85%] md:max-w-[78%] rounded-3xl px-4 md:px-5 py-2.5 md:py-3 text-[15px] md:text-[15.5px] leading-[1.55] md:leading-[1.6] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ background: DEEP, color: "#fff" }}>
                       {m.content}
                     </div>
                   )}
@@ -384,7 +384,7 @@ export default function ChatPanel({
             return (
               <div key={m.id} className="min-w-0 flex flex-col gap-3.5">
                 {text && (
-                  <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: "#e8e8e8" }}>
+                  <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: "#0A0A0A" }}>
                     {text}
                   </div>
                 )}

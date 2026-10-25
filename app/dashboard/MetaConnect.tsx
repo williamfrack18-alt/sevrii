@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { chooseMetaAssetsAction, disconnectMetaAction, getMetaStatusAction, type MetaStatus } from "@/app/metaActions";
-import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 
 const TEXT = {
   es: {
@@ -61,10 +61,10 @@ const TEXT = {
   },
 };
 
-const card = { background: "#0f0f0f", boxShadow: "0 0 0 1px rgba(255,255,255,.08)" };
-const select = "h-10 rounded-xl px-3 text-[13.5px] text-white outline-none w-full";
-const selectStyle = { background: "#161616", boxShadow: "0 0 0 1px rgba(255,255,255,.1)" };
-const ghost = { background: "rgba(255,255,255,.08)", color: "#e5e5e5" };
+const card = { background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" };
+const select = "h-10 rounded-xl px-3 text-[13.5px] text-pfg outline-none w-full";
+const selectStyle = { background: "#FFFFFF", boxShadow: "0 0 0 1px rgba(10,10,10,0.085)" };
+const ghost = { background: "rgba(10,10,10,0.068)", color: "#0A0A0A" };
 
 export default function MetaConnect({ lang }: { lang: "es" | "en" }) {
   const t = TEXT[lang];
@@ -127,14 +127,14 @@ export default function MetaConnect({ lang }: { lang: "es" | "en" }) {
 
   if (!s.ready) {
     return (
-      <div className="rounded-2xl p-4 md:p-5" style={{ ...card, opacity: 0.75 }}>
+      <div className="rounded-[24px] p-4 md:p-5" style={{ ...card, opacity: 0.75 }}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-[15px] font-semibold text-white">{t.title}</h3>
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,.08)", color: "#a1a1a1" }}>
+          <h3 className="text-[15px] font-semibold text-pfg">{t.title}</h3>
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(10,10,10,0.068)", color: "#52525B" }}>
             {t.soon}
           </span>
         </div>
-        <p className="text-[13px] text-[#9a9a9a] mt-1">{t.soonLine}</p>
+        <p className="text-[13px] text-psub mt-1">{t.soonLine}</p>
       </div>
     );
   }
@@ -144,10 +144,10 @@ export default function MetaConnect({ lang }: { lang: "es" | "en" }) {
   const pages = s.pages ?? [];
 
   return (
-    <div className="rounded-2xl p-4 md:p-5 flex flex-col gap-3" style={card}>
+    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3" style={card}>
       <div>
-        <h3 className="text-[15px] font-semibold text-white">{t.title}</h3>
-        {!s.connected && <p className="text-[13px] text-[#9a9a9a] mt-1">{t.sub}</p>}
+        <h3 className="text-[15px] font-semibold text-pfg">{t.title}</h3>
+        {!s.connected && <p className="text-[13px] text-psub mt-1">{t.sub}</p>}
       </div>
 
       {!s.connected && (
@@ -159,24 +159,24 @@ export default function MetaConnect({ lang }: { lang: "es" | "en" }) {
       )}
 
       {s.connected && (
-        <p className="text-[13px] text-[#d4d4d4] break-words">
+        <p className="text-[13px] text-pfg2 break-words">
           <span style={{ color: ACCENT }}>{t.connectedAs(s.fbUserName)}</span>
-          {s.adAccount && <span className="text-[#a1a1a1]">{` · ${t.acct}: ${s.adAccount.name}`}</span>}
-          {s.page && <span className="text-[#a1a1a1]">{` · ${t.pg}: ${s.page.name}`}</span>}
+          {s.adAccount && <span className="text-psub">{` · ${t.acct}: ${s.adAccount.name}`}</span>}
+          {s.page && <span className="text-psub">{` · ${t.pg}: ${s.page.name}`}</span>}
         </p>
       )}
 
-      {s.connected && s.expired && <p className="text-[12.5px]" style={{ color: "#ffd75e" }}>{t.expired}</p>}
+      {s.connected && s.expired && <p className="text-[12.5px]" style={{ color: "#92400E" }}>{t.expired}</p>}
 
       {chooseAssets && (
         accounts.length === 0 || pages.length === 0 ? (
-          <p className="text-[12.5px] text-[#a1a1a1] leading-relaxed">{t.none}</p>
+          <p className="text-[12.5px] text-psub leading-relaxed">{t.none}</p>
         ) : (
           <div className="flex flex-col gap-2">
-            <p className="text-[12.5px] text-[#a1a1a1]">{t.choose}</p>
+            <p className="text-[12.5px] text-psub">{t.choose}</p>
             <div className="grid md:grid-cols-2 gap-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[12px] text-[#8e8e8e]">{t.account}</span>
+                <span className="text-[12px] text-pmuted">{t.account}</span>
                 <select value={acct} onChange={(e) => setAcct(e.target.value)} className={select} style={selectStyle}>
                   <option value="">{t.pick}</option>
                   {accounts.map((a) => (
@@ -188,7 +188,7 @@ export default function MetaConnect({ lang }: { lang: "es" | "en" }) {
                 </select>
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[12px] text-[#8e8e8e]">{t.page}</span>
+                <span className="text-[12px] text-pmuted">{t.page}</span>
                 <select value={page} onChange={(e) => setPage(e.target.value)} className={select} style={selectStyle}>
                   <option value="">{t.pick}</option>
                   {pages.map((p) => (
@@ -216,7 +216,7 @@ export default function MetaConnect({ lang }: { lang: "es" | "en" }) {
             </button>
           ) : (
             <>
-              <span className="text-[12.5px] text-[#a1a1a1] w-full">{t.confirmDisconnect}</span>
+              <span className="text-[12.5px] text-psub w-full">{t.confirmDisconnect}</span>
               <button type="button" disabled={busy} onClick={disconnect} className="h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60" style={{ background: TINT, color: ACCENT }}>
                 {t.yes}
               </button>

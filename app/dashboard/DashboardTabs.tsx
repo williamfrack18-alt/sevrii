@@ -12,7 +12,6 @@ import { PLANS, type ClientPlan } from "@/lib/plans";
 import ComingSoonView from "./ComingSoonView";
 import PaymentsView from "./PaymentsView";
 import AffiliatesView from "./AffiliatesView";
-import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
 import { useT, useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
@@ -22,7 +21,7 @@ export type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, Dashboar
 import { DASHBOARD_VIEWS } from "./types";
 import ChatsView from "./ChatsView";
 import { unreadChatsAction } from "@/app/chatActions";
-import { ACCENT, BRAND_BTN } from "@/lib/brand";
+import { BRAND_BTN } from "@/lib/panel";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -39,7 +38,7 @@ const ICONS: Record<DashboardView, React.JSX.Element> = {
   ),
   projects: (
     <>
-      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" />
+      <path d="M4 10.5L12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-6h-6v6H5.5A1.5 1.5 0 0 1 4 19z" />
     </>
   ),
   plan: (
@@ -198,28 +197,20 @@ export default function DashboardTabs({
   }
 
   const chatsLabel = lang === "es" ? "Conversaciones" : "Conversations";
-  const items: { id: DashboardView; label: string; n?: string; soon?: boolean }[] = [
-    { id: "projects", label: pt.nav.projects },
-    { id: "plan", label: pt.nav.plan, n: "01" },
-    { id: "store", label: t.dashboard.store, n: "02" },
-    { id: "marketing", label: t.dashboard.marketing, n: "03" },
-    { id: "payments", label: "Payments", n: "04" },
-    { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates", n: "05" },
-    { id: "capital", label: "Capital", n: "06", soon: true },
+  const homeLabel = lang === "es" ? "Inicio" : "Home";
+  const items: { id: DashboardView; label: string; soon?: boolean }[] = [
+    { id: "projects", label: homeLabel },
+    { id: "plan", label: pt.nav.plan },
+    { id: "store", label: t.dashboard.store },
+    { id: "marketing", label: t.dashboard.marketing },
+    { id: "payments", label: "Payments" },
+    { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates" },
+    { id: "capital", label: "Capital", soon: true },
   ];
 
-  function NavIcon({ id, on }: { id: DashboardView; on: boolean }) {
+  function NavIcon({ id }: { id: DashboardView }) {
     return (
-      <svg
-        width="17"
-        height="17"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={on ? ACCENT : "currentColor"}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         {ICONS[id]}
       </svg>
     );
@@ -243,19 +234,20 @@ export default function DashboardTabs({
           campaigns: currentCampaigns.filter((c) => c.spec).length,
           planService: currentBusiness.plan.service || p.planService,
           planReady: currentBusiness.plan.ready,
+          coverUrl: currentBusiness.site.coverUrl || p.coverUrl,
         }
       : p
   );
 
-  // Mobile: 4 main sections in the bottom tab bar, the rest in the "More" sheet.
-  const tabs: { id: DashboardView | "more"; label: string }[] = [
+  // Mobile: the 5 places used every day in the bottom bar; the rest (Payments,
+  // Affiliates, plan, account) in the sheet the avatar opens at the top right.
+  const tabs: { id: DashboardView; label: string }[] = [
+    { id: "projects", label: homeLabel },
     { id: "plan", label: pt.nav.plan },
     { id: "store", label: t.dashboard.store },
     { id: "chats", label: "Chats" },
     { id: "marketing", label: t.dashboard.marketing },
-    { id: "more", label: lang === "es" ? "Más" : "More" },
   ];
-  const inMore = view === "projects" || view === "payments" || view === "affiliates" || view === "capital" || view === "plans";
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     if (!moreOpen) return;
@@ -273,20 +265,13 @@ export default function DashboardTabs({
     setView(next);
   }
 
-  function TabIcon({ d, size = 22 }: { d: React.ReactNode; size?: number }) {
+  function TabIcon({ d, size = 24 }: { d: React.ReactNode; size?: number }) {
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         {d}
       </svg>
     );
   }
-  const MORE_ICON = (
-    <>
-      <circle cx="5.5" cy="12" r="1.3" />
-      <circle cx="12" cy="12" r="1.3" />
-      <circle cx="18.5" cy="12" r="1.3" />
-    </>
-  );
   const ACCOUNT_ICON = (
     <>
       <circle cx="12" cy="8.5" r="3.5" />
@@ -300,12 +285,11 @@ export default function DashboardTabs({
     </>
   );
   const CHEVRON = (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#5c5c5c] shrink-0" aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pfaint shrink-0" aria-hidden="true">
       <path d="M9 6l6 6-6 6" />
     </svg>
   );
   const sheetRows: { id: DashboardView; label: string; meta?: React.ReactNode }[] = [
-    { id: "projects", label: pt.nav.projects, meta: projects.length > 1 ? <span className="text-[13px] text-[#8e8e8e]">{projects.length}</span> : undefined },
     { id: "payments", label: "Payments" },
     { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates" },
     { id: "capital", label: "Capital", meta: <span className="dash-soon">{t.dashboard.soon}</span> },
@@ -314,61 +298,57 @@ export default function DashboardTabs({
       label: bt.nav,
       meta:
         plan.id === "free" ? (
-          <span className="text-[11.5px] font-semibold px-2.5 py-1 rounded-full" style={BRAND_BTN}>
+          <span className="text-[12px] font-medium px-3 py-1 rounded-full" style={BRAND_BTN}>
             {bt.lock.upgrade}
           </span>
         ) : (
-          <span className="text-[13px] text-[#8e8e8e]">{bt.plans[plan.id].name}</span>
+          <span className="text-[13px] text-pmuted">{bt.plans[plan.id].name}</span>
         ),
     },
   ];
+  const avatar = (
+    <span className="w-9 h-9 rounded-full bg-pcard text-pfg flex items-center justify-center text-[12px] font-medium shrink-0" style={{ boxShadow: "0 1px 2px rgba(10,10,10,.06), 0 0 0 1px rgba(10,10,10,.06)" }}>
+      {initials(userEmail)}
+    </span>
+  );
 
   return (
     // --hdr (set in globals.css on .dash-root) = height of the mobile chrome:
-    // top bar (52px) + bottom tab bar (60px) + safe areas; 0 on desktop.
+    // top bar + bottom tab bar + safe areas; 0 on desktop.
     // Full-height views use calc(100dvh - var(--hdr)).
-    <div className="dash-root theme-dark bg-cream flex flex-col md:flex-row">
-      {/* Mobile top bar: mark, current project (opens Projects), language */}
+    <div className="dash-root theme-panel flex flex-col md:flex-row">
+      {/* Mobile top bar: current project (opens Inicio), avatar (opens the menu) */}
       <header className="dash-topbar md:hidden sticky top-0 z-30">
-        <a href="/dashboard" aria-label="Sevrii" className="h-10 w-10 -ml-2 flex items-center justify-center shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/sevrii-logo.png" alt="Sevrii" className="h-7 w-7 object-contain" />
-        </a>
         <button
           type="button"
           onClick={() => setView("projects")}
-          aria-label={`${pt.nav.projects}: ${currentBusiness.name}`}
-          className="min-w-0 flex-1 h-10 flex items-center gap-2 px-2 rounded-[10px] active:bg-white/5 transition-colors"
+          aria-label={`${homeLabel}: ${currentBusiness.name}`}
+          className="min-w-0 flex-1 h-11 flex items-center gap-2.5 pr-2 rounded-full active:bg-black/[0.04] transition-colors"
         >
           <span
-            className="w-6 h-6 rounded-[7px] text-white flex items-center justify-center text-[10px] font-semibold shrink-0"
-            style={{ background: `linear-gradient(135deg, ${currentBusiness.accentColor} 0%, #2B4F3A 100%)` }}
+            className="w-8 h-8 rounded-full text-white flex items-center justify-center text-[11px] font-medium shrink-0"
+            style={{ background: "linear-gradient(135deg, #16A34A 0%, #052E16 100%)" }}
           >
             {initials(currentBusiness.name)}
           </span>
-          <span className="min-w-0 truncate text-[15px] font-semibold text-white">{currentBusiness.name}</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#8e8e8e] shrink-0" aria-hidden="true">
-            <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
+          <span className="min-w-0 truncate text-[16px] font-medium text-pfg">{currentBusiness.name}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pfaint shrink-0" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
           </svg>
         </button>
-        <LangToggle className="tap shrink-0" />
+        <button type="button" onClick={() => setMoreOpen(true)} aria-label={lang === "es" ? "Menú" : "Menu"} aria-expanded={moreOpen} className="shrink-0 h-11 w-11 flex items-center justify-center rounded-full">
+          {avatar}
+        </button>
       </header>
 
       {/* Mobile bottom tab bar */}
       <nav className="dash-tabbar md:hidden" aria-label="Sevrii">
         {tabs.map((tb) => {
-          const on = tb.id === "more" ? inMore || moreOpen : view === tb.id && !moreOpen;
+          const on = view === tb.id;
           return (
-            <button
-              key={tb.id}
-              type="button"
-              onClick={() => (tb.id === "more" ? setMoreOpen((o) => !o) : go(tb.id))}
-              aria-current={on && tb.id !== "more" ? "page" : undefined}
-              aria-expanded={tb.id === "more" ? moreOpen : undefined}
-              className={`dash-tab ${on ? "on" : ""}`}
-            >
+            <button key={tb.id} type="button" onClick={() => go(tb.id)} aria-current={on ? "page" : undefined} className={`dash-tab ${on ? "on" : ""}`}>
               <span className="relative">
-                <TabIcon d={tb.id === "more" ? MORE_ICON : ICONS[tb.id]} />
+                <TabIcon d={ICONS[tb.id]} />
                 {tb.id === "chats" && unreadChats > 0 && <span className="dash-tab-badge">{unreadChats > 99 ? "99+" : unreadChats}</span>}
               </span>
               <span className="dash-tab-label">{tb.label}</span>
@@ -377,35 +357,41 @@ export default function DashboardTabs({
         })}
       </nav>
 
-      {/* Mobile "More" sheet */}
+      {/* Mobile menu sheet (from the avatar) */}
       {moreOpen && (
-        <div className="md:hidden fixed inset-0 z-[35]" role="dialog" aria-modal="true" aria-label={tabs[4].label}>
+        <div className="md:hidden fixed inset-0 z-[45]" role="dialog" aria-modal="true" aria-label={lang === "es" ? "Menú" : "Menu"}>
           <button type="button" aria-label={lang === "es" ? "Cerrar" : "Close"} className="dash-sheet-backdrop" onClick={() => setMoreOpen(false)} />
           <div className="dash-sheet">
-            <div className="mx-auto mt-2 mb-3 h-1 w-9 rounded-full bg-[#3a3a3a]" />
+            <div className="mx-auto mt-2.5 mb-2 h-1 w-10 rounded-full bg-black/10" />
+            <div className="px-5 pt-2 pb-3 flex items-center gap-3">
+              {avatar}
+              <span className="min-w-0 flex flex-col">
+                <span className="text-[16px] font-medium text-pfg">{lang === "es" ? "Tu cuenta" : "Your account"}</span>
+                <span className="text-[13px] text-pmuted truncate">{userEmail}</span>
+              </span>
+              <span className="grow" />
+              <LangToggle className="tap shrink-0" />
+            </div>
             <div className="flex flex-col">
               {sheetRows.map((r) => (
                 <button key={r.id} type="button" onClick={() => go(r.id)} className={`dash-sheet-row ${view === r.id ? "on" : ""}`}>
-                  <TabIcon d={ICONS[r.id]} size={20} />
+                  <TabIcon d={ICONS[r.id]} size={22} />
                   <span className="grow min-w-0 truncate text-left">{r.label}</span>
                   {r.meta}
                   {CHEVRON}
                 </button>
               ))}
             </div>
-            <div className="h-px my-2 mx-4" style={{ background: "rgba(255,255,255,.08)" }} />
+            <div className="h-px my-2 mx-5 bg-black/[0.06]" />
             <div className="flex flex-col">
               <a href="/account" className="dash-sheet-row">
-                <TabIcon d={ACCOUNT_ICON} size={20} />
-                <span className="grow min-w-0 flex flex-col text-left">
-                  <span>{lang === "es" ? "Mi cuenta" : "My account"}</span>
-                  <span className="text-[12.5px] text-[#8e8e8e] truncate">{userEmail}</span>
-                </span>
+                <TabIcon d={ACCOUNT_ICON} size={22} />
+                <span className="grow text-left">{lang === "es" ? "Mi cuenta" : "My account"}</span>
                 {CHEVRON}
               </a>
               <form action={logoutAction}>
-                <button type="submit" className="dash-sheet-row w-full !text-[#f87171]">
-                  <TabIcon d={LOGOUT_ICON} size={20} />
+                <button type="submit" className="dash-sheet-row w-full !text-red-600">
+                  <TabIcon d={LOGOUT_ICON} size={22} />
                   <span className="grow text-left">{t.dashboard.logout}</span>
                 </button>
               </form>
@@ -416,25 +402,22 @@ export default function DashboardTabs({
 
       {/* Desktop rail: collapsed to icons by default, expands with the toggle */}
       <aside
-        className={`hidden md:flex ${railOpen ? "w-[248px] p-5" : "w-[68px] px-2.5 py-5"} shrink-0 sticky top-0 h-screen border-r border-border flex-col justify-between transition-[width] duration-200`}
-        style={{ background: "#0a0a0a" }}
+        className={`hidden md:flex ${railOpen ? "w-[256px] p-4" : "w-[76px] px-3 py-4"} shrink-0 sticky top-0 h-screen flex-col justify-between transition-[width] duration-200 bg-pcard`}
+        style={{ boxShadow: "1px 0 0 rgba(10,10,10,.06)" }}
       >
         <div className="min-w-0">
-          <div className={`flex items-center ${railOpen ? "justify-between" : "flex-col gap-4"} mb-6`}>
-            {railOpen ? (
-              <BrandMark />
-            ) : (
-              <a href="/dashboard" aria-label="Sevrii" className="flex justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/sevrii-logo.png" alt="Sevrii" className="h-7 w-7 object-contain" />
-              </a>
-            )}
+          <div className={`flex items-center ${railOpen ? "justify-between pl-2" : "flex-col gap-4"} mb-6 pt-1`}>
+            <a href="/dashboard" aria-label="Sevrii" className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/sevrii-logo.png" alt="" className="h-7 w-7 object-contain invert" />
+              {railOpen && <span className="text-[19px] font-medium tracking-[-0.02em] text-pfg">Sevrii</span>}
+            </a>
             <button
               type="button"
               onClick={toggleRail}
               aria-label={railOpen ? t.dashboard.collapse : t.dashboard.expand}
               title={railOpen ? t.dashboard.collapse : t.dashboard.expand}
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-mint"
+              className="h-9 w-9 rounded-full flex items-center justify-center text-pmuted hover:text-pfg hover:bg-black/[0.05]"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="16" rx="2.5" />
@@ -449,21 +432,18 @@ export default function DashboardTabs({
               type="button"
               onClick={() => setView("projects")}
               title={pt.nav.projects}
-              className="w-full text-left flex items-center gap-2.5 p-2.5 rounded-[12px] mb-5 hover:bg-white/5 transition"
+              className="w-full text-left flex items-center gap-2.5 p-2.5 rounded-[20px] mb-5 bg-pbg hover:bg-psoft transition"
             >
-              <div
-                className="w-[30px] h-[30px] rounded-[8px] text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
-                style={{ background: `linear-gradient(135deg, ${currentBusiness.accentColor} 0%, #2B4F3A 100%)` }}
-              >
+              <div className="w-9 h-9 rounded-full text-white flex items-center justify-center text-[11.5px] font-medium shrink-0" style={{ background: "linear-gradient(135deg, #16A34A 0%, #052E16 100%)" }}>
                 {initials(currentBusiness.name)}
               </div>
               <div className="grow min-w-0">
-                <div className="text-[13px] font-semibold text-ink truncate">{currentBusiness.name}</div>
-                <div className="text-[11px] text-mutedLight truncate">
+                <div className="text-[13.5px] font-medium text-pfg truncate">{currentBusiness.name}</div>
+                <div className="text-[11.5px] text-pmuted truncate">
                   {projects.length > 1 ? `${pt.nav.projects} · ${projects.length}` : `sevrii.com/site/${currentBusiness.slug}`}
                 </div>
               </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-mutedLight shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pfaint shrink-0">
                 <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
               </svg>
             </button>
@@ -472,29 +452,26 @@ export default function DashboardTabs({
           <nav className="flex flex-col gap-1">
             {items.map((it, i) => (
               <div key={it.id}>
-                {railOpen && i === 1 && (
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-mutedLight mt-5 mb-2 px-2.5">
-                    {t.dashboard.pillarsLabel}
-                  </div>
-                )}
-                {!railOpen && i === 1 && <div className="h-px bg-border my-2 mx-2" />}
+                {railOpen && i === 1 && <div className="text-[11.5px] text-pfaint mt-5 mb-2 px-3">{t.dashboard.pillarsLabel}</div>}
+                {!railOpen && i === 1 && <div className="h-px bg-black/[0.06] my-2 mx-2" />}
                 <button
                   type="button"
                   onClick={() => (it.id === "store" && view === "store" && railOpen ? setStoreOpen((o) => !o) : setView(it.id))}
                   title={railOpen ? undefined : it.label}
                   aria-label={it.label}
+                  aria-current={view === it.id ? "page" : undefined}
                   aria-expanded={it.id === "store" ? storeOpen : undefined}
-                  className={`dash-nav w-full ${railOpen ? "" : "!justify-center !px-0 relative"} ${view === it.id ? "on" : ""}`}
+                  className={`dash-nav w-full ${railOpen ? "" : "!justify-center !px-0 relative h-11"} ${view === it.id ? "on" : ""}`}
                 >
-                  <NavIcon id={it.id} on={view === it.id} />
+                  <NavIcon id={it.id} />
                   {railOpen && <span className="grow text-left">{it.label}</span>}
                   {railOpen && it.id === "store" && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-mutedLight transition-transform" style={{ transform: storeOpen ? "rotate(180deg)" : "none" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 transition-transform" style={{ transform: storeOpen ? "rotate(180deg)" : "none" }}>
                       <path d="M6 9l6 6 6-6" />
                     </svg>
                   )}
-                  {railOpen && i > 0 && (it.soon ? <span className="dash-soon">{t.dashboard.soon}</span> : <span className="dash-n">{it.n}</span>)}
-                  {!railOpen && it.soon && <span className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-[#ffc400]" />}
+                  {railOpen && it.soon && <span className="dash-soon">{t.dashboard.soon}</span>}
+                  {!railOpen && it.soon && <span className="absolute top-2 right-3 h-1.5 w-1.5 rounded-full bg-pfaint" />}
                 </button>
                 {it.id === "store" && (storeOpen || !railOpen) && (
                   <button
@@ -502,12 +479,13 @@ export default function DashboardTabs({
                     onClick={() => setView("chats")}
                     title={railOpen ? undefined : chatsLabel}
                     aria-label={chatsLabel}
-                    className={`dash-nav w-full mt-1 ${railOpen ? "dash-sub" : "!justify-center !px-0 relative"} ${view === "chats" ? "on" : ""}`}
+                    aria-current={view === "chats" ? "page" : undefined}
+                    className={`dash-nav w-full mt-1 ${railOpen ? "dash-sub" : "!justify-center !px-0 relative h-11"} ${view === "chats" ? "on" : ""}`}
                   >
-                    <NavIcon id="chats" on={view === "chats"} />
+                    <NavIcon id="chats" />
                     {railOpen && <span className="grow text-left">{chatsLabel}</span>}
                     {railOpen && unreadChats > 0 && <span className="dash-badge">{unreadChats}</span>}
-                    {!railOpen && unreadChats > 0 && <span className="absolute top-1.5 right-2 h-2 w-2 rounded-full" style={{ background: ACCENT }} />}
+                    {!railOpen && unreadChats > 0 && <span className="absolute top-2 right-3 h-2 w-2 rounded-full bg-pgreen" />}
                   </button>
                 )}
               </div>
@@ -515,23 +493,23 @@ export default function DashboardTabs({
           </nav>
         </div>
 
-        <div className={`flex flex-col gap-2.5 border-t border-border pt-4 ${railOpen ? "" : "items-center"}`}>
+        <div className={`flex flex-col gap-2.5 pt-4 ${railOpen ? "" : "items-center"}`}>
           {railOpen ? (
             <button
               type="button"
               onClick={() => setView("plans")}
-              className={`w-full flex items-center justify-between gap-2 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-white/5 ${view === "plans" ? "bg-white/5" : ""}`}
+              className={`w-full flex items-center justify-between gap-2 rounded-[20px] px-3.5 py-3 text-left transition ${view === "plans" ? "bg-psoft" : "bg-pbg hover:bg-psoft"}`}
             >
               <span className="flex flex-col min-w-0">
-                <span className="text-[11px] text-mutedLight">{bt.lock.plan}</span>
-                <span className="text-[13px] font-semibold text-ink truncate">{bt.plans[plan.id].name}</span>
+                <span className="text-[11.5px] text-pmuted">{bt.lock.plan}</span>
+                <span className="text-[14px] font-medium text-pfg truncate">{bt.plans[plan.id].name}</span>
               </span>
               {plan.id === "free" ? (
-                <span className="text-[11.5px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={BRAND_BTN}>
+                <span className="text-[12px] font-medium px-3 py-1.5 rounded-full shrink-0" style={BRAND_BTN}>
                   {bt.lock.upgrade}
                 </span>
               ) : (
-                <span className="text-[11.5px] text-mutedLight shrink-0">{bt.nav} →</span>
+                <span className="text-[12px] text-pmuted shrink-0">{bt.nav} →</span>
               )}
             </button>
           ) : (
@@ -540,42 +518,35 @@ export default function DashboardTabs({
               onClick={() => setView("plans")}
               title={`${bt.lock.plan}: ${bt.plans[plan.id].name}`}
               aria-label={bt.nav}
-              className={`dash-nav w-full !justify-center !px-0 relative ${view === "plans" ? "on" : ""}`}
+              className={`dash-nav w-full !justify-center !px-0 relative h-11 ${view === "plans" ? "on" : ""}`}
             >
-              <NavIcon id="plans" on={view === "plans"} />
-              {plan.id === "free" && <span className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full" style={{ background: ACCENT }} />}
+              <NavIcon id="plans" />
+              {plan.id === "free" && <span className="absolute top-2 right-3 h-1.5 w-1.5 rounded-full bg-pgreen" />}
             </button>
           )}
           {railOpen ? (
             <>
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 px-1">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-[28px] h-[28px] rounded-full bg-border text-muted flex items-center justify-center text-[10px] font-semibold shrink-0">
-                    {initials(userEmail)}
-                  </div>
-                  <div className="text-[12px] text-ink truncate min-w-0">{userEmail}</div>
+                  {avatar}
+                  <div className="text-[12.5px] text-pfg2 truncate min-w-0">{userEmail}</div>
                 </div>
                 <LangToggle />
               </div>
-              <div className="flex items-center gap-4">
-                <a href="/account" className="text-[12px] font-medium text-muted hover:text-ink">
+              <div className="flex items-center gap-4 px-1">
+                <a href="/account" className="text-[12.5px] text-pmuted hover:text-pfg">
                   {lang === "es" ? "Mi cuenta" : "My account"}
                 </a>
                 <form action={logoutAction}>
-                  <button type="submit" className="text-[12px] font-medium text-muted hover:text-ink">
+                  <button type="submit" className="text-[12.5px] text-pmuted hover:text-pfg">
                     {t.dashboard.logout}
                   </button>
                 </form>
               </div>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={toggleRail}
-              title={userEmail}
-              className="w-[30px] h-[30px] rounded-full bg-border text-muted flex items-center justify-center text-[10px] font-semibold"
-            >
-              {initials(userEmail)}
+            <button type="button" onClick={toggleRail} title={userEmail} className="rounded-full">
+              {avatar}
             </button>
           )}
         </div>
@@ -584,7 +555,15 @@ export default function DashboardTabs({
       {/* Main content */}
       <main className="dash-main grow min-w-0">
         {view === "projects" && (
-          <ProjectsView projects={liveProjects} activeId={currentBusiness.id} onNavigate={setView} projectLimit={limits.projects} />
+          <ProjectsView
+            projects={liveProjects}
+            activeId={currentBusiness.id}
+            onNavigate={setView}
+            projectLimit={limits.projects}
+            business={currentBusiness}
+            unreadChats={unreadChats}
+            userEmail={userEmail}
+          />
         )}
         {view === "plans" && <PlansView plan={plan} notice={planNotice} />}
         {view === "plan" && (

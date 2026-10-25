@@ -42,38 +42,38 @@ export default function CampaignResults({
   return (
     <div
       data-campaign={campaignId}
-      className="rounded-2xl p-4 flex flex-col gap-4"
-      style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}
+      className="rounded-[24px] p-4 flex flex-col gap-4"
+      style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}
     >
       <div className="flex flex-col gap-2">
-        <span className="text-[12.5px] font-medium text-white">{t.linkLabel}</span>
+        <span className="text-[12.5px] font-medium text-pfg">{t.linkLabel}</span>
         <div className="flex items-center gap-2 min-w-0">
           <input
             readOnly
             value={link}
             aria-label={t.linkLabel}
             onFocus={(e) => e.currentTarget.select()}
-            className="min-w-0 flex-1 h-9 px-3 rounded-xl text-[12.5px] text-[#d4d4d4] outline-none font-mono"
-            style={{ background: "#0f0f0f", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}
+            className="min-w-0 flex-1 h-9 px-3 rounded-xl text-[12.5px] text-pfg2 outline-none font-mono"
+            style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}
           />
           <button
             type="button"
             onClick={copy}
-            className="shrink-0 h-9 px-3.5 rounded-xl text-[12.5px] font-medium text-[#d4d4d4] hover:text-white"
-            style={{ background: "rgba(255,255,255,0.08)" }}
+            className="shrink-0 h-9 px-3.5 rounded-xl text-[12.5px] font-medium text-pfg2 hover:text-pfg"
+            style={{ background: "rgba(10,10,10,0.068)" }}
           >
             {copied ? t.copied : t.copy}
           </button>
         </div>
-        <span className="text-[11.5px] text-[#8e8e8e] leading-snug">{t.linkHint}</span>
+        <span className="text-[11.5px] text-pmuted leading-snug">{t.linkHint}</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
         {nums.map(({ k, label }) => (
-          <div key={k} className="rounded-xl px-3 py-2.5 flex flex-col gap-0.5" style={{ background: "#0f0f0f", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}>
-            <span className="text-[11.5px] text-[#a1a1a1]">{label}</span>
-            <span className="text-[20px] font-semibold text-white tabular-nums leading-tight">{all[k].toLocaleString("en-US")}</span>
-            <span className="text-[11px] text-[#8e8e8e] tabular-nums">{t.thisWeek(wk[k])}</span>
+          <div key={k} className="rounded-xl px-3 py-2.5 flex flex-col gap-0.5" style={{ background: "#FFFFFF", boxShadow: "0 0 0 1px rgba(10,10,10,0.051)" }}>
+            <span className="text-[11.5px] text-psub">{label}</span>
+            <span className="text-[20px] font-semibold text-pfg tabular-nums leading-tight">{all[k].toLocaleString("en-US")}</span>
+            <span className="text-[11px] text-pmuted tabular-nums">{t.thisWeek(wk[k])}</span>
           </div>
         ))}
       </div>

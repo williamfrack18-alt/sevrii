@@ -786,6 +786,8 @@ export type ProjectSummary = {
   planService: string;
   planReady: boolean;
   createdAt: string;
+  coverUrl: string; // the page's main photo ("" when none)
+  ownerName: string;
 };
 
 export async function listProjects(userId: string): Promise<ProjectSummary[]> {
@@ -793,6 +795,8 @@ export async function listProjects(userId: string): Promise<ProjectSummary[]> {
   const rows = (await sql`
     SELECT b.id, b.slug, b.name, b.category, b.city, b."accentColor", b.published, b."pageViews",
            b."callClicks", b."textClicks", b."whatsappClicks", b.plan, b."createdAt",
+           COALESCE(NULLIF(b.site->>'coverUrl', ''), b.site->'gallery'->>0, '') AS "coverUrl",
+           COALESCE(b.site->>'ownerName', '') AS "ownerName",
            (SELECT count(*) FROM services s WHERE s."businessId" = b.id) AS services,
            (SELECT count(*) FROM campaigns c WHERE c."businessId" = b.id AND c.spec IS NOT NULL) AS campaigns
     FROM businesses b WHERE b."userId" = ${userId}
@@ -815,6 +819,8 @@ export async function listProjects(userId: string): Promise<ProjectSummary[]> {
       planService: plan.service,
       planReady: plan.ready,
       createdAt: String(r.createdAt),
+      coverUrl: String(r.coverUrl ?? ""),
+      ownerName: String(r.ownerName ?? ""),
     };
   });
 }

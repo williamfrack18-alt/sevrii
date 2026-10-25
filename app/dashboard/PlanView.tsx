@@ -10,16 +10,16 @@ import ChatPanel, { type ChatToken, type Msg } from "./ChatPanel";
 import type { MindNode } from "./MindMap";
 import ProjectDock, { StepList } from "./ProjectDock";
 import { toClientBusiness, type ClientBusiness, type ClientService, type DashboardView } from "./types";
-import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, RING } from "@/lib/panel";
 
 const GREEN = ACCENT;
-const AMBER = "#f5c451";
-const RED = "#ff6b6b";
-const HAIR = "rgba(255,255,255,0.08)";
-const HAIR_STRONG = "rgba(255,255,255,0.14)";
-const CARD = { background: "#101010", boxShadow: `0 0 0 1px ${HAIR}` } as const;
-const INSET = { background: "rgba(255,255,255,0.04)", boxShadow: `inset 0 0 0 1px ${HAIR}` } as const;
-const GHOST_BTN = { background: "rgba(255,255,255,0.06)", color: "#fff", boxShadow: `inset 0 0 0 1px ${HAIR}` } as const;
+const AMBER = "#B45309";
+const RED = "#DC2626";
+const HAIR = "rgba(10,10,10,0.068)";
+const HAIR_STRONG = "rgba(10,10,10,0.119)";
+const CARD = { background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" } as const;
+const INSET = { background: "rgba(10,10,10,0.034)", boxShadow: `inset 0 0 0 1px ${HAIR}` } as const;
+const GHOST_BTN = { background: "rgba(10,10,10,0.051)", color: "#0A0A0A", boxShadow: `inset 0 0 0 1px ${HAIR}` } as const;
 const PIPELINE: PlanStage[] = ["ideas_research", "research"];
 
 type T = (typeof PLAN_TEXT)[keyof typeof PLAN_TEXT];
@@ -233,12 +233,12 @@ export default function PlanView({
   const alerts = (
     <>
       {notice && (
-        <p className="text-[13.5px] leading-relaxed rounded-xl px-4 py-3" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)", color: "#f3e3b5" }}>
+        <p className="text-[13.5px] leading-relaxed rounded-xl px-4 py-3" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)", color: "#78350F" }}>
           {notice}
         </p>
       )}
       {pipeErr && (
-        <div className="rounded-2xl p-4 md:p-5 flex items-center justify-between gap-4 flex-wrap" style={CARD}>
+        <div className="rounded-[24px] p-4 md:p-5 flex items-center justify-between gap-4 flex-wrap" style={CARD}>
           <span className="text-[14px] leading-relaxed min-w-0" style={{ color: pipeErr === "limit" ? AMBER : RED }}>
             {pipeErr === "limit" ? t.limit : t.failed}
           </span>
@@ -258,16 +258,16 @@ export default function PlanView({
   );
 
   return (
-    <div className="overflow-x-clip" style={{ background: "#000" }}>
+    <div className="overflow-x-clip" style={{ background: "#F5F5F3" }}>
       <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
         <div className="shrink-0 px-4 md:px-6 pt-2.5 md:pt-3 pb-2.5 flex flex-col gap-2" style={{ borderBottom: `1px solid ${HAIR}` }}>
           <div className="flex items-center justify-between gap-3 min-w-0">
-            <span className="text-[16px] md:text-[17px] font-semibold text-white truncate min-w-0">
+            <span className="text-[16px] md:text-[17px] font-semibold text-pfg truncate min-w-0">
               <span className="hidden md:inline">
-                Sevrii <span className="text-[#8e8e8e] font-normal">· </span>
+                Sevrii <span className="text-pmuted font-normal">· </span>
               </span>
               {business.name}
-              <span className="text-[#8e8e8e] font-normal"> · {t.nav.plan}</span>
+              <span className="text-pmuted font-normal"> · {t.nav.plan}</span>
             </span>
             {chip}
           </div>
@@ -327,7 +327,7 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
     case "service":
       return (
         <div className="flex flex-col gap-4 min-w-0">
-          {plan.service && <p className="text-[15.5px] font-medium text-white leading-snug">{plan.service}</p>}
+          {plan.service && <p className="text-[15.5px] font-medium text-pfg leading-snug">{plan.service}</p>}
           <Facts
             rows={[
               [t.includes, plan.serviceIncludes],
@@ -342,8 +342,8 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
               <Label>{t.steps}</Label>
               <ol className="flex flex-col gap-2">
                 {plan.steps.map((s, i) => (
-                  <li key={i} className="flex gap-3 text-[13.5px] text-[#ececec] leading-relaxed">
-                    <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-px" style={{ background: "rgba(255,255,255,0.06)", color: "#a1a1a1" }}>
+                  <li key={i} className="flex gap-3 text-[13.5px] text-pfg leading-relaxed">
+                    <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-px" style={{ background: "rgba(10,10,10,0.051)", color: "#52525B" }}>
                       {i + 1}
                     </span>
                     <span className="min-w-0">{s}</span>
@@ -360,7 +360,7 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
           {plan.promise && (
             <div className="flex flex-col gap-1.5">
               <Label>{t.promise}</Label>
-              <p className="text-[16px] text-white leading-relaxed">“{plan.promise}”</p>
+              <p className="text-[16px] text-pfg leading-relaxed">“{plan.promise}”</p>
             </div>
           )}
           {plan.differentiators.length > 0 && (
@@ -368,7 +368,7 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
               <Label>{t.differentiators}</Label>
               <ul className="flex flex-col gap-2">
                 {plan.differentiators.map((d, i) => (
-                  <li key={i} className="flex gap-2.5 text-[14px] text-[#ececec] leading-relaxed">
+                  <li key={i} className="flex gap-2.5 text-[14px] text-pfg leading-relaxed">
                     <Check />
                     <span className="min-w-0">{d}</span>
                   </li>
@@ -384,18 +384,18 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
           <div className={`grid grid-cols-1 gap-3 ${plan.packages.length >= 3 ? "sm:grid-cols-3" : plan.packages.length === 2 ? "sm:grid-cols-2" : ""}`}>
             {plan.packages.map((p, i) => (
               <div key={i} className="rounded-xl p-4 flex flex-col gap-1.5 min-w-0" style={i === 1 ? { ...INSET, boxShadow: `inset 0 0 0 1px ${RING}` } : INSET}>
-                <span className="text-[14px] font-semibold text-white break-words">{p.name}</span>
+                <span className="text-[14px] font-semibold text-pfg break-words">{p.name}</span>
                 <span className="text-[22px] font-semibold tracking-tight break-words leading-tight" style={{ color: GREEN }}>
                   {p.price || "—"}
                 </span>
-                {p.includes && <span className="text-[13px] text-[#d4d4d4] leading-relaxed">{p.includes}</span>}
-                {p.note && <span className="text-[12px] text-[#8e8e8e] leading-relaxed">{p.note}</span>}
+                {p.includes && <span className="text-[13px] text-pfg2 leading-relaxed">{p.includes}</span>}
+                {p.note && <span className="text-[12px] text-pmuted leading-relaxed">{p.note}</span>}
               </div>
             ))}
           </div>
           {plan.pricingNote && (
-            <p className="text-[13px] text-[#a1a1a1] leading-relaxed">
-              <span className="text-[#d4d4d4] font-medium">{t.pricingNote}:</span> {plan.pricingNote}
+            <p className="text-[13px] text-psub leading-relaxed">
+              <span className="text-pfg2 font-medium">{t.pricingNote}:</span> {plan.pricingNote}
             </p>
           )}
         </div>
@@ -403,22 +403,22 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
     case "offer":
       return plan.offer ? (
         <div className="flex flex-col gap-1.5 min-w-0">
-          <span className="text-[16px] font-semibold text-white">{plan.offer.label}</span>
-          {plan.offer.detail && <span className="text-[13.5px] text-[#a1a1a1] leading-relaxed">{plan.offer.detail}</span>}
+          <span className="text-[16px] font-semibold text-pfg">{plan.offer.label}</span>
+          {plan.offer.detail && <span className="text-[13.5px] text-psub leading-relaxed">{plan.offer.detail}</span>}
           <span className="text-[12.5px] leading-relaxed" style={{ color: plan.offer.endsAt || plan.offer.forNewClients ? GREEN : AMBER }}>
             {plan.offer.endsAt ? t.endsOn(plan.offer.endsAt) : plan.offer.forNewClients ? t.forNewClients : `${t.offerSuggested} ${t.offerNeedsDate}`}
           </span>
         </div>
       ) : (
-        <span className="text-[14px] text-[#a1a1a1]">{t.offerNone}</span>
+        <span className="text-[14px] text-psub">{t.offerNone}</span>
       );
     case "faq":
       return (
         <div className="flex flex-col gap-4 min-w-0">
           {plan.faq.map((f, i) => (
             <div key={i} className="flex flex-col gap-1 min-w-0">
-              <span className="text-[14px] font-medium text-white leading-snug">{f.q}</span>
-              <span className="text-[13px] text-[#a1a1a1] leading-relaxed">{f.a}</span>
+              <span className="text-[14px] font-medium text-pfg leading-snug">{f.q}</span>
+              <span className="text-[13px] text-psub leading-relaxed">{f.a}</span>
             </div>
           ))}
         </div>
@@ -433,17 +433,17 @@ function AgentBlock({ agent }: { agent: NonNullable<BusinessPlan["agent"]> }) {
     <div className="rounded-xl p-4 flex flex-col gap-3 min-w-0" style={{ ...INSET, boxShadow: `inset 0 0 0 1px ${RING}` }}>
       <div className="flex flex-col gap-0.5 min-w-0">
         <Label>{t.agentLabel}</Label>
-        <span className="text-[15.5px] font-semibold text-white break-words">{agent.name}</span>
-        {agent.role && <span className="text-[13.5px] text-[#d4d4d4] leading-relaxed">{agent.role}</span>}
-        {agent.creator && <span className="text-[12.5px] text-[#8e8e8e]">{agent.creator}</span>}
+        <span className="text-[15.5px] font-semibold text-pfg break-words">{agent.name}</span>
+        {agent.role && <span className="text-[13.5px] text-pfg2 leading-relaxed">{agent.role}</span>}
+        {agent.creator && <span className="text-[12.5px] text-pmuted">{agent.creator}</span>}
       </div>
       {agent.steps.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[12px] text-[#8e8e8e]">{t.agentSteps}</span>
+          <span className="text-[12px] text-pmuted">{t.agentSteps}</span>
           <ol className="flex flex-col gap-1.5">
             {agent.steps.map((x, i) => (
-              <li key={i} className="flex gap-2.5 text-[13.5px] text-[#ececec] leading-relaxed">
-                <span className="text-[#8e8e8e] shrink-0 tabular-nums">{i + 1}.</span>
+              <li key={i} className="flex gap-2.5 text-[13.5px] text-pfg leading-relaxed">
+                <span className="text-pmuted shrink-0 tabular-nums">{i + 1}.</span>
                 <span className="min-w-0">{x}</span>
               </li>
             ))}
@@ -452,9 +452,9 @@ function AgentBlock({ agent }: { agent: NonNullable<BusinessPlan["agent"]> }) {
       )}
       {agent.limits.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[12px] text-[#8e8e8e]">{t.agentLimits}</span>
+          <span className="text-[12px] text-pmuted">{t.agentLimits}</span>
           {agent.limits.map((x, i) => (
-            <span key={i} className="text-[13px] text-[#d4d4d4] leading-relaxed flex gap-2">
+            <span key={i} className="text-[13px] text-pfg2 leading-relaxed flex gap-2">
               <span className="shrink-0" style={{ color: AMBER }}>×</span>
               <span className="min-w-0">{x}</span>
             </span>
@@ -462,32 +462,32 @@ function AgentBlock({ agent }: { agent: NonNullable<BusinessPlan["agent"]> }) {
         </div>
       )}
       {agent.greeting && (
-        <p className="text-[13px] text-[#a1a1a1] leading-relaxed">
-          <span className="text-[#d4d4d4]">{t.agentGreeting}:</span> “{agent.greeting}”
+        <p className="text-[13px] text-psub leading-relaxed">
+          <span className="text-pfg2">{t.agentGreeting}:</span> “{agent.greeting}”
         </p>
       )}
       {(agent.edge.length > 0 || agent.freeAlt) && (
         <div className="flex flex-col gap-2 pt-3" style={{ borderTop: `1px solid ${HAIR}` }}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <span className="text-[12px] text-[#8e8e8e]">{t.agentEdge}</span>
+            <span className="text-[12px] text-pmuted">{t.agentEdge}</span>
             {agent.score > 0 && (
-              <span className="text-[11.5px] font-semibold px-2.5 py-0.5 rounded-full" style={agent.score >= 4 ? { background: "rgba(46,122,85,0.26)", color: GREEN } : { background: "rgba(245,196,81,0.12)", color: AMBER }}>
+              <span className="text-[11.5px] font-semibold px-2.5 py-0.5 rounded-full" style={agent.score >= 4 ? { background: "rgba(22,163,74,0.12)", color: GREEN } : { background: "rgba(245,196,81,0.12)", color: AMBER }}>
                 {t.agentScore(agent.score)}
               </span>
             )}
           </div>
           {agent.edge.map((e, i) => (
-            <span key={i} className="text-[13.5px] text-[#ececec] leading-relaxed flex gap-2.5">
+            <span key={i} className="text-[13.5px] text-pfg leading-relaxed flex gap-2.5">
               <Check />
               <span className="min-w-0">
-                {e.title && <span className="font-medium text-white">{e.title}: </span>}
+                {e.title && <span className="font-medium text-pfg">{e.title}: </span>}
                 {e.text}
               </span>
             </span>
           ))}
           {agent.freeAlt && (
-            <p className="text-[12.5px] text-[#8e8e8e] leading-relaxed">
-              <span className="text-[#a1a1a1]">{t.agentFree}:</span> {agent.freeAlt}
+            <p className="text-[12.5px] text-pmuted leading-relaxed">
+              <span className="text-psub">{t.agentFree}:</span> {agent.freeAlt}
             </p>
           )}
           {agent.score > 0 && agent.score <= 2 && <p className="text-[12.5px] leading-relaxed" style={{ color: AMBER }}>{t.agentWeak}</p>}
@@ -521,11 +521,11 @@ function PartCard({
   const notes = notesFor(plan, id);
   const canApprove = id !== "offer" || offerReady(plan);
   return (
-    <div className="rounded-2xl overflow-hidden min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${notes.length ? `${AMBER}55` : RING}` }}>
+    <div className="rounded-[24px] overflow-hidden min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${notes.length ? `${AMBER}55` : RING}` }}>
       <div className="px-4 md:px-5 pt-4 pb-3 flex items-center justify-between gap-3" style={{ borderBottom: `1px solid ${HAIR}` }}>
         <div className="flex flex-col min-w-0">
-          <span className="text-[11.5px] text-[#8e8e8e]">{t.partOf(n + 1, APPROVAL_BLOCKS.length)}</span>
-          <span className="text-[16px] font-semibold text-white leading-snug">{t.blocks[id]}</span>
+          <span className="text-[11.5px] text-pmuted">{t.partOf(n + 1, APPROVAL_BLOCKS.length)}</span>
+          <span className="text-[16px] font-semibold text-pfg leading-snug">{t.blocks[id]}</span>
         </div>
         <PartDots plan={plan} current={id} />
       </div>
@@ -534,7 +534,7 @@ function PartCard({
         {notes.length > 0 && (
           <div className="flex flex-col gap-1.5 rounded-xl p-3" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)" }}>
             {notes.map((x, i) => (
-              <span key={i} className="text-[13px] text-[#f3e3b5] leading-relaxed">
+              <span key={i} className="text-[13px] text-[#78350F] leading-relaxed">
                 {x}
               </span>
             ))}
@@ -555,7 +555,7 @@ function PartCard({
           {t.changeSome}
         </button>
         {id === "offer" && plan.offer && (
-          <button type="button" disabled={busy} onClick={onNoOffer} className="h-10 px-4 rounded-full text-[14px] text-[#d4d4d4] disabled:opacity-60" style={{ background: "rgba(255,255,255,0.03)" }}>
+          <button type="button" disabled={busy} onClick={onNoOffer} className="h-10 px-4 rounded-full text-[14px] text-pfg2 disabled:opacity-60" style={{ background: "rgba(10,10,10,0.025)" }}>
             {t.noOffer}
           </button>
         )}
@@ -572,7 +572,7 @@ function PartDots({ plan, current }: { plan: BusinessPlan; current: ApprovalBloc
         <span
           key={b}
           className="h-1.5 rounded-full transition-all"
-          style={{ width: b === current ? 16 : 6, background: plan.approvals[b] ? GREEN : b === current ? "#fff" : "rgba(255,255,255,0.16)" }}
+          style={{ width: b === current ? 16 : 6, background: plan.approvals[b] ? GREEN : b === current ? "#fff" : "rgba(10,10,10,0.136)" }}
         />
       ))}
     </div>
@@ -587,14 +587,14 @@ function PartRow({ id, plan, stale }: { id: ApprovalBlock; plan: BusinessPlan; s
   return (
     <div className="rounded-xl min-w-0" style={INSET}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-3 px-4 py-3 text-left">
-        {ok ? <Check size={14} /> : <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "#5b5b5b" }} />}
+        {ok ? <Check size={14} /> : <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "#D4D4D8" }} />}
         <span className="flex-1 min-w-0 flex flex-col">
-          <span className="text-[14px] text-white font-medium truncate">{t.blocks[id]}</span>
-          <span className="text-[12px] truncate" style={{ color: ok ? GREEN : "#8e8e8e" }}>
+          <span className="text-[14px] text-pfg font-medium truncate">{t.blocks[id]}</span>
+          <span className="text-[12px] truncate" style={{ color: ok ? GREEN : "#71717A" }}>
             {ok ? t.approved : stale ? t.updatedBelow : t.pending}
           </span>
         </span>
-        <span className="text-[12.5px] text-[#a1a1a1] shrink-0">{open ? t.hide : t.view}</span>
+        <span className="text-[12.5px] text-psub shrink-0">{open ? t.hide : t.view}</span>
       </button>
       {open && (
         <div className="px-4 pb-4 pt-1 min-w-0">
@@ -609,10 +609,10 @@ function PartRow({ id, plan, stale }: { id: ApprovalBlock; plan: BusinessPlan; s
 function FinishCard({ plan, busy, onFinish }: { plan: BusinessPlan; busy: boolean; onFinish: () => void }) {
   const t = PLAN_TEXT[useLang()];
   return (
-    <div className="rounded-2xl p-4 md:p-5 flex flex-col gap-3 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${AMBER}55` }}>
-      <span className="text-[14px] text-white leading-relaxed">{t.finishChat}</span>
+    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${AMBER}55` }}>
+      <span className="text-[14px] text-pfg leading-relaxed">{t.finishChat}</span>
       {plan.guard.block.map((x, i) => (
-        <span key={i} className="text-[13px] text-[#f3e3b5] leading-relaxed flex gap-2.5">
+        <span key={i} className="text-[13px] text-[#78350F] leading-relaxed flex gap-2.5">
           <span className="h-1.5 w-1.5 rounded-full shrink-0 mt-[8px]" style={{ background: AMBER }} />
           <span className="min-w-0">{x}</span>
         </span>
@@ -631,17 +631,17 @@ function DoneCard({ live, onNavigate }: { live: boolean; onNavigate: (v: Dashboa
     return (
       <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={INSET}>
         <Check size={14} />
-        <span className="text-[14px] text-white font-medium">{t.doneShort}</span>
+        <span className="text-[14px] text-pfg font-medium">{t.doneShort}</span>
       </div>
     );
   }
   return (
-    <div className="rounded-2xl p-4 md:p-5 flex flex-col gap-3 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${RING}` }}>
+    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${RING}` }}>
       <div className="flex items-center gap-2">
         <Check size={16} />
-        <span className="text-[16px] font-semibold text-white">{t.doneTitle}</span>
+        <span className="text-[16px] font-semibold text-pfg">{t.doneTitle}</span>
       </div>
-      <p className="text-[13.5px] text-[#a1a1a1] leading-relaxed">{t.doneSub}</p>
+      <p className="text-[13.5px] text-psub leading-relaxed">{t.doneSub}</p>
       <div className="flex flex-col sm:flex-row gap-2">
         <button type="button" onClick={() => onNavigate("store")} className="h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
           {t.goStore} →
@@ -662,27 +662,27 @@ function IdeasCard({ plan, busy, live, onChoose }: { plan: BusinessPlan; busy: b
   if (!live) {
     return (
       <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={INSET}>
-        {chosen ? <Check size={14} /> : <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "#5b5b5b" }} />}
-        <span className="text-[14px] text-white font-medium min-w-0 truncate">{chosen ? t.chosen(chosen.title) : t.ideasShown}</span>
+        {chosen ? <Check size={14} /> : <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "#D4D4D8" }} />}
+        <span className="text-[14px] text-pfg font-medium min-w-0 truncate">{chosen ? t.chosen(chosen.title) : t.ideasShown}</span>
       </div>
     );
   }
   return (
     <div className="flex flex-col gap-3 min-w-0">
       {plan.ideas.map((idea, i) => (
-        <div key={i} className="rounded-2xl p-4 md:p-5 flex flex-col gap-3 min-w-0" style={i === 0 ? { ...CARD, boxShadow: `0 0 0 1px ${RING}` } : CARD}>
+        <div key={i} className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={i === 0 ? { ...CARD, boxShadow: `0 0 0 1px ${RING}` } : CARD}>
           <div className="flex items-start justify-between gap-3">
-            <span className="text-[16px] font-semibold text-white leading-snug min-w-0 break-words">
-              <span className="text-[#8e8e8e] font-normal">{i + 1}. </span>
+            <span className="text-[16px] font-semibold text-pfg leading-snug min-w-0 break-words">
+              <span className="text-pmuted font-normal">{i + 1}. </span>
               {idea.title}
             </span>
             {idea.score > 0 && (
-              <span className="text-[12px] px-2 py-0.5 rounded-full shrink-0 font-medium" style={{ background: "rgba(46,122,85,0.26)", color: GREEN }}>
+              <span className="text-[12px] px-2 py-0.5 rounded-full shrink-0 font-medium" style={{ background: "rgba(22,163,74,0.12)", color: GREEN }}>
                 {t.fit(idea.score)}
               </span>
             )}
           </div>
-          <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed">{idea.why}</p>
+          <p className="text-[13.5px] text-pfg2 leading-relaxed">{idea.why}</p>
           <Facts
             rows={
               plan.mode === "agent"
@@ -704,13 +704,13 @@ function IdeasCard({ plan, busy, live, onChoose }: { plan: BusinessPlan; busy: b
           {(idea.pros || idea.cons) && (
             <div className="flex flex-col gap-1.5">
               {idea.pros && (
-                <p className="text-[13px] text-[#a1a1a1] leading-relaxed flex gap-2">
+                <p className="text-[13px] text-psub leading-relaxed flex gap-2">
                   <span className="shrink-0 font-semibold" style={{ color: GREEN }}>+</span>
                   <span className="min-w-0">{idea.pros}</span>
                 </p>
               )}
               {idea.cons && (
-                <p className="text-[13px] text-[#a1a1a1] leading-relaxed flex gap-2">
+                <p className="text-[13px] text-psub leading-relaxed flex gap-2">
                   <span className="shrink-0 font-semibold" style={{ color: AMBER }}>−</span>
                   <span className="min-w-0">{idea.cons}</span>
                 </p>
@@ -723,7 +723,7 @@ function IdeasCard({ plan, busy, live, onChoose }: { plan: BusinessPlan; busy: b
           </button>
         </div>
       ))}
-      <p className="text-[13px] text-[#a1a1a1] leading-relaxed">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.ideasNone}</p>
+      <p className="text-[13px] text-psub leading-relaxed">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.ideasNone}</p>
     </div>
   );
 }
@@ -740,7 +740,7 @@ function strategyNodes({ plan, t, onChange }: { plan: BusinessPlan; t: T; onChan
       <PartBody id={b} plan={plan} />
       <div className="flex items-center gap-2 pt-4 flex-wrap" style={{ borderTop: `1px solid ${HAIR}` }}>
         {plan.approvals[b] && (
-          <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[13px] font-semibold" style={{ background: "rgba(46,122,85,0.22)", color: GREEN }}>
+          <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[13px] font-semibold" style={{ background: "rgba(22,163,74,0.12)", color: GREEN }}>
             <Check size={13} />
             {t.approved}
           </span>
@@ -811,7 +811,7 @@ function strategyNodes({ plan, t, onChange }: { plan: BusinessPlan; t: T; onChan
 function CenterFooter({ plan, done, t }: { plan: BusinessPlan; done: number; t: T }) {
   if (plan.stage === "approved") {
     return (
-      <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12.5px] font-semibold" style={{ background: "rgba(46,122,85,0.31)", color: GREEN }}>
+      <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12.5px] font-semibold" style={{ background: "rgba(22,163,74,0.12)", color: GREEN }}>
         <Check size={13} />
         {t.approved}
       </span>
@@ -820,8 +820,8 @@ function CenterFooter({ plan, done, t }: { plan: BusinessPlan; done: number; t: 
   const total = APPROVAL_BLOCKS.length;
   return (
     <div className="flex flex-col items-center gap-1.5 w-full max-w-[200px]">
-      <span className="text-[12.5px] text-[#a1a1a1]">{t.approvedCount(done, total)}</span>
-      <div className="h-1 w-full rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.10)" }}>
+      <span className="text-[12.5px] text-psub">{t.approvedCount(done, total)}</span>
+      <div className="h-1 w-full rounded-full overflow-hidden" style={{ background: "rgba(10,10,10,0.085)" }}>
         <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${(done / total) * 100}%`, background: GREEN }} />
       </div>
     </div>
@@ -834,7 +834,7 @@ function StatusChip({ tone, children }: { tone?: "done" | "live"; children: Reac
   return (
     <span
       className="inline-flex items-center gap-1.5 text-[12px] h-7 px-3 rounded-full font-medium shrink-0 whitespace-nowrap"
-      style={tone === "done" ? { background: "rgba(46,122,85,0.31)", color: GREEN } : { background: "rgba(255,255,255,0.05)", color: "#d4d4d4", boxShadow: `inset 0 0 0 1px ${HAIR}` }}
+      style={tone === "done" ? { background: "rgba(22,163,74,0.12)", color: GREEN } : { background: "rgba(10,10,10,0.043)", color: "#27272A", boxShadow: `inset 0 0 0 1px ${HAIR}` }}
     >
       {tone === "live" && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: GREEN }} />}
       {children}
@@ -850,7 +850,7 @@ function StageBar({ labels, current }: { labels: string[]; current: number }) {
         <div key={l} className="flex items-center gap-1.5">
           <span
             className="inline-flex items-center gap-1 text-[11.5px] px-2 py-0.5 rounded-full whitespace-nowrap"
-            style={i === current ? { background: "rgba(46,122,85,0.31)", color: GREEN, fontWeight: 600 } : i < current ? { color: "#a1a1a1" } : { color: "#52525b" }}
+            style={i === current ? { background: "rgba(22,163,74,0.12)", color: GREEN, fontWeight: 600 } : i < current ? { color: "#52525B" } : { color: "#52525b" }}
           >
             {i < current && <Check size={11} />}
             {l}
@@ -867,12 +867,12 @@ function StageSteps({ labels, current, t }: { labels: string[]; current: number;
   return (
     <div className="lg:hidden flex items-center gap-3 min-w-0">
       <span className="text-[12px] truncate min-w-0 flex-1">
-        <span className="text-[#8e8e8e]">{t.step(current + 1, labels.length)} · </span>
-        <span className="text-white font-medium">{labels[current]}</span>
+        <span className="text-pmuted">{t.step(current + 1, labels.length)} · </span>
+        <span className="text-pfg font-medium">{labels[current]}</span>
       </span>
       <div className="flex items-center gap-1 shrink-0 w-[96px]" aria-hidden="true">
         {labels.map((l, i) => (
-          <span key={l} className="h-1 flex-1 rounded-full" style={{ background: i <= current ? GREEN : "rgba(255,255,255,0.12)", opacity: i < current ? 0.55 : 1 }} />
+          <span key={l} className="h-1 flex-1 rounded-full" style={{ background: i <= current ? GREEN : "rgba(10,10,10,0.102)", opacity: i < current ? 0.55 : 1 }} />
         ))}
       </div>
     </div>
@@ -882,8 +882,8 @@ function StageSteps({ labels, current, t }: { labels: string[]; current: number;
 function SectionHead({ title, sub }: { title: string; sub: string }) {
   return (
     <div>
-      <h2 className="text-[20px] md:text-[22px] font-semibold text-white tracking-tight">{title}</h2>
-      <p className="text-[14px] text-[#a1a1a1] mt-1 max-w-[640px] leading-relaxed">{sub}</p>
+      <h2 className="text-[20px] md:text-[22px] font-semibold text-pfg tracking-tight">{title}</h2>
+      <p className="text-[14px] text-psub mt-1 max-w-[640px] leading-relaxed">{sub}</p>
     </div>
   );
 }
@@ -907,13 +907,13 @@ function Progress({ jobs, plan, compact = false }: { jobs: Job[]; plan: Business
     ) : j.status === "running" ? (
       <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
     ) : (
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#3a3a3a" }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#F0F0ED" }} />
     );
   if (compact) {
     return (
       <ul className="flex flex-col gap-1.5">
         {list.map((j) => (
-          <li key={j.kind} className="flex items-center gap-2.5 text-[13.5px]" style={{ color: j.status === "queued" ? "#5b5b5b" : "#d4d4d4" }}>
+          <li key={j.kind} className="flex items-center gap-2.5 text-[13.5px]" style={{ color: j.status === "queued" ? "#5b5b5b" : "#27272A" }}>
             <span className="w-4 flex justify-center">{icon(j)}</span>
             {label(j.kind)}
             {j.status === "running" && "…"}
@@ -923,11 +923,11 @@ function Progress({ jobs, plan, compact = false }: { jobs: Job[]; plan: Business
     );
   }
   return (
-    <div className="rounded-2xl p-5 md:p-6 flex flex-col gap-3" style={CARD}>
+    <div className="rounded-[24px] p-5 md:p-6 flex flex-col gap-3" style={CARD}>
       <Label>{t.working}</Label>
       <ul className="flex flex-col gap-2.5">
         {list.map((j) => (
-          <li key={j.kind} className="flex items-center gap-3 text-[14.5px]" style={{ color: j.status === "queued" ? "#6b6b6b" : "#ececec" }}>
+          <li key={j.kind} className="flex items-center gap-3 text-[14.5px]" style={{ color: j.status === "queued" ? "#A1A1AA" : "#0A0A0A" }}>
             <span className="w-5 flex justify-center">{icon(j)}</span>
             {label(j.kind)}
             {j.status === "running" && "…"}
@@ -1018,14 +1018,14 @@ function ProfileCard({ plan, bare = false }: { plan: BusinessPlan; bare?: boolea
   const idea = plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
   if (rows.length === 0 && !idea) return null;
   return (
-    <div className={bare ? "flex flex-col gap-3" : "rounded-2xl p-5 md:p-6 flex flex-col gap-3"} style={bare ? undefined : CARD}>
+    <div className={bare ? "flex flex-col gap-3" : "rounded-[24px] p-5 md:p-6 flex flex-col gap-3"} style={bare ? undefined : CARD}>
       {!bare && <Label>{t.expediente}</Label>}
-      {idea && <div className="text-[18px] font-semibold text-white">{idea.title}</div>}
+      {idea && <div className="text-[18px] font-semibold text-pfg">{idea.title}</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5">
         {rows.map(([k, v]) => (
           <div key={k} className="flex flex-col min-w-0">
-            <span className="text-[11px] uppercase tracking-[0.08em] text-[#6b6b6b]">{k}</span>
-            <span className="text-[14px] text-[#ececec] leading-relaxed break-words">{v}</span>
+            <span className="text-[11px] uppercase tracking-[0.08em] text-pfaint">{k}</span>
+            <span className="text-[14px] text-pfg leading-relaxed break-words">{v}</span>
           </div>
         ))}
       </div>
@@ -1050,14 +1050,14 @@ function MarketInChat({ plan }: { plan: BusinessPlan }) {
   return (
     <div className="flex flex-col gap-3 min-w-0">
       {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
-      <div className="rounded-2xl min-w-0" style={CARD}>
+      <div className="rounded-[24px] min-w-0" style={CARD}>
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-3 px-4 md:px-5 py-4 text-left">
           <Globe />
           <span className="flex-1 min-w-0 flex flex-col">
-            <span className="text-[14.5px] text-white font-medium">{t.market}</span>
-            <span className="text-[12.5px] text-[#a1a1a1] break-words">{[range ? t.zonePrices(range) : "", counts].filter(Boolean).join(" · ")}</span>
+            <span className="text-[14.5px] text-pfg font-medium">{t.market}</span>
+            <span className="text-[12.5px] text-psub break-words">{[range ? t.zonePrices(range) : "", counts].filter(Boolean).join(" · ")}</span>
           </span>
-          <span className="text-[12.5px] text-[#a1a1a1] shrink-0">{open ? t.hide : t.view}</span>
+          <span className="text-[12.5px] text-psub shrink-0">{open ? t.hide : t.view}</span>
         </button>
         {open && (
           <div className="px-4 md:px-5 pb-5 flex flex-col gap-5 min-w-0">
@@ -1078,7 +1078,7 @@ function MarketInChat({ plan }: { plan: BusinessPlan }) {
 function MarketCard({ plan }: { plan: BusinessPlan }) {
   const t = PLAN_TEXT[useLang()];
   return (
-    <div className="rounded-2xl p-5 md:p-6 flex flex-col gap-5 min-w-0" style={CARD}>
+    <div className="rounded-[24px] p-5 md:p-6 flex flex-col gap-5 min-w-0" style={CARD}>
       <span className="flex items-center gap-2">
         <Globe />
         <Label>{t.market}</Label>
@@ -1099,11 +1099,11 @@ function MarketDetail({ plan }: { plan: BusinessPlan }) {
   const m = plan.market;
   return (
     <div className="flex flex-col gap-5 min-w-0">
-      <span className="text-[12px] text-[#8e8e8e]">{t.researchedOn(m.researchedAt)}</span>
+      <span className="text-[12px] text-pmuted">{t.researchedOn(m.researchedAt)}</span>
 
       {m.prices && (
         <div className="flex flex-col gap-2">
-          <span className="text-[14px] font-semibold text-white">{t.prices}</span>
+          <span className="text-[14px] font-semibold text-pfg">{t.prices}</span>
           <div className="grid grid-cols-3 gap-2 max-w-[520px]">
             {([
               [t.low, m.prices.low],
@@ -1111,19 +1111,19 @@ function MarketDetail({ plan }: { plan: BusinessPlan }) {
               [t.high, m.prices.high],
             ] as const).map(([k, v]) => (
               <div key={k} className="rounded-xl px-3 py-2.5 min-w-0" style={INSET}>
-                <div className="text-[10.5px] uppercase tracking-[0.08em] text-[#6b6b6b]">{k}</div>
-                <div className="text-[16px] md:text-[18px] font-semibold text-white break-words leading-tight mt-0.5">{v || "—"}</div>
+                <div className="text-[10.5px] uppercase tracking-[0.08em] text-pfaint">{k}</div>
+                <div className="text-[16px] md:text-[18px] font-semibold text-pfg break-words leading-tight mt-0.5">{v || "—"}</div>
               </div>
             ))}
           </div>
-          {m.prices.includes && <p className="text-[13px] text-[#a1a1a1] leading-relaxed">{m.prices.includes}</p>}
-          {m.prices.note && <p className="text-[12.5px] text-[#8e8e8e] leading-relaxed">{m.prices.note}</p>}
+          {m.prices.includes && <p className="text-[13px] text-psub leading-relaxed">{m.prices.includes}</p>}
+          {m.prices.note && <p className="text-[12.5px] text-pmuted leading-relaxed">{m.prices.note}</p>}
         </div>
       )}
 
       {m.competitors.length > 0 && (
         <div className="flex flex-col gap-1">
-          <span className="text-[14px] font-semibold text-white">{t.competitors}</span>
+          <span className="text-[14px] font-semibold text-pfg">{t.competitors}</span>
           <div className="flex flex-col">
             {m.competitors.map((c, i) => (
               <div
@@ -1131,7 +1131,7 @@ function MarketDetail({ plan }: { plan: BusinessPlan }) {
                 className="py-2.5 grid grid-cols-1 lg:grid-cols-[minmax(0,180px)_minmax(0,1fr)_minmax(0,140px)] gap-0.5 lg:gap-4 text-[13.5px]"
                 style={i > 0 ? { borderTop: `1px solid ${HAIR}` } : undefined}
               >
-                <span className="text-white font-medium truncate">
+                <span className="text-pfg font-medium truncate">
                   {c.url ? (
                     <a href={c.url} target="_blank" rel="noopener noreferrer nofollow" className="hover:underline">
                       {c.name} ↗
@@ -1140,12 +1140,12 @@ function MarketDetail({ plan }: { plan: BusinessPlan }) {
                     c.name
                   )}
                 </span>
-                <span className="text-[#a1a1a1] leading-relaxed min-w-0">
+                <span className="text-psub leading-relaxed min-w-0">
                   {c.offer}
                   {c.guarantee ? ` · ${c.guarantee}` : ""}
                   {c.languages ? ` · ${c.languages}` : ""}
                 </span>
-                <span className="text-[#d4d4d4] lg:text-right">{c.price || t.noPrice}</span>
+                <span className="text-pfg2 lg:text-right">{c.price || t.noPrice}</span>
               </div>
             ))}
           </div>
@@ -1154,9 +1154,9 @@ function MarketDetail({ plan }: { plan: BusinessPlan }) {
 
       {m.gaps.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[14px] font-semibold text-white">{t.gaps}</span>
+          <span className="text-[14px] font-semibold text-pfg">{t.gaps}</span>
           {m.gaps.map((g, i) => (
-            <span key={i} className="text-[13.5px] text-[#ececec] leading-relaxed flex gap-2">
+            <span key={i} className="text-[13.5px] text-pfg leading-relaxed flex gap-2">
               <span className="shrink-0" style={{ color: GREEN }}>
                 →
               </span>
@@ -1167,7 +1167,7 @@ function MarketDetail({ plan }: { plan: BusinessPlan }) {
       )}
 
       {m.incomplete.length > 0 && (
-        <p className="text-[12.5px] text-[#8e8e8e] leading-relaxed">
+        <p className="text-[12.5px] text-pmuted leading-relaxed">
           {t.incomplete}{" "}
           {m.incomplete
             .map((k) => {
@@ -1179,7 +1179,7 @@ function MarketDetail({ plan }: { plan: BusinessPlan }) {
         </p>
       )}
       <Sources list={m.sources} />
-      <p className="text-[12px] text-[#6b6b6b] leading-relaxed">{t.marketNote}</p>
+      <p className="text-[12px] text-pfaint leading-relaxed">{t.marketNote}</p>
     </div>
   );
 }
@@ -1188,20 +1188,20 @@ function RequirementsList({ plan }: { plan: BusinessPlan }) {
   const t = PLAN_TEXT[useLang()];
   return (
     <div className="flex flex-col gap-3 min-w-0">
-      <span className="text-[13px] text-[#a1a1a1]">{t.requirements}</span>
+      <span className="text-[13px] text-psub">{t.requirements}</span>
       {plan.market.requirements.map((r, i) => (
         <div key={i} className="flex flex-col gap-1.5 text-[13.5px] min-w-0">
           <span
             className="text-[11px] font-medium px-2 py-0.5 rounded-full self-start"
-            style={{ background: r.applies === "yes" ? "rgba(245,196,81,0.10)" : r.applies === "no" ? "rgba(46,122,85,0.22)" : "rgba(255,255,255,0.06)", color: r.applies === "yes" ? AMBER : r.applies === "no" ? GREEN : "#d4d4d4" }}
+            style={{ background: r.applies === "yes" ? "rgba(245,196,81,0.10)" : r.applies === "no" ? "rgba(22,163,74,0.12)" : "rgba(10,10,10,0.051)", color: r.applies === "yes" ? AMBER : r.applies === "no" ? GREEN : "#27272A" }}
           >
             {t.applies[r.applies]}
           </span>
-          <span className="text-[#ececec] leading-relaxed">
+          <span className="text-pfg leading-relaxed">
             <span className="font-medium">{r.item}</span>
             {r.note ? ` — ${r.note}` : ""}{" "}
             {r.link && (
-              <a href={r.link} target="_blank" rel="noopener noreferrer nofollow" className="underline underline-offset-2 text-[#a1a1a1] hover:text-white">
+              <a href={r.link} target="_blank" rel="noopener noreferrer nofollow" className="underline underline-offset-2 text-psub hover:text-pfg">
                 {t.officialLink}
               </a>
             )}
@@ -1221,8 +1221,8 @@ function Facts({ rows }: { rows: [string, string][] }) {
     <div className="flex flex-col gap-2">
       {shown.map(([k, v]) => (
         <div key={k} className="text-[13.5px] leading-relaxed">
-          <span className="text-[#8e8e8e]">{k}: </span>
-          <span className="text-[#ececec]">{v}</span>
+          <span className="text-pmuted">{k}: </span>
+          <span className="text-pfg">{v}</span>
         </div>
       ))}
     </div>
@@ -1231,12 +1231,12 @@ function Facts({ rows }: { rows: [string, string][] }) {
 
 function Notes({ title, items, color }: { title: string; items: string[]; color: string }) {
   return (
-    <div className="rounded-2xl p-4 flex flex-col gap-2" style={{ background: "#101010", boxShadow: `0 0 0 1px ${color}40` }}>
+    <div className="rounded-[24px] p-4 flex flex-col gap-2" style={{ background: "#FFFFFF", boxShadow: `0 0 0 1px ${color}40` }}>
       <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color }}>
         {title}
       </span>
       {items.map((x, i) => (
-        <span key={i} className="text-[13.5px] text-[#e4e4e7] leading-relaxed flex gap-2.5">
+        <span key={i} className="text-[13.5px] text-pfg leading-relaxed flex gap-2.5">
           <span className="h-1.5 w-1.5 rounded-full shrink-0 mt-[8px]" style={{ background: color }} />
           <span className="min-w-0">{x}</span>
         </span>
@@ -1250,7 +1250,7 @@ function Sources({ list }: { list: { title: string; url: string }[] }) {
   if (!list.length) return null;
   return (
     <div className="flex flex-col gap-1.5 min-w-0">
-      <span className="text-[12px] text-[#8e8e8e]">{t.sources}</span>
+      <span className="text-[12px] text-pmuted">{t.sources}</span>
       <div className="flex flex-wrap gap-2 min-w-0">
         {list.slice(0, 8).map((s) => (
           <a
@@ -1259,8 +1259,8 @@ function Sources({ list }: { list: { title: string; url: string }[] }) {
             target="_blank"
             rel="noopener noreferrer nofollow"
             title={s.url}
-            className="text-[12px] px-3 py-1.5 rounded-full text-[#d4d4d4] hover:text-white max-w-full truncate"
-            style={{ background: "rgba(255,255,255,0.05)", boxShadow: `inset 0 0 0 1px ${HAIR}` }}
+            className="text-[12px] px-3 py-1.5 rounded-full text-pfg2 hover:text-pfg max-w-full truncate"
+            style={{ background: "rgba(10,10,10,0.043)", boxShadow: `inset 0 0 0 1px ${HAIR}` }}
           >
             {hostOf(s.url)} · {s.title}
           </a>
@@ -1271,7 +1271,7 @@ function Sources({ list }: { list: { title: string; url: string }[] }) {
 }
 
 function Label({ children }: { children: ReactNode }) {
-  return <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8e8e8e]">{children}</span>;
+  return <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-pmuted">{children}</span>;
 }
 
 function hostOf(url: string): string {

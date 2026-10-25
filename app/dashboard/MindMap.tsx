@@ -9,7 +9,7 @@
 // owner is marked "Empieza aquí".
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ACCENT, RING } from "@/lib/brand";
+import { ACCENT, RING } from "@/lib/panel";
 import { useLang } from "@/components/LangProvider";
 
 export type MindTone = "idle" | "done" | "warn" | "active";
@@ -35,9 +35,9 @@ export type MindCenter = {
   footer?: ReactNode; // e.g. progress or the main action
 };
 
-const LINE = "rgba(255,255,255,0.16)";
+const LINE = "rgba(10,10,10,0.136)";
 const CARD = "#101010";
-const toneColor = (t?: MindTone) => (t === "done" ? ACCENT : t === "warn" ? "#f5c451" : t === "active" ? "#ffffff" : "#9a9a9a");
+const toneColor = (t?: MindTone) => (t === "done" ? ACCENT : t === "warn" ? "#B45309" : t === "active" ? "#ffffff" : "#52525B");
 
 const TEXT = {
   es: {
@@ -262,23 +262,23 @@ function Tree({
                   type="button"
                   onClick={() => onToggleGroup(c.id)}
                   aria-expanded={isOpen}
-                  className="group w-full rounded-2xl px-4 py-3.5 flex items-center gap-3 text-left transition-all duration-200 hover:-translate-y-0.5"
+                  className="group w-full rounded-[24px] px-4 py-3.5 flex items-center gap-3 text-left transition-all duration-200 hover:-translate-y-0.5"
                   style={{
                     background: isOpen ? "#151515" : CARD,
-                    boxShadow: `0 0 0 1px ${allDone && hasStatus ? "rgba(125,191,156,0.45)" : isOpen ? "rgba(255,255,255,0.22)" : LINE}`,
+                    boxShadow: `0 0 0 1px ${allDone && hasStatus ? "rgba(125,191,156,0.45)" : isOpen ? "rgba(10,10,10,0.187)" : LINE}`,
                   }}
                 >
                   <span
                     className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-[13px] font-semibold"
-                    style={{ background: allDone && hasStatus ? "rgba(46,122,85,0.30)" : "rgba(255,255,255,0.06)", color: allDone && hasStatus ? ACCENT : "#e5e5e5" }}
+                    style={{ background: allDone && hasStatus ? "rgba(22,163,74,0.12)" : "rgba(10,10,10,0.051)", color: allDone && hasStatus ? ACCENT : "#0A0A0A" }}
                   >
                     {allDone && hasStatus ? <Check /> : c.nodes.length}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-semibold text-white leading-tight">{c.label}</span>
-                    <span className="block text-[12px] text-[#9a9a9a] mt-0.5">
+                    <span className="block text-[15px] font-semibold text-pfg leading-tight">{c.label}</span>
+                    <span className="block text-[12px] text-psub mt-0.5">
                       {hasStatus ? t.approved(done, stepNodes.length) : t.parts(c.nodes.length)}
-                      {!isOpen && <span className="text-[#d4d4d4]"> · {t.open}</span>}
+                      {!isOpen && <span className="text-pfg2"> · {t.open}</span>}
                     </span>
                   </span>
                   <Chevron open={isOpen} />
@@ -311,15 +311,15 @@ function RootCard({ center }: { center: MindCenter }) {
     <div
       className="rounded-[24px] px-6 py-6 text-center flex flex-col items-center gap-2"
       style={{
-        background: "radial-gradient(120% 140% at 50% 0%, rgba(46,122,85,0.32) 0%, rgba(16,16,16,1) 72%)",
-        boxShadow: `0 0 0 1px ${RING}, 0 24px 60px -24px rgba(46,122,85,0.55)`,
+        background: "radial-gradient(120% 140% at 50% 0%, rgba(22,163,74,0.12) 0%, rgba(16,16,16,1) 72%)",
+        boxShadow: `0 0 0 1px ${RING}, 0 24px 60px -24px rgba(22,163,74,0.12)`,
       }}
     >
       <span className="text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: ACCENT }}>
         {center.eyebrow}
       </span>
-      <span className="text-[20px] md:text-[22px] font-semibold text-white leading-snug">{center.title}</span>
-      {center.subtitle && <span className="text-[13.5px] text-[#a1a1a1] leading-relaxed max-w-[440px] line-clamp-2">{center.subtitle}</span>}
+      <span className="text-[20px] md:text-[22px] font-semibold text-pfg leading-snug">{center.title}</span>
+      {center.subtitle && <span className="text-[13.5px] text-psub leading-relaxed max-w-[440px] line-clamp-2">{center.subtitle}</span>}
       {center.footer && <div className="mt-2 w-full flex justify-center">{center.footer}</div>}
     </div>
   );
@@ -331,14 +331,14 @@ function PartCard({ node, active, isNext, onOpen, t }: { node: MindNode; active:
     <button
       type="button"
       onClick={onOpen}
-      className="group relative w-full text-left rounded-2xl px-4 py-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#161616] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+      className="group relative w-full text-left rounded-[24px] px-4 py-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:bg-pcard focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
       style={{
         background: active ? "#171717" : CARD,
-        boxShadow: `0 0 0 1px ${active ? "rgba(255,255,255,0.35)" : isNext ? "rgba(245,196,81,0.55)" : node.tone === "done" ? "rgba(125,191,156,0.35)" : LINE}`,
+        boxShadow: `0 0 0 1px ${active ? "rgba(10,10,10,0.297)" : isNext ? "rgba(245,196,81,0.55)" : node.tone === "done" ? "rgba(125,191,156,0.35)" : LINE}`,
       }}
     >
       {isNext && (
-        <span className="absolute -top-2.5 right-3 text-[10.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#f5c451", color: "#1a1300" }}>
+        <span className="absolute -top-2.5 right-3 text-[10.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#B45309", color: "#1a1300" }}>
           <span className="inline-block h-1.5 w-1.5 rounded-full mr-1 align-middle animate-pulse" style={{ background: "#1a1300" }} />
           {t.start}
         </span>
@@ -348,11 +348,11 @@ function PartCard({ node, active, isNext, onOpen, t }: { node: MindNode; active:
         <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] truncate" style={{ color: c }}>
           {node.label}
         </span>
-        {node.badge && <span className="text-[10.5px] text-[#8e8e8e] shrink-0">· {node.badge}</span>}
+        {node.badge && <span className="text-[10.5px] text-pmuted shrink-0">· {node.badge}</span>}
       </div>
-      <div className="text-[14.5px] text-white font-medium leading-snug mt-1.5 line-clamp-2">{node.title}</div>
-      {node.summary && <div className="text-[12.5px] text-[#9a9a9a] leading-snug mt-1 line-clamp-2">{node.summary}</div>}
-      <div className="mt-2.5 flex items-center gap-1 text-[12px] font-medium text-[#cfcfcf] group-hover:text-white">
+      <div className="text-[14.5px] text-pfg font-medium leading-snug mt-1.5 line-clamp-2">{node.title}</div>
+      {node.summary && <div className="text-[12.5px] text-psub leading-snug mt-1 line-clamp-2">{node.summary}</div>}
+      <div className="mt-2.5 flex items-center gap-1 text-[12px] font-medium text-pfg2 group-hover:text-pfg">
         {t.see}
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-0.5" aria-hidden="true">
           <path d="M9 6l6 6-6 6" />
@@ -404,34 +404,34 @@ function DetailPanel({
       <button type="button" aria-label={t.closePanel} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-[2px] cursor-default" />
       <div
         className="absolute bottom-0 left-0 right-0 max-h-[88dvh] rounded-t-[22px] lg:rounded-none lg:top-0 lg:left-auto lg:w-[560px] lg:max-h-none flex flex-col animate-[sheetIn_.22s_ease-out]"
-        style={{ background: "#0c0c0c", boxShadow: "0 0 0 1px rgba(255,255,255,0.10), 0 -20px 60px rgba(0,0,0,0.6)" }}
+        style={{ background: "#0c0c0c", boxShadow: "0 0 0 1px rgba(10,10,10,0.085), 0 -20px 60px rgba(0,0,0,0.6)" }}
       >
-        <div className="lg:hidden mx-auto mt-2.5 h-1 w-10 rounded-full bg-white/20" />
-        <div className="px-5 pt-4 pb-3 flex items-start gap-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+        <div className="lg:hidden mx-auto mt-2.5 h-1 w-10 rounded-full bg-black/20" />
+        <div className="px-5 pt-4 pb-3 flex items-start gap-3" style={{ borderBottom: "1px solid rgba(10,10,10,0.068)" }}>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: c }}>
                 {node.label}
               </span>
-              {node.badge && <span className="text-[11px] text-[#8e8e8e]">· {node.badge}</span>}
+              {node.badge && <span className="text-[11px] text-pmuted">· {node.badge}</span>}
               <span className="text-[11px] text-[#6f6f6f] ml-auto">{position}</span>
             </div>
-            <div className="text-[18px] font-semibold text-white leading-snug mt-1">{node.title}</div>
+            <div className="text-[18px] font-semibold text-pfg leading-snug mt-1">{node.title}</div>
           </div>
-          <button type="button" onClick={onClose} aria-label={t.closePanel} className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-[#a1a1a1] hover:text-white hover:bg-white/[0.07]">
+          <button type="button" onClick={onClose} aria-label={t.closePanel} className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-psub hover:text-pfg hover:bg-black/[0.07]">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
         </div>
         <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto px-5 py-5">
-          {node.detail ?? (node.summary ? <p className="text-[14px] text-[#d4d4d4] leading-relaxed">{node.summary}</p> : null)}
+          {node.detail ?? (node.summary ? <p className="text-[14px] text-pfg2 leading-relaxed">{node.summary}</p> : null)}
         </div>
-        <div className="px-5 py-3 flex items-center justify-between gap-3" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
-          <button type="button" disabled={!onPrev} onClick={onPrev} className="h-10 px-4 rounded-full text-[13.5px] text-[#d4d4d4] hover:text-white disabled:opacity-30" style={{ background: "rgba(255,255,255,0.06)" }}>
+        <div className="px-5 py-3 flex items-center justify-between gap-3" style={{ borderTop: "1px solid rgba(10,10,10,0.068)", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+          <button type="button" disabled={!onPrev} onClick={onPrev} className="h-10 px-4 rounded-full text-[13.5px] text-pfg2 hover:text-pfg disabled:opacity-30" style={{ background: "rgba(10,10,10,0.051)" }}>
             ← {t.prev}
           </button>
-          <button type="button" disabled={!onNext} onClick={onNext} className="h-10 px-4 rounded-full text-[13.5px] font-medium text-white disabled:opacity-30" style={{ background: "rgba(255,255,255,0.12)" }}>
+          <button type="button" disabled={!onNext} onClick={onNext} className="h-10 px-4 rounded-full text-[13.5px] font-medium text-pfg disabled:opacity-30" style={{ background: "rgba(10,10,10,0.102)" }}>
             {t.next} →
           </button>
         </div>
@@ -442,7 +442,7 @@ function DetailPanel({
 
 function Chevron({ open }: { open: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4d4d4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 transition-transform duration-200" style={{ transform: open ? "rotate(180deg)" : "none" }} aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 transition-transform duration-200" style={{ transform: open ? "rotate(180deg)" : "none" }} aria-hidden="true">
       <path d="M6 9l6 6 6-6" />
     </svg>
   );

@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useLang } from "@/components/LangProvider";
-import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 import { AFF_MAX_PERCENT, AFF_MIN_PERCENT, type AffiliateSettings } from "@/lib/affiliateConfig";
 import { affiliatePayoutAction, loadAffiliatesAction, saveAffiliateSettingsAction, type AffiliatesState, type AffSale } from "@/app/affiliateActions";
 import type { ClientBusiness, DashboardView } from "./types";
 
-const AMBER = "#f5c451";
-const HAIR = "rgba(255,255,255,0.08)";
-const CARD = { background: "#101010", boxShadow: `0 0 0 1px ${HAIR}` } as const;
-const INSET = { background: "rgba(255,255,255,0.04)", boxShadow: `inset 0 0 0 1px ${HAIR}` } as const;
-const GHOST = { background: "rgba(255,255,255,0.06)", color: "#fff", boxShadow: `inset 0 0 0 1px ${HAIR}` } as const;
+const AMBER = "#B45309";
+const HAIR = "rgba(10,10,10,0.068)";
+const CARD = { background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" } as const;
+const INSET = { background: "rgba(10,10,10,0.034)", boxShadow: `inset 0 0 0 1px ${HAIR}` } as const;
+const GHOST = { background: "rgba(10,10,10,0.051)", color: "#0A0A0A", boxShadow: `inset 0 0 0 1px ${HAIR}` } as const;
 
 const usd = (c: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(c / 100);
 
@@ -151,16 +151,16 @@ export default function AffiliatesView({ business, onNavigate }: { business: Cli
   }, [business?.id]);
 
   return (
-    <div className="min-h-screen px-4 md:px-10 py-6 md:py-10" style={{ background: "#000" }}>
+    <div className="min-h-screen px-4 md:px-10 py-6 md:py-10" style={{ background: "#F5F5F3" }}>
       <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h1 className="text-[24px] md:text-[28px] font-semibold text-white tracking-tight">{t.title}</h1>
-            <a href={lang === "es" ? "/afiliados" : "/en/afiliados"} target="_blank" rel="noreferrer" className="text-[13px] text-[#a1a1a1] hover:text-white underline underline-offset-4">
+            <h1 className="text-[24px] md:text-[28px] font-semibold text-pfg tracking-tight">{t.title}</h1>
+            <a href={lang === "es" ? "/afiliados" : "/en/afiliados"} target="_blank" rel="noreferrer" className="text-[13px] text-psub hover:text-pfg underline underline-offset-4">
               {t.how} ↗
             </a>
           </div>
-          <p className="text-[14.5px] text-[#a1a1a1] max-w-[640px] leading-relaxed">{t.sub}</p>
+          <p className="text-[14.5px] text-psub max-w-[640px] leading-relaxed">{t.sub}</p>
         </div>
 
         <div className="inline-flex self-start rounded-full p-1" style={INSET} role="tablist">
@@ -172,7 +172,7 @@ export default function AffiliatesView({ business, onNavigate }: { business: Cli
               aria-selected={tab === k}
               onClick={() => setTab(k)}
               className="h-9 px-4 rounded-full text-[13.5px] font-medium transition"
-              style={tab === k ? { background: "#fff", color: "#000" } : { color: "#d4d4d4" }}
+              style={tab === k ? { background: "#0A0A0A", color: "#fff" } : { color: "#27272A" }}
             >
               {k === "promote" ? t.tabPromote : t.tabMine}
             </button>
@@ -180,7 +180,7 @@ export default function AffiliatesView({ business, onNavigate }: { business: Cli
         </div>
 
         {!state ? (
-          <p className="text-[14px] text-[#8e8e8e]">{t.loading}</p>
+          <p className="text-[14px] text-pmuted">{t.loading}</p>
         ) : tab === "promote" ? (
           <Promote state={state} t={t} />
         ) : (
@@ -231,8 +231,8 @@ function Promote({ state, t }: { state: AffiliatesState; t: T }) {
           [t.held, e.heldCents, e.heldCents ? AMBER : "#fff"],
           [t.paid, e.paidCents, ACCENT],
         ].map(([label, cents, color]) => (
-          <div key={label as string} className="rounded-2xl p-4 flex flex-col gap-1" style={CARD}>
-            <span className="text-[12.5px] text-[#8e8e8e]">{label as string}</span>
+          <div key={label as string} className="rounded-[24px] p-4 flex flex-col gap-1" style={CARD}>
+            <span className="text-[12.5px] text-pmuted">{label as string}</span>
             <span className="text-[24px] font-semibold tabular-nums" style={{ color: color as string }}>
               {usd(cents as number)}
             </span>
@@ -242,11 +242,11 @@ function Promote({ state, t }: { state: AffiliatesState; t: T }) {
 
       {state.paymentsOn ? (
         e.payout !== "ready" && (
-          <div className="rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ ...CARD, boxShadow: `0 0 0 1px ${e.payout === "review" ? HAIR : "rgba(245,196,81,0.3)"}` }}>
+          <div className="rounded-[24px] p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ ...CARD, boxShadow: `0 0 0 1px ${e.payout === "review" ? HAIR : "rgba(245,196,81,0.3)"}` }}>
             <div className="min-w-0">
-              <div className="text-[15px] font-semibold text-white">{e.payout === "review" ? t.payoutReview : t.payoutTitle}</div>
-              {e.payout !== "review" && <p className="text-[13.5px] text-[#a1a1a1] mt-0.5 leading-relaxed max-w-[560px]">{t.payoutText}</p>}
-              {err && <p className="text-[13px] text-[#ff8a8a] mt-1">{err}</p>}
+              <div className="text-[15px] font-semibold text-pfg">{e.payout === "review" ? t.payoutReview : t.payoutTitle}</div>
+              {e.payout !== "review" && <p className="text-[13.5px] text-psub mt-0.5 leading-relaxed max-w-[560px]">{t.payoutText}</p>}
+              {err && <p className="text-[13px] text-red-600 mt-1">{err}</p>}
             </div>
             {e.payout !== "review" && (
               <button type="button" disabled={busy} onClick={connect} className="h-10 px-5 rounded-full text-[14px] font-semibold shrink-0 disabled:opacity-60 self-start sm:self-auto" style={BRAND_BTN}>
@@ -256,55 +256,55 @@ function Promote({ state, t }: { state: AffiliatesState; t: T }) {
           </div>
         )
       ) : (
-        <p className="text-[13.5px] text-[#a1a1a1]">{t.payoutOff}</p>
+        <p className="text-[13.5px] text-psub">{t.payoutOff}</p>
       )}
 
       <div className="flex flex-col gap-1">
-        <h2 className="text-[18px] font-semibold text-white">{t.servicesTitle}</h2>
-        <p className="text-[13.5px] text-[#a1a1a1]">{t.servicesSub}</p>
+        <h2 className="text-[18px] font-semibold text-pfg">{t.servicesTitle}</h2>
+        <p className="text-[13.5px] text-psub">{t.servicesSub}</p>
       </div>
       {state.promote.services.length === 0 ? (
-        <p className="text-[14px] text-[#8e8e8e] rounded-2xl p-5" style={CARD}>
+        <p className="text-[14px] text-pmuted rounded-[24px] p-5" style={CARD}>
           {t.none}
         </p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {state.promote.services.map((s) => (
-            <div key={s.id} className="rounded-2xl p-4 md:p-5 flex flex-col gap-3 min-w-0" style={CARD}>
+            <div key={s.id} className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={CARD}>
               <div className="flex items-start gap-3 min-w-0">
                 {s.logo ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={s.logo} alt="" className="h-11 w-11 rounded-xl object-cover shrink-0" />
                 ) : (
-                  <span className="h-11 w-11 rounded-xl shrink-0 flex items-center justify-center font-semibold text-white" style={{ background: TINT }}>
+                  <span className="h-11 w-11 rounded-xl shrink-0 flex items-center justify-center font-semibold text-pfg" style={{ background: TINT }}>
                     {s.name.slice(0, 1).toUpperCase()}
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="text-[15.5px] font-semibold text-white truncate">{s.name}</div>
-                  {s.headline && <div className="text-[13px] text-[#a1a1a1] leading-snug line-clamp-2">{s.headline}</div>}
+                  <div className="text-[15.5px] font-semibold text-pfg truncate">{s.name}</div>
+                  {s.headline && <div className="text-[13px] text-psub leading-snug line-clamp-2">{s.headline}</div>}
                 </div>
                 <span className="text-[12.5px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: TINT, color: ACCENT }}>
                   {t.commission(s.percent)}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-2 text-[12px] text-[#d4d4d4]">
+              <div className="flex flex-wrap gap-2 text-[12px] text-pfg2">
                 {s.agent && <span className="px-2.5 py-1 rounded-full" style={INSET}>{t.agent}</span>}
                 {s.price && <span className="px-2.5 py-1 rounded-full" style={INSET}>{t.from(s.price)}</span>}
                 <span className="px-2.5 py-1 rounded-full" style={INSET}>{t.visits(s.visits)}</span>
               </div>
               {s.pitch && (
-                <p className="text-[13px] text-[#a1a1a1] leading-relaxed">
-                  <span className="text-[#d4d4d4]">{t.ownerSays}:</span> {s.pitch}
+                <p className="text-[13px] text-psub leading-relaxed">
+                  <span className="text-pfg2">{t.ownerSays}:</span> {s.pitch}
                 </p>
               )}
               <div className="flex items-center gap-2 min-w-0">
-                <input readOnly value={s.link} onFocus={(ev) => ev.currentTarget.select()} className="flex-1 min-w-0 h-10 rounded-full px-4 text-[13px] text-[#d4d4d4] outline-none" style={INSET} />
+                <input readOnly value={s.link} onFocus={(ev) => ev.currentTarget.select()} className="flex-1 min-w-0 h-10 rounded-full px-4 text-[13px] text-pfg2 outline-none" style={INSET} />
                 <button type="button" onClick={() => copy(s.id, s.link)} className="h-10 px-4 rounded-full text-[13px] font-semibold shrink-0" style={BRAND_BTN}>
                   {copied === s.id ? t.copied : t.copy}
                 </button>
               </div>
-              <a href={s.link} target="_blank" rel="noreferrer" className="text-[12.5px] text-[#8e8e8e] hover:text-white self-start">
+              <a href={s.link} target="_blank" rel="noreferrer" className="text-[12.5px] text-pmuted hover:text-pfg self-start">
                 {t.view} ↗
               </a>
             </div>
@@ -313,7 +313,7 @@ function Promote({ state, t }: { state: AffiliatesState; t: T }) {
       )}
 
       <Sales title={t.mySales} empty={t.noSales} sales={e.sales} t={t} />
-      <p className="text-[12.5px] text-[#8e8e8e] leading-relaxed max-w-[760px]">{t.rules}</p>
+      <p className="text-[12.5px] text-pmuted leading-relaxed max-w-[760px]">{t.rules}</p>
     </div>
   );
 }
@@ -323,7 +323,7 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
   const [form, setForm] = useState<AffiliateSettings | null>(o?.settings ?? null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  if (!o || !form) return <p className="text-[14px] text-[#8e8e8e]">{t.nobusiness}</p>;
+  if (!o || !form) return <p className="text-[14px] text-pmuted">{t.nobusiness}</p>;
   const missing = [!o.published || !o.canPublish ? "publish" : "", !o.payReady ? "payments" : ""].filter(Boolean);
 
   async function save(next: AffiliateSettings) {
@@ -343,11 +343,11 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
   return (
     <div className="flex flex-col gap-5">
       {missing.length > 0 && (
-        <div className="rounded-2xl p-4 md:p-5 flex flex-col gap-3" style={{ ...CARD, boxShadow: "0 0 0 1px rgba(245,196,81,0.3)" }}>
-          <span className="text-[14.5px] font-semibold text-white">{t.needTitle}</span>
+        <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3" style={{ ...CARD, boxShadow: "0 0 0 1px rgba(245,196,81,0.3)" }}>
+          <span className="text-[14.5px] font-semibold text-pfg">{t.needTitle}</span>
           {missing.includes("publish") && (
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-[13.5px] text-[#d4d4d4]">{t.needPublish}</span>
+              <span className="text-[13.5px] text-pfg2">{t.needPublish}</span>
               <button type="button" onClick={() => onNavigate("store")} className="h-9 px-4 rounded-full text-[13px]" style={GHOST}>
                 {t.goStore} →
               </button>
@@ -355,7 +355,7 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
           )}
           {missing.includes("payments") && (
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-[13.5px] text-[#d4d4d4]">{t.needPayments}</span>
+              <span className="text-[13.5px] text-pfg2">{t.needPayments}</span>
               <button type="button" onClick={() => onNavigate("payments")} className="h-9 px-4 rounded-full text-[13px]" style={GHOST}>
                 {t.goPayments} →
               </button>
@@ -364,11 +364,11 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
         </div>
       )}
 
-      <div className="rounded-2xl p-4 md:p-6 flex flex-col gap-5" style={CARD}>
+      <div className="rounded-[24px] p-4 md:p-6 flex flex-col gap-5" style={CARD}>
         <label className="flex items-start justify-between gap-4 cursor-pointer">
           <span className="min-w-0">
-            <span className="block text-[16px] font-semibold text-white">{t.open(o.businessName)}</span>
-            <span className="block text-[13.5px] text-[#a1a1a1] mt-0.5 leading-relaxed max-w-[560px]">{t.openSub}</span>
+            <span className="block text-[16px] font-semibold text-pfg">{t.open(o.businessName)}</span>
+            <span className="block text-[13.5px] text-psub mt-0.5 leading-relaxed max-w-[560px]">{t.openSub}</span>
           </span>
           <button
             type="button"
@@ -377,14 +377,14 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
             disabled={busy}
             onClick={() => save({ ...form, enabled: !form.enabled })}
             className="relative h-7 w-12 rounded-full shrink-0 transition disabled:opacity-60"
-            style={{ background: form.enabled ? ACCENT : "rgba(255,255,255,0.16)" }}
+            style={{ background: form.enabled ? ACCENT : "rgba(10,10,10,0.136)" }}
           >
             <span className="absolute top-1 h-5 w-5 rounded-full bg-white transition-all" style={{ left: form.enabled ? 26 : 4 }} />
           </button>
         </label>
 
         <div className="flex flex-col gap-2">
-          <span className="text-[13.5px] text-white font-medium">{t.percent}</span>
+          <span className="text-[13.5px] text-pfg font-medium">{t.percent}</span>
           <div className="flex items-center gap-4">
             <input
               type="range"
@@ -393,22 +393,22 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
               step={1}
               value={form.percent}
               onChange={(e) => setForm({ ...form, percent: Number(e.target.value) })}
-              className="flex-1 accent-[#3ddc84]"
+              className="flex-1 accent-[#16A34A]"
             />
-            <span className="text-[22px] font-semibold text-white tabular-nums w-16 text-right">{form.percent}%</span>
+            <span className="text-[22px] font-semibold text-pfg tabular-nums w-16 text-right">{form.percent}%</span>
           </div>
-          <span className="text-[12.5px] text-[#8e8e8e] leading-relaxed">{t.example(form.percent)}</span>
+          <span className="text-[12.5px] text-pmuted leading-relaxed">{t.example(form.percent)}</span>
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-[13.5px] text-white font-medium">{t.pitch}</span>
+          <span className="text-[13.5px] text-pfg font-medium">{t.pitch}</span>
           <textarea
             rows={3}
             maxLength={600}
             value={form.pitch}
             onChange={(e) => setForm({ ...form, pitch: e.target.value })}
             placeholder={t.pitchPh}
-            className="rounded-xl px-4 py-3 text-[14px] text-white placeholder:text-[#6b6b6b] outline-none resize-none"
+            className="rounded-xl px-4 py-3 text-[14px] text-pfg placeholder:text-pfaint outline-none resize-none"
             style={INSET}
           />
         </div>
@@ -417,7 +417,7 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
           <button type="button" disabled={busy} onClick={() => save(form)} className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
             {busy ? t.saving : t.save}
           </button>
-          {msg && <span className="text-[13px]" style={{ color: msg === t.saved ? ACCENT : "#ff8a8a" }}>{msg}</span>}
+          {msg && <span className="text-[13px]" style={{ color: msg === t.saved ? ACCENT : "#DC2626" }}>{msg}</span>}
         </div>
       </div>
 
@@ -428,9 +428,9 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
           [t.statSales, `${o.stats.sales} · ${usd(o.stats.salesCents)}`],
           [t.statCom, usd(o.stats.commissionCents)],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-2xl p-4 flex flex-col gap-1" style={CARD}>
-            <span className="text-[12.5px] text-[#8e8e8e]">{k}</span>
-            <span className="text-[18px] font-semibold text-white tabular-nums">{v}</span>
+          <div key={k} className="rounded-[24px] p-4 flex flex-col gap-1" style={CARD}>
+            <span className="text-[12.5px] text-pmuted">{k}</span>
+            <span className="text-[18px] font-semibold text-pfg tabular-nums">{v}</span>
           </div>
         ))}
       </div>
@@ -444,23 +444,23 @@ function Sales({ title, empty, sales, t }: { title: string; empty: string; sales
   const lang = useLang();
   const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString(lang === "es" ? "es-US" : "en-US", { month: "short", day: "numeric" }) : "");
   return (
-    <div className="rounded-2xl p-4 md:p-5 flex flex-col gap-3" style={CARD}>
-      <span className="text-[15px] font-semibold text-white">{title}</span>
+    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3" style={CARD}>
+      <span className="text-[15px] font-semibold text-pfg">{title}</span>
       {sales.length === 0 ? (
-        <span className="text-[13.5px] text-[#8e8e8e]">{empty}</span>
+        <span className="text-[13.5px] text-pmuted">{empty}</span>
       ) : (
         <div className="flex flex-col">
           {sales.map((s, i) => (
             <div key={i} className="py-2.5 flex items-center justify-between gap-3 text-[13.5px]" style={i ? { borderTop: `1px solid ${HAIR}` } : undefined}>
               <span className="min-w-0">
-                <span className="text-white">{s.title || s.business}</span>
-                <span className="text-[#8e8e8e]">
+                <span className="text-pfg">{s.title || s.business}</span>
+                <span className="text-pmuted">
                   {s.business && s.title ? ` · ${s.business}` : ""} · {day(s.createdAt)} · {usd(s.amountCents)}
                 </span>
               </span>
               <span className="text-right shrink-0">
-                <span className="block font-semibold text-white tabular-nums">{usd(s.commissionCents)}</span>
-                <span className="block text-[11.5px]" style={{ color: s.status === "paid" ? ACCENT : s.status === "void" ? "#ff8a8a" : s.status === "held" ? AMBER : "#8e8e8e" }}>
+                <span className="block font-semibold text-pfg tabular-nums">{usd(s.commissionCents)}</span>
+                <span className="block text-[11.5px]" style={{ color: s.status === "paid" ? ACCENT : s.status === "void" ? "#DC2626" : s.status === "held" ? AMBER : "#71717A" }}>
                   {t.status[s.status] ?? s.status}
                   {s.status === "pending" ? ` ${t.payDay(day(s.payableAt))}` : ""}
                 </span>

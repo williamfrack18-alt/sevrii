@@ -5,7 +5,7 @@ import { useLang } from "@/components/LangProvider";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { PLANS, PLAN_ORDER, type ClientPlan, type PlanId } from "@/lib/plans";
 import { joinWaitlistAction, openPortalAction, startCheckoutAction } from "@/app/billingActions";
-import { ACCENT, BRAND_BTN, RING } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, RING } from "@/lib/panel";
 
 const GREEN = ACCENT;
 const AMBER = "#ffc400";
@@ -53,7 +53,7 @@ export default function PlansView({
     notice === "success"
       ? { text: t.success, color: GREEN }
       : notice === "cancel"
-        ? { text: t.cancel, color: "#a1a1aa" }
+        ? { text: t.cancel, color: "#52525B" }
         : notice === "projects"
           ? { text: t.needProjects(PLANS[plan.id].limits.projects), color: AMBER }
           : notice === "publish"
@@ -61,28 +61,28 @@ export default function PlansView({
             : null;
 
   return (
-    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen" style={{ background: "#000" }}>
+    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen" style={{ background: "#F5F5F3" }}>
       <div className="h-14 px-4 md:px-6 flex items-center">
-        <span className="text-[17px] font-semibold text-white">
-          Sevrii <span className="text-[#8e8e8e] font-normal">· {t.nav}</span>
+        <span className="text-[17px] font-semibold text-pfg">
+          Sevrii <span className="text-pmuted font-normal">· {t.nav}</span>
         </span>
       </div>
 
       <div className="max-w-[1180px] mx-auto px-4 md:px-8 pt-4 md:pt-10 pb-10 md:pb-16 flex flex-col gap-6 md:gap-8">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
           <div>
-            <h1 className="text-[26px] md:text-[34px] leading-tight font-semibold text-white tracking-tight">{t.title}</h1>
-            <p className="text-[15px] text-[#8e8e8e] mt-2 max-w-[620px] leading-relaxed">{t.sub}</p>
+            <h1 className="text-[26px] md:text-[34px] leading-tight font-semibold text-pfg tracking-tight">{t.title}</h1>
+            <p className="text-[15px] text-pmuted mt-2 max-w-[620px] leading-relaxed">{t.sub}</p>
           </div>
           {(plan.yearlyReady || !plan.billingReady) && (
-          <div className="flex items-center gap-1 rounded-full p-1 self-start md:self-auto" style={{ background: "#141414", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
+          <div className="flex items-center gap-1 rounded-full p-1 self-start md:self-auto" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
             {[false, true].map((y) => (
               <button
                 key={String(y)}
                 type="button"
                 onClick={() => setYearly(y)}
                 className="h-10 md:h-9 px-4 rounded-full text-[13.5px] font-medium whitespace-nowrap"
-                style={yearly === y ? { background: "#fff", color: "#000" } : { color: "#d4d4d4" }}
+                style={yearly === y ? { background: "#0A0A0A", color: "#fff" } : { color: "#27272A" }}
               >
                 {y ? t.yearly : t.monthly}
                 {y && <span className="ml-1.5 text-[11.5px]" style={{ color: yearly ? "#0f6e56" : GREEN }}>{t.yearlySave}</span>}
@@ -95,7 +95,7 @@ export default function PlansView({
         {plan.admin && <Banner text={t.admin} color={GREEN} />}
         {banner && <Banner text={banner.text} color={banner.color} />}
         {plan.status === "past_due" && <Banner text={t.pastDue} color={AMBER} />}
-        {error && <Banner text={error} color="#ff6b6b" />}
+        {error && <Banner text={error} color="#DC2626" />}
 
         <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-stretch ${pending ? "opacity-70" : ""}`}>
           {PLAN_ORDER.map((id) => {
@@ -107,14 +107,14 @@ export default function PlansView({
             return (
               <div
                 key={id}
-                className="rounded-2xl p-5 flex flex-col gap-4"
+                className="rounded-[24px] p-5 flex flex-col gap-4"
                 style={{
-                  background: "#111",
-                  boxShadow: isCurrent ? `0 0 0 1.5px ${RING}` : recommended ? "0 0 0 1px rgba(255,255,255,0.35)" : "0 0 0 1px rgba(255,255,255,0.08)",
+                  background: "#FFFFFF",
+                  boxShadow: isCurrent ? `0 0 0 1.5px ${RING}` : recommended ? "0 0 0 1px rgba(10,10,10,0.297)" : "0 0 0 1px rgba(10,10,10,0.068)",
                 }}
               >
                 <div className="flex items-center justify-between gap-2 min-h-[24px]">
-                  <span className="text-[16px] font-semibold text-white">{p.name}</span>
+                  <span className="text-[16px] font-semibold text-pfg">{p.name}</span>
                   {isCurrent ? (
                     <Pill text={t.current} color={GREEN} />
                   ) : !def.available ? (
@@ -123,17 +123,17 @@ export default function PlansView({
                 </div>
                 <div>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-[34px] font-semibold text-white tracking-tight">{def.monthly === 0 ? "$0" : `$${price}`}</span>
-                    {def.monthly > 0 && <span className="text-[13px] text-[#8e8e8e]">{t.perMonth}</span>}
+                    <span className="text-[34px] font-semibold text-pfg tracking-tight">{def.monthly === 0 ? "$0" : `$${price}`}</span>
+                    {def.monthly > 0 && <span className="text-[13px] text-pmuted">{t.perMonth}</span>}
                   </div>
-                  <div className="text-[12.5px] text-[#8e8e8e] min-h-[18px]">
+                  <div className="text-[12.5px] text-pmuted min-h-[18px]">
                     {def.monthly > 0 && yearly && def.yearlyPerMonth !== null ? t.billedYearly(def.yearlyPerMonth * 12) : p.tagline}
                   </div>
                 </div>
-                <p className="text-[13.5px] text-[#d4d4d4] leading-relaxed">{p.summary}</p>
+                <p className="text-[13.5px] text-pfg2 leading-relaxed">{p.summary}</p>
                 <ul className="flex flex-col gap-2 grow">
                   {t.highlights[id].map((h, i) => (
-                    <li key={i} className="flex gap-2 text-[13.5px] leading-snug" style={{ color: i === 0 && id !== "free" ? "#8e8e8e" : "#ececec" }}>
+                    <li key={i} className="flex gap-2 text-[13.5px] leading-snug" style={{ color: i === 0 && id !== "free" ? "#71717A" : "#0A0A0A" }}>
                       <Check />
                       {h}
                     </li>
@@ -142,11 +142,11 @@ export default function PlansView({
                 <div className="pt-1">
                   {isCurrent ? (
                     id !== "free" && !plan.admin ? (
-                      <button type="button" disabled={pending} onClick={portal} className="w-full h-11 rounded-full text-[14px] font-medium text-white" style={{ background: "rgba(255,255,255,0.08)" }}>
+                      <button type="button" disabled={pending} onClick={portal} className="w-full h-11 rounded-full text-[14px] font-medium text-pfg" style={{ background: "rgba(10,10,10,0.068)" }}>
                         {t.manage}
                       </button>
                     ) : (
-                      <div className="h-11 flex items-center justify-center text-[13px] text-[#8e8e8e]">
+                      <div className="h-11 flex items-center justify-center text-[13px] text-pmuted">
                         {plan.renewsAt && id !== "free" ? (plan.cancelAtPeriodEnd ? t.ends(fmt(plan.renewsAt)) : t.renews(fmt(plan.renewsAt))) : t.current}
                       </div>
                     )
@@ -156,7 +156,7 @@ export default function PlansView({
                       disabled={pending || waitlist.includes(id)}
                       onClick={() => notify(id)}
                       className="w-full h-11 rounded-full text-[14px] font-medium"
-                      style={waitlist.includes(id) ? { background: "rgba(46,122,85,0.26)", color: GREEN } : { background: "rgba(255,255,255,0.08)", color: "#fff" }}
+                      style={waitlist.includes(id) ? { background: "rgba(22,163,74,0.12)", color: GREEN } : { background: "rgba(10,10,10,0.068)", color: "#0A0A0A" }}
                     >
                       {waitlist.includes(id) ? `✓ ${t.notified}` : t.notify}
                     </button>
@@ -179,22 +179,22 @@ export default function PlansView({
           })}
         </div>
 
-        <div className="flex flex-col gap-1.5 text-[13px] text-[#8e8e8e]">
+        <div className="flex flex-col gap-1.5 text-[13px] text-pmuted">
           <span>• {t.adsNote}</span>
           <span>• {t.capitalNote}</span>
         </div>
 
         <div className="flex flex-col gap-3">
-          <h2 className="text-[20px] font-semibold text-white">{t.compareTitle}</h2>
-          <div className="rounded-2xl overflow-x-auto" style={{ background: "#111", boxShadow: "0 0 0 1px rgba(255,255,255,0.08)" }}>
+          <h2 className="text-[20px] font-semibold text-pfg">{t.compareTitle}</h2>
+          <div className="rounded-[24px] overflow-x-auto" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
             <table className="w-full min-w-[640px] text-[13.5px]">
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                  <th className="text-left font-medium text-[#8e8e8e] px-4 py-3 w-[38%]" />
+                <tr style={{ borderBottom: "1px solid rgba(10,10,10,0.068)" }}>
+                  <th className="text-left font-medium text-pmuted px-4 py-3 w-[38%]" />
                   {PLAN_ORDER.map((id) => (
                     <th key={id} className="text-center font-semibold px-3 py-3" style={{ color: plan.id === id ? GREEN : "#fff" }}>
                       {t.plans[id].name}
-                      <div className="text-[12px] font-normal text-[#8e8e8e]">{PLANS[id].monthly ? `$${PLANS[id].monthly}${t.perMonth}` : "$0"}</div>
+                      <div className="text-[12px] font-normal text-pmuted">{PLANS[id].monthly ? `$${PLANS[id].monthly}${t.perMonth}` : "$0"}</div>
                     </th>
                   ))}
                 </tr>
@@ -216,25 +216,25 @@ function GroupRows({ title, rows, current }: { title: string; rows: { label: str
   return (
     <>
       <tr>
-        <td colSpan={5} className="px-4 pt-4 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#8e8e8e]">
+        <td colSpan={5} className="px-4 pt-4 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-pmuted">
           {title}
         </td>
       </tr>
       {rows.map((r) => (
-        <tr key={r.label} style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          <td className="px-4 py-2.5 text-[#d4d4d4]">{r.label}</td>
+        <tr key={r.label} style={{ borderTop: "1px solid rgba(10,10,10,0.043)" }}>
+          <td className="px-4 py-2.5 text-pfg2">{r.label}</td>
           {PLAN_ORDER.map((id) => {
             const v = r.values[id];
             return (
-              <td key={id} className="text-center px-3 py-2.5" style={{ background: current === id ? "rgba(46,122,85,0.11)" : undefined }}>
+              <td key={id} className="text-center px-3 py-2.5" style={{ background: current === id ? "rgba(22,163,74,0.12)" : undefined }}>
                 {v === true ? (
                   <span className="inline-flex justify-center">
                     <Check />
                   </span>
                 ) : v === false ? (
-                  <span className="text-[#52525b]">—</span>
+                  <span className="text-pfaint">—</span>
                 ) : (
-                  <span className="text-white">{v}</span>
+                  <span className="text-pfg">{v}</span>
                 )}
               </td>
             );
@@ -247,7 +247,7 @@ function GroupRows({ title, rows, current }: { title: string; rows: { label: str
 
 function Banner({ text, color }: { text: string; color: string }) {
   return (
-    <div className="rounded-xl px-4 py-3 text-[14px]" style={{ background: "#141414", boxShadow: `0 0 0 1px ${color}55`, color: "#ececec" }}>
+    <div className="rounded-xl px-4 py-3 text-[14px]" style={{ background: "#FFFFFF", boxShadow: `0 0 0 1px ${color}55`, color: "#0A0A0A" }}>
       <span style={{ color }}>● </span>
       {text}
     </div>

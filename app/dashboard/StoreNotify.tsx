@@ -11,7 +11,7 @@ import {
   testPushDetailedAction,
   type NotifySettings,
 } from "@/app/chatActions";
-import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 
 const TEXT = {
   es: {
@@ -203,28 +203,28 @@ export default function StoreNotify() {
 
   if (!s) return null;
   const row = "rounded-xl p-4 flex flex-col gap-2";
-  const rowStyle = { background: "#161616", boxShadow: "0 0 0 1px rgba(255,255,255,.07)" };
+  const rowStyle = { background: "#FFFFFF", boxShadow: "0 0 0 1px rgba(10,10,10,0.06)" };
   const chip = (on: boolean) => (
-    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={on ? { background: TINT, color: ACCENT } : { background: "rgba(255,255,255,.08)", color: "#a1a1a1" }}>
+    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={on ? { background: TINT, color: ACCENT } : { background: "rgba(10,10,10,0.068)", color: "#52525B" }}>
       {on ? t.on : t.off}
     </span>
   );
 
   return (
-    <div className="rounded-2xl p-4 md:p-5 mb-5" style={{ background: "#0f0f0f", boxShadow: "0 0 0 1px rgba(255,255,255,.08)" }}>
-      <h3 className="text-[15px] font-semibold text-white">{t.title}</h3>
-      <p className="text-[13px] text-[#9a9a9a] mt-1">{t.sub}</p>
+    <div className="rounded-[24px] p-4 md:p-5 mb-5" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
+      <h3 className="text-[15px] font-semibold text-pfg">{t.title}</h3>
+      <p className="text-[13px] text-psub mt-1">{t.sub}</p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
         {/* Push */}
         <div className={`${row} min-w-0`} style={rowStyle}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[14px] font-semibold text-white min-w-0">{t.push}</span>
+            <span className="text-[14px] font-semibold text-pfg min-w-0">{t.push}</span>
             {chip(push === "on")}
           </div>
-          <p className="text-[12.5px] text-[#a1a1a1] leading-relaxed">
+          <p className="text-[12.5px] text-psub leading-relaxed">
             {push === "on" ? t.pushOn : push === "denied" ? t.denied : push === "unsupported" ? t.unsupported : push === "ios" ? t.ios : t.pushOff}
           </p>
-          {s.devices > 0 && <p className="text-[12px] text-[#8e8e8e]">{t.otherDevices(s.devices)}</p>}
+          {s.devices > 0 && <p className="text-[12px] text-pmuted">{t.otherDevices(s.devices)}</p>}
           <div className="flex flex-wrap gap-2 mt-auto pt-1">
             {(push === "off" || push === "loading") && (
               <button type="button" disabled={busy || push === "loading" || !s.pushKey} onClick={enable} className="h-10 md:h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
@@ -236,7 +236,7 @@ export default function StoreNotify() {
                 <button type="button" disabled={busy} onClick={test} className="h-10 md:h-9 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60" style={{ background: TINT, color: ACCENT }}>
                   {t.test}
                 </button>
-                <button type="button" disabled={busy} onClick={disable} className="h-10 md:h-9 px-4 rounded-full text-[13px] disabled:opacity-60" style={{ background: "rgba(255,255,255,.08)", color: "#e5e5e5" }}>
+                <button type="button" disabled={busy} onClick={disable} className="h-10 md:h-9 px-4 rounded-full text-[13px] disabled:opacity-60" style={{ background: "rgba(10,10,10,0.068)", color: "#0A0A0A" }}>
                   {t.disable}
                 </button>
               </>
@@ -244,7 +244,7 @@ export default function StoreNotify() {
           </div>
           {note && <p className="text-[12.5px]" style={{ color: ACCENT }}>{note}</p>}
           {results.length > 0 && (
-            <ul className="text-[12px] text-[#a1a1a1] flex flex-col gap-0.5">
+            <ul className="text-[12px] text-psub flex flex-col gap-0.5">
               {results.map((r, i) => (
                 <li key={i}>
                   {(r.label || r.host || "?") + " · "}
@@ -254,7 +254,7 @@ export default function StoreNotify() {
             </ul>
           )}
           {results.some((r) => r.ok) && (
-            <p className="text-[12px] text-[#8e8e8e] leading-relaxed">
+            <p className="text-[12px] text-pmuted leading-relaxed">
               {lang === "es"
                 ? "¿No te apareció? Revisa en tu celular Ajustes → Notificaciones → Sevrii (que esté permitido) y que no tengas el modo Enfoque o No molestar prendido."
                 : "Didn't see it? On your phone check Settings → Notifications → Sevrii (allowed) and that Focus / Do Not Disturb is off."}
@@ -265,26 +265,26 @@ export default function StoreNotify() {
         {/* Email */}
         <div className={row} style={rowStyle}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[14px] font-semibold text-white">{t.email}</span>
+            <span className="text-[14px] font-semibold text-pfg">{t.email}</span>
             <button
               type="button"
               role="switch"
               aria-checked={s.email}
               onClick={toggleEmail}
               className="tap relative w-11 h-6 rounded-full transition-colors shrink-0"
-              style={{ background: s.email ? ACCENT : "rgba(255,255,255,.18)" }}
+              style={{ background: s.email ? ACCENT : "rgba(10,10,10,0.153)" }}
             >
               <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: s.email ? 22 : 2 }} />
             </button>
           </div>
-          <p className="text-[12.5px] text-[#a1a1a1] leading-relaxed break-words">{s.email ? t.emailOn(s.ownerEmail) : t.emailOff}</p>
+          <p className="text-[12.5px] text-psub leading-relaxed break-words">{s.email ? t.emailOn(s.ownerEmail) : t.emailOff}</p>
         </div>
 
         {/* SMS */}
         <div className={row} style={{ ...rowStyle, opacity: 0.6 }}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[14px] font-semibold text-white">{t.sms}</span>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,.08)", color: "#a1a1a1" }}>
+            <span className="text-[14px] font-semibold text-pfg">{t.sms}</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(10,10,10,0.068)", color: "#52525B" }}>
               {t.smsSoon}
             </span>
           </div>

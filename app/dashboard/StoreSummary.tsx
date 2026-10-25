@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useLang } from "@/components/LangProvider";
-import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 import { agentMissing, money } from "@/lib/serviceAgentConfig";
 import { agentSalesAction, setAgentEnabledAction, type AgentSales } from "@/app/storeActions";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
 
-const HAIR = "rgba(255,255,255,0.08)";
-const AMBER = "#f5c451";
+const HAIR = "rgba(10,10,10,0.068)";
+const AMBER = "#B45309";
 
 const TEXT = {
   es: {
@@ -135,13 +135,13 @@ export default function StoreSummary({
   const shown = services.slice(0, 4);
 
   return (
-    <div className="rounded-2xl p-4 md:p-5 flex flex-col gap-4 min-w-0" style={{ background: "#141414", boxShadow: `0 0 0 1px ${HAIR}` }}>
+    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-4 min-w-0" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8e8e8e]">{t.eyebrow}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-pmuted">{t.eyebrow}</span>
           <span
             className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11.5px] font-medium truncate"
-            style={business.published ? { background: TINT, color: ACCENT } : { background: "rgba(255,255,255,0.06)", color: "#a1a1a1" }}
+            style={business.published ? { background: TINT, color: ACCENT } : { background: "rgba(10,10,10,0.051)", color: "#52525B" }}
           >
             {business.published ? `${t.live}${category ? ` · ${category}` : ""}` : t.draft}
           </span>
@@ -152,15 +152,15 @@ export default function StoreSummary({
       </div>
 
       <div className="min-w-0 flex flex-col gap-1">
-        <span className="text-[18px] font-semibold text-white break-words leading-snug">{business.name}</span>
-        {s.headline && <span className="text-[13.5px] text-[#a1a1a1] leading-relaxed line-clamp-2">{s.headline}</span>}
+        <span className="text-[18px] font-semibold text-pfg break-words leading-snug">{business.name}</span>
+        {s.headline && <span className="text-[13.5px] text-psub leading-relaxed line-clamp-2">{s.headline}</span>}
       </div>
 
       {planPending && (
-        <div className="rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ background: "rgba(46,122,85,.14)", boxShadow: "inset 0 0 0 1px rgba(46,122,85,.45)" }}>
+        <div className="rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ background: "rgba(22,163,74,0.12)", boxShadow: "inset 0 0 0 1px rgba(22,163,74,0.12)" }}>
           <div className="min-w-0">
-            <p className="text-[13px] text-[#e5e5e5] leading-relaxed">{s.fromPlan ? t.planChanged : t.planNew}</p>
-            {fillError && <p className="text-[12.5px] mt-1 text-red-400">{t.failed}</p>}
+            <p className="text-[13px] text-pfg leading-relaxed">{s.fromPlan ? t.planChanged : t.planNew}</p>
+            {fillError && <p className="text-[12.5px] mt-1 text-red-600">{t.failed}</p>}
           </div>
           <button type="button" disabled={filling} onClick={onFill} className="h-9 px-4 rounded-full text-[13px] font-semibold shrink-0 self-start sm:self-auto disabled:opacity-60" style={BRAND_BTN}>
             {filling ? t.building : s.fromPlan ? t.update : t.build}
@@ -172,12 +172,12 @@ export default function StoreSummary({
         <div className="flex flex-col">
           {shown.map((x) => (
             <div key={x.id} className="flex items-baseline justify-between gap-4 py-2" style={{ borderTop: `1px solid ${HAIR}` }}>
-              <span className="text-[14px] text-[#e8e8e8] min-w-0 truncate">{x.name}</span>
-              {x.price && <span className="text-[14px] font-medium text-white shrink-0 tabular-nums">{x.price}</span>}
+              <span className="text-[14px] text-pfg min-w-0 truncate">{x.name}</span>
+              {x.price && <span className="text-[14px] font-medium text-pfg shrink-0 tabular-nums">{x.price}</span>}
             </div>
           ))}
           {services.length > shown.length && (
-            <span className="text-[12.5px] text-[#8e8e8e] pt-1">{t.more(services.length - shown.length)}</span>
+            <span className="text-[12.5px] text-pmuted pt-1">{t.more(services.length - shown.length)}</span>
           )}
         </div>
       )}
@@ -185,7 +185,7 @@ export default function StoreSummary({
       {(where || (!isAgent && s.hours) || s.offer) && (
         <div className="flex flex-wrap gap-2">
           {[where, !isAgent && s.hours ? `${t.hours}: ${s.hours}` : "", s.offer ? `${t.offer}: ${s.offer.label}` : ""].filter(Boolean).map((x) => (
-            <span key={x} className="text-[12.5px] text-[#d4d4d4] px-3 py-1.5 rounded-full max-w-full truncate" style={{ background: "rgba(255,255,255,0.04)", boxShadow: `inset 0 0 0 1px ${HAIR}` }}>
+            <span key={x} className="text-[12.5px] text-pfg2 px-3 py-1.5 rounded-full max-w-full truncate" style={{ background: "rgba(10,10,10,0.034)", boxShadow: `inset 0 0 0 1px ${HAIR}` }}>
               {x}
             </span>
           ))}
@@ -195,7 +195,7 @@ export default function StoreSummary({
       {isAgent && <AgentRow business={business} onUpdated={onUpdated} onPayments={onPayments} />}
 
       {missing.length > 0 && (
-        <p className="text-[12.5px] leading-relaxed text-[#a1a1a1]">
+        <p className="text-[12.5px] leading-relaxed text-psub">
           <span style={{ color: AMBER }}>{t.missing}</span> {missing.join(", ")}.
         </p>
       )}
@@ -235,12 +235,12 @@ function AgentRow({ business, onUpdated, onPayments }: { business: ClientBusines
     <div className="flex flex-col gap-2.5 pt-3" style={{ borderTop: `1px solid ${HAIR}` }}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex flex-col">
-          <span className="text-[12px] text-[#8e8e8e]">{t.agent}</span>
-          <span className="text-[14.5px] font-medium text-white truncate">{a.name || "—"}</span>
+          <span className="text-[12px] text-pmuted">{t.agent}</span>
+          <span className="text-[14.5px] font-medium text-pfg truncate">{a.name || "—"}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: a.enabled ? ACCENT : "#a1a1a1" }}>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: a.enabled ? ACCENT : "#6b6b6b" }} />
+          <span className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: a.enabled ? ACCENT : "#52525B" }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: a.enabled ? ACCENT : "#A1A1AA" }} />
             {a.enabled ? t.on : t.off}
           </span>
           <button
@@ -248,13 +248,13 @@ function AgentRow({ business, onUpdated, onPayments }: { business: ClientBusines
             disabled={busy || (!a.enabled && needs.length > 0)}
             onClick={toggle}
             className="h-8 px-3.5 rounded-full text-[12.5px] font-semibold disabled:opacity-45"
-            style={a.enabled ? { background: "rgba(255,255,255,0.08)", color: "#e5e5e5" } : BRAND_BTN}
+            style={a.enabled ? { background: "rgba(10,10,10,0.068)", color: "#0A0A0A" } : BRAND_BTN}
           >
             {busy ? t.saving : a.enabled ? t.turnOff : t.turnOn}
           </button>
         </div>
       </div>
-      <span className="text-[12.5px] text-[#a1a1a1]">
+      <span className="text-[12.5px] text-psub">
         {t.free(a.freeReplies)} · {t.notes(a.knowledge.length)}
         {sales && sales.count ? ` · ${t.sales(sales.count, money(sales.totalCents))}` : ""}
       </span>
@@ -265,7 +265,7 @@ function AgentRow({ business, onUpdated, onPayments }: { business: ClientBusines
       )}
       {!business.payReady && (
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[12.5px] text-[#a1a1a1] leading-relaxed">{t.pay}</span>
+          <span className="text-[12.5px] text-psub leading-relaxed">{t.pay}</span>
           {onPayments && (
             <button type="button" onClick={onPayments} className="text-[12.5px] font-semibold shrink-0 hover:underline" style={{ color: ACCENT }}>
               {t.payBtn} →

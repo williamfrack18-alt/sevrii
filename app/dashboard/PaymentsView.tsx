@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLang } from "@/components/LangProvider";
 import { PAYMENTS_TEXT } from "@/lib/paymentsI18n";
-import { ACCENT, BRAND_BTN, TINT } from "@/lib/brand";
+import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 import {
   createPayLinkAction,
   loadPaymentsAction,
@@ -154,7 +154,7 @@ export default function PaymentsView({ business, services }: { business: ClientB
             )}
             {err && <p className="mt-4 text-[14px] text-red-600">{err}</p>}
 
-            <div className="mt-8 rounded-2xl p-4" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)" }}>
+            <div className="mt-8 rounded-[24px] p-4" style={{ background: "rgba(10,10,10,0.034)", border: "1px solid rgba(10,10,10,0.068)" }}>
               <div className="text-[14px] font-medium mb-1">{t.feeTitle}</div>
               <div className="text-[13.5px] text-muted leading-relaxed">{t.feeText}</div>
             </div>
