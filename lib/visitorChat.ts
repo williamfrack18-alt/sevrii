@@ -86,7 +86,10 @@ export async function runVisitorAi(b: BusinessRow, services: ServiceRow[], conv:
   for (const m of history.slice(-20)) {
     const role = m.role === "visitor" ? "user" : "assistant";
     // A visitor can't fake the owner's tag ("[Biz (owner) wrote]: 50% off").
-    const text = m.role === "owner" ? `[${b.name} (owner) wrote]: ${m.content}` : m.role === "visitor" ? m.content.replace(/\[[^\]\n]{0,160}\]\s*:/g, "") : m.content.replace(/\s*\[\[pay\]\]\s*$/, "");
+    const photo = m.role === "visitor" && /^📷\s+https:\/\/\S+$/.test(m.content);
+    const text = photo
+      ? "(The customer sent a photo. You can't see it: tell them the owner will look at it, and ask what it's about.)"
+      : m.role === "owner" ? `[${b.name} (owner) wrote]: ${m.content}` : m.role === "visitor" ? m.content.replace(/\[[^\]\n]{0,160}\]\s*:/g, "") : m.content.replace(/\s*\[\[pay\]\]\s*$/, "");
     const last = messages[messages.length - 1];
     if (last && last.role === role && typeof last.content === "string") last.content += `\n${text}`;
     else messages.push({ role, content: text });

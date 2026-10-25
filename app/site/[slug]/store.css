@@ -423,3 +423,9 @@
 .mt.ag .ag-maker .k { font-size: 12.5px; color: var(--ink-dim); }
 .mt.ag .ag-maker .v { font-size: 15px; font-weight: 600; color: var(--ink); }
 .mt.ag .badge-row a.badge { text-decoration: none; }
+
+/* Photos in the page chat (the customer can send one: a ticket, a letter…) */
+.mt .cw-form button.cw-attach { background: transparent; color: var(--ink-dim); width: 40px; height: 42px; }
+.mt .cw-form button.cw-attach:hover { color: var(--ink); background: var(--surface); }
+.mt .cw-photo { display: block; align-self: flex-end; margin-left: auto; max-width: 220px; border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.mt .cw-photo img { display: block; width: 100%; height: auto; max-height: 280px; object-fit: cover; }

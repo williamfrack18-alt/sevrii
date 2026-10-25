@@ -49,7 +49,8 @@ import { runServiceAgent, type AgentMode } from "@/lib/serviceAgent";
 import { agentMissing, offerPriceLabel, welcomeFor } from "@/lib/serviceAgentConfig";
 import { agentSubscriptionEnd, checkoutForAgentOffer, getPaidAgentSession, paymentsReady } from "@/lib/payments";
 import { affiliateForCheckout, recordAffiliateSessionById } from "@/lib/affiliates";
-import { normalizePhone } from "@/lib/site";
+import { normalizePhone, ownsBlob } from "@/lib/site";
+import { put } from "@vercel/blob";
 import { runVisitorAi } from "@/lib/visitorChat";
 import { defang, emailVisitorReply, notifyChatOwner } from "@/lib/notify";
 import { pushPublicKey, pushToUser, pushToUserDetailed, type PushResult } from "@/lib/push";
@@ -65,6 +66,33 @@ const MAX_AI_REPLIES_PER_BIZ_DAY = 300;
 const MAX_AI_REPLIES_PER_IP_DAY = 40;
 
 export type ChatMsg = { seq: number; role: "visitor" | "ai" | "owner"; content: string; at: string };
+// A photo the customer sent in the page chat ("📷 <url>", same as the owner's chats).
+const PHOTO_MSG = /^📷\s+(https:\/\/\S+)$/;
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // server actions take up to 4.5 MB (next.config.js)
+
+// The customer attaches a photo (a ticket, a letter, a form) in the page chat.
+// It's stored in this business's own folder; the chat then sends it as a message.
+export async function visitorChatPhotoAction(form: FormData): Promise<{ ok: true; url: string } | { ok: false; error: "closed" | "rate" | "type" | "big" | "failed" }> {
+  const b = await openBusiness(String(form.get("slug") ?? ""));
+  if (!b) return { ok: false, error: "closed" };
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "failed" };
+  if (!PHOTO_TYPES.includes(file.type)) return { ok: false, error: "type" };
+  if (file.size > MAX_PHOTO_BYTES) return { ok: false, error: "big" };
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return { ok: false, error: "failed" };
+  const ip = await clientIp();
+  if (!(await allow(`vchat:photo:${ip}`, 12, 60 * 60)) || !(await allow(`vchat:photo:biz:${b.id}`, 300, 24 * 60 * 60))) return { ok: false, error: "rate" };
+  try {
+    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : file.type.includes("hei") ? "heic" : "jpg";
+    const blob = await put(`stores/${b.id}/chat/photo-${randomBytes(12).toString("hex")}.${ext}`, file, { access: "public", contentType: file.type, addRandomSuffix: true });
+    return { ok: true, url: blob.url };
+  } catch (err) {
+    console.error("[chat] photo upload failed", (err as Error)?.message);
+    return { ok: false, error: "failed" };
+  }
+}
+
 export type VisitorChatResult =
   | { ok: true; token: string; messages: ChatMsg[]; waiting: boolean }
   | { ok: false; error: "closed" | "rate" | "long" | "empty" };
@@ -218,6 +246,9 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
   const text = clean(input.text, maxChars + 1);
   if (!text) return { ok: false, error: "empty" };
   if (text.length > maxChars) return { ok: false, error: "long" };
+  // A photo message must point at a photo uploaded to this business's folder.
+  const photo = PHOTO_MSG.exec(text);
+  if (text.startsWith("📷") && (!photo || !ownsBlob(photo[1], b.id))) return { ok: false, error: "empty" };
 
   const ip = await clientIp();
   if (!(await allow(`vchat:msg:${ip}`, 25, 10 * 60)) || !(await allow(`vchat:biz:${b.id}`, 600, 24 * 60 * 60))) return { ok: false, error: "rate" };
@@ -278,7 +309,7 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
     }
   }
 
-  const found = ai ? ai.contact : sniffContact(text);
+  const found = ai ? ai.contact : photo ? null : sniffContact(text);
   if (found && (found.name || found.phone || found.email)) {
     const patch = { name: found.name || undefined, phone: found.phone || undefined, email: found.email || undefined };
     await updateConversation(conv.id, patch);
@@ -318,9 +349,11 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
     }
   }
 
-  if (wantsOwner && (await setHandoffOnce(conv.id))) await notifyOwner(b, conv, "handoff", wantsOwner, aiAnswered);
-  else if (!hadContact && (conv.phone || conv.email)) await notifyOwner(b, conv, "contact", text, aiAnswered);
-  else await notifyOwner(b, conv, isNew ? "new" : "message", text, aiAnswered);
+  // Notifications say "📷 Photo" instead of the file's link.
+  const said = photo ? (b.site.lang === "en" ? "📷 Photo" : "📷 Foto") : text;
+  if (wantsOwner && (await setHandoffOnce(conv.id))) await notifyOwner(b, conv, "handoff", photo && wantsOwner === text ? said : wantsOwner, aiAnswered);
+  else if (!hadContact && (conv.phone || conv.email)) await notifyOwner(b, conv, "contact", said, aiAnswered);
+  else await notifyOwner(b, conv, isNew ? "new" : "message", said, aiAnswered);
 
   const latest = await listConvMessages(conv.id, 0, 60);
   return { ok: true, token, messages: latest.map(pub), waiting };

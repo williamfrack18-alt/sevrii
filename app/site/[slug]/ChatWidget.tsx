@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { agentCheckoutAction, agentClaimAction, agentReviewAction, agentReviewStateAction, visitorChatPollAction, visitorChatSendAction, type ChatMsg, type MyReview } from "@/app/chatActions";
+import { agentCheckoutAction, agentClaimAction, agentReviewAction, agentReviewStateAction, visitorChatPhotoAction, visitorChatPollAction, visitorChatSendAction, type ChatMsg, type MyReview } from "@/app/chatActions";
+import { prepareImage } from "@/lib/clientImage";
+
+// A photo the customer sent ("📷 <url>").
+const PHOTO = /^📷\s+(https:\/\/\S+)$/;
 
 // The page chat as the owner's service agent (see lib/serviceAgent.ts).
 export type ChatAgent = { name: string; greeting: string; offers: { id: string; title: string; detail: string; label: string; welcome?: string }[] };
@@ -57,6 +61,10 @@ const TEXT = {
     reviewSend: "Publicar reseña",
     reviewThanks: "Gracias, tu reseña ya está en la página.",
     star: (n: number) => `${n} de 5`,
+    attach: "Enviar una foto",
+    uploading: "Subiendo la foto…",
+    photoErrors: { type: "Envía una foto (JPG, PNG o HEIC).", big: "La foto es muy grande. Prueba con otra.", rate: "Enviaste muchas fotos. Espera un momento.", closed: "El chat no está disponible ahora.", failed: "No se pudo subir la foto. Inténtalo de nuevo." } as Record<string, string>,
+    photoTip: "Tapa tu número de licencia u otros datos personales antes de enviarla.",
   },
   en: {
     open: "Chat with us",
@@ -89,6 +97,10 @@ const TEXT = {
     reviewSend: "Post review",
     reviewThanks: "Thanks, your review is on the page now.",
     star: (n: number) => `${n} of 5`,
+    attach: "Send a photo",
+    uploading: "Uploading the photo…",
+    photoErrors: { type: "Send a photo (JPG, PNG or HEIC).", big: "That photo is too big. Try another one.", rate: "You sent many photos. Wait a moment.", closed: "Chat isn't available right now.", failed: "Couldn't upload the photo. Please try again." } as Record<string, string>,
+    photoTip: "Cover your license number or other personal data before sending it.",
   },
 };
 
@@ -304,12 +316,38 @@ export default function ChatWidget({
     };
   }, [msgs, sending, waiting]);
 
-  async function send() {
-    const text = draft.trim();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  // The customer attaches a photo: it's stored, then sent as a message.
+  async function sendPhoto(file: File | undefined) {
+    if (!file || sending || uploading) return;
+    setError("");
+    setUploading(true);
+    try {
+      const ready = await prepareImage(file);
+      const form = new FormData();
+      form.set("slug", slug);
+      form.set("file", ready);
+      const res = await visitorChatPhotoAction(form);
+      if (!res.ok) {
+        setError(t.photoErrors[res.error] || t.photoErrors.failed);
+        return;
+      }
+      await send(`📷 ${res.url}`);
+    } catch {
+      setError(t.photoErrors.failed);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function send(direct?: string) {
+    const text = (direct ?? draft).trim();
     if (!text || sending) return;
     setError("");
     setSending(true);
-    setDraft("");
+    if (direct === undefined) setDraft("");
     setMsgs((cur) => [...cur, { seq: Number.MAX_SAFE_INTEGER, role: "visitor", content: text, at: new Date().toISOString() }]);
     try {
       // The campaign only counts for the message that starts a conversation (the
@@ -325,12 +363,12 @@ export default function ChatWidget({
         setWaiting(res.waiting);
       } else {
         setMsgs((cur) => cur.filter((m) => m.seq !== Number.MAX_SAFE_INTEGER));
-        setDraft(text);
+        if (direct === undefined) setDraft(text);
         setError(t.errors[res.error] || t.errors.failed);
       }
     } catch {
       setMsgs((cur) => cur.filter((m) => m.seq !== Number.MAX_SAFE_INTEGER));
-      setDraft(text);
+      if (direct === undefined) setDraft(text);
       setError(t.errors.failed);
     } finally {
       setSending(false);
@@ -381,7 +419,14 @@ export default function ChatWidget({
                       <span>{agent ? agent.name : t.assistant(businessName)}</span>
                     </div>
                   )}
+                  {m.role === "visitor" && PHOTO.test(m.content) ? (
+                    <a className="cw-photo" href={PHOTO.exec(m.content)![1]} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={PHOTO.exec(m.content)![1]} alt="" loading="lazy" />
+                    </a>
+                  ) : (
                   <div className={`cw-msg ${m.role}`}>{m.role === "visitor" ? m.content : <Linked text={m.content.replace(PAY, "").replace(/\*\*(.+?)\*\*/g, "$1")} />}</div>
+                  )}
                   {i === payAt && agent && agent.offers.length > 0 && (
                     <div className="cw-offers">
                       {agent.offers.map((o) => (
@@ -408,6 +453,7 @@ export default function ChatWidget({
             {waiting && !sending && !ownerMsgs.length && <div className="cw-wait">{t.waiting(businessName)}</div>}
           </div>
           {error && <div className="cw-error">{error}</div>}
+          {uploading && <div className="cw-wait">{t.uploading} {t.photoTip}</div>}
           <form
             className="cw-form"
             onSubmit={(e) => {
@@ -415,6 +461,22 @@ export default function ChatWidget({
               send();
             }}
           >
+            <button type="button" className="cw-attach" disabled={sending || uploading} onClick={() => fileRef.current?.click()} aria-label={t.attach} title={`${t.attach}. ${t.photoTip}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.6l1.4-2h5l1.4 2h1.6A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z" />
+                <circle cx="12" cy="13" r="3.5" />
+              </svg>
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                sendPhoto(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
             <textarea
               ref={inputRef}
               value={draft}
@@ -430,7 +492,7 @@ export default function ChatWidget({
                 }
               }}
             />
-            <button type="submit" disabled={sending || !draft.trim()} aria-label={t.send}>
+            <button type="submit" disabled={sending || uploading || !draft.trim()} aria-label={t.send}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
