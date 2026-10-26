@@ -489,7 +489,7 @@ async function migrate(): Promise<void> {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS lang TEXT`;
       // Old strategist messages sent owners to an approve button "in the card
       // here in the chat"; it's in the strategy panel next to the chat.
-      await sql`UPDATE chat_messages SET content = replace(replace(content, 'en tu tarjeta de estrategia aquí en el chat', 'al final del panel «Tu estrategia de marketing», junto al chat'), 'in your strategy card, right here in the chat', 'at the bottom of the "Your marketing strategy" panel next to the chat') WHERE channel = 'marketing' AND (content LIKE '%tarjeta de estrategia aquí en el chat%' OR content LIKE '%strategy card, right here in the chat%')`;
+      await sql`UPDATE chat_messages SET content = regexp_replace(regexp_replace(content, 'en tu tarjeta de estrategia,? (justo )?aqu[ií] en el chat', 'al final del panel «Tu estrategia de marketing», junto al chat', 'gi'), 'in your strategy card,? (right )?here in the chat', 'at the bottom of the "Your marketing strategy" panel next to the chat', 'gi') WHERE channel = 'marketing' AND (content ~* 'tarjeta de estrategia,? (justo )?aqu[ií] en el chat' OR content ~* 'strategy card,? (right )?here in the chat')`;
     }
   }
 }

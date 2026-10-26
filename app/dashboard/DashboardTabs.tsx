@@ -407,7 +407,7 @@ export default function DashboardTabs({
 
       {/* Desktop rail: collapsed to icons by default, expands with the toggle */}
       <aside
-        className={`hidden md:flex ${railOpen ? "w-[256px] min-w-[256px] p-4 overflow-hidden" : "w-[76px] min-w-[76px] px-3 py-4"} shrink-0 sticky top-0 z-30 h-screen flex-col justify-between ${railAnim ? "transition-[width,min-width] duration-200" : ""} bg-pcard`}
+        className={`hidden md:flex ${railOpen ? "w-[256px] min-w-[256px] p-4 overflow-y-auto overflow-x-hidden" : "w-[76px] min-w-[76px] px-3 py-4"} shrink-0 sticky top-0 z-30 h-screen flex-col justify-between ${railAnim ? "transition-[width,min-width] duration-200" : ""} bg-pcard`}
         style={{ boxShadow: "1px 0 0 rgba(10,10,10,.06)" }}
       >
         <div className="min-w-0">
