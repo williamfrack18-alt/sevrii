@@ -108,6 +108,14 @@ export default function ChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // A visible reaction to "+": the file picker is the browser's own window,
+  // so a short line under the box says what to do (and that it opened).
+  const [pickHint, setPickHint] = useState(false);
+  const openPicker = () => {
+    setPickHint(true);
+    setTimeout(() => setPickHint(false), 6000);
+    fileRef.current?.click();
+  };
   const empty = messages.length === 0 && !head && !dock;
   const [dockOpen, setDockOpen] = useState(false);
   useEffect(() => {
@@ -125,7 +133,7 @@ export default function ChatPanel({
   function pickChip(c: ChatChip) {
     if (busy) return;
     if (c.upload) {
-      fileRef.current?.click();
+      openPicker();
       return;
     }
     const text = c.text ?? "";
@@ -289,25 +297,31 @@ export default function ChatPanel({
         }}
       >
         {onUpload ? (
-        <label
-          className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-pfg2 hover:bg-black/10 cursor-pointer transition ${busy ? "opacity-40 pointer-events-none" : ""}`}
-          title={texts.attach}
-          aria-label={texts.attach}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+        <>
+          <button
+            type="button"
+            onClick={openPicker}
+            disabled={busy}
+            className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-pfg2 hover:bg-black/10 active:bg-black/15 transition disabled:opacity-40"
+            title={texts.attach}
+            aria-label={texts.attach}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
           <input
             ref={fileRef}
             type="file"
             accept="image/*,video/mp4,video/quicktime,video/webm"
             className="hidden"
             onChange={(e) => {
+              setPickHint(false);
               upload(e.target.files?.[0]);
               e.target.value = "";
             }}
           />
-        </label>
+        </>
         ) : (
           <span className="w-2" />
         )}
@@ -341,6 +355,11 @@ export default function ChatPanel({
           </svg>
         </button>
       </form>
+      {pickHint && !uploading && (
+        <p className="text-[12.5px] text-psub px-4 pt-2" role="status" aria-live="polite">
+          {lang === "es" ? "Elige una foto o un video en la ventana que se abrió. Se sube aquí y lo pongo en tu página." : "Pick a photo or video in the window that opened. It uploads here and I put it on your page."}
+        </p>
+      )}
     </div>
   );
 

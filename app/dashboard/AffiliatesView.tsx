@@ -52,16 +52,19 @@ const TEXT = {
     payDay: (d: string) => `desde el ${d}`,
     // owner
     needTitle: "Para abrir tu servicio a afiliados falta:",
-    needPublish: "Publicar tu página (plan Starter)",
+    needPublish: "Publicar tu página: ahora está en borrador",
+    needPlan: "Publicar tu página: tu plan actual no permite publicar (míralo en Planes)",
+    lockedNote: "Podrás elegir la comisión y escribir tu mensaje cuando completes lo de arriba.",
     needPayments: "Conectar Payments, para que los clientes paguen por Sevrii",
     goStore: "Ir a Store",
     goPayments: "Ir a Payments",
+    goPlans: "Ver Planes",
     open: (n: string) => `Abrir “${n}” a afiliados`,
     openSub: "Aparece en la lista de servicios para promocionar. Solo pagas cuando un afiliado te trae una venta.",
     percent: "Comisión para el afiliado",
     example: (p: number) => `En una venta de $100, el afiliado gana ${usd(p * 100)}. Se cobra junto con el 5% de Payments, solo en ventas que trae un afiliado.`,
     pitch: "Mensaje para los afiliados",
-    pitchPh: "A quién le sirve tu servicio, qué decir y qué no prometer. Ej.: ideal para ayudantes de electricista en Texas; no prometas que aprueban el examen.",
+    pitchPh: (n: string) => `A quién le sirve ${n}, qué decir y qué no prometer. Ej.: para quién es, en qué estados funciona y que no se prometan resultados.`,
     save: "Guardar",
     saving: "Guardando…",
     saved: "Guardado",
@@ -109,16 +112,19 @@ const TEXT = {
     status: { pending: "To be paid", held: "Needs your account", paid: "Paid", void: "Voided" } as Record<string, string>,
     payDay: (d: string) => `from ${d}`,
     needTitle: "To open your service to affiliates you need:",
-    needPublish: "Publish your page (Starter plan)",
+    needPublish: "Publish your page: it's still a draft",
+    needPlan: "Publish your page: your current plan can't publish (see Plans)",
+    lockedNote: "You can set the commission and write your message once the steps above are done.",
     needPayments: "Connect Payments, so customers pay through Sevrii",
     goStore: "Go to Store",
     goPayments: "Go to Payments",
+    goPlans: "See Plans",
     open: (n: string) => `Open “${n}” to affiliates`,
     openSub: "It shows in the list of services to promote. You only pay when an affiliate brings you a sale.",
     percent: "Commission for the affiliate",
     example: (p: number) => `On a $100 sale, the affiliate earns ${usd(p * 100)}. It's charged with Payments' 5%, only on sales an affiliate brings.`,
     pitch: "Message for affiliates",
-    pitchPh: "Who your service is for, what to say and what not to promise.",
+    pitchPh: (n: string) => `Who ${n} is for, what to say and what not to promise. E.g.: who it's for, which states it works in, and that no results are promised.`,
     save: "Save",
     saving: "Saving…",
     saved: "Saved",
@@ -227,8 +233,8 @@ function Promote({ state, t }: { state: AffiliatesState; t: T }) {
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          [t.pending, e.pendingCents, "#fff"],
-          [t.held, e.heldCents, e.heldCents ? AMBER : "#fff"],
+          [t.pending, e.pendingCents, "#0A0A0A"],
+          [t.held, e.heldCents, e.heldCents ? AMBER : "#0A0A0A"],
           [t.paid, e.paidCents, ACCENT],
         ].map(([label, cents, color]) => (
           <div key={label as string} className="rounded-[24px] p-4 flex flex-col gap-1" style={CARD}>
@@ -325,6 +331,8 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
   const [msg, setMsg] = useState("");
   if (!o || !form) return <p className="text-[14px] text-pmuted">{t.nobusiness}</p>;
   const missing = [!o.published || !o.canPublish ? "publish" : "", !o.payReady ? "payments" : ""].filter(Boolean);
+  // Until the page is published and Payments connected, nothing here can be used.
+  const locked = missing.length > 0;
 
   async function save(next: AffiliateSettings) {
     setBusy(true);
@@ -347,9 +355,9 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
           <span className="text-[14.5px] font-semibold text-pfg">{t.needTitle}</span>
           {missing.includes("publish") && (
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-[13.5px] text-pfg2">{t.needPublish}</span>
-              <button type="button" onClick={() => onNavigate("store")} className="h-9 px-4 rounded-full text-[13px]" style={GHOST}>
-                {t.goStore} →
+              <span className="text-[13.5px] text-pfg2">{o.canPublish ? t.needPublish : t.needPlan}</span>
+              <button type="button" onClick={() => onNavigate(o.canPublish ? "store" : "plans")} className="h-9 px-4 rounded-full text-[13px]" style={GHOST}>
+                {o.canPublish ? t.goStore : t.goPlans} →
               </button>
             </div>
           )}
@@ -364,8 +372,9 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
         </div>
       )}
 
-      <div className="rounded-[24px] p-4 md:p-6 flex flex-col gap-5" style={CARD}>
-        <label className="flex items-start justify-between gap-4 cursor-pointer">
+      <fieldset disabled={locked} aria-disabled={locked} className={`rounded-[24px] p-4 md:p-6 flex flex-col gap-5 min-w-0 ${locked ? "opacity-60" : ""}`} style={CARD}>
+        {locked && <p className="text-[13px] text-psub leading-relaxed">{t.lockedNote}</p>}
+        <label className={`flex items-start justify-between gap-4 ${locked ? "cursor-not-allowed" : "cursor-pointer"}`}>
           <span className="min-w-0">
             <span className="block text-[16px] font-semibold text-pfg">{t.open(o.businessName)}</span>
             <span className="block text-[13.5px] text-psub mt-0.5 leading-relaxed max-w-[560px]">{t.openSub}</span>
@@ -374,7 +383,7 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
             type="button"
             role="switch"
             aria-checked={form.enabled}
-            disabled={busy}
+            disabled={busy || locked}
             onClick={() => save({ ...form, enabled: !form.enabled })}
             className="relative h-7 w-12 rounded-full shrink-0 transition disabled:opacity-60"
             style={{ background: form.enabled ? ACCENT : "rgba(10,10,10,0.136)" }}
@@ -407,19 +416,19 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
             maxLength={600}
             value={form.pitch}
             onChange={(e) => setForm({ ...form, pitch: e.target.value })}
-            placeholder={t.pitchPh}
+            placeholder={t.pitchPh(o.businessName)}
             className="rounded-xl px-4 py-3 text-[14px] text-pfg placeholder:text-pfaint outline-none resize-none"
             style={INSET}
           />
         </div>
 
         <div className="flex items-center gap-3">
-          <button type="button" disabled={busy} onClick={() => save(form)} className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
+          <button type="button" disabled={busy || locked} onClick={() => save(form)} className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60 disabled:cursor-not-allowed" style={BRAND_BTN}>
             {busy ? t.saving : t.save}
           </button>
           {msg && <span className="text-[13px]" style={{ color: msg === t.saved ? ACCENT : "#DC2626" }}>{msg}</span>}
         </div>
-      </div>
+      </fieldset>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[

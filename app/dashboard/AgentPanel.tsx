@@ -54,18 +54,20 @@ export default function AgentPanel({
   state,
   setState,
   onChanged,
+  launched = false,
 }: {
   business: ClientBusiness;
   lang: Lang;
   state: AgentState;
   setState: (s: AgentState) => void;
   onChanged?: () => void;
+  launched?: boolean; // an ad is really out (live or paused on Facebook)
 }) {
   const t = MK_TEXT[lang].agent;
   return (
     <section id="mk-agent" className="px-4 md:px-8 pt-8 pb-14 scroll-mt-4" style={{ borderTop: "1px solid rgba(10,10,10,0.068)" }}>
       <div className="max-w-[1100px] mx-auto">
-        <Dashboard state={state} setState={setState} business={business} lang={lang} t={t} onChanged={onChanged} />
+        <Dashboard state={state} setState={setState} business={business} lang={lang} t={t} onChanged={onChanged} launched={launched} />
       </div>
     </section>
   );
@@ -78,6 +80,7 @@ function Dashboard({
   lang,
   t,
   onChanged,
+  launched,
 }: {
   state: AgentState;
   setState: (s: AgentState) => void;
@@ -85,6 +88,7 @@ function Dashboard({
   lang: Lang;
   t: T;
   onChanged?: () => void;
+  launched: boolean;
 }) {
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState<string | null>(null);
@@ -144,7 +148,10 @@ function Dashboard({
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="flex flex-col gap-1 min-w-0">
             <h2 className="text-[20px] md:text-[22px] font-semibold text-pfg tracking-tight">
-              {t.title} <span className="font-normal" style={{ color: ACCENT }}>· {t.live}</span>
+              {t.title}{" "}
+              <span className="font-normal" style={{ color: launched ? ACCENT : "#71717A" }}>
+                · {launched ? t.live : lang === "es" ? "sin anuncios lanzados" : "no ads launched"}
+              </span>
             </h2>
             <p className="text-[13.5px] text-psub leading-relaxed max-w-[620px]">{t.intro}</p>
             <span className="flex items-center gap-2 text-[13px] text-psub mt-1">

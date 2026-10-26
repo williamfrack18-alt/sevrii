@@ -35,7 +35,7 @@ const TEXT = {
     accessNote: "Primero lo pruebas gratis. Pagas dentro del chat, con tarjeta, solo si quieres seguir.",
     limitsEyebrow: "Con confianza",
     limitsTitle: (name: string) => `Lo que ${name} no hace`,
-    honest: (owner: string) => `Siempre te dice que es una IA. ${owner} lee las conversaciones y entra al chat cuando hace falta.`,
+    honest: (agent: string, owner: string) => `${agent} es un agente de IA y siempre te lo dice. Detrás está ${owner}, quien lo creó: lee las conversaciones y entra al chat cuando hace falta.`,
     faqEyebrow: "Preguntas frecuentes",
     faqTitle: "Antes de empezar",
     finalTitle: (name: string) => `Prueba ${name} ahora`,
@@ -84,7 +84,7 @@ const TEXT = {
     accessNote: "Try it free first. You pay inside the chat, by card, only if you want to keep going.",
     limitsEyebrow: "With confidence",
     limitsTitle: (name: string) => `What ${name} doesn't do`,
-    honest: (owner: string) => `It always tells you it's an AI. ${owner} reads the conversations and joins the chat when needed.`,
+    honest: (agent: string, owner: string) => `${agent} is an AI agent and always tells you so. Behind it is ${owner}, who created it: they read the conversations and join the chat when needed.`,
     faqEyebrow: "Frequently asked questions",
     faqTitle: "Before you start",
     finalTitle: (name: string) => `Try ${name} now`,
@@ -129,14 +129,17 @@ export default function AgentPage({
   const t = TEXT[lang];
   const st = STORE_TEXT[site.lang].site;
   const a = business.serviceAgent;
-  const name = a.name || business.name;
+  // "Created by": only the creator's name, never credentials or a story.
+  const creator = site.ownerName || a.creator.split(/[·,|(]/)[0].trim() || business.name;
+  // An agent named like its creator would read "PasaDMV, created by PasaDMV":
+  // the agent gets "IA"/"AI" so agent and owner are never the same name.
+  const baseName = a.name || business.name;
+  const name = baseName.trim().toLowerCase() === creator.trim().toLowerCase() && !/\b(IA|AI)\b/.test(baseName) ? `${baseName} ${lang === "es" ? "IA" : "AI"}` : baseName;
   const owner = site.ownerName || business.name;
   const offer = activeOffer(site);
   const cheapest = a.offers.length ? Math.min(...a.offers.map((o) => o.priceCents)) : 0;
   const edge = a.edge.length ? a.edge : site.keyPoints.slice(0, 4);
   const photo = site.ownerPhotoUrl;
-  // "Created by": only the creator's name, never credentials or a story.
-  const creator = site.ownerName || a.creator.split(/[·,|(]/)[0].trim() || business.name;
   const reach = resolveReach(site, business.city, business.plan.profile);
   const area = site.serviceArea || reachLabel(reach, site.lang) || "";
   const langs = t.langNames[business.plan.profile.languages] || (site.spanish ? t.langNames.both : "");
@@ -173,7 +176,7 @@ export default function AgentPage({
         <div className="wrap breadcrumb">
           <span>{t.agents}</span>
           <span className="sep" aria-hidden>›</span>
-          <span className="current">{business.category || name}</span>
+          <span className="current">{business.category.split(":")[0].trim() || name}</span>
         </div>
 
         {/* Same product layout as every Sevrii page: media on the left, the
@@ -367,7 +370,7 @@ export default function AgentPage({
             <div className="section-head">
               <span className="eyebrow grad-text">{t.limitsEyebrow}</span>
               <h2>{t.limitsTitle(name)}</h2>
-              <p className="ag-lede">{t.honest(owner)}</p>
+              <p className="ag-lede">{t.honest(name, creator)}</p>
             </div>
             <ul>
               <li>{t.always}</li>
@@ -429,7 +432,7 @@ export default function AgentPage({
 
       <section className="final-cta">
         <div className="wrap">
-          <h2>{t.finalTitle(name)}</h2>
+          <h2>{t.finalTitle(name.replace(/ /g, "\u00a0"))}</h2>
           <p>{t.finalText}</p>
           <div className="btns">
             <ChatLink className="btn light">

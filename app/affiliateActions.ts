@@ -138,6 +138,8 @@ export async function saveAffiliateSettingsAction(input: AffiliateSettings): Pro
   const b = user.business;
   if (!b) return { ok: false, settings: parseAffiliate({}), error: "nobusiness" };
   if (!(await allow(`affsave:${b.id}`, 30, 60 * 60))) return { ok: false, settings: b.affiliate, error: "rate" };
+  // Same rule as the screen: published page (with a plan that publishes) and Payments connected.
+  if (!b.published || !limitsFor(user).canPublish || b.payStatus !== "ready") return { ok: false, settings: b.affiliate, error: "requirements" };
   const settings = parseAffiliate(input);
   await setBusinessAffiliate(b.id, settings);
   return { ok: true, settings };

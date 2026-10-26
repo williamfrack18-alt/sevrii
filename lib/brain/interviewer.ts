@@ -2,7 +2,7 @@ import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from "@an
 import { MODELS, getClaude, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import { slugify } from "../ai";
-import { getBusinessById, isSlugTaken, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
+import { addChatMessage, getBusinessById, isSlugTaken, listChatMessages, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
 import {
   APPROVAL_BLOCKS,
   allApproved,
@@ -20,7 +20,7 @@ import {
 import { codeGuard } from "./guard";
 import { fillStoreFromPlan } from "../storeFill";
 import { textOf, today } from "./common";
-import { researchWouldStart } from "../usage";
+import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
 
 // The Brain's chat. The code decides the stage; in each stage the model only
 // talks and saves through the tools that stage allows.
@@ -74,6 +74,22 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 - Si la propuesta ya está aprobada ("stage": "approved"), ayuda con cambios igual que antes.
 - Máximo 60 palabras. Sin títulos ni listas.
 - Nunca menciones el estado, el JSON, nombres de campos, herramientas ni notas como "(Tarjeta mostrada…)".`;
+
+// Added to every stage: the whole road, and what to do when the owner is lost
+// or just says "ok". The Brain always knows where they are and what comes next.
+const GUIDE = `
+
+El camino completo (úsalo para explicar dónde va la persona; nombra los pasos así):
+- Si mode es A o B: 1) Te conozco (unas preguntas) → 2) Investigación (1 a 2 minutos, la hace Sevrii solo) → 3) Propuesta (la revisa parte por parte: servicio, presentación, paquetes, oferta y preguntas frecuentes) → 4) Aprobado. Después, en Store se arma su página y en Marketing sus anuncios.
+- Si mode es C: 1) Te conozco → 2) Ideas (Sevrii investiga y propone 3, 1 a 2 minutos) → 3) Escoges una → 4) Tu agente (cómo trabaja con cada cliente, sus límites, hasta dónde atiende y su nombre) → 5) Investigación → 6) Propuesta → 7) Aprobado. Después, en Store se publica el agente y en Marketing sus anuncios.
+
+Piensa antes de responder: mira el estado, lo que ya está guardado y lo que falta, y decide cuál es el siguiente paso real.
+
+Si la persona escribe algo corto como "ok", "ya", "listo", "dale", "sí", "y ahora", "qué pasó", "qué sigue", "no entiendo" o "?":
+1. Si tu último mensaje recomendaba una opción o pedía confirmar algo, tómalo como un sí: guárdalo o aplícalo con tu herramienta en este mismo turno.
+2. Dile en una frase en qué paso va y qué viene ("Vamos en el paso 4, Tu agente; después investigo y te muestro la propuesta").
+3. Si todavía falta algo suyo, pregúntalo con tu opción recomendada ya puesta ("Te propongo X. ¿Lo dejo así?"). Debajo del chat aparecen botones con las respuestas.
+Nunca repitas una pregunta con las mismas palabras: si no la contestó, propón tú una respuesta concreta. Nunca digas que su mensaje se cortó.`;
 
 const PROFILE_PROPS: Record<string, unknown> = {
   businessName: { type: "string" },
@@ -227,11 +243,14 @@ const FIELD_BLOCK: Record<string, ApprovalBlock> = {
 
 export const LOCKED_STAGES: PlanStage[] = ["ideas_research", "research"];
 
+// "ok", "ya", "y ahora?", "qué pasó"… (the owner agrees or is lost).
+const LOST = /^(ok(ay|is)?|ya|listo|dale|va|s[ií]+|bueno|perfecto|y\s*ahora|ahora\s*qu[eé]|qu[eé]\s*(pas[oó]|sigue|hago|m[aá]s|ahora)|y\s*(luego|despu[eé]s|qu[eé])|no\s*entiendo|c[oó]mo\s*sigo|\?+|yes|so|what\s*now|now\s*what|what'?s\s*next|next)[\s.!?¿¡]*$/i;
+
 function stageOf(plan: BusinessPlan): { system: string; tools: Tool[] } {
-  if (plan.stage === "interview" || plan.stage === "ready_check") return { system: INTERVIEWER, tools: [SAVE_PROFILE] };
-  if (LOCKED_STAGES.includes(plan.stage)) return { system: INTERVIEWER, tools: [SAVE_PROFILE] };
-  if (plan.stage === "choose") return { system: CHOOSER, tools: [CHOOSE_IDEA, MORE_IDEAS, OWN_IDEA] };
-  return { system: EDITOR.replace("{TODAY}", today()), tools: [UPDATE_PROPOSAL, APPROVE_BLOCKS] };
+  if (plan.stage === "interview" || plan.stage === "ready_check") return { system: INTERVIEWER + GUIDE, tools: [SAVE_PROFILE] };
+  if (LOCKED_STAGES.includes(plan.stage)) return { system: INTERVIEWER + GUIDE, tools: [SAVE_PROFILE] };
+  if (plan.stage === "choose") return { system: CHOOSER + GUIDE, tools: [CHOOSE_IDEA, MORE_IDEAS, OWN_IDEA] };
+  return { system: EDITOR.replace("{TODAY}", today()) + GUIDE, tools: [UPDATE_PROPOSAL, APPROVE_BLOCKS] };
 }
 
 function state(b: BusinessRow) {
@@ -316,6 +335,29 @@ async function renameProject(b: BusinessRow, name: string) {
 // them from the language they write in, or from "Hispanic customers").
 const SAID_LANGUAGES = /\b(espa[ñn]ol|ingl[eé]s|spanish|english|idiomas?|languages?|biling[uü]e|bilingual|ambos|los dos|both)\b/i;
 
+// A profile that was completed while the owner was over their research limit
+// stays in the interview. Once research can start (new month, a higher plan,
+// a tester account) it moves on by itself: the old limit message is corrected
+// so the chat never ends on a dead end. Returns the updated business, or null.
+const LIMIT_MSG = /(l[ií]mite de este mes|l[ií]mite de tu plan|investigaciones de tu plan|research limit|limit for this month|research runs in your plan|presupuesto de IA|AI budget)/i;
+export async function resumeStuckResearch(b: BusinessRow, lang: Lang): Promise<BusinessRow | null> {
+  const plan = b.plan;
+  if (plan.stage !== "interview" && plan.stage !== "ready_check") return null;
+  if (missingProfile(plan).length) return null;
+  if (!(await researchWouldStart(b.userId))) return null;
+  const stage: PlanStage = plan.stage === "interview" && (plan.mode === "new" || plan.mode === "agent") ? "ideas_research" : "research";
+  await updateBusinessPlan(b.id, parsePlan({ ...plan, stage, runId: "" }));
+  const es = lang !== "en";
+  const recent = (await listChatMessages(b.id, "plan")).slice(-8);
+  for (const m of recent) {
+    if (m.role !== "user" && LIMIT_MSG.test(m.content) && !m.content.includes("[[")) {
+      await updateChatMessage(b.id, m.id, es ? "Quedó guardado todo tu perfil. (Aquí había un aviso de límite que ya no aplica: tu plan permite seguir.)" : "Your whole profile is saved. (There was a limit notice here that no longer applies: your plan lets you continue.)");
+    }
+  }
+  await addChatMessage(b.id, "plan", "ai", es ? "Ya puedo seguir: empiezo a investigar ahora (1 o 2 minutos). Verás el avance aquí en el chat." : "I can keep going now: starting the research (1-2 minutes). You'll see the progress here in the chat.");
+  return (await getBusinessById(b.id)) ?? null;
+}
+
 async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = ""): Promise<{ out: string; startPipeline?: boolean }> {
   const plan = b.plan;
   switch (name) {
@@ -338,7 +380,8 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       const stage: PlanStage = plan.stage === "interview" && (plan.mode === "new" || plan.mode === "agent") ? "ideas_research" : "research";
       if (!(await researchWouldStart(b.userId))) {
         await updateBusinessPlan(b.id, parsePlan(next));
-        return { out: "saved. profile complete, BUT the research can't start: the owner reached this month's research limit (or AI budget) of their plan. Tell them kindly: everything is saved; they can upgrade in Plans to continue now, or continue next month right where they left off." };
+        const msg = researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es");
+        return { out: `saved. profile complete, BUT the research can't start now. Tell the owner kindly, with these exact facts and nothing else about plans (don't suggest upgrading unless this text does): "${msg}"` };
       }
       next = { ...next, stage, runId: "" };
       await updateBusinessPlan(b.id, parsePlan(next));
@@ -359,7 +402,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       // C: their idea goes through the same research and scoring before going on.
       if (plan.mode === "agent") {
         if (!(await researchWouldStart(b.userId, { budgetOnly: true })))
-          return { out: "error: the plan's AI budget for this month is used up, so their idea can't be researched now. Help them pick one of the current ideas, or they can upgrade in Plans." };
+          return { out: `error: their idea can't be researched now. Facts to tell them (don't suggest upgrading unless this text does): "${researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es")}". Meanwhile help them pick one of the current ideas.` };
         const what = str(input.what, 300);
         await updateBusinessPlan(b.id, parsePlan({ ...requestMoreIdeas(plan, ""), ownIdea: `${title}${what ? `: ${what}` : ""}` }));
         return { out: "evaluating their idea with the same research (1-2 minutes). Tell them in one line you'll check their idea against what people pay and need, and show it here next to 2 alternatives.", startPipeline: true };
@@ -373,7 +416,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
       if (plan.ideaRounds >= MAX_IDEA_ROUNDS) return { out: "error: no more idea rounds; help them pick or describe a service they want" };
       if (!(await researchWouldStart(b.userId, { budgetOnly: true })))
-        return { out: "error: the plan's AI budget for this month is used up, so no new search now. Their 3 ideas are still here: help them pick one, or they can upgrade in Plans." };
+        return { out: `error: no new search now. Facts to tell them (don't suggest upgrading unless this text does): "${researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es")}". Their 3 ideas are still here: help them pick one.` };
       await updateBusinessPlan(b.id, requestMoreIdeas(plan, str(input.feedback, 300)));
       return { out: "searching new ideas. Tell them in one line you're looking for different options with what they said (1-2 minutes) and they'll see them here in the chat.", startPipeline: true };
     }
@@ -456,7 +499,7 @@ export async function runPlanChatTurn(opts: {
   const ownerSaid = [...opts.history.filter((h) => h.role === "user").map((h) => h.content), opts.message].join("\n");
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
-    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}` },
+    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}` },
   ];
   let reply = "";
   let startPipeline = false;
@@ -469,7 +512,8 @@ export async function runPlanChatTurn(opts: {
         model: MODELS.chat,
         max_tokens: 6000,
         thinking: { type: "between_tools" },
-        output_config: { effort: "low" },
+        // Medium: it thinks about where the owner is and what comes next.
+        output_config: { effort: "medium" },
         system: [{ type: "text", text: `${system}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`, cache_control: { type: "ephemeral" } }],
         ...(tools.length ? { tools } : {}),
         messages,

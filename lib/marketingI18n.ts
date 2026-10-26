@@ -60,8 +60,8 @@ export const MK_TEXT = {
       overMonth: (total: string, max: string) => `Tus campañas suman unos ${total} al mes, más que tu máximo de ${max}. Pídele al chat que las ajuste.`,
       status: {
         draft: "Propuesta",
-        proposed: "Espera tu OK",
-        approved: "Aprobada",
+        proposed: "Pendiente de tu OK",
+        approved: "Aprobada · sin lanzar",
         live: "Activa",
         paused: "Pausada",
         declined: "Descartada",
@@ -114,7 +114,7 @@ export const MK_TEXT = {
       "Entra a Meta Ads Manager (adsmanager.facebook.com) y toca Crear.",
       "Elige el objetivo que dice arriba y nombra la campaña igual.",
       "En el conjunto de anuncios pon la zona, la edad, el idioma y el presupuesto diario.",
-      "Crea un anuncio por variación: pega el texto, sube una de las imágenes de abajo, elige el botón \"Más información\" y pon como destino el link de esta campaña.",
+      "Crea un anuncio por variación: pega el texto, sube una de las imágenes de arriba, elige el botón \"Más información\" y pon como destino el link de esta campaña.",
       "Revisa y publica. Meta revisa el anuncio antes de mostrarlo.",
     ],
     googleSteps: [
@@ -266,7 +266,7 @@ export const MK_TEXT = {
       status: {
         draft: "Proposal",
         proposed: "Waiting for your OK",
-        approved: "Approved",
+        approved: "Approved · not launched",
         live: "Live",
         paused: "Paused",
         declined: "Dismissed",
@@ -319,7 +319,7 @@ export const MK_TEXT = {
       "Open Meta Ads Manager (adsmanager.facebook.com) and tap Create.",
       "Choose the objective shown above and use the same campaign name.",
       "In the ad set, set the area, ages, language and daily budget.",
-      "Create one ad per variation: paste the text, upload one of the images below, pick \"Learn more\" and use this campaign's link as the destination.",
+      "Create one ad per variation: paste the text, upload one of the images above, pick \"Learn more\" and use this campaign's link as the destination.",
       "Review and publish. Meta reviews the ad before it runs.",
     ],
     googleSteps: [

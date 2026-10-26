@@ -40,9 +40,21 @@ function toCents(v: string): number | null {
   return Math.round(Number(s) * 100);
 }
 
+// The sample payment link uses this project's own service and price (or its
+// agent's first access option); with neither, a generic one without a brand.
+function sampleLink(business: ClientBusiness, services: ClientService[], es: boolean): { label: string; title: string; amount: string } {
+  const fmt = (n: number) => `$${n.toFixed(2)}`;
+  const svc = services.find((x) => priceFromService(x.price));
+  if (svc) return { label: business.name, title: svc.name, amount: fmt(Number(priceFromService(svc.price))) };
+  const offer = business.serviceAgent?.offers?.find((o) => o.priceCents > 0);
+  if (offer) return { label: business.name, title: offer.title, amount: fmt(offer.priceCents / 100) };
+  return { label: es ? "Tu negocio" : "Your business", title: es ? "Tu servicio" : "Your service", amount: "$100.00" };
+}
+
 export default function PaymentsView({ business, services }: { business: ClientBusiness; services: ClientService[] }) {
   const lang = useLang();
   const t = PAYMENTS_TEXT[lang];
+  const example = sampleLink(business, services, lang === "es");
   const [state, setState] = useState<PaymentsState | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -164,13 +176,13 @@ export default function PaymentsView({ business, services }: { business: ClientB
             <div className="soon-mock">
               <div className="soon-toast">
                 <b>✓</b>
-                {lang === "es" ? "Pago recibido · $120.00" : "Payment received · $120.00"}
+                {lang === "es" ? `Pago recibido · ${example.amount}` : `Payment received · ${example.amount}`}
               </div>
               <div className="soon-card">
-                <div className="lbl">{business.name}</div>
-                <div className="svc">{lang === "es" ? "Limpieza profunda" : "Deep cleaning"}</div>
-                <div className="amt">$120.00</div>
-                <div className="pay">{lang === "es" ? "Pagar $120.00" : "Pay $120.00"}</div>
+                <div className="lbl">{example.label}</div>
+                <div className="svc">{example.title}</div>
+                <div className="amt">{example.amount}</div>
+                <div className="pay">{lang === "es" ? `Pagar ${example.amount}` : `Pay ${example.amount}`}</div>
                 <div className="url">sevrii.com/pay</div>
               </div>
             </div>

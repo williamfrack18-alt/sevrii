@@ -28,7 +28,9 @@ export default function StoreView({
   onPlans,
   onChats,
   onPayments,
+  onBrain,
 }: {
+  onBrain?: () => void;
   onChats?: () => void;
   onPayments?: () => void;
   canPublish?: boolean;
@@ -255,6 +257,23 @@ export default function StoreView({
                   setPreviewKey((k) => k + 1);
                 }}
               />
+            ) : business.plan.mode && business.plan.stage !== "approved" ? (
+              // The Brain strategy isn't done yet: say where the page comes from
+              // instead of a blank "what do you want to sell?".
+              <div className="p-card p-5 flex flex-col gap-3">
+                <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-pmuted">{es ? "Tu página" : "Your page"}</span>
+                <span className="text-[17px] font-medium text-pfg leading-snug">{es ? `${business.name}: todavía en borrador y sin contenido` : `${business.name}: still a draft with no content`}</span>
+                <p className="text-[13.5px] text-pfg2 leading-relaxed">
+                  {es
+                    ? "Tu página se arma con la estrategia del Cerebro (servicio, precios y oferta). Cuando la apruebes allí, la armo aquí con todo. Si prefieres, cuéntame ya en este chat qué vendes y a qué precio."
+                    : "Your page is built from your Brain strategy (service, prices and offer). Once you approve it there, I build it here with everything. Or tell me right now in this chat what you sell and at what price."}
+                </p>
+                {onBrain && (
+                  <button type="button" onClick={onBrain} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
+                    {es ? "Ir a Cerebro" : "Go to Brain"}
+                  </button>
+                )}
+              </div>
             ) : undefined
           }
           initialMessages={initialMessages}
@@ -267,14 +286,14 @@ export default function StoreView({
       </section>
 
       {/* The page, below the chat */}
-      <Sheet open={pageOpen} title={st.yourPage} onClose={() => setPageOpen(false)} wide>
+      <Sheet open={pageOpen} title={business.published ? st.yourPage : es ? "Vista previa de tu página" : "Preview of your page"} onClose={() => setPageOpen(false)} wide>
         <div className="flex flex-col h-full">
           <div className="shrink-0 px-4 md:px-5 py-2.5 flex justify-end">
             <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap text-[13px] text-psub hover:text-pfg">
               {business.published ? t.dashboard.openLive : st.viewDraft} ↗
             </a>
           </div>
-          <iframe key={`${business.slug}-${previewKey}`} src={liveUrl} title={t.dashboard.livePageTitle} className="w-full flex-1 min-h-[70vh] border-0 block" style={{ background: "#fff" }} />
+          <iframe key={`${business.slug}-${previewKey}`} src={liveUrl} title={business.published ? t.dashboard.livePageTitle : es ? "Vista previa de tu página (borrador)" : "Preview of your page (draft)"} className="w-full flex-1 min-h-[70vh] border-0 block" style={{ background: "#fff" }} />
         </div>
       </Sheet>
     </div>

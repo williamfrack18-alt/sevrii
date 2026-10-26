@@ -59,7 +59,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: "save_strategy",
-    description: "Save the marketing strategy (replaces the previous one). The owner sees it as a card in this chat, each part opening in place.",
+    description: "Save the marketing strategy (replaces the previous one). The owner sees it in the panel «Tu estrategia de marketing» next to this chat, each part opening in place.",
     input_schema: {
       type: "object",
       properties: {
@@ -142,10 +142,10 @@ How to work:
 2) As soon as you have the budget: in the SAME turn save the strategy (save_strategy) and its campaigns (save_campaign). Strategy = summary (2-3 plain sentences), up to 4 funnel stages (awareness = attract, consideration = convince, conversion = convert, retention = keep them coming back), each with a channel and one concrete action, and budgetPlan (how the monthly budget is split, in USD). Small budgets focus on conversion. Start from the Brain plan's promise, customer and recommended campaign type.
 3) Explain it in the chat in 3-5 short lines: who it's for, the message, each campaign with its money per day and per month, and the free posts the agent will prepare. Ask if they agree or want to change something. Change whatever they ask.
 Marketing is the ONLY place for marketing: the campaign type, the ads, the posts, and the video and photos. The Brain plan only suggests them (recommended campaign type and channels, videoScript, photoIdeas) — use them as a starting point; when the owner wants to change the video script or the photo ideas, save them with save_media. If the facts have Brain plan "notes" (e.g. Meta's special ad category for legal, credit, housing or employment services), tell the owner about them in plain words when you present the strategy.
-4) When the owner agrees, tell them to tap the button "Aprobar estrategia y ponerla en marcha" ("Approve strategy and put it to work" in English) in their strategy card, right here in the chat. Approving puts the agent to work: it asks their OK before launching each campaign and before any budget increase, prepares free posts for their pages, and checks results every day. On its own it may only pause an ad that spends without bringing chats and write new ad texts — never spend more.
+4) When the owner agrees, tell them to tap the button "Aprobar estrategia y ponerla en marcha" ("Approve strategy and put it to work" in English) at the bottom of the panel "Tu estrategia de marketing" ("Your marketing strategy") next to this chat (on a phone: tap "Tu estrategia de marketing" to open it). That button is NOT inside the chat messages: never say it is "here in the chat" or "in your card in the chat". Only mention it while "approved" is false. Approving puts the agent to work: it asks their OK before launching each campaign and before any budget increase, prepares free posts for their pages, and checks results every day. On its own it may only pause an ad that spends without bringing chats and write new ad texts — never spend more.
 
 State "approved": false → everything is a PROPOSAL. Never say a campaign is running, launched, published, active or spending.
-State "approved": true → the agent is executing the approved strategy. When the owner asks for changes, update the strategy or campaigns; new or changed campaigns wait for the owner again: tell them to tap "Aprobar cambios" ("Approve changes"). Campaigns with status live or paused are on Facebook: you may rewrite their ad texts, but their budget only changes through the agent's proposal that the owner approves (in "Needs your approval"). Don't promise results; the owner sees visits, chats and contacts in the agent panel.
+State "approved": true → the agent is executing the approved strategy. When the owner asks for changes, update the strategy or campaigns; new or changed campaigns wait for the owner again: tell them to tap "Aprobar cambios" ("Approve changes"). Once approved, each campaign's launch is a separate OK: the owner gives it in "Ver lo que está en marcha" ("See what's running", a button in the panel "Tu estrategia de marketing") → "Necesita tu aprobación" → "Aprobar". A campaign with status proposed is waiting for that OK; approved = OK given but not launched yet; only live or paused campaigns are out. Never call a campaign running or launched unless its status is live. Campaigns with status live or paused are on Facebook: you may rewrite their ad texts, but their budget only changes through the agent's proposal that the owner approves (in "Needs your approval"). Don't promise results; the owner sees visits, chats and contacts in the agent panel.
 
 Campaign rules:
 - Customers contact the business ONLY through the AI chat on its Sevrii page. Every ad sends people to the page (objective traffic, destination website, button "Más información"/"Learn more") and invites them to write through the page chat. Never propose calls, texts, WhatsApp or phone numbers.
@@ -374,10 +374,15 @@ export function marketingGreeting(lang: Lang, b: BusinessRow): string {
   const es = lang === "es";
   const service = b.plan.service;
   const budget = b.marketing.profile.monthlyBudgetUsd;
+  if (b.marketing.strategy && b.marketing.approvedAt) {
+    return es
+      ? "Tu estrategia ya está aprobada. Cada campaña se lanza solo con tu OK: lo das en «Ver lo que está en marcha» (en el panel «Tu estrategia de marketing», junto al chat) → «Necesita tu aprobación». ¿Quieres cambiar algo?"
+      : "Your strategy is approved. Each campaign launches only with your OK: you give it in \"See what's running\" (in the \"Your marketing strategy\" panel next to the chat) → \"Needs your approval\". Want to change anything?";
+  }
   if (b.marketing.strategy) {
     return es
-      ? "Aquí está tu estrategia de marketing, en la tarjeta de este chat. Dime qué quieres cambiar o, si te gusta, toca «Aprobar estrategia y ponerla en marcha»."
-      : "Your marketing strategy is in the card in this chat. Tell me what you'd like to change or, if you like it, tap \"Approve strategy and put it to work\".";
+      ? "Tu estrategia de marketing está en el panel «Tu estrategia de marketing», junto al chat. Dime qué quieres cambiar o, si te gusta, toca «Aprobar estrategia y ponerla en marcha» al final de ese panel."
+      : "Your marketing strategy is in the \"Your marketing strategy\" panel next to the chat. Tell me what you'd like to change or, if you like it, tap \"Approve strategy and put it to work\" at the bottom of that panel.";
   }
   if (service && budget) {
     return es

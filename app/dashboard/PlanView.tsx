@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
-import { approveBlockAction, chooseIdeaAction, finishPlanAction, noOfferAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
+import { approveBlockAction, chooseIdeaAction, finishPlanAction, noOfferAction, resumePlanAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
 import { MAX_IDEA_ROUNDS, missingProfile } from "@/lib/plan";
 import type { ChatChip } from "./ChatPanel";
 
@@ -55,7 +55,7 @@ const PIPELINE: PlanStage[] = ["ideas_research", "research"];
 
 type T = (typeof PLAN_TEXT)[keyof typeof PLAN_TEXT];
 type Job = { kind: string; status: "queued" | "running" | "done" | "failed" };
-type Snapshot = { plan: BusinessPlan | null; name: string; slug: string; jobs: Job[]; messages: Msg[]; more?: boolean; error?: string };
+type Snapshot = { plan: BusinessPlan | null; name: string; slug: string; jobs: Job[]; messages: Msg[]; more?: boolean; error?: string; limitText?: string; canUpgrade?: boolean };
 
 // Which approval block a guard note is about (the notes are free text).
 const GUARD_HINTS: Record<ApprovalBlock, RegExp> = {
@@ -102,6 +102,7 @@ export default function PlanView({
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [pipeErr, setPipeErr] = useState<"" | "limit" | "failed">("");
+  const [limitInfo, setLimitInfo] = useState<{ text: string; canUpgrade: boolean }>({ text: "", canUpgrade: true });
   const [sync, setSync] = useState<{ key: number; messages: Msg[] }>();
   const [prefill, setPrefill] = useState<{ key: number; text: string }>();
   const [notice, setNotice] = useState("");
@@ -136,6 +137,22 @@ export default function PlanView({
     setNotice(res.notice ?? "");
   }
 
+  // A finished profile waiting on a research limit: continue if it's lifted.
+  const waiting = (plan.stage === "interview" || plan.stage === "ready_check") && missingProfile(plan).length === 0;
+  useEffect(() => {
+    if (!waiting) return;
+    let off = false;
+    resumePlanAction()
+      .then((res) => {
+        if (res && !off) applyAction(res);
+      })
+      .catch(() => {});
+    return () => {
+      off = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, business.id]);
+
   // Drive the research pipeline one step per request while showing progress.
   useEffect(() => {
     if (!inPipeline) return;
@@ -161,6 +178,7 @@ export default function PlanView({
         if (stop) return;
         apply(s);
         if (s.error === "limit" || s.error === "failed") {
+          if (s.error === "limit") setLimitInfo({ text: s.limitText || "", canUpgrade: s.canUpgrade !== false });
           setPipeErr(s.error);
           return;
         }
@@ -271,9 +289,9 @@ export default function PlanView({
       {pipeErr && (
         <div className="rounded-[24px] p-4 md:p-5 flex items-center justify-between gap-4 flex-wrap" style={CARD}>
           <span className="text-[14px] leading-relaxed min-w-0" style={{ color: pipeErr === "limit" ? AMBER : RED }}>
-            {pipeErr === "limit" ? t.limit : t.failed}
+            {pipeErr === "limit" ? limitInfo.text || t.limit : t.failed}
           </span>
-          {pipeErr === "limit" && (
+          {pipeErr === "limit" && limitInfo.canUpgrade && (
             <button type="button" onClick={() => onNavigate("plans")} className="h-10 px-5 rounded-full text-[14px] font-semibold shrink-0" style={BRAND_BTN}>
               {t.seePlans}
             </button>
@@ -605,7 +623,7 @@ function PartDots({ plan, current }: { plan: BusinessPlan; current: ApprovalBloc
         <span
           key={b}
           className="h-1.5 rounded-full transition-all"
-          style={{ width: b === current ? 16 : 6, background: plan.approvals[b] ? GREEN : b === current ? "#fff" : "rgba(10,10,10,0.136)" }}
+          style={{ width: b === current ? 16 : 6, background: plan.approvals[b] ? GREEN : b === current ? "#0A0A0A" : "rgba(10,10,10,0.136)" }}
         />
       ))}
     </div>

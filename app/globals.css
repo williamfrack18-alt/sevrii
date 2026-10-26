@@ -118,7 +118,10 @@ body {
   letter-spacing: 0.04em;
   transition: background 0.2s ease, color 0.2s ease;
 }
-.lang-toggle:hover { background: #fff; color: #000; }
+.lang-toggle:hover { background: rgba(255, 255, 255, 0.12); }
+.lang-toggle { gap: 2px; padding: 0 3px; }
+.lang-toggle .lt-opt { height: 24px; min-width: 28px; padding: 0 7px; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; opacity: 0.6; }
+.lang-toggle .lt-opt.on { background: #fff; color: #000; opacity: 1; }
 
 /* Dashboard pieces in the dark theme */
 .theme-dark .bg-border { background: rgba(255, 255, 255, 0.12); }
@@ -160,7 +163,8 @@ body {
 .theme-panel .btn-ghost { background: #fff; color: #0A0A0A; border: 1px solid rgba(10, 10, 10, 0.14); border-radius: 9999px; }
 .theme-panel .btn-ghost:hover { background: #0A0A0A; color: #fff; }
 .theme-panel .lang-toggle { border-color: rgba(10, 10, 10, 0.16); color: #0A0A0A; background: #fff; }
-.theme-panel .lang-toggle:hover { background: #0A0A0A; color: #fff; }
+.theme-panel .lang-toggle:hover { background: rgba(10, 10, 10, 0.05); color: #0A0A0A; }
+.theme-panel .lang-toggle .lt-opt.on { background: #0A0A0A; color: #fff; }
 .theme-panel .brand-mark { color: #0A0A0A; }
 .theme-panel .seg { background: rgba(10, 10, 10, 0.05); }
 .theme-panel .seg-btn { color: #52525B; }
@@ -216,6 +220,16 @@ body {
   transition: background 0.15s ease, color 0.15s ease;
 }
 .dash-nav:hover { background: rgba(10, 10, 10, 0.05); color: #0A0A0A; }
+/* Collapsed rail: each icon names itself on hover / keyboard focus. */
+.rail-tip {
+  position: absolute; left: calc(100% + 12px); top: 50%; transform: translate(-4px, -50%);
+  z-index: 60; pointer-events: none; opacity: 0; white-space: nowrap;
+  background: #0A0A0A; color: #fff; font-size: 12.5px; font-weight: 500; line-height: 1;
+  padding: 8px 11px; border-radius: 10px; box-shadow: 0 6px 20px rgba(10, 10, 10, 0.18);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.dash-nav:hover > .rail-tip, .dash-nav:focus-visible > .rail-tip,
+.rail-host:hover > .rail-tip, .rail-host:focus-visible > .rail-tip { opacity: 1; transform: translate(0, -50%); }
 .dash-nav.on { background: #0A0A0A; color: #fff; font-weight: 500; }
 .dash-nav.on .dash-n { color: rgba(255, 255, 255, 0.55); }
 .dash-n { font-size: 11px; color: #A1A1AA; }

@@ -163,15 +163,22 @@ export default function PlansView({
                   ) : id === "free" ? (
                     <div className="h-11" />
                   ) : (
-                    <button
-                      type="button"
-                      disabled={pending || plan.id !== "free"}
-                      onClick={checkout}
-                      className="w-full h-11 rounded-full text-[14px] font-semibold disabled:opacity-40"
-                      style={BRAND_BTN}
-                    >
-                      {t.choose(p.name)}
-                    </button>
+                    plan.id !== "free" && PLAN_ORDER.indexOf(plan.id) > PLAN_ORDER.indexOf(id) ? (
+                      // Already on a higher plan: say why instead of a dead gray button.
+                      <div className="h-11 flex items-center justify-center text-center text-[13px] text-pmuted rounded-full" style={{ background: "rgba(10,10,10,0.04)" }}>
+                        {t.higherPlan}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={pending || plan.id !== "free"}
+                        onClick={checkout}
+                        className="w-full h-11 rounded-full text-[14px] font-semibold disabled:opacity-40"
+                        style={BRAND_BTN}
+                      >
+                        {t.choose(p.name)}
+                      </button>
+                    )
                   )}
                 </div>
               </div>
@@ -192,9 +199,13 @@ export default function PlansView({
                 <tr style={{ borderBottom: "1px solid rgba(10,10,10,0.068)" }}>
                   <th className="text-left font-medium text-pmuted px-4 py-3 w-[38%]" />
                   {PLAN_ORDER.map((id) => (
-                    <th key={id} className="text-center font-semibold px-3 py-3" style={{ color: plan.id === id ? GREEN : "#fff" }}>
+                    <th key={id} className="text-center font-semibold px-3 py-3" style={{ color: plan.id === id ? GREEN : "#0A0A0A" }}>
                       {t.plans[id].name}
-                      <div className="text-[12px] font-normal text-pmuted">{PLANS[id].monthly ? `$${PLANS[id].monthly}${t.perMonth}` : "$0"}</div>
+                      {/* Follows the Monthly / Yearly switch above. */}
+                      <div className="text-[12px] font-normal text-pmuted">
+                        {PLANS[id].monthly ? `$${yearly && PLANS[id].yearlyPerMonth !== null ? PLANS[id].yearlyPerMonth : PLANS[id].monthly}${t.perMonth}` : "$0"}
+                      </div>
+                      {yearly && PLANS[id].yearlyPerMonth !== null && <div className="text-[11px] font-normal text-pmuted">{t.billedYearly(PLANS[id].yearlyPerMonth! * 12)}</div>}
                     </th>
                   ))}
                 </tr>

@@ -53,7 +53,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
   team: {
     id: "team",
     monthly: 149,
-    yearlyPerMonth: null,
+    yearlyPerMonth: 124, // 17% off, like the others: $1,488 a year
     available: false,
     limits: { projects: 10, canPublish: true, marketing: true, autoMarketing: true, payments: true, aiPerDay: 240, aiPerMonth: 5000, researchPerMonth: 60, aiBudgetUsd: 60 },
   },

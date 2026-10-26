@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { addAiUsage, getAiSpendMicros, peekRateCounter } from "./db";
 import { allow } from "./guard";
 import { limitsForUserId } from "./billing";
-import type { PlanLimits } from "./plans";
+import { PLANS, PLAN_ORDER, type PlanLimits } from "./plans";
 
 // What each AI call really costs, per account, per calendar month.
 // Prices in USD per million tokens (platform.claude.com/docs/en/about-claude/pricing).
@@ -117,6 +117,38 @@ export async function researchWouldStart(userId: string, opts: { budgetOnly?: bo
   } catch {
     return true;
   }
+}
+
+// What the owner has used of this month's research, for an honest message
+// when research can't start: real numbers, and "upgrade" only when a higher
+// plan exists and can be bought today.
+export type ResearchUsage = { used: number; limit: number; budgetHit: boolean; canUpgrade: boolean; resetsOn: string };
+export async function researchUsage(userId: string): Promise<ResearchUsage> {
+  const l = await limitsForUserId(userId);
+  let used = 0;
+  try {
+    used = await peekRateCounter(`brain:run:u:${userId}:${month()}`);
+  } catch {}
+  const budgetHit = (await monthSpendUsd(userId)) >= l.aiBudgetUsd;
+  const canUpgrade = PLAN_ORDER.some((id) => PLANS[id].available && PLANS[id].limits.researchPerMonth > l.researchPerMonth);
+  const now = new Date();
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return { used: Math.min(used, l.researchPerMonth), limit: l.researchPerMonth, budgetHit, canUpgrade, resetsOn: next.toISOString().slice(0, 10) };
+}
+
+export function researchLimitText(u: ResearchUsage, lang: "es" | "en"): string {
+  const d = new Date(`${u.resetsOn}T12:00:00Z`);
+  const day = d.toLocaleDateString(lang === "es" ? "es-US" : "en-US", { day: "numeric", month: "long", timeZone: "UTC" });
+  if (lang === "es") {
+    const what = u.budgetHit && u.used < u.limit ? "Este mes ya usaste todo el presupuesto de IA de tu plan" : `Este mes ya usaste ${u.used} de ${u.limit} investigaciones de tu plan`;
+    return u.canUpgrade
+      ? `${what}. Todo quedó guardado: puedes mejorar tu plan en Planes para seguir ahora, o seguir el ${day} justo donde lo dejaste.`
+      : `${what}. Todo quedó guardado: tu plan se renueva el ${day} y sigues justo donde lo dejaste.`;
+  }
+  const what = u.budgetHit && u.used < u.limit ? "This month you've used your plan's whole AI budget" : `This month you've used ${u.used} of ${u.limit} research runs in your plan`;
+  return u.canUpgrade
+    ? `${what}. Everything is saved: upgrade in Plans to keep going now, or continue on ${day} right where you left off.`
+    : `${what}. Everything is saved: your plan renews on ${day} and you continue right where you left off.`;
 }
 
 export function gateMessage(reason: GateReason, t: { aiSlowDown: string; aiDailyLimit: string; aiMonthlyLimit: string }): string {

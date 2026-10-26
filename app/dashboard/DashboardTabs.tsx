@@ -174,12 +174,17 @@ export default function DashboardTabs({
   const [planMsgs, setPlanMsgs] = useState<ClientMsg[]>(planMessages);
   // Side rail: collapsed (icons only) by default; the choice is remembered on this device.
   const [railOpen, setRailOpen] = useState(false);
+  // Animate the width only when the owner toggles it: restoring "open" on load
+  // (e.g. coming back from Mi cuenta) must not leave labels squeezed in a
+  // half-open rail.
+  const [railAnim, setRailAnim] = useState(false);
   useEffect(() => {
     try {
       if (localStorage.getItem("sevrii_rail") === "open") setRailOpen(true);
     } catch {}
   }, []);
   function toggleRail() {
+    setRailAnim(true);
     setRailOpen((open) => {
       try {
         localStorage.setItem("sevrii_rail", open ? "closed" : "open");
@@ -402,7 +407,7 @@ export default function DashboardTabs({
 
       {/* Desktop rail: collapsed to icons by default, expands with the toggle */}
       <aside
-        className={`hidden md:flex ${railOpen ? "w-[256px] p-4" : "w-[76px] px-3 py-4"} shrink-0 sticky top-0 h-screen flex-col justify-between transition-[width] duration-200 bg-pcard`}
+        className={`hidden md:flex ${railOpen ? "w-[256px] min-w-[256px] p-4 overflow-hidden" : "w-[76px] min-w-[76px] px-3 py-4"} shrink-0 sticky top-0 z-30 h-screen flex-col justify-between ${railAnim ? "transition-[width,min-width] duration-200" : ""} bg-pcard`}
         style={{ boxShadow: "1px 0 0 rgba(10,10,10,.06)" }}
       >
         <div className="min-w-0">
@@ -464,7 +469,8 @@ export default function DashboardTabs({
                   className={`dash-nav w-full ${railOpen ? "" : "!justify-center !px-0 relative h-11"} ${view === it.id ? "on" : ""}`}
                 >
                   <NavIcon id={it.id} />
-                  {railOpen && <span className="grow text-left">{it.label}</span>}
+                  {!railOpen && <span className="rail-tip">{it.label}</span>}
+                  {railOpen && <span className="grow text-left whitespace-nowrap truncate">{it.label}</span>}
                   {railOpen && it.id === "store" && (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 transition-transform" style={{ transform: storeOpen ? "rotate(180deg)" : "none" }}>
                       <path d="M6 9l6 6 6-6" />
@@ -483,7 +489,8 @@ export default function DashboardTabs({
                     className={`dash-nav w-full mt-1 ${railOpen ? "dash-sub" : "!justify-center !px-0 relative h-11"} ${view === "chats" ? "on" : ""}`}
                   >
                     <NavIcon id="chats" />
-                    {railOpen && <span className="grow text-left">{chatsLabel}</span>}
+                    {!railOpen && <span className="rail-tip">{chatsLabel}</span>}
+                    {railOpen && <span className="grow text-left whitespace-nowrap truncate">{chatsLabel}</span>}
                     {railOpen && unreadChats > 0 && <span className="dash-badge">{unreadChats}</span>}
                     {!railOpen && unreadChats > 0 && <span className="absolute top-2 right-3 h-2 w-2 rounded-full bg-pgreen" />}
                   </button>
@@ -517,10 +524,12 @@ export default function DashboardTabs({
               type="button"
               onClick={() => setView("plans")}
               title={`${bt.lock.plan}: ${bt.plans[plan.id].name}`}
-              aria-label={bt.nav}
+              aria-label={lang === "es" ? `Tu plan: ${bt.plans[plan.id].name} · ver Planes` : `Your plan: ${bt.plans[plan.id].name} · see Plans`}
               className={`dash-nav w-full !justify-center !px-0 relative h-11 ${view === "plans" ? "on" : ""}`}
             >
               <NavIcon id="plans" />
+              {/* The star is "Planes": say so on hover, like the open menu's plan card. */}
+              <span className="rail-tip">{lang === "es" ? `Tu plan: ${bt.plans[plan.id].name} · ver Planes` : `Your plan: ${bt.plans[plan.id].name} · see Plans`}</span>
               {plan.id === "free" && <span className="absolute top-2 right-3 h-1.5 w-1.5 rounded-full bg-pgreen" />}
             </button>
           )}
@@ -534,19 +543,20 @@ export default function DashboardTabs({
                 <LangToggle />
               </div>
               <div className="flex items-center gap-4 px-1">
-                <a href="/account" className="text-[12.5px] text-pmuted hover:text-pfg">
+                <a href="/account" className="text-[12.5px] text-pmuted hover:text-pfg whitespace-nowrap">
                   {lang === "es" ? "Mi cuenta" : "My account"}
                 </a>
                 <form action={logoutAction}>
-                  <button type="submit" className="text-[12.5px] text-pmuted hover:text-pfg">
+                  <button type="submit" className="text-[12.5px] text-pmuted hover:text-pfg whitespace-nowrap">
                     {t.dashboard.logout}
                   </button>
                 </form>
               </div>
             </>
           ) : (
-            <button type="button" onClick={toggleRail} title={userEmail} className="rounded-full">
+            <button type="button" onClick={toggleRail} title={userEmail} aria-label={lang === "es" ? "Tu cuenta: abrir el menú" : "Your account: open the menu"} className="rail-host relative rounded-full">
               {avatar}
+              <span className="rail-tip">{lang === "es" ? `Tu cuenta (${userEmail})` : `Your account (${userEmail})`}</span>
             </button>
           )}
         </div>
@@ -586,6 +596,7 @@ export default function DashboardTabs({
           <StoreView
             onChats={() => setView("chats")}
             onPayments={() => setView("payments")}
+            onBrain={() => setView("plan")}
             business={currentBusiness}
             services={currentServices}
             initialMessages={storeMessages}

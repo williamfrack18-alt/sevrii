@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getLang } from "@/lib/lang";
 import { getBusinessById, listChatMessages } from "@/lib/db";
 import { advancePipeline, pipelineStatus } from "@/lib/brain/pipeline";
-import { runForUser } from "@/lib/usage";
+import { researchLimitText, researchUsage, runForUser } from "@/lib/usage";
 
 // Research can take a couple of minutes: each POST runs one step.
 export const maxDuration = 300;
@@ -36,5 +36,8 @@ export async function POST(req: Request) {
   const retry = new URL(req.url).searchParams.get("retry") === "1";
   const lang = await getLang();
   const result = await runForUser(user.id, () => advancePipeline(user.business!.id, user.id, lang, retry));
-  return NextResponse.json({ ...result, ...(await snapshot(user.business.id)) }, { headers: { "Cache-Control": "no-store" } });
+  // Over the limit: the real numbers, and whether a higher plan can be bought.
+  const limit = result.error === "limit" ? await researchUsage(user.id) : null;
+  const limitInfo = limit ? { limitText: researchLimitText(limit, lang === "en" ? "en" : "es"), canUpgrade: limit.canUpgrade } : {};
+  return NextResponse.json({ ...result, ...limitInfo, ...(await snapshot(user.business.id)) }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -44,12 +44,16 @@ const TEXT = {
       storeSub: "Revisa tu página y publícala para recibir clientes.",
       marketing: "Arma tu marketing",
       marketingSub: "El chat de Marketing te propone tu estrategia de anuncios.",
-      running: "Mira cómo va tu marketing",
-      runningSub: "Tu agente revisa tus campañas todos los días.",
+      payments: "Conecta Pagos",
+      paymentsSub: "Para cobrar a tus clientes desde tu página.",
+      running: "Revisa tu marketing",
+      runningSub: "Da el OK a cada campaña antes de lanzarla y mira sus resultados.",
     },
     progress: "Tu avance",
     progressSub: (done: number, total: number) => `${done} de ${total} pasos`,
-    steps: ["Estrategia lista", "Página publicada", "Marketing aprobado", "Pagos conectados"],
+    // The real order: strategy → page → payments (to charge) → ads.
+    steps: ["Estrategia lista", "Página publicada", "Pagos conectados", "Marketing aprobado"],
+    early: "hecho, pero falta el paso anterior",
     views: "Visitas",
     contacts: "Contactos",
     unread: "Chats sin leer",
@@ -87,12 +91,15 @@ const TEXT = {
       storeSub: "Review your page and publish it to get customers.",
       marketing: "Build your marketing",
       marketingSub: "The Marketing chat proposes your ad strategy.",
-      running: "See how your marketing is doing",
-      runningSub: "Your agent checks your campaigns every day.",
+      payments: "Connect Payments",
+      paymentsSub: "To charge your customers from your page.",
+      running: "Check your marketing",
+      runningSub: "Give your OK to each campaign before it launches and see its results.",
     },
     progress: "Your progress",
     progressSub: (done: number, total: number) => `${done} of ${total} steps`,
-    steps: ["Strategy ready", "Page live", "Marketing approved", "Payments connected"],
+    steps: ["Strategy ready", "Page live", "Payments connected", "Marketing approved"],
+    early: "done, but an earlier step is missing",
     views: "Visits",
     contacts: "Contacts",
     unread: "Unread chats",
@@ -153,7 +160,11 @@ export default function ProjectsView({
   const name = firstName(business.site.ownerName || active?.ownerName || projects.find((p) => p.ownerName)?.ownerName || "");
   void userEmail;
   const approved = Boolean(business.marketing.approvedAt);
-  const steps = [business.plan.ready, business.published, approved, business.payReady];
+  const flags = [business.plan.ready, business.published, business.payReady, approved];
+  // A step only counts once every step before it is done; one done ahead of
+  // time shows as such instead of skipping the line.
+  const steps = flags.map((f, i) => f && flags.slice(0, i).every(Boolean));
+  const early = flags.map((f, i) => f && !steps[i]);
   const done = steps.filter(Boolean).length;
 
   // The one thing to do next in the open project.
@@ -164,7 +175,9 @@ export default function ProjectsView({
         ? { title: tx.next.plan, sub: tx.next.planSub, view: "plan" }
         : !business.published
           ? { title: tx.next.store, sub: tx.next.storeSub, view: "store" }
-          : !approved
+          : !business.payReady
+            ? { title: tx.next.payments, sub: tx.next.paymentsSub, view: "payments" }
+            : !approved
             ? { title: tx.next.marketing, sub: tx.next.marketingSub, view: "marketing" }
             : { title: tx.next.running, sub: tx.next.runningSub, view: "marketing" };
 
@@ -206,14 +219,17 @@ export default function ProjectsView({
               <ul className="flex flex-col gap-1.5 mt-1">
                 {tx.steps.map((s, i) => (
                   <li key={s} className="flex items-center gap-2.5 text-[14.5px]" style={{ color: steps[i] ? "#0A0A0A" : "#A1A1AA" }}>
-                    <span className="h-5 w-5 rounded-full flex items-center justify-center shrink-0" style={steps[i] ? { background: GREEN } : { boxShadow: "inset 0 0 0 1.5px #D4D4D8" }}>
+                    <span className="h-5 w-5 rounded-full flex items-center justify-center shrink-0" style={steps[i] ? { background: GREEN } : early[i] ? { boxShadow: `inset 0 0 0 1.5px ${GREEN}` } : { boxShadow: "inset 0 0 0 1.5px #D4D4D8" }}>
                       {steps[i] && (
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M5 12.5l4.5 4.5L19 7.5" />
                         </svg>
                       )}
                     </span>
-                    {s}
+                    <span className="min-w-0">
+                      {s}
+                      {early[i] && <span className="block text-[12px] text-pmuted leading-snug">{tx.early}</span>}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -311,7 +327,7 @@ export default function ProjectsView({
                       <span className="text-[13px] opacity-85 truncate">{p.planService || p.category}</span>
                       <span className="text-[24px] leading-[1.1] font-medium tracking-[-0.02em] break-words line-clamp-2">{p.name}</span>
                       <span className="text-[13px] opacity-85 mt-1">
-                        {p.pageViews} {pt.views} · {pt.services(p.services)}
+                        {`${p.pageViews} ${pt.views} · ${pt.services(p.services)}`}
                       </span>
                     </span>
                   </button>

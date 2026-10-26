@@ -71,6 +71,9 @@
 .mt .stage video { object-fit: contain; }
 .mt .stage-empty, .mt .slide { position: absolute; inset: 0; background: var(--accent-grad); display: flex; flex-direction: column; justify-content: flex-end; padding: 28px 30px; color: var(--accent-on); }
 .mt .slide.offer { background: linear-gradient(135deg, #e0113f, #7a0024); color: #f4f1ea; }
+/* keep slide text clear of the prev/next arrows */
+.mt .slide { padding: 28px 62px 30px; }
+@media (max-width: 640px) { .mt .slide { padding: 22px 56px 24px; } }
 .mt .stage-kicker { display: inline-flex; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #f4f1ea; background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 999px; margin-bottom: 10px; width: fit-content; }
 .mt .stage-title { font-size: 26px; color: inherit; max-width: 26ch; overflow-wrap: anywhere; }
 .mt .slide-title { font-size: clamp(22px, 3vw, 30px); font-weight: 600; line-height: 1.15; max-width: 22ch; overflow-wrap: anywhere; }

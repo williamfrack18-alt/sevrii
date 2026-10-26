@@ -13,7 +13,7 @@ import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { APPROVAL_BLOCKS, MAX_IDEA_ROUNDS, allApproved, requestMoreIdeas, type ApprovalBlock } from "@/lib/plan";
 import { PLAN_TEXT } from "@/lib/planI18n";
-import { applyApprovals, chooseIdea, planGreeting, runPlanChatTurn } from "@/lib/brain/interviewer";
+import { applyApprovals, chooseIdea, planGreeting, resumeStuckResearch, runPlanChatTurn } from "@/lib/brain/interviewer";
 import { DONE_TOKEN, cardAfterTurn, forModel, nextPartMessage } from "@/lib/brain/walk";
 import type { BusinessPlan } from "@/lib/plan";
 
@@ -68,6 +68,12 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
   }
 
   await addChatMessage(business.id, CHANNEL, "user", text);
+  // A profile left waiting by a research limit that no longer applies: go on.
+  const resumed = await resumeStuckResearch(business, lang);
+  if (resumed) {
+    revalidatePath("/dashboard");
+    return respond(resumed, { startPipeline: true });
+  }
   const result = await runForUser(business.userId, () => runPlanChatTurn({
     business,
     history: history.slice(-16).map((m) => ({
@@ -85,6 +91,16 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
   await addChatMessage(business.id, CHANNEL, "ai", card ? `${reply}\n\n${card}` : reply);
   revalidatePath("/dashboard");
   return respond(result.business, { startPipeline: result.startPipeline });
+}
+
+// Opening the Brain with a finished profile that a research limit left waiting:
+// if research can start now, it continues without the owner having to ask.
+export async function resumePlanAction(): Promise<PlanChatResponse | null> {
+  const business = await requireBusiness();
+  const resumed = await resumeStuckResearch(business, await getLang());
+  if (!resumed) return null;
+  revalidatePath("/dashboard");
+  return respond(resumed, { startPipeline: true });
 }
 
 // B: the person picks one of the 3 ideas from its card.

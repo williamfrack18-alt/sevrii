@@ -26,7 +26,7 @@ type Result = { link: string; stats: CampaignStats; week: CampaignStats };
 
 const usd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 const HAIR = "rgba(10,10,10,0.068)";
-const RUNNING = ["live", "approved", "paused"];
+const RUNNING = ["live", "paused"];
 
 // Marketing in 3 stages:
 //  1. Estrategia — the chat (the strategist) builds the strategy and its
@@ -114,8 +114,12 @@ export default function MarketingView({
   const active = withSpec.filter((c) => c.status !== "declined");
   // Changed or new in the chat after approval: they wait for "Aprobar cambios".
   const changed = approved ? withSpec.filter((c) => c.status === "draft") : [];
-  const running = withSpec.some((c) => RUNNING.includes(c.status));
-  const step = !approved ? 0 : running ? 2 : 1;
+  // "En marcha" only when an ad is really out (live or paused on Facebook), not
+  // when a campaign is merely approved or waiting for the owner's OK.
+  const liveCount = withSpec.filter((c) => c.status === "live" || c.status === "paused").length;
+  const waitingOk = withSpec.filter((c) => c.status === "proposed").length;
+  const readyToPublish = withSpec.filter((c) => c.status === "approved").length;
+  const statusParts = marketingStatus({ es: lang === "es", approved, liveCount, waitingOk, readyToPublish, changed: changed.length });
   const showAgent = Boolean(agent && agent.allowed && (approved || agent.started));
 
   const applyUpdate = (res: Awaited<ReturnType<typeof sendMarketingChatAction>>) =>
@@ -215,7 +219,7 @@ export default function MarketingView({
       title={profile.goal || m.goalFallback(profile.mainService || business.plan.service || "")}
       status={
         <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11.5px] font-medium" style={{ background: TINT, color: ACCENT }}>
-          {t.flow.steps[step]}
+          {statusParts[0]}
         </span>
       }
     >
@@ -250,7 +254,7 @@ export default function MarketingView({
           <span className="min-w-0 truncate text-[16px] md:text-[17px] font-semibold text-pfg">
             {business.name} <span className="text-pmuted font-normal">· {t.flow.title}</span>
           </span>
-          <Stepper steps={t.flow.steps} current={step} />
+          <StatusLine parts={statusParts} approvedMark={approved} />
         </div>
         <ChatPanel
           greeting={greeting}
@@ -271,7 +275,7 @@ export default function MarketingView({
 
       {showAgent && agent && (
         <Sheet open={runningOpen} title={es ? "Lo que está en marcha" : "What's running"} onClose={() => setRunningOpen(false)} wide>
-          <AgentPanel business={business} lang={lang} state={agent} setState={setAgent} onChanged={refresh} />
+          <AgentPanel business={business} lang={lang} state={agent} setState={setAgent} onChanged={refresh} launched={liveCount > 0} />
         </Sheet>
       )}
     </div>
@@ -287,33 +291,34 @@ function Check({ size = 10 }: { size?: number }) {
   );
 }
 
-// Estrategia — Aprobada — En marcha. The current step is the stage chip; on a
-// phone the other steps are just numbered dots so it always fits one line.
-function Stepper({ steps, current }: { steps: string[]; current: number }) {
+// The state in words, no unlabeled numbers: the strategy, the campaigns and
+// whether anything is out, e.g. "Estrategia aprobada · 1 campaña pendiente de
+// tu OK · Sin lanzar". On a phone only the first part shows.
+function marketingStatus(o: { es: boolean; approved: boolean; liveCount: number; waitingOk: number; readyToPublish: number; changed: number }): string[] {
+  const { es } = o;
+  const parts = [o.approved ? (es ? "Estrategia aprobada" : "Strategy approved") : es ? "Estrategia por aprobar" : "Strategy to approve"];
+  if (!o.approved) return parts;
+  if (o.waitingOk) parts.push(es ? (o.waitingOk === 1 ? "1 campaña pendiente de tu OK" : `${o.waitingOk} campañas pendientes de tu OK`) : o.waitingOk === 1 ? "1 campaign waiting for your OK" : `${o.waitingOk} campaigns waiting for your OK`);
+  if (o.changed) parts.push(es ? (o.changed === 1 ? "1 cambio por aprobar" : `${o.changed} cambios por aprobar`) : o.changed === 1 ? "1 change to approve" : `${o.changed} changes to approve`);
+  if (o.readyToPublish) parts.push(es ? (o.readyToPublish === 1 ? "1 lista para publicar" : `${o.readyToPublish} listas para publicar`) : `${o.readyToPublish} ready to publish`);
+  parts.push(o.liveCount ? (es ? (o.liveCount === 1 ? "1 anuncio activo" : `${o.liveCount} anuncios activos`) : o.liveCount === 1 ? "1 ad running" : `${o.liveCount} ads running`) : es ? "Sin lanzar" : "Not launched");
+  return parts;
+}
+
+function StatusLine({ parts, approvedMark }: { parts: string[]; approvedMark: boolean }) {
   return (
-    <ol className="flex items-center gap-1 shrink-0" aria-label={steps.join(" · ")}>
-      {steps.map((label, i) => (
-        <li key={label} className="flex items-center gap-1" aria-current={i === current ? "step" : undefined}>
-          {i > 0 && <span className="h-px w-2.5 sm:w-4" style={{ background: "rgba(10,10,10,0.119)" }} />}
-          {i === current ? (
-            <span className="h-6 px-2.5 rounded-full text-[11.5px] font-semibold flex items-center gap-1.5 whitespace-nowrap" style={{ background: TINT, color: ACCENT }}>
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: ACCENT }} />
-              {label}
-            </span>
-          ) : (
-            <span className="h-6 flex items-center gap-1.5 text-[11.5px] whitespace-nowrap" style={{ color: i < current ? "#52525B" : "#5c5c5c" }} title={label}>
-              <span
-                className="h-[18px] w-[18px] rounded-full flex items-center justify-center text-[10px] font-semibold"
-                style={i < current ? { background: "rgba(125,191,156,0.16)", color: ACCENT } : { boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.136)" }}
-              >
-                {i < current ? <Check /> : i + 1}
-              </span>
-              <span className="hidden sm:inline">{label}</span>
-            </span>
-          )}
-        </li>
+    <div className="flex items-center gap-1.5 min-w-0 shrink" aria-label={parts.join(" · ")}>
+      {parts.map((p, i) => (
+        <span
+          key={p}
+          className={`${i === 0 ? "flex" : "hidden lg:flex"} h-6 px-2.5 rounded-full text-[11.5px] font-medium items-center gap-1.5 whitespace-nowrap`}
+          style={i === 0 ? { background: TINT, color: ACCENT } : { background: "rgba(10,10,10,0.05)", color: "#3F3F46" }}
+        >
+          {i === 0 && approvedMark && <Check />}
+          {p}
+        </span>
       ))}
-    </ol>
+    </div>
   );
 }
 
@@ -690,9 +695,9 @@ function CampaignDetail({
       </div>
 
       {/* Key facts */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 text-[13.5px]">
+      <div className="grid grid-cols-2 sm:[grid-template-columns:repeat(auto-fill,minmax(170px,1fr))] gap-2.5 text-[13.5px]">
         <Fact k={t.platform[spec.platform]} v={t.objective[spec.objective]} />
-        <Fact k={t.audience} v={`${t.area(spec.city, spec.radiusMiles)} · ${t.ages(spec.ageMin, spec.ageMax)} · ${t.language[spec.language]}`} />
+        <Fact k={t.audience} v={`${audienceArea(business, spec, lang)} · ${t.ages(spec.ageMin, spec.ageMax)} · ${t.language[spec.language]}`} />
         <Fact k={t.daily} v={`${usd(spec.dailyBudgetUsd)} × ${t.duration(spec.durationDays)}`} />
         <Fact k={t.total} v={usd(total)} />
       </div>
@@ -712,9 +717,9 @@ function CampaignDetail({
             {/* The ads are in the customers' language: say so when it isn't the panel's. */}
             {spec.language !== lang && (lang === "es" ? (spec.language === "en" ? " · en inglés, para tus clientes" : "") : spec.language === "es" ? " · in Spanish, for your customers" : "")}
           </span>
-          <div className="-mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-px-4 no-scrollbar md:mx-0 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible">
+          <div className="-mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-px-4 no-scrollbar md:mx-0 md:px-0 md:grid md:[grid-template-columns:repeat(auto-fill,minmax(260px,1fr))] md:overflow-visible">
             {spec.ads.map((ad, i) => (
-              <div key={i} className="w-[85%] shrink-0 snap-start md:w-auto flex flex-col gap-2">
+              <div key={i} className="w-[85%] shrink-0 snap-start md:w-auto min-w-0 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] text-pmuted">{t.variation(i + 1)}</span>
                   <CopyButton text={`${ad.primaryText}\n\n${ad.headline}${ad.description ? `\n${ad.description}` : ""}`} />
@@ -782,7 +787,9 @@ function CampaignDetail({
 
       {spec.notes && (
         <p className="text-[13.5px] text-pfg2 leading-relaxed">
-          <span className="text-pfg font-medium">{t.note}:</span> {spec.notes}
+          <span className="text-pfg font-medium">{`${t.note}: `}</span>
+          {/* The AI sometimes repeats the label or skips the space after a colon. */}
+          {spec.notes.replace(/^\s*(consejo|tip|nota|note)\s*:\s*/i, "").replace(/:(?=[A-ZÁÉÍÓÚÑ¿¡])/g, ": ")}
         </p>
       )}
 
@@ -798,6 +805,22 @@ function CampaignDetail({
       </details>
     </div>
   );
+}
+
+// Where the ads show, decided exactly like the launch does (lib/meta.ts): a
+// radius only for in-person businesses with a location; online ones reach the
+// whole US (or one state), never both.
+function audienceArea(business: ClientBusiness, spec: CampaignSpec, lang: string): string {
+  const s = business.site;
+  const es = lang === "es";
+  if (s.reachMode === "local" && s.baseLat !== null && s.baseLon !== null) {
+    const min = spec.specialCategory !== "none" ? 15 : 1;
+    const r = Math.min(50, Math.max(min, Math.round(spec.radiusMiles || s.reachRadius || 10)));
+    const place = s.baseCity || spec.city || business.city || "";
+    return es ? `${r} millas alrededor de ${place || "tu negocio"}` : `${r} miles around ${place || "your business"}`;
+  }
+  if (s.reachMode === "remote" && s.reachScope === "state" && s.baseState) return es ? `Todo ${s.baseState} (en línea)` : `All of ${s.baseState} (online)`;
+  return es ? "Todo EE. UU. (en línea)" : "The whole US (online)";
 }
 
 function Fact({ k, v }: { k: string; v: ReactNode }) {
