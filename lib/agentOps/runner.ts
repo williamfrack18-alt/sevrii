@@ -115,6 +115,15 @@ Case data from the chat (non-sensitive): ${JSON.stringify(Object.fromEntries(Obj
 Customer's corrections or answers: ${c.data.__answers || "-"}`;
 }
 
+// Cut long text at a word, never mid-word.
+function cut(v: unknown, n: number): string {
+  const t = String(v ?? "").trim();
+  if (t.length <= n) return t;
+  const head = t.slice(0, n - 1);
+  const sp = head.lastIndexOf(" ");
+  return `${(sp > n * 0.6 ? head.slice(0, sp) : head).replace(/[\s,.;:]+$/, "")}…`;
+}
+
 type Stop = { status: AgentCaseRow["status"]; waiting: AgentCaseRow["waiting"]; say: string } | null;
 
 export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: string): Promise<{ case: AgentCaseRow; more: boolean }> {
@@ -231,7 +240,7 @@ export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: stri
             }
             case "ask_customer_input": {
               const url = await hands.liveUrl();
-              stop = { status: "needs_input", waiting: { kind: "sensitive", label: String(inp.what).slice(0, 120), detail: String(inp.why).slice(0, 300), url }, say: text };
+              stop = { status: "needs_input", waiting: { kind: "sensitive", label: cut(inp.what, 120), detail: cut(inp.why, 300), url }, say: text };
               note(`asked the customer to type: ${inp.what}`);
               break;
             }
@@ -240,12 +249,12 @@ export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: stri
                 out = "The customer already approved this. Don't ask again: click the final button now.";
                 break;
               }
-              stop = { status: "needs_ok", waiting: { kind: "confirm", label: String(inp.summary).slice(0, 600), detail: "", url: "" }, say: text };
+              stop = { status: "needs_ok", waiting: { kind: "confirm", label: cut(inp.summary, 600), detail: "", url: "" }, say: text };
               data.__okAsked = now();
               note(`asked OK: ${inp.summary}`);
               break;
             case "ask_customer_info":
-              stop = { status: "needs_input", waiting: { kind: "info", label: String(inp.question).slice(0, 300), detail: "", url: "" }, say: text || String(inp.question) };
+              stop = { status: "needs_input", waiting: { kind: "info", label: cut(inp.question, 300), detail: "", url: "" }, say: text || String(inp.question) };
               note(`asked: ${inp.question}`);
               break;
             case "step":
@@ -261,7 +270,7 @@ export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: stri
               break;
             case "report_blocked": {
               const url = await hands.liveUrl().catch(() => "");
-              stop = { status: "blocked", waiting: { kind: "captcha", label: String(inp.reason).slice(0, 300), detail: String(inp.next_step).slice(0, 300), url: /^https?:\/\//.test(inp.url) ? inp.url : url }, say: text };
+              stop = { status: "blocked", waiting: { kind: "captcha", label: cut(inp.reason, 300), detail: cut(inp.next_step, 300), url: /^https?:\/\//.test(inp.url) ? inp.url : url }, say: text };
               data.__live = url;
               note(`blocked: ${inp.reason}`);
               break;
@@ -273,13 +282,15 @@ export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: stri
                 out = "not verified: that value isn't on the current page. Read the confirmation page and use the exact number/link, or mark_pending.";
                 break;
               }
-              result = { kind: String(inp.kind).slice(0, 60), value: value.slice(0, 120), url: /^https?:\/\//.test(String(inp.url || "")) ? String(inp.url) : state.url || "", verifiedAt: now(), test: mode === "test" };
+              result = { kind: String(inp.kind).slice(0, 60), value: value.slice(0, 120), url: mode === "test" ? "" : /^https?:\/\//.test(String(inp.url || "")) ? String(inp.url) : state.url || "", verifiedAt: now(), test: mode === "test" };
+              // The work is over: no step stays "in progress".
+              for (let i = 0; i < steps.length; i++) if (steps[i].status === "doing") steps[i] = { ...steps[i], status: "done", at: now() };
               stop = { status: "done", waiting: null, say: text };
               note(`done: ${inp.kind} ${value}`);
               break;
             }
             case "mark_pending":
-              stop = { status: "pending", waiting: { kind: "info", label: String(inp.reason).slice(0, 300), detail: String(inp.next_step).slice(0, 300), url: "" }, say: text };
+              stop = { status: "pending", waiting: { kind: "info", label: cut(inp.reason, 300), detail: cut(inp.next_step, 300), url: "" }, say: text };
               note(`pending: ${inp.reason}`);
               break;
             default:
@@ -347,7 +358,9 @@ export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: stri
     const es = b.site.lang !== "en";
     const fallback =
       stop.status === "done"
-        ? es ? "Listo: tu trámite quedó hecho y verificado. Aquí está el resultado." : "Done: your task is finished and verified. Here's the result."
+        ? result?.test
+          ? es ? "Listo: la prueba terminó y quedó verificada en la oficina de práctica. Nada se envió de verdad." : "Done: the test finished and was verified in the practice office. Nothing real was sent."
+          : es ? "Listo: tu trámite quedó hecho y verificado. Aquí está el resultado." : "Done: your task is finished and verified. Here's the result."
         : stop.status === "needs_ok"
           ? es ? "Antes de enviarlo necesito tu OK. Revisa el resumen:" : "Before I submit it I need your OK. Check the summary:"
           : stop.status === "needs_input"

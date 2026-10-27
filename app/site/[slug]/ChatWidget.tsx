@@ -883,7 +883,7 @@ function CaseCard({ slug, token, id, lang, live, onChange }: { slug: string; tok
       )}
       {c.result && (
         <div className="cw-case-result">
-          <span>✓ {t.caseResult}{c.result.test ? " (prueba)" : ""}</span>
+          <span>✓ {t.caseResult}{c.result.test ? (lang === "en" ? " (test)" : " (prueba)") : ""}</span>
           <b>{c.result.kind}: {c.result.value}</b>
           {c.result.url && <a className="cw-link" href={c.result.url} target="_blank" rel="noopener noreferrer">{c.result.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)}</a>}
         </div>
