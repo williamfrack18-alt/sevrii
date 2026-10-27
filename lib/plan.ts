@@ -233,7 +233,20 @@ export const EMPTY_PLAN: BusinessPlan = {
 
 // ---------- parsing helpers ----------
 export function str(v: unknown, max: number): string {
-  return typeof v === "string" ? v.trim().replace(/\s+/g, " ").slice(0, max) : typeof v === "number" ? String(v).slice(0, max) : "";
+  if (typeof v === "number") return String(v).slice(0, max);
+  if (typeof v !== "string") return "";
+  const s = v.trim().replace(/\s+/g, " ");
+  // Prose too long for its field is cut at a word, with "…", never mid-word.
+  // (A sentence stored by the old hard cut — exactly max long, ending in a
+  // letter — gets the same treatment.) Text without spaces (ids, links) is
+  // cut as before.
+  const cutBefore = s.length > max || (s.length === max && /\s/.test(s) && /[\p{L}\d]$/u.test(s));
+  if (!cutBefore) return s;
+  if (!/\s/.test(s)) return s.slice(0, max);
+  const head = s.slice(0, max - 1);
+  const space = head.lastIndexOf(" ");
+  const base = space > max * 0.5 ? head.slice(0, space) : head;
+  return `${base.replace(/[\s,;:.\-–—]+$/u, "")}…`;
 }
 function num(v: unknown, min: number, max: number): number | null {
   if (v === null || v === undefined || v === "") return null;

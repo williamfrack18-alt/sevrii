@@ -50,10 +50,10 @@ const TEXT = {
       runningSub: "Da el OK a cada campaña antes de lanzarla y mira sus resultados.",
     },
     progress: "Tu avance",
-    progressSub: (done: number, total: number) => `${done} de ${total} pasos`,
+    progressSub: (done: number, total: number) => `${done} de ${total} pasos · van en orden: cada uno cuenta cuando el anterior está listo`,
     // The real order: strategy → page → payments (to charge) → ads.
     steps: ["Estrategia lista", "Página publicada", "Pagos conectados", "Marketing aprobado"],
-    early: "hecho, pero falta el paso anterior",
+    early: (prev: string) => `Ya lo hiciste; cuenta cuando completes «${prev}»`,
     views: "Visitas",
     contacts: "Contactos",
     unread: "Chats sin leer",
@@ -97,9 +97,9 @@ const TEXT = {
       runningSub: "Give your OK to each campaign before it launches and see its results.",
     },
     progress: "Your progress",
-    progressSub: (done: number, total: number) => `${done} of ${total} steps`,
+    progressSub: (done: number, total: number) => `${done} of ${total} steps · in order: each counts once the one before is done`,
     steps: ["Strategy ready", "Page live", "Payments connected", "Marketing approved"],
-    early: "done, but an earlier step is missing",
+    early: (prev: string) => `Done already; it counts once you complete "${prev}"`,
     views: "Visits",
     contacts: "Contacts",
     unread: "Unread chats",
@@ -228,7 +228,7 @@ export default function ProjectsView({
                     </span>
                     <span className="min-w-0">
                       {s}
-                      {early[i] && <span className="block text-[12px] text-pmuted leading-snug">{tx.early}</span>}
+                      {early[i] && <span className="block text-[12px] text-pmuted leading-snug">{tx.early(tx.steps[flags.findIndex((f) => !f)] ?? "")}</span>}
                     </span>
                   </li>
                 ))}

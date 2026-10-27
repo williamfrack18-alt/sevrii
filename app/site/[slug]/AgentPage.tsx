@@ -35,7 +35,7 @@ const TEXT = {
     accessNote: "Primero lo pruebas gratis. Pagas dentro del chat, con tarjeta, solo si quieres seguir.",
     limitsEyebrow: "Con confianza",
     limitsTitle: (name: string) => `Lo que ${name} no hace`,
-    honest: (agent: string, owner: string) => `${agent} es un agente de IA y siempre te lo dice. Detrás está ${owner}, quien lo creó: lee las conversaciones y entra al chat cuando hace falta.`,
+    honest: (agent: string, owner: string) => `${agent} es un agente de IA y siempre te lo dice. Detrás está ${owner ? `${owner}, quien lo creó` : "la persona que lo creó"}: lee las conversaciones y entra al chat cuando hace falta.`,
     faqEyebrow: "Preguntas frecuentes",
     faqTitle: "Antes de empezar",
     finalTitle: (name: string) => `Prueba ${name} ahora`,
@@ -84,7 +84,7 @@ const TEXT = {
     accessNote: "Try it free first. You pay inside the chat, by card, only if you want to keep going.",
     limitsEyebrow: "With confidence",
     limitsTitle: (name: string) => `What ${name} doesn't do`,
-    honest: (agent: string, owner: string) => `${agent} is an AI agent and always tells you so. Behind it is ${owner}, who created it: they read the conversations and join the chat when needed.`,
+    honest: (agent: string, owner: string) => `${agent} is an AI agent and always tells you so. Behind it is ${owner ? `${owner}, who created it` : "the person who created it"}: they read the conversations and join the chat when needed.`,
     faqEyebrow: "Frequently asked questions",
     faqTitle: "Before you start",
     finalTitle: (name: string) => `Try ${name} now`,
@@ -135,6 +135,11 @@ export default function AgentPage({
   // the agent gets "IA"/"AI" so agent and owner are never the same name.
   const baseName = a.name || business.name;
   const name = baseName.trim().toLowerCase() === creator.trim().toLowerCase() && !/\b(IA|AI)\b/.test(baseName) ? `${baseName} ${lang === "es" ? "IA" : "AI"}` : baseName;
+  // "Creado por" shows a person: the owner's name. The brand (the business or
+  // the agent's own name) is not a creator, so until the owner gives their
+  // name the row stays hidden (Store asks for it).
+  const same = (x: string, y: string) => x.trim().toLowerCase() === y.trim().toLowerCase();
+  const person = [site.ownerName, a.creator.split(/[·,|(]/)[0]].map((x) => (x || "").trim()).find((x) => x && !same(x, business.name) && !same(x, baseName) && !same(x, name)) || "";
   const owner = site.ownerName || business.name;
   const offer = activeOffer(site);
   const cheapest = a.offers.length ? Math.min(...a.offers.map((o) => o.priceCents)) : 0;
@@ -207,17 +212,17 @@ export default function AgentPage({
             )}
             <div className="info-card">
               <div className="eyebrow grad-text">{t.infoTitle}</div>
-              {creator && (
+              {person && (
                 <div className="ag-maker">
                   {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photo} alt="" />
                   ) : (
-                    <span className="ag-maker-initial">{creator.slice(0, 1).toUpperCase()}</span>
+                    <span className="ag-maker-initial">{person.slice(0, 1).toUpperCase()}</span>
                   )}
                   <span>
                     <span className="k">{t.madeBy}</span>
-                    <span className="v">{creator}</span>
+                    <span className="v">{person}</span>
                   </span>
                 </div>
               )}
@@ -370,7 +375,7 @@ export default function AgentPage({
             <div className="section-head">
               <span className="eyebrow grad-text">{t.limitsEyebrow}</span>
               <h2>{t.limitsTitle(name)}</h2>
-              <p className="ag-lede">{t.honest(name, creator)}</p>
+              <p className="ag-lede">{t.honest(name, person)}</p>
             </div>
             <ul>
               <li>{t.always}</li>
@@ -432,7 +437,12 @@ export default function AgentPage({
 
       <section className="final-cta">
         <div className="wrap">
-          <h2>{t.finalTitle(name.replace(/ /g, "\u00a0"))}</h2>
+          <h2>
+            {/* The agent's name never breaks across lines (normal spaces, so copy/paste and readers see "PasaDMV IA"). */}
+            {t.finalTitle("\u0001").split("\u0001")[0]}
+            <span style={{ whiteSpace: "nowrap" }}>{name}</span>
+            {t.finalTitle("\u0001").split("\u0001")[1]}
+          </h2>
           <p>{t.finalText}</p>
           <div className="btns">
             <ChatLink className="btn light">

@@ -25,7 +25,7 @@ const TEXT = {
     hours: "Horario",
     noHours: "Sin horario",
     missing: "Para que venda más te falta:",
-    items: { photos: "fotos de tus trabajos", photo: "tu foto (para que vean quién lo creó)", video: "un video corto tuyo", hours: "tu horario", owner: "tu nombre (lo ven al chatear)" },
+    items: { photos: "fotos de tus trabajos", photo: "tu foto (para que vean quién lo creó)", video: "un video corto tuyo", hours: "tu horario", owner: "tu nombre (sale en «Creado por» y en el chat)" },
     planNew: "Tu estrategia está aprobada y tu página aún no la tiene.",
     planChanged: "Cambiaste tu estrategia en el Cerebro. Tu página todavía muestra la anterior.",
     build: "Armar mi página",

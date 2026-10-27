@@ -258,7 +258,7 @@ export default function MarketingView({
         </div>
         <ChatPanel
           greeting={greeting}
-          initialMessages={initialMessages}
+          initialMessages={withLiveButtons(initialMessages, approved, lang === "es")}
           texts={{ ...t.chat, seeBelow: "", seeBelowHref: "" }}
           dock={dock}
           dockLabel={es ? "Tu estrategia de marketing" : "Your marketing strategy"}
@@ -268,7 +268,7 @@ export default function MarketingView({
             applyUpdate(res);
             // The chat may have changed campaigns the agent was proposing.
             if (showAgent) loadAgent();
-            return res.messages;
+            return withLiveButtons(res.messages, Boolean(res.business.marketing.approvedAt), lang === "es");
           }}
         />
       </section>
@@ -289,6 +289,19 @@ function Check({ size = 10 }: { size?: number }) {
       <path d="M5 12.5l4.5 4.5L19 7.5" />
     </svg>
   );
+}
+
+// Earlier strategist messages may point to "Aprobar estrategia y ponerla en
+// marcha". Once the strategy is approved that button is gone and the panel ends
+// with "Ver lo que está en marcha", so those messages say where to go now.
+// Display only: nothing is approved or changed.
+const APPROVE_BTN = /(Aprobar estrategia y ponerla en marcha|Approve strategy and put it to work)/i;
+function withLiveButtons<M extends { role: string; content: string }>(msgs: M[], approved: boolean, es: boolean): M[] {
+  if (!approved) return msgs;
+  const note = es
+    ? "\n\n(Tu estrategia ya está aprobada, así que ese botón ya no aparece. Al final del panel «Tu estrategia de marketing» ahora está «Ver lo que está en marcha»: ahí das el OK a cada campaña con «Aprobar» o «Descartar».)"
+    : "\n\n(Your strategy is already approved, so that button is gone. The \"Your marketing strategy\" panel now ends with \"See what's running\": that's where you give each campaign your OK with \"Approve\" or \"Dismiss\".)";
+  return msgs.map((m) => (m.role !== "user" && APPROVE_BTN.test(m.content) && !m.content.includes(note.trim()) ? { ...m, content: m.content + note } : m));
 }
 
 // The state in words, no unlabeled numbers: the strategy, the campaigns and

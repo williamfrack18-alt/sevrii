@@ -63,7 +63,8 @@ Máximo 70 palabras.`;
 
 const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí mismo en el chat, una parte a la vez y en este orden: servicio, presentación, paquetes, oferta y preguntas frecuentes. Aquí solo se diseña la oferta: la campaña, los anuncios, el video y las fotos se deciden después en Marketing; si pregunta por eso, díselo en una línea. La parte que están viendo ahora es "currentPart" en el estado: el sistema la muestra en una tarjeta justo debajo de tu mensaje, con botones de Aprobar y Cambiar.
 - No repitas el contenido de la tarjeta ni hagas listas: ya la está viendo. Habla de la parte actual, en 1 a 3 frases.
-- Si dice que está bien ("sí", "me gusta", "dale", "apruebo"), llama a approve_blocks con currentPart y no digas nada de la siguiente: el sistema la muestra sola. Responde solo algo corto como "Perfecto, aprobado."
+- Si aprueba esa parte de forma explícita ("apruebo", "así está bien", o un "sí"/"dale" respondiendo a si la aprueba), llama a approve_blocks con currentPart y no digas nada de la siguiente: el sistema la muestra sola. Responde solo algo corto como "Perfecto, aprobado."
+- "Continúa", "sigue", "lo demás" o "el resto" NO son aprobación: no llames a approve_blocks. Dile en una línea que para seguir apruebe esta parte con el botón Aprobar de la tarjeta (o te diga que la aprueba), o qué quiere cambiar.
 - Si pide un cambio, hazlo con update_proposal (solo los campos que cambian) y confírmalo en una línea; la tarjeta actualizada aparece sola debajo. Cambiar una parte ya aprobada le quita la aprobación y vuelve a mostrarse.
 - Si pregunta algo, responde corto con los datos del expediente y termina preguntando si la deja así o qué le cambias.
 - Si quiere aprobar todo de una vez, llama a approve_blocks con todas las partes que faltan.
@@ -358,7 +359,19 @@ export async function resumeStuckResearch(b: BusinessRow, lang: Lang): Promise<B
   return (await getBusinessById(b.id)) ?? null;
 }
 
-async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = ""): Promise<{ out: string; startPipeline?: boolean }> {
+// Approving a part of the proposal from the chat needs the owner to say so:
+// "apruebo", "así está bien", or a bare "sí/ok/dale" answering the card. A
+// generic "continúa con el resto" is not an approval (the card's button is).
+const EXPLICIT_APPROVAL = /(apru[eé]b|aprob|approv|as[ií] est[aá] bien|est[aá] bien as[ií]|d[eé]jal[ao]s? as[ií]|me gusta (as[ií]|como est[aá]|esta parte|eso)|confirm|looks good|keep it)/i;
+const BARE_YES = /^\s*(s[ií]|ok(ay)?|dale|listo|perfecto|me gusta|de acuerdo|yes|yep|sure|good)[\s.!¡]*$/i;
+const NOT_APPROVAL = /(contin[uú]|sigue|siguiente|next|go on|el resto|the rest)/i;
+export function saidApproval(lastMessage: string): boolean {
+  const m = lastMessage.trim();
+  if (EXPLICIT_APPROVAL.test(m)) return true;
+  return BARE_YES.test(m) && !NOT_APPROVAL.test(m);
+}
+
+async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = ""): Promise<{ out: string; startPipeline?: boolean }> {
   const plan = b.plan;
   switch (name) {
     case "save_profile": {
@@ -446,6 +459,8 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     }
     case "approve_blocks": {
       if (plan.stage !== "proposal") return { out: "error: nothing to approve" };
+      if (!saidApproval(lastSaid))
+        return { out: "not approved: the owner did not explicitly approve this part (asking to continue is not an approval). Nothing changed. Tell them in one line that to go on they approve this part with the card's \"Aprobar\" button (or tell you it's approved), or say what to change." };
       const blocks = (Array.isArray(input.blocks) ? input.blocks : []).filter((x): x is ApprovalBlock => APPROVAL_BLOCKS.includes(x as ApprovalBlock));
       const { plan: next, refused } = applyApprovals(plan, blocks, lang);
       await updateBusinessPlan(b.id, next);
@@ -544,7 +559,7 @@ export async function runPlanChatTurn(opts: {
       for (const u of uses) {
         let out: string;
         try {
-          const r = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, opts.lang, ownerSaid);
+          const r = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, opts.lang, ownerSaid, opts.message);
           out = r.out;
           if (r.startPipeline) startPipeline = true;
         } catch (err) {
