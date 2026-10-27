@@ -148,10 +148,17 @@ export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: stri
     // Where we are: the page the browser has open (or nothing yet).
     const startView = state.url ? await hands.read().catch(() => null) : null;
     last = startView;
+    // The customer's OK (given in the chat) is fresh: the agent must know it,
+    // or it asks again for the same thing in a loop.
+    const okFresh = () => {
+      const at = data.__ok ? Date.parse(data.__ok) : 0;
+      return Boolean(at && Date.now() - at < OK_TTL_MS);
+    };
+    const approved = okFresh() ? `\n\nThe customer APPROVED your last summary (${data.__ok}). Do the approved final action now (click the button); don't ask for the OK again.` : "";
     const messages: MessageParam[] = [
       {
         role: "user",
-        content: `Log so far:\n${log.join("\n") || "(new case)"}\n\n${startView ? `Current page:\n${view(startView)}` : "No page open yet: start with browser_open on the official platform."}\n\nContinue the task.`,
+        content: `Log so far:\n${log.join("\n") || "(new case)"}\n\n${startView ? `Current page:\n${view(startView)}` : "No page open yet: start with browser_open on the official platform."}${approved}\n\nContinue the task.`,
       },
     ];
 
@@ -229,6 +236,10 @@ export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: stri
               break;
             }
             case "ask_customer_ok":
+              if (okFresh()) {
+                out = "The customer already approved this. Don't ask again: click the final button now.";
+                break;
+              }
               stop = { status: "needs_ok", waiting: { kind: "confirm", label: String(inp.summary).slice(0, 600), detail: "", url: "" }, say: text };
               data.__okAsked = now();
               note(`asked OK: ${inp.summary}`);

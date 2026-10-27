@@ -74,6 +74,7 @@ const TEXT = {
     caseStatus: { working: "Trabajando en la página oficial…", needs_input: "Te necesito un momento", needs_ok: "Necesita tu OK", blocked: "Bloqueado: falta un paso tuyo", done: "Listo · verificado", pending: "Pendiente" } as Record<string, string>,
     caseTest: "Modo de prueba: opera una oficina de práctica, nada se envía de verdad.",
     caseFile: "Expediente",
+    caseBelow: "Estado al día más abajo ↓",
     caseOk: "Sí, hazlo",
     caseFix: "Corregir algo",
     caseFixPh: "¿Qué cambio?",
@@ -130,6 +131,7 @@ const TEXT = {
     caseStatus: { working: "Working on the official page…", needs_input: "I need you for a moment", needs_ok: "Needs your OK", blocked: "Blocked: a step is missing", done: "Done · verified", pending: "Pending" } as Record<string, string>,
     caseTest: "Test mode: it operates a practice office, nothing real is sent.",
     caseFile: "Case file",
+    caseBelow: "Current status below ↓",
     caseOk: "Yes, do it",
     caseFix: "Change something",
     caseFixPh: "What should change?",
@@ -815,7 +817,8 @@ function CaseCard({ slug, token, id, lang, live, onChange }: { slug: string; tok
     return (
       <div className="cw-case mini">
         <span>{t.caseFile}: {c.title}</span>
-        <b>{t.caseStatus[c.status]}</b>
+        {/* An older card is a snapshot: only the newest one shows the status, so two cards never disagree. */}
+        <b>{c.status === "done" ? t.caseStatus.done : t.caseBelow}</b>
       </div>
     );
   const w = c.waiting;
