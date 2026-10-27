@@ -276,10 +276,25 @@ export type Hands = {
   done(): void;
 };
 
-export async function getHands(state: BrowserState, ctx: { caseId: string; platform: string; needs: string[]; baseUrl: string }): Promise<Hands> {
-  if (browserMode() === "live") {
+// A case keeps the mode it was created with: a test case always runs in the
+// practice office (even after the cloud browser key is added), and a live case
+// never falls back to the practice office.
+export async function getHands(state: BrowserState, ctx: { caseId: string; mode: "live" | "test"; platform: string; needs: string[]; baseUrl: string }): Promise<Hands> {
+  if (ctx.mode === "live") {
+    if (browserMode() !== "live") throw new Error("browserbase not configured");
     const b = await LiveBrowser.attach(state);
     return { mode: "live", open: (u) => b.open(u), read: () => b.read(), fill: (i, v) => b.fill(i, v), click: (i) => b.click(i), liveUrl: () => b.liveUrl(), done: () => b.detach() };
+  }
+  if (state.sessionId) {
+    // A cloud browser left open on a test case: close it and forget it.
+    await releaseBrowser(state);
+    state.sessionId = undefined;
+    state.connectUrl = undefined;
+    state.liveUrl = undefined;
+  }
+  if (state.url && !state.url.startsWith("https://practica.sevrii.com")) {
+    state.url = undefined;
+    state.lastText = undefined;
   }
   state.sandbox ??= { page: "start", values: {}, cardEntered: false, confirmation: "", platform: ctx.platform, needs: ctx.needs };
   const sb = state.sandbox;

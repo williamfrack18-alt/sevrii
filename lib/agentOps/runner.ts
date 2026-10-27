@@ -143,7 +143,7 @@ export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: stri
   };
 
   try {
-    hands = await getHands(state, { caseId: c.id, platform: task.platforms[0]?.name || "", needs: task.needs, baseUrl });
+    hands = await getHands(state, { caseId: c.id, mode: c.mode, platform: task.platforms[0]?.name || "", needs: task.needs, baseUrl });
     const mode = hands.mode;
     // Where we are: the page the browser has open (or nothing yet).
     const startView = state.url ? await hands.read().catch(() => null) : null;
