@@ -172,23 +172,36 @@ async function bb<T>(path: string, init: RequestInit = {}): Promise<T> {
 class LiveBrowser {
   constructor(private state: BrowserState, private cdp: Cdp, private sid: string) {}
 
+  private static async create(state: BrowserState) {
+    // keepAlive keeps the browser open while the customer types or approves
+    // (between requests); it needs a paid Browserbase plan.
+    const created = await bb<{ id: string; connectUrl: string }>("/sessions", {
+      method: "POST",
+      body: JSON.stringify({
+        ...(process.env.BROWSERBASE_PROJECT_ID ? { projectId: process.env.BROWSERBASE_PROJECT_ID } : {}),
+        keepAlive: true,
+        timeout: 3600,
+        // Never solve CAPTCHAs for the customer: the agent stops and says so.
+        browserSettings: { solveCaptchas: false, blockAds: true, viewport: { width: 1280, height: 900 } },
+        userMetadata: { app: "sevrii-agent" },
+      }),
+    });
+    state.sessionId = created.id;
+    state.connectUrl = created.connectUrl;
+    state.url = undefined;
+    state.lastText = undefined;
+  }
+
   static async attach(state: BrowserState): Promise<LiveBrowser> {
-    if (!state.sessionId || !state.connectUrl) {
-      const created = await bb<{ id: string; connectUrl: string }>("/sessions", {
-        method: "POST",
-        body: JSON.stringify({
-          ...(process.env.BROWSERBASE_PROJECT_ID ? { projectId: process.env.BROWSERBASE_PROJECT_ID } : {}),
-          keepAlive: true,
-          timeout: 3600,
-          // Never solve CAPTCHAs for the customer: the agent stops and says so.
-          browserSettings: { solveCaptchas: false, blockAds: true, viewport: { width: 1280, height: 900 } },
-          userMetadata: { app: "sevrii-agent" },
-        }),
-      });
-      state.sessionId = created.id;
-      state.connectUrl = created.connectUrl;
+    if (!state.sessionId || !state.connectUrl) await LiveBrowser.create(state);
+    let cdp: Cdp;
+    try {
+      cdp = await Cdp.connect(state.connectUrl!);
+    } catch {
+      // The earlier browser ended (timeout): start a new one from the official page.
+      await LiveBrowser.create(state);
+      cdp = await Cdp.connect(state.connectUrl!);
     }
-    const cdp = await Cdp.connect(state.connectUrl!);
     const { targetInfos } = await cdp.send<{ targetInfos: { targetId: string; type: string }[] }>("Target.getTargets");
     let page = targetInfos.find((t) => t.type === "page");
     if (!page) {

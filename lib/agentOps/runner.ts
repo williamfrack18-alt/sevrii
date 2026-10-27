@@ -296,7 +296,23 @@ export async function advanceCase(b: BusinessRow, c: AgentCaseRow, baseUrl: stri
     }
   } catch (err) {
     logAiError("agent-case", err);
-    note(`error: ${err instanceof Error ? err.message : "failed"}`);
+    const msg = err instanceof Error ? err.message : "failed";
+    note(`error: ${msg}`);
+    // The cloud browser itself isn't available (key, plan or service): say so
+    // instead of retrying forever, and leave the case pending.
+    if (/browserbase|browser connect/i.test(msg)) {
+      const es = b.site.lang !== "en";
+      stop = {
+        status: "pending",
+        waiting: {
+          kind: "info",
+          label: es ? "El navegador en la nube no está disponible ahora mismo." : "The cloud browser isn't available right now.",
+          detail: es ? "Lo intento de nuevo más tarde; no se envió nada." : "I'll try again later; nothing was sent.",
+          url: "",
+        },
+        say: "",
+      };
+    }
   } finally {
     hands?.done();
   }
