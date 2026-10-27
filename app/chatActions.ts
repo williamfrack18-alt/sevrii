@@ -46,6 +46,13 @@ import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
 import { runForUser, serviceAgentAccount, serviceAgentGate, visitorAiAccount, visitorAiGate } from "@/lib/usage";
 import { runServiceAgent, type AgentMode } from "@/lib/serviceAgent";
+import { createAgentCase, getAgentCase, openCaseForConversation, updateAgentCase, type AgentCaseRow } from "@/lib/db";
+import { advanceCase, caseToken } from "@/lib/agentOps/runner";
+import { headers } from "next/headers";
+import { browserMode } from "@/lib/agentOps/browser";
+import { redactSensitive } from "@/lib/agentOps/redact";
+import { saidApproval } from "@/lib/brain/interviewer";
+import { hasTask } from "@/lib/serviceAgentConfig";
 import { agentMissing, offerPriceLabel, welcomeFor } from "@/lib/serviceAgentConfig";
 import { agentSubscriptionEnd, checkoutForAgentOffer, getPaidAgentSession, paymentsReady } from "@/lib/payments";
 import { affiliateForCheckout, recordAffiliateSessionById } from "@/lib/affiliates";
@@ -152,6 +159,19 @@ async function accessNow(b: BusinessRow, convId: string): Promise<{ access: Agen
 async function agentTurn(b: BusinessRow, conv: ConversationRow, history: ConvMessageRow[], ownerTest: boolean): Promise<{ reply: string; contact?: { name?: string; phone?: string; email?: string }; handoff?: string } | null> {
   const es = b.site.lang !== "en";
   const a = b.serviceAgent;
+  // A case the agent is doing: the customer's OK or a missing answer moves it
+  // on directly (no AI reply needed, no reply used).
+  const openCase = hasTask(a) ? await openCaseForConversation(conv.id) : null;
+  const said = history.length ? history[history.length - 1].content : "";
+  if (openCase && openCase.status === "needs_ok" && saidApproval(said)) {
+    await updateAgentCase(openCase.id, { status: "working", waiting: null, data: { ...openCase.data, __ok: new Date().toISOString() } });
+    return { reply: `${es ? "Perfecto, lo hago ahora." : "Great, doing it now."}\n\n${caseToken(openCase.id)}` };
+  }
+  if (openCase && openCase.status === "needs_input" && openCase.waiting?.kind === "info") {
+    const answers = `${openCase.data.__answers ? `${openCase.data.__answers}\n` : ""}${said}`.slice(-2000);
+    await updateAgentCase(openCase.id, { status: "working", waiting: null, data: { ...openCase.data, __answers: answers } });
+    return { reply: `${es ? "Gracias, sigo con tu trámite." : "Thanks, I'll keep going."}\n\n${caseToken(openCase.id)}` };
+  }
   let mode: AgentMode;
   if (ownerTest) mode = { kind: "owner_test" };
   else {
@@ -179,7 +199,20 @@ async function agentTurn(b: BusinessRow, conv: ConversationRow, history: ConvMes
     }
   }
   if (!(await serviceAgentGate(b.userId))) return null;
-  return runForUser(serviceAgentAccount(b.userId), () => runServiceAgent(b, conv, history, mode)).catch(() => null);
+  // Doing the task (operating the official pages) is for paid access and the owner's own test.
+  const canOperate = hasTask(a) && (mode.kind === "paid" || mode.kind === "owner_test");
+  const turn = await runForUser(serviceAgentAccount(b.userId), () => runServiceAgent(b, conv, history, mode, { canOperate, openCase })).catch(() => null);
+  if (!turn) return null;
+  if (turn.startCase && canOperate && !openCase) {
+    const c = await createAgentCase({ businessId: b.id, conversationId: conv.id, mode: browserMode(), title: turn.startCase.title, data: turn.startCase.facts });
+    return { ...turn, reply: `${turn.reply}\n\n${caseToken(c.id)}` };
+  }
+  if (turn.correction && openCase) {
+    const answers = `${openCase.data.__answers ? `${openCase.data.__answers}\n` : ""}${turn.correction}`.slice(-2000);
+    await updateAgentCase(openCase.id, { status: "working", waiting: null, data: { ...openCase.data, __answers: answers } });
+    return { ...turn, reply: `${turn.reply}\n\n${caseToken(openCase.id)}` };
+  }
+  return turn;
 }
 
 function fallback(b: BusinessRow, hasContact: boolean): string {
@@ -281,7 +314,18 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
     }
   }
 
-  const visitorMsg = await addConvMessage(conv.id, "visitor", text);
+  // Sensitive data never stays in an agent's chat (cards, SSN, passwords).
+  const safe = agentLive(b) ? redactSensitive(text) : { text, found: false };
+  const visitorMsg = await addConvMessage(conv.id, "visitor", safe.text);
+  if (safe.found) {
+    await addConvMessage(
+      conv.id,
+      "ai",
+      b.site.lang === "en"
+        ? "For your safety I removed that from the chat. Never send cards, Social Security numbers or passwords here: when the task needs one, you type it yourself on the official page, right when I ask."
+        : "Por tu seguridad borré ese dato del chat. Nunca mandes tarjetas, números de Seguro Social ni contraseñas aquí: cuando el trámite lo necesite, lo escribes tú en la página oficial, justo cuando te lo pida."
+    );
+  }
   const history = await listConvMessages(conv.id, 0, 40);
   const hadContact = Boolean(conv.phone || conv.email);
 
@@ -655,4 +699,93 @@ export async function agentReviewAction(input: { slug: string; token: string; ra
     name: clean(input.name, 40) || (b.site.lang === "en" ? "Customer" : "Cliente"),
   });
   return { ok: true };
+}
+
+
+// ---------- the agent's cases (the task it does for the customer) ----------
+export type PublicCase = {
+  id: string;
+  title: string;
+  status: AgentCaseRow["status"];
+  mode: "live" | "test";
+  steps: AgentCaseRow["steps"];
+  docs: AgentCaseRow["docs"];
+  result: AgentCaseRow["result"];
+  waiting: AgentCaseRow["waiting"];
+  reminders: { dueAt: string; text: string }[];
+};
+
+async function caseForChat(input: { slug: string; token: string; id: string }): Promise<{ b: BusinessRow; c: AgentCaseRow } | null> {
+  const b = await openBusiness(input.slug);
+  if (!b) return null;
+  const token = clean(input.token, 100);
+  const conv = token ? await getConversationByToken(b.id, hashToken(token)) : null;
+  const c = conv ? await getAgentCase(clean(input.id, 64)) : null;
+  if (!conv || !c || c.conversationId !== conv.id || c.businessId !== b.id) return null;
+  return { b, c };
+}
+
+function publicCase(c: AgentCaseRow): PublicCase {
+  // The live view is shown only while the customer has to act in it.
+  const w = c.waiting;
+  const waiting = w ? { ...w, url: w.kind === "sensitive" || w.kind === "captcha" ? w.url : "" } : null;
+  return { id: c.id, title: c.title, status: c.status, mode: c.mode, steps: c.steps, docs: c.docs, result: c.result, waiting, reminders: c.reminders.map((r) => ({ dueAt: r.dueAt, text: r.text })) };
+}
+
+export async function getCaseAction(input: { slug: string; token: string; id: string }): Promise<PublicCase | null> {
+  const found = await caseForChat(input);
+  return found ? publicCase(found.c) : null;
+}
+
+// The customer answers from the case card: OK to sign/submit/pay, a correction,
+// or "done" after typing something sensitive (or a CAPTCHA) in the live view.
+export async function caseReplyAction(input: { slug: string; token: string; id: string; kind: "ok" | "fix" | "done"; note?: string }): Promise<PublicCase | null> {
+  const found = await caseForChat(input);
+  if (!found) return null;
+  const { b, c } = found;
+  const es = b.site.lang !== "en";
+  if (!(await allow(`case:reply:${c.id}`, 30, 10 * 60))) return publicCase(c);
+  let next: AgentCaseRow | null = c;
+  if (input.kind === "ok" && c.status === "needs_ok") {
+    await addConvMessage(c.conversationId, "visitor", es ? "✓ Sí, hazlo." : "✓ Yes, do it.");
+    next = await updateAgentCase(c.id, { status: "working", waiting: null, data: { ...c.data, __ok: new Date().toISOString() } });
+  } else if (input.kind === "fix" && (c.status === "needs_ok" || c.status === "needs_input")) {
+    const note = clean(input.note, 600);
+    if (note) {
+      const safe = redactSensitive(note);
+      await addConvMessage(c.conversationId, "visitor", safe.text);
+      next = await updateAgentCase(c.id, { status: "working", waiting: null, data: { ...c.data, __answers: `${c.data.__answers ? `${c.data.__answers}\n` : ""}${safe.text}`.slice(-2000) } });
+    }
+  } else if (input.kind === "done" && (c.status === "needs_input" || c.status === "blocked") && c.waiting?.kind !== "info") {
+    await addConvMessage(c.conversationId, "visitor", es ? "✓ Listo, ya lo hice en la página." : "✓ Done, I did it on the page.");
+    next = await updateAgentCase(c.id, { status: "working", waiting: null });
+  }
+  return next ? publicCase(next) : null;
+}
+
+// The chat drives the agent while it works: each call does a few steps on the
+// official pages (or the practice office) and returns the updated file.
+export async function advanceCaseAction(input: { slug: string; token: string; id: string }): Promise<{ case: PublicCase | null; more: boolean }> {
+  const found = await caseForChat(input);
+  if (!found) return { case: null, more: false };
+  const { b, c } = found;
+  if (c.status !== "working") return { case: publicCase(c), more: false };
+  // One worker at a time per case (another tab may be driving it).
+  const runAt = c.data.__runAt ? Date.parse(c.data.__runAt) : 0;
+  if (runAt && Date.now() - runAt < 120_000) return { case: publicCase(c), more: true };
+  if (!(await allow(`case:advance:${c.id}`, 120, 60 * 60))) return { case: publicCase(c), more: false };
+  if (!(await serviceAgentGate(b.userId))) return { case: publicCase(c), more: false };
+  const locked = await updateAgentCase(c.id, { data: { ...c.data, __runAt: new Date().toISOString() } });
+  const h = await headers();
+  const host = h.get("x-forwarded-host") || h.get("host") || "www.sevrii.com";
+  const baseUrl = `${h.get("x-forwarded-proto") || "https"}://${host}`;
+  try {
+    const r = await runForUser(serviceAgentAccount(b.userId), () => advanceCase(b, locked ?? c, baseUrl));
+    const fresh = (await updateAgentCase(c.id, { data: Object.fromEntries(Object.entries(r.case.data).filter(([k]) => k !== "__runAt")) })) ?? r.case;
+    return { case: publicCase(fresh), more: r.more };
+  } catch {
+    const cur = await getAgentCase(c.id);
+    if (cur) await updateAgentCase(c.id, { data: Object.fromEntries(Object.entries(cur.data).filter(([k]) => k !== "__runAt")) });
+    return { case: cur ? publicCase(cur) : null, more: false };
+  }
 }

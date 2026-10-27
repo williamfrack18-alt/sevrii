@@ -18,7 +18,7 @@ import {
 import { LIMITS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
 import { planFingerprint } from "./planToStore";
-import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, parseServiceAgent, welcomeLabel } from "./serviceAgentConfig";
+import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
 
 // The Store tab is one chat. This agent interviews the owner for exactly the
 // data the conversion template needs (services and prices, offer, photos,
@@ -142,6 +142,25 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    name: "set_agent_task",
+    description:
+      "Service agent only: the complete task the agent DOES itself, end to end, on the official pages or software (it doesn't just guide). Replaces the whole task. Required before switching it on.",
+    input_schema: {
+      type: "object",
+      properties: {
+        goal: { type: "string", description: "The finished result it delivers, e.g. 'Crear tu LLC en Florida y entregarte el número de documento oficial'" },
+        platforms: { type: "array", items: { type: "object", properties: { name: { type: "string" }, url: { type: "string", description: "https link to the official page or software it operates" } }, required: ["name", "url"] } },
+        needs: { type: "array", items: { type: "string" }, description: "Ordinary data it asks in the chat (no passwords, cards or SSN)" },
+        sensitive: { type: "array", items: { type: "object", properties: { what: { type: "string" }, when: { type: "string" } }, required: ["what", "when"] }, description: "What the customer types themselves on the official page, and at which moment" },
+        confirmBefore: { type: "array", items: { type: "string" }, description: "Steps that need the customer's OK (sign, submit, pay)" },
+        verify: { type: "string", description: "How it proves it's done (confirmation number, document, official record)" },
+        deliver: { type: "string", description: "What the customer receives in the chat" },
+        reminders: { type: "string", description: "Proactive reminders after it's done (deadlines), if any" },
+      },
+      required: ["goal", "platforms", "verify", "deliver"],
+    },
+  },
+  {
     name: "set_agent_offers",
     description: "Service agent only: what customers can buy to use the agent (replaces all offers). Prices in USD, at least $15.",
     input_schema: {
@@ -193,7 +212,8 @@ How to work:
 - When the essentials are done (services with prices, the owner's name, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
 - If the owner asks for something the page can't do, say so briefly.
 - "brainPlan" is the strategy the owner already made with Sevrii's Brain (service, customer, promise, differentiators, packages with prices, offer). Use it: propose the headline from the promise, key points from the differentiators and services from the packages, and confirm with the owner instead of asking from scratch. If the plan offer has forNewClients=true, use it without a date. Otherwise, if it has no endsAt, ask for a real end date before adding it to the page; if it has one, use that date.
-- Service agent ("agent" in the state, when the owner is creating one): the page chat becomes their AI agent that delivers the service by itself and charges for access. An agent is a digital product that doesn't depend on what the owner knows: its knowledge base already comes from the Brain's official research. Help them finish it before publishing: its name and one-line role; its method step by step (instructions); if they WANT to add their own material, rules or answers, save it with knowledgeAdd in their own words (optional, never a requirement, never invent facts); its limits (always: it says it's an AI, never promises results, the owner handles refunds and cases outside the service); its greeting; how many free replies (3 is a good start); and what customers buy (set_agent_offers: one-time access for N days and/or monthly, each $15 or more). A welcome offer for new customers is set with update_agent welcomePercent (and welcomeOn): it applies only to a customer's first purchase and never takes a price under $15. If "agent.paymentsReady" is false, tell them once that to charge they must connect Payments (left menu) — until then the agent only gives the free replies and then passes the chat to them. Then ask if they want to switch it on (update_agent enabled=true) and suggest testing it themselves on "Ver borrador" (as the owner they can chat for free). The page itself still needs a headline, a photo of the owner and publishing like any page. An agent's page is different from a normal service page: it shows "AI agent · 24/7", the free trial, the chat first, who created it (creator + the owner's photo), why it's worth paying for instead of a free AI chat (edge), its access prices and its limits. So for an agent don't ask for hours, service area, license or years in business; don't ask for photos of their work; their photo is optional (it shows next to "created by", with their name only), and make sure edge is true and concrete. It always guides and accompanies: it doesn't file paperwork for the customer or replace an official office or a licensed professional, and never promises results.
+- Service agent ("agent" in the state, when the owner is creating one): the page chat becomes their AI agent that delivers the service by itself and charges for access. An agent is a digital product that doesn't depend on what the owner knows: its knowledge base already comes from the Brain's official research. Help them finish it before publishing: its name and one-line role; its method step by step (instructions); if they WANT to add their own material, rules or answers, save it with knowledgeAdd in their own words (optional, never a requirement, never invent facts); its limits (always: it says it's an AI, never promises results, the owner handles refunds and cases outside the service); its greeting; how many free replies (3 is a good start); and what customers buy (set_agent_offers: one-time access for N days and/or monthly, each $15 or more). A welcome offer for new customers is set with update_agent welcomePercent (and welcomeOn): it applies only to a customer's first purchase and never takes a price under $15. If "agent.paymentsReady" is false, tell them once that to charge they must connect Payments (left menu) — until then the agent only gives the free replies and then passes the chat to them. Then ask if they want to switch it on (update_agent enabled=true) and suggest testing it themselves on "Ver borrador" (as the owner they can chat for free). The page itself still needs a headline, a photo of the owner and publishing like any page. An agent's page is different from a normal service page: it shows "AI agent · 24/7", the free trial, the chat first, who created it (creator + the owner's photo), why it's worth paying for instead of a free AI chat (edge), its access prices and its limits. So for an agent don't ask for hours, service area, license or years in business; don't ask for photos of their work; their photo is optional (it shows next to "created by", with their name only), and make sure edge is true and concrete. 
+- The agent DOES the task, it doesn't just guide (the new Sevrii model). Before switching it on, define with the owner, in plain words and one question at a time, the complete task with set_agent_task: (1) what it finishes end to end (the result the customer gets, e.g. "deja la LLC creada", "deja la cita hecha"); (2) which official pages or software it operates (https links, official sources first); (3) which ordinary data it asks in the chat; (4) which sensitive data the customer types themselves on the official page and at what moment (passwords, card when paying a fee) — never in the chat, never stored; (5) which steps need the customer's OK (signing, submitting, paying); (6) how it proves it's done (confirmation number, document, official record) — if it can't be verified it stays pending; (7) what the customer receives in the chat; (8) reminders afterwards, if any. If "agent.taskMissing" isn't empty, it can't be switched on: say what's missing. It never replaces a licensed professional when the law requires one, never signs or pays without the customer's explicit OK, and never promises an outcome that depends on the office.
 - Keep every reply under 70 words. No markdown headings, no bullet lists longer than 4 items.`;
 
 export type StoreChatResult = { reply: string; business: BusinessRow; services: ServiceRow[] };
@@ -215,6 +235,8 @@ function pageState(b: BusinessRow, services: ServiceRow[]) {
             knowledgeChars: b.serviceAgent.knowledge.length,
             offers: b.serviceAgent.offers.map((o) => ({ ...o, label: offerPriceLabel(o, b.site.lang), welcome: welcomeLabel(b.serviceAgent, o, b.site.lang) || null })),
             missing: agentMissing(b.serviceAgent),
+            // What it DOES end to end; without it, it can't be switched on.
+            taskMissing: taskMissing(b.serviceAgent.task),
             paymentsReady: b.payStatus === "ready",
           },
         }
@@ -364,14 +386,22 @@ async function runTool(
       const notes: string[] = [];
       if (next.knowledge.length > AGENT_LIMITS.knowledge) notes.push(`knowledge was cut to ${AGENT_LIMITS.knowledge} characters`);
       if (typeof input.enabled === "boolean") {
-        const missing = agentMissing(parseServiceAgent(next));
-        if (input.enabled && missing.length) notes.push(`not switched on, missing: ${missing.join(", ")}`);
+        const parsed = parseServiceAgent(next);
+        // Switching it on needs the complete task it does (no task, no agent).
+        const missing = input.enabled && !a.enabled ? [...agentMissing(parsed), ...taskMissing(parsed.task).map((x) => `task.${x}`)] : agentMissing(parsed);
+        if (input.enabled && missing.length) notes.push(`not switched on, missing: ${missing.join(", ")}${missing.some((m) => m.startsWith("task.")) ? " (define what it does end to end with set_agent_task)" : ""}`);
         else next.enabled = input.enabled;
       }
       const saved = parseServiceAgent(next);
       await setServiceAgent(b.id, saved);
       if (saved.enabled && !a.enabled) notes.push(b.payStatus === "ready" && saved.offers.length ? "switched on: the page chat is now the agent" : "switched on: the page chat is now the agent, but it can't charge yet (no offers or Payments not connected): after the free replies it passes the chat to the owner");
       return `saved${notes.length ? `; ${notes.join("; ")}` : ""}`;
+    }
+    case "set_agent_task": {
+      const task = parseTask(input);
+      const gaps = taskMissing(task);
+      await setServiceAgent(b.id, parseServiceAgent({ ...b.serviceAgent, task }));
+      return gaps.length ? `saved, but still missing: ${gaps.join(", ")} (goal = the finished result; platforms = official https links; verify = the proof; deliver = what the customer gets)` : "saved: the agent now has its complete task";
     }
     case "set_agent_offers": {
       const list = Array.isArray(input.offers) ? input.offers : [];

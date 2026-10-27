@@ -1,3 +1,4 @@
+import { parseTask, type AgentTask } from "./serviceAgentConfig";
 // The "expediente" of one project: everything the Brain learns and decides
 // about the one service it sells. Store and Marketing only read it. Pure data
 // + validation, shared by the agents (server) and the UI (client).
@@ -66,6 +67,7 @@ export type PlanAgent = {
   edge: AgentEdge[]; // why pay for it instead of a free AI chat
   freeAlt: string; // what a free general AI already does, said honestly
   score: number; // 1-5: how strong the reason to pay is (0 = not rated)
+  task: AgentTask; // what it DOES end to end (see lib/serviceAgentConfig.ts)
 };
 
 export type PriceRange = { low: string; mid: string; high: string; includes: string; note: string };
@@ -435,6 +437,7 @@ export function parsePlanAgent(raw: unknown): PlanAgent | null {
     edge,
     freeAlt: str(a.freeAlt, 300),
     score: num(a.score, 1, 5) ?? 0,
+    task: parseTask(a.task),
   };
 }
 
@@ -545,7 +548,7 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.notWant, "notWant (work they don't want to do)");
     need(!p.goal, "goal (extra income or full time)");
   } else if (plan.stage === "ready_check" && plan.mode === "agent") {
-    need(!p.agentTask, "agentTask (what the agent does with each customer, start to finish: propose it yourself from the chosen idea and ask them to confirm or adjust)");
+    need(!p.agentTask, "agentTask (the complete task the agent DOES for each customer end to end — result left done, official pages it operates, sensitive data the customer types and when, how it proves it's done: propose it yourself from the chosen idea and ask them to confirm or adjust)");
     need(!p.remoteScope, "remoteScope (customers in the whole US = us, only one state = state, other countries too = world)");
     need(p.remoteScope === "state" && !p.state, "state (the one state whose customers it serves)");
     need(!p.agentLimits, "agentLimits (what it must never do and when the creator steps in: propose sensible limits for this idea and ask them to confirm)");

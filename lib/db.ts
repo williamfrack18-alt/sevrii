@@ -487,6 +487,29 @@ async function migrate(): Promise<void> {
       // The owner's language: the whole dashboard, the chats and what the
       // marketing agent writes them follow it (not the landing they browsed).
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS lang TEXT`;
+      // A service agent's cases: the task it carries out for one customer, with
+      // its file (steps, documents, status, verified result) in the chat.
+      await sql`
+        CREATE TABLE IF NOT EXISTS agent_cases (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          "conversationId" TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'working',
+          mode TEXT NOT NULL DEFAULT 'test',
+          title TEXT NOT NULL DEFAULT '',
+          data JSONB NOT NULL DEFAULT '{}'::jsonb,
+          steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+          docs JSONB NOT NULL DEFAULT '[]'::jsonb,
+          result JSONB,
+          waiting JSONB,
+          browser JSONB NOT NULL DEFAULT '{}'::jsonb,
+          reminders JSONB NOT NULL DEFAULT '[]'::jsonb,
+          memo JSONB NOT NULL DEFAULT '[]'::jsonb,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS agent_cases_conv_idx ON agent_cases ("conversationId", "createdAt" DESC)`;
       // Old strategist messages sent owners to an approve button "in the card
       // here in the chat"; it's in the strategy panel next to the chat.
       await sql`UPDATE chat_messages SET content = regexp_replace(regexp_replace(content, 'en tu tarjeta de estrategia,? (justo )?aqu[ií] en el chat', 'al final del panel «Tu estrategia de marketing», junto al chat', 'gi'), 'in your strategy card,? (right )?here in the chat', 'at the bottom of the "Your marketing strategy" panel next to the chat', 'gi') WHERE channel = 'brain' AND (content ~* 'tarjeta de estrategia,? (justo )?aqu[ií] en el chat' OR content ~* 'strategy card,? (right )?here in the chat')`;
@@ -2395,4 +2418,128 @@ export async function listAgentReviews(businessId: string, limit = 12): Promise<
   const rows = (await sql`SELECT * FROM agent_reviews WHERE "businessId" = ${businessId} AND hidden = false ORDER BY "createdAt" DESC LIMIT ${limit}`) as Record<string, unknown>[];
   const stats = (await sql`SELECT AVG(rating)::float AS avg, COUNT(*)::int AS n FROM agent_reviews WHERE "businessId" = ${businessId} AND hidden = false`) as { avg: number | null; n: number }[];
   return { list: rows.map(reviewRow), avg: stats[0]?.avg ?? null, count: stats[0]?.n ?? 0 };
+}
+
+
+// ---------- Service agents: cases (the task done for one customer) ----------
+export type AgentCaseStatus = "working" | "needs_input" | "needs_ok" | "blocked" | "done" | "pending";
+export type AgentCaseStep = { label: string; status: "done" | "doing" | "todo" | "failed"; at: string };
+export type AgentCaseDoc = { name: string; url: string };
+export type AgentCaseResult = { kind: string; value: string; url: string; verifiedAt: string; test: boolean };
+export type AgentCaseWaiting = { kind: "sensitive" | "confirm" | "captcha" | "info"; label: string; detail: string; url: string };
+export type AgentCaseRow = {
+  id: string;
+  businessId: string;
+  conversationId: string;
+  status: AgentCaseStatus;
+  mode: "live" | "test";
+  title: string;
+  data: Record<string, string>;
+  steps: AgentCaseStep[];
+  docs: AgentCaseDoc[];
+  result: AgentCaseResult | null;
+  waiting: AgentCaseWaiting | null;
+  browser: { sessionId?: string; liveUrl?: string; url?: string; sandbox?: Record<string, unknown> };
+  reminders: { dueAt: string; text: string; sentAt: string | null }[];
+  memo: { role: string; content: unknown }[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+function caseRow(r: Record<string, unknown>): AgentCaseRow {
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : "");
+  return {
+    id: String(r.id),
+    businessId: String(r.businessId),
+    conversationId: String(r.conversationId),
+    status: String(r.status) as AgentCaseStatus,
+    mode: r.mode === "live" ? "live" : "test",
+    title: String(r.title ?? ""),
+    data: (r.data as Record<string, string>) ?? {},
+    steps: (r.steps as AgentCaseStep[]) ?? [],
+    docs: (r.docs as AgentCaseDoc[]) ?? [],
+    result: (r.result as AgentCaseResult | null) ?? null,
+    waiting: (r.waiting as AgentCaseWaiting | null) ?? null,
+    browser: (r.browser as AgentCaseRow["browser"]) ?? {},
+    reminders: (r.reminders as AgentCaseRow["reminders"]) ?? [],
+    memo: (r.memo as AgentCaseRow["memo"]) ?? [],
+    createdAt: iso(r.createdAt),
+    updatedAt: iso(r.updatedAt),
+  };
+}
+
+export async function createAgentCase(input: { businessId: string; conversationId: string; mode: "live" | "test"; title: string; data: Record<string, string> }): Promise<AgentCaseRow> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO agent_cases (id, "businessId", "conversationId", mode, title, data)
+    VALUES (${newId()}, ${input.businessId}, ${input.conversationId}, ${input.mode}, ${input.title}, ${JSON.stringify(input.data)}::jsonb)
+    RETURNING *
+  `) as Record<string, unknown>[];
+  return caseRow(rows[0]);
+}
+
+export async function getAgentCase(id: string): Promise<AgentCaseRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM agent_cases WHERE id = ${id}`) as Record<string, unknown>[];
+  return rows[0] ? caseRow(rows[0]) : null;
+}
+
+// The case still open in a chat (one at a time per conversation).
+export async function openCaseForConversation(conversationId: string): Promise<AgentCaseRow | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM agent_cases WHERE "conversationId" = ${conversationId} AND status NOT IN ('done')
+    ORDER BY "createdAt" DESC LIMIT 1
+  `) as Record<string, unknown>[];
+  return rows[0] ? caseRow(rows[0]) : null;
+}
+
+export async function listCasesForConversation(conversationId: string): Promise<AgentCaseRow[]> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM agent_cases WHERE "conversationId" = ${conversationId} ORDER BY "createdAt" DESC LIMIT 10`) as Record<string, unknown>[];
+  return rows.map(caseRow);
+}
+
+export async function updateAgentCase(id: string, patch: Partial<Pick<AgentCaseRow, "status" | "title" | "data" | "steps" | "docs" | "result" | "waiting" | "browser" | "reminders" | "memo">>): Promise<AgentCaseRow | null> {
+  await ensureSchema();
+  const cur = await getAgentCase(id);
+  if (!cur) return null;
+  const n = { ...cur, ...patch };
+  const rows = (await sql`
+    UPDATE agent_cases SET status = ${n.status}, title = ${n.title}, data = ${JSON.stringify(n.data)}::jsonb,
+      steps = ${JSON.stringify(n.steps)}::jsonb, docs = ${JSON.stringify(n.docs)}::jsonb,
+      result = ${n.result ? JSON.stringify(n.result) : null}::jsonb, waiting = ${n.waiting ? JSON.stringify(n.waiting) : null}::jsonb,
+      browser = ${JSON.stringify(n.browser)}::jsonb, reminders = ${JSON.stringify(n.reminders)}::jsonb,
+      memo = ${JSON.stringify(n.memo)}::jsonb, "updatedAt" = now()
+    WHERE id = ${id} RETURNING *
+  `) as Record<string, unknown>[];
+  return rows[0] ? caseRow(rows[0]) : null;
+}
+
+// Reminders that are due and not sent yet (for the daily run).
+export async function listCasesWithDueReminders(limit = 200): Promise<AgentCaseRow[]> {
+  await ensureSchema();
+  const now = nowISO();
+  const rows = (await sql`
+    SELECT * FROM agent_cases
+    WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(reminders) r WHERE (r->>'sentAt') IS NULL AND (r->>'dueAt') <= ${now})
+    LIMIT ${limit}
+  `) as Record<string, unknown>[];
+  return rows.map(caseRow);
+}
+
+export async function getConversationById(id: string): Promise<ConversationRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM conversations WHERE id = ${id}`) as Record<string, unknown>[];
+  return rows[0] ? convRow(rows[0]) : null;
+}
+
+// Cases left pending (the office hadn't confirmed yet), last touched a day ago or more.
+export async function listPendingCasesToRecheck(limit = 20): Promise<AgentCaseRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM agent_cases WHERE status = 'pending' AND "updatedAt" < now() - interval '20 hours'
+    ORDER BY "updatedAt" ASC LIMIT ${limit}
+  `) as Record<string, unknown>[];
+  return rows.map(caseRow);
 }

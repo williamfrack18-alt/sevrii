@@ -181,6 +181,8 @@ export function agentFromPlan(plan: BusinessPlan): ServiceAgent {
     greeting: a?.greeting || "",
     creator: a?.creator || "",
     edge: a?.edge ?? [],
+    // What it does end to end, as the strategy defined it.
+    task: a?.task,
     offers: plan.packages.map(offerFromPackage).filter(Boolean),
     // The welcome offer the strategy proposed ("15% off your first month").
     ...welcomeFromPlan(plan),

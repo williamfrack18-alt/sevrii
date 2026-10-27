@@ -3,6 +3,7 @@
   "trailingSlash": false,
   "crons": [
     { "path": "/api/cron/agent", "schedule": "0 13 * * *" },
-    { "path": "/api/cron/affiliates", "schedule": "30 14 * * *" }
+    { "path": "/api/cron/affiliates", "schedule": "30 14 * * *" },
+    { "path": "/api/cron/agent-cases", "schedule": "15 15 * * *" }
   ]
 }

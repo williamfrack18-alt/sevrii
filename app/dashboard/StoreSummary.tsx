@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLang } from "@/components/LangProvider";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
-import { agentMissing, money } from "@/lib/serviceAgentConfig";
+import { agentMissing, money, taskMissing } from "@/lib/serviceAgentConfig";
 import { agentSalesAction, setAgentEnabledAction, type AgentSales } from "@/app/storeActions";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
@@ -41,7 +41,13 @@ const TEXT = {
     free: (n: number) => (n === 0 ? "sin prueba gratis" : n === 1 ? "1 respuesta gratis" : `${n} respuestas gratis`),
     notes: (n: number) => (n ? "ya tiene su base de conocimiento" : "aún sin base de conocimiento"),
     needs: "Para activarlo falta:",
-    needItems: { name: "su nombre", role: "qué hace", instructions: "su método" } as Record<string, string>,
+    needItems: { name: "su nombre", role: "qué hace", instructions: "su método", "task.goal": "la tarea que termina de punta a punta", "task.platforms": "en qué páginas oficiales opera", "task.verify": "cómo comprueba que quedó hecho", "task.deliver": "qué le entrega al cliente" } as Record<string, string>,
+    task: "Lo que hace",
+    taskWhere: "Opera en",
+    taskSensitive: "El cliente escribe en la página oficial",
+    taskVerify: "Lo da por hecho cuando",
+    taskOld: "Este agente aún solo guía: dile al chat qué tarea termina de punta a punta para que la haga él.",
+    taskHow: "Dile al chat qué hace de punta a punta: en qué páginas entra, qué datos delicados escribe el cliente y cuándo, y cómo comprueba que quedó hecho.",
     pay: "Para cobrar conecta Payments; mientras tanto da sus respuestas gratis y te pasa la conversación.",
     payOff: "Para cobrar también tendrás que conectar Payments. Mientras esté apagado no responde en tu página.",
     payBtn: "Conectar",
@@ -76,7 +82,13 @@ const TEXT = {
     free: (n: number) => (n === 0 ? "no free trial" : n === 1 ? "1 free reply" : `${n} free replies`),
     notes: (n: number) => (n ? "has its knowledge base" : "no knowledge base yet"),
     needs: "To switch it on it needs:",
-    needItems: { name: "its name", role: "what it does", instructions: "its method" } as Record<string, string>,
+    needItems: { name: "its name", role: "what it does", instructions: "its method", "task.goal": "the task it finishes end to end", "task.platforms": "which official pages it operates", "task.verify": "how it proves it's done", "task.deliver": "what the customer receives" } as Record<string, string>,
+    task: "What it does",
+    taskWhere: "Works on",
+    taskSensitive: "The customer types on the official page",
+    taskVerify: "Done when",
+    taskOld: "This agent still only guides: tell the chat which task it finishes end to end so it does it itself.",
+    taskHow: "Tell the chat what it does end to end: which pages it enters, which sensitive data the customer types and when, and how it proves it's done.",
     pay: "To charge, connect Payments; meanwhile it gives its free replies and passes the chat to you.",
     payOff: "To charge you'll also need to connect Payments. While it's off it doesn't answer on your page.",
     payBtn: "Connect",
@@ -209,7 +221,9 @@ function AgentRow({ business, onUpdated, onPayments }: { business: ClientBusines
   const lang = useLang();
   const t = TEXT[lang];
   const a = business.serviceAgent;
-  const needs = agentMissing(a);
+  const gaps = taskMissing(a.task);
+  // To switch it on it also needs its complete task (an agent that's already on keeps working).
+  const needs = [...agentMissing(a), ...(a.enabled ? [] : gaps.map((g) => `task.${g}`))];
   const [busy, setBusy] = useState(false);
   const [sales, setSales] = useState<AgentSales | null>(null);
 
@@ -260,6 +274,16 @@ function AgentRow({ business, onUpdated, onPayments }: { business: ClientBusines
         {t.free(a.freeReplies)} · {t.notes(a.knowledge.length)}
         {sales && sales.count ? ` · ${t.sales(sales.count, money(sales.totalCents))}` : ""}
       </span>
+      {gaps.length === 0 ? (
+        <div className="flex flex-col gap-1 rounded-xl p-3 text-[12.5px] leading-relaxed" style={{ background: "rgba(10,10,10,0.034)" }}>
+          <span className="text-pfg"><b className="font-semibold">{t.task}:</b> {a.task.goal}</span>
+          <span className="text-psub">{t.taskWhere}: {a.task.platforms.map((p) => p.name).join(", ")}</span>
+          {a.task.sensitive.length > 0 && <span className="text-psub">{t.taskSensitive}: {a.task.sensitive.map((x) => x.what).join(", ")}</span>}
+          <span className="text-psub">{t.taskVerify}: {a.task.verify}</span>
+        </div>
+      ) : (
+        <span className="text-[12.5px] leading-relaxed" style={{ color: AMBER }}>{a.enabled ? t.taskOld : t.taskHow}</span>
+      )}
       {needs.length > 0 && (
         <span className="text-[12.5px]" style={{ color: AMBER }}>
           {t.needs} {needs.map((m) => t.needItems[m]).join(", ")}.

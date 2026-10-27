@@ -16,7 +16,7 @@ Agente (solo persona C):
 - Prueba de valor (lo más importante): nadie paga por algo que un chat gratis como ChatGPT ya hace bien. Mira el servicio con los ojos del cliente: ¿lo resolvería gratis con ChatGPT o una plantilla? Si sí, NO lo propongas así: reenfócalo con estas palancas: (1) pasos exactos verificados en fuentes oficiales (con sus enlaces), que el agente sigue sin inventar; (2) reglas de un estado, ciudad u oficio; (3) acompañamiento con un resultado (un plan de varios días o semanas, práctica, seguimiento hasta terminar), no una respuesta suelta; (4) revisar lo que el cliente prepara antes de que lo entregue; (5) un nicho muy concreto; (6) material propio (listas, bancos de preguntas, plantillas). Si el creador sabe del tema (agentEdge, agentKnowledge), súmalo; si no, el valor sale de la investigación (gaps, requisitos). Si reenfocaste el servicio, dilo en una línea en message.
 - agent.edge: 3 o 4 razones concretas y verdaderas para pagar por ESTE agente (title corto + text de una línea). agent.freeAlt: qué hace gratis un chat general con este mismo pedido, dicho con honestidad. agent.score: de 1 a 5, qué tan fuerte es la razón para pagar; si queda en 1 o 2 incluso reenfocado, dilo claro en message y en pricingNote.
 - agent.creator: quién lo creó (su nombre o la marca del expediente) y, solo si el expediente lo dice, su respaldo. Si no hay credenciales, solo el nombre: nunca inventes experiencia.
-- Es un servicio en línea que entrega la IA siguiendo agentTask y los pasos verificados en la investigación. El cliente lo prueba gratis unas respuestas y después paga.
+- El agente HACE la tarea, no solo guía: entra a las páginas oficiales o al software que haga falta, completa el trámite de punta a punta y entrega el resultado en el chat. El cliente solo escribe lo delicado (contraseña, tarjeta al pagar) en la página oficial cuando se le pide, y da su OK antes de firmar, enviar o pagar. Define agent.task completo (qué termina, en qué páginas oficiales con sus enlaces de la investigación, qué datos pide, qué datos delicados escribe el cliente y cuándo, qué necesita OK, cómo comprueba que quedó hecho, qué entrega y recordatorios). Sin tarea completa no hay agente. Usa solo tarifas, plazos y enlaces verificados en la investigación. El cliente lo prueba gratis unas respuestas y después paga.
 - Paquetes: 2 o 3 formas de pagar el acceso, pensadas para un agente: por uso (por ejemplo "Sesión de práctica: 1 día de acceso") y/o mensual ("Acceso mensual"). Cada precio es de al menos $15 (mínimo de pagos de Sevrii). Di en "includes" qué recibe y por cuánto tiempo, y en "note" para quién conviene. El dueño escoge la forma de cobrar: en pricingNote recomienda cuál conviene más y por qué (frecuencia de uso, competencia, costo de la IA).
 - Precio: compáralo con lo que cobran personas y plataformas por el mismo servicio. Un agente puede costar menos que una persona, pero no lo regales.
 - agent.limits: incluye siempre lo que agentLimits dice, que no promete resultados (aprobar un examen, ganar un caso) y que el dueño entra al chat para reembolsos o casos fuera del servicio.
@@ -29,7 +29,7 @@ Precios:
 - Compáralo con el rango de la zona. Si queda fuera, explica por qué o ajústalo.
 - Paquetes básico, completo y premium. El del medio es el que más conviene vender.
 
-Ideas de agente (persona C), puntaje de 1 a 5 en cada punto (mismos campos): fit = encaje con lo que le interesa (no con su experiencia); demand = cuánta gente lo busca o ya lo paga; cost = disposición a pagar frente a un chat gratis; requirements = riesgo legal bajo (nada de asesoría que exija licencia); speed = qué tan completo lo puede resolver un agente solo por chat. Muestra las 3 mejores con pros y contras, sin prometer ingresos.
+Ideas de agente (persona C), puntaje de 1 a 5 en cada punto (mismos campos): fit = encaje con lo que le interesa (no con su experiencia); demand = cuánta gente lo busca o ya lo paga; cost = disposición a pagar frente a un chat gratis; requirements = riesgo legal bajo (nada de asesoría que exija licencia); speed = qué tan completo lo puede terminar un agente él solo, operando las páginas oficiales o el software de punta a punta. Muestra las 3 mejores con pros y contras, sin prometer ingresos.
 
 Ideas (persona B), puntaje de 1 a 5 en cada punto:
 - Encaje con su experiencia y herramientas.
@@ -105,6 +105,16 @@ const AGENT_PROPOSAL_SCHEMA = obj({
     edge: { type: "array", description: "3-4 true, concrete reasons to pay for THIS agent instead of a free AI chat", items: obj({ title: S("2-5 words"), text: S("One line") }) },
     freeAlt: S("What a free general AI chat already does with the same request, said honestly, one line"),
     score: { type: "integer", description: "1-5: how strong the reason to pay is" },
+    task: obj({
+      goal: S("The complete task the agent DOES itself, end to end (the finished result the customer gets), e.g. 'Crear tu LLC en Florida y entregarte el número de documento oficial'"),
+      platforms: { type: "array", description: "Official pages or software it operates, with their https links (from the research)", items: obj({ name: S("Name"), url: S("https link") }) },
+      needs: { type: "array", items: { type: "string" }, description: "Ordinary data it asks in the chat (no passwords, cards or SSN)" },
+      sensitive: { type: "array", description: "Sensitive data the customer types themselves on the official page, and when", items: obj({ what: S("e.g. 'tarjeta'"), when: S("e.g. 'al pagar la tarifa de $125 al estado'") }) },
+      confirmBefore: { type: "array", items: { type: "string" }, description: "Steps that need the customer's OK: signing, submitting, paying" },
+      verify: S("How it proves it's done: a confirmation or document number, an official record"),
+      deliver: S("What the customer receives in the chat"),
+      reminders: S("Reminders afterwards (official deadlines), or empty"),
+    }),
   }),
 });
 

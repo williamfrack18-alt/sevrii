@@ -16,7 +16,7 @@ import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, typ
 import { ChatJump } from "./ChatWidget";
 import AgentPage from "./AgentPage";
 import AffRef from "./AffRef";
-import { agentMissing, offerPriceLabel, welcomeLabel } from "@/lib/serviceAgentConfig";
+import { chatAgentFor } from "./agentChat";
 import "./store.css";
 
 // A page is public only while it's published AND its owner's plan includes publishing
@@ -47,6 +47,9 @@ function plainDollars(price: string): number | null {
   const m = /\$\s?((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?)(?![\w.,])/.exec(price);
   return m ? Number(m[1].replace(/,/g, "")) : null;
 }
+
+// A service agent can work on the official pages during a chat request.
+export const maxDuration = 300;
 
 const BOT_UA = /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|slack|discord|telegram|preview|vercel|lighthouse|headless/i;
 
@@ -131,17 +134,7 @@ export default async function PublicBusinessPage({
   // Where they work: their own words first, else the service area they set.
   // The page chat is the owner's service agent when it's switched on.
   const sa = business.serviceAgent;
-  const chatAgent =
-    sa.enabled && agentMissing(sa).length === 0
-      ? {
-          name: sa.name,
-          greeting: sa.greeting.replace(/\[(tu nombre|your name|nombre)\]/gi, site.ownerName || business.name),
-          offers:
-            business.payStatus === "ready" && business.stripeAccountId
-              ? sa.offers.map((o) => ({ id: o.id, title: o.title, detail: o.detail, label: offerPriceLabel(o, site.lang), welcome: welcomeLabel(sa, o, site.lang) }))
-              : [],
-        }
-      : null;
+  const chatAgent = chatAgentFor(business);
   // A service agent gets its own page: the chat is the product.
   const affRef = business.affiliate.enabled ? <AffRef businessId={business.id} slug={business.slug} /> : null;
   if (business.plan.mode === "agent" || sa.name)

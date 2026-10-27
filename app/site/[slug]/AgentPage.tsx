@@ -172,6 +172,16 @@ export default function AgentPage({
   media.push({ kind: "slide", tone: "service", kicker: t.kicker, title: headline || name, price: cheapest > 0 ? t.from(money(cheapest)) : t.free(a.freeReplies), text: t.free(a.freeReplies) });
   if (welcome) media.push({ kind: "slide", tone: "offer", kicker: t.welcome, title: welcome, price: "", text: name });
   for (const o of a.offers.slice(0, 3)) media.push({ kind: "slide", tone: "service", kicker: t.accessKicker, title: o.title, price: offerPriceLabel(o, lang), text: o.detail || "" });
+  // Trying or buying the agent takes the visitor into its room (full-screen chat).
+  const room = `/site/${business.slug}/agente${campaign ? `?c=${encodeURIComponent(campaign)}` : ""}`;
+  const Enter = ({ className, children }: { className?: string; children: React.ReactNode }) =>
+    chatAgent ? (
+      <a className={className} href={room}>
+        {children}
+      </a>
+    ) : (
+      <ChatLink className={className}>{children}</ChatLink>
+    );
   const stars = (n: number) => "★★★★★".slice(0, Math.round(n)) + "☆☆☆☆☆".slice(0, 5 - Math.round(n));
 
   return (
@@ -219,7 +229,7 @@ export default function AgentPage({
                         {o.detail && <span className="pkg-desc">{o.detail}</span>}
                       </div>
                       <span className="pkg-price grad-text">{offerPriceLabel(o, lang)}</span>
-                      <ChatLink className="pkg-btn">{t.accessCta}</ChatLink>
+                      <Enter className="pkg-btn">{t.accessCta}</Enter>
                     </li>
                   ))}
                 </ul>
@@ -298,16 +308,35 @@ export default function AgentPage({
             )}
 
             <div id="chat" className="buy-chat">
-              <ChatWidget
-                slug={business.slug}
-                businessName={business.name}
-                logoUrl={site.logoUrl}
-                ownerName={site.ownerName}
-                ownerPhoto={site.ownerPhotoUrl}
-                lang={lang}
-                campaign={campaign || undefined}
-                agent={chatAgent}
-              />
+              {chatAgent ? (
+                // The page sells; the service happens inside the agent's own room.
+                <a className="ag-enter" href={room}>
+                  <span className="ag-enter-head">
+                    <span className="ag-enter-avatar">{photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photo} alt="" />
+                    ) : name.slice(0, 1).toUpperCase()}</span>
+                    <span>
+                      <b>{name}</b>
+                      <small>{lang === "es" ? "Agente de IA · en línea 24/7" : "AI agent · online 24/7"}</small>
+                    </span>
+                  </span>
+                  <span className="ag-enter-bubble">{chatAgent.greeting || (lang === "es" ? "¡Hola! Cuéntame qué necesitas y empezamos." : "Hi! Tell me what you need and we'll get started.")}</span>
+                  {chatAgent.does && <span className="ag-enter-does">{lang === "es" ? `Lo hace por ti: ${chatAgent.does}` : `It does it for you: ${chatAgent.does}`}</span>}
+                  <span className="ag-enter-btn">{lang === "es" ? `Entrar a ${name}` : `Enter ${name}`} →</span>
+                </a>
+              ) : (
+                <ChatWidget
+                  slug={business.slug}
+                  businessName={business.name}
+                  logoUrl={site.logoUrl}
+                  ownerName={site.ownerName}
+                  ownerPhoto={site.ownerPhotoUrl}
+                  lang={lang}
+                  campaign={campaign || undefined}
+                  agent={chatAgent}
+                />
+              )}
             </div>
             <div className="micro">
               <span className="dot" /> {t.tryNote(a.freeReplies)}
@@ -375,7 +404,7 @@ export default function AgentPage({
                       {o.detail && <p>{o.detail}</p>}
                       <div className="ag-amount grad-text">{offerPriceLabel(o, lang)}</div>
                       {w && <div className="ag-welcome">{w}</div>}
-                      <ChatLink className="btn ag-btn">{t.accessCta}</ChatLink>
+                      <Enter className="btn ag-btn">{t.accessCta}</Enter>
                     </div>
                   );
                 })}
@@ -460,9 +489,9 @@ export default function AgentPage({
           </h2>
           <p>{t.finalText}</p>
           <div className="btns">
-            <ChatLink className="btn light">
+            <Enter className="btn light">
               <ChatIcon /> {t.tryFree}
-            </ChatLink>
+            </Enter>
           </div>
         </div>
       </section>
@@ -479,12 +508,12 @@ export default function AgentPage({
         </div>
       </footer>
 
-      <ChatJump lang={lang} label={t.tryFree} />
+      {!chatAgent && <ChatJump lang={lang} label={t.tryFree} />}
       <div className="sticky-cta">
         <div className="row">
-          <ChatLink className="btn chat">
+          <Enter className="btn chat">
             <ChatIcon /> {t.tryFree}
-          </ChatLink>
+          </Enter>
         </div>
       </div>
     </div>

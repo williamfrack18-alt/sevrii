@@ -493,6 +493,31 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
 }
 
 // C: the agent the strategy proposes (built later in Store).
+// What the agent DOES end to end (it doesn't just guide).
+function AgentTaskBlock({ task }: { task: NonNullable<BusinessPlan["agent"]>["task"] }) {
+  const es = useLang() === "es";
+  const row = (k: string, v: string) =>
+    v ? (
+      <span className="text-[13px] leading-relaxed">
+        <span className="text-pmuted">{k}: </span>
+        <span className="text-pfg">{v}</span>
+      </span>
+    ) : null;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-xl p-3" style={{ background: "rgba(22,163,74,0.06)" }}>
+      <span className="text-[12px] font-semibold" style={{ color: GREEN }}>{es ? "Lo que hace por el cliente, de punta a punta" : "What it does for the customer, end to end"}</span>
+      <span className="text-[14px] text-pfg font-medium leading-snug">{task.goal}</span>
+      {row(es ? "Opera en" : "Works on", task.platforms.map((p) => p.name).join(", "))}
+      {row(es ? "Pide en el chat" : "Asks in the chat", task.needs.join(", "))}
+      {row(es ? "El cliente escribe en la página oficial" : "The customer types on the official page", task.sensitive.map((x) => `${x.what} (${x.when})`).join("; "))}
+      {row(es ? "Pide tu OK antes de" : "Asks your OK before", task.confirmBefore.join(", "))}
+      {row(es ? "Lo da por hecho cuando" : "Done when", task.verify)}
+      {row(es ? "Entrega en el chat" : "Delivers in the chat", task.deliver)}
+      {row(es ? "Recordatorios" : "Reminders", task.reminders)}
+    </div>
+  );
+}
+
 function AgentBlock({ agent }: { agent: NonNullable<BusinessPlan["agent"]> }) {
   const t = PLAN_TEXT[useLang()];
   return (
@@ -503,6 +528,7 @@ function AgentBlock({ agent }: { agent: NonNullable<BusinessPlan["agent"]> }) {
         {agent.role && <span className="text-[13.5px] text-pfg2 leading-relaxed">{agent.role}</span>}
         {agent.creator && <span className="text-[12.5px] text-pmuted">{agent.creator}</span>}
       </div>
+      {agent.task?.goal && <AgentTaskBlock task={agent.task} />}
       {agent.steps.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <span className="text-[12px] text-pmuted">{t.agentSteps}</span>

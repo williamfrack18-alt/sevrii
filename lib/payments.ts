@@ -362,7 +362,8 @@ export async function checkoutForAgentOffer(
 ): Promise<string> {
   if (!business.stripeAccountId) throw new Error("business has no Stripe account");
   const account = business.stripeAccountId;
-  const back = `${siteUrl()}/site/${encodeURIComponent(business.slug)}`;
+  // Back to the agent's room, where the paid service happens.
+  const back = `${siteUrl()}/site/${encodeURIComponent(business.slug)}/agente`;
   const name = `${offer.title} · ${agentName || business.name}`.slice(0, 120);
   const pct = Math.max(0, Math.min(50, Math.round(welcomePct)));
   // One-time: the lower price is the charge. Monthly: the full price, with a

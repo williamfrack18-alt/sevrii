@@ -15,8 +15,26 @@ export type AgentOffer = {
   replies: number; // replies included in one access period
 };
 
+// What the agent DOES: a complete task it carries out itself, end to end, in
+// the official pages or software it needs (it doesn't just guide). The
+// customer only types what's sensitive, at the moment it's used, and says OK
+// before anything is signed, submitted or paid.
+export type AgentTask = {
+  goal: string; // the finished result, e.g. "Crear tu LLC en Florida y entregarte el documento oficial"
+  platforms: { name: string; url: string }[]; // where it operates (official sources first)
+  needs: string[]; // ordinary data it asks in the chat ("nombre de la LLC", "dirección")
+  sensitive: { what: string; when: string }[]; // what the customer types themselves, and when ("tarjeta", "al pagar los $125 al estado")
+  confirmBefore: string[]; // steps that need the customer's OK ("firmar", "enviar la solicitud", "pagar")
+  verify: string; // how it proves it's done ("número de documento en la confirmación de Sunbiz")
+  deliver: string; // what the customer gets in the chat ("el número, la confirmación y el enlace al registro")
+  reminders: string; // proactive follow-ups ("reporte anual antes del 1 de mayo")
+};
+
+export const EMPTY_TASK: AgentTask = { goal: "", platforms: [], needs: [], sensitive: [], confirmBefore: [], verify: "", deliver: "", reminders: "" };
+
 export type ServiceAgent = {
   enabled: boolean; // live on the page (the page chat becomes the agent)
+  task: AgentTask; // what it does end to end (see AgentTask)
   name: string; // what the agent is called, e.g. "Tutor Kevin IA"
   role: string; // one line: what it does for the customer
   instructions: string; // how it works, step by step (the owner's method)
@@ -40,6 +58,7 @@ export const AGENT_LIMITS = { name: 60, role: 200, instructions: 6000, knowledge
 
 export const EMPTY_AGENT: ServiceAgent = {
   enabled: false,
+  task: EMPTY_TASK,
   name: "",
   role: "",
   instructions: "",
@@ -100,6 +119,55 @@ export function parseOffer(raw: unknown, i = 0): AgentOffer | null {
   };
 }
 
+export function parseTask(raw: unknown): AgentTask {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const arr = (v: unknown) => (Array.isArray(v) ? v : []);
+  const url = (v: unknown) => {
+    const u = s(v, 400);
+    try {
+      const x = new URL(u);
+      return x.protocol === "https:" || x.protocol === "http:" ? x.toString() : "";
+    } catch {
+      return "";
+    }
+  };
+  return {
+    goal: s(o.goal, 300),
+    platforms: arr(o.platforms)
+      .map((x) => {
+        const p = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;
+        return { name: s(p.name, 80), url: url(p.url) };
+      })
+      .filter((p) => p.name && p.url)
+      .slice(0, 6),
+    needs: arr(o.needs).map((x) => s(x, 120)).filter(Boolean).slice(0, 15),
+    sensitive: arr(o.sensitive)
+      .map((x) => {
+        const p = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;
+        return { what: s(p.what, 80), when: s(p.when, 160) };
+      })
+      .filter((p) => p.what)
+      .slice(0, 6),
+    confirmBefore: arr(o.confirmBefore).map((x) => s(x, 120)).filter(Boolean).slice(0, 8),
+    verify: s(o.verify, 300),
+    deliver: s(o.deliver, 300),
+    reminders: s(o.reminders, 300),
+  };
+}
+
+// Without a complete task the agent can't be switched on: it must say what it
+// finishes, where it works, how it proves it and what the customer receives.
+export type TaskGap = "goal" | "platforms" | "verify" | "deliver";
+export function taskMissing(t: AgentTask): TaskGap[] {
+  const out: TaskGap[] = [];
+  if (t.goal.length < 10) out.push("goal");
+  if (!t.platforms.length) out.push("platforms");
+  if (t.verify.length < 6) out.push("verify");
+  if (t.deliver.length < 6) out.push("deliver");
+  return out;
+}
+export const hasTask = (a: ServiceAgent) => taskMissing(a.task).length === 0;
+
 export function parseServiceAgent(raw: unknown): ServiceAgent {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const offers: AgentOffer[] = [];
@@ -112,6 +180,7 @@ export function parseServiceAgent(raw: unknown): ServiceAgent {
   }
   return {
     enabled: o.enabled === true,
+    task: parseTask(o.task),
     name: s(o.name, AGENT_LIMITS.name),
     role: s(o.role, AGENT_LIMITS.role),
     instructions: s(o.instructions, AGENT_LIMITS.instructions),

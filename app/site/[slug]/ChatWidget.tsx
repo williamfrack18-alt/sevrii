@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { agentCheckoutAction, agentClaimAction, agentReviewAction, agentReviewStateAction, visitorChatPhotoAction, visitorChatPollAction, visitorChatSendAction, type ChatMsg, type MyReview } from "@/app/chatActions";
+import { advanceCaseAction, agentCheckoutAction, agentClaimAction, agentReviewAction, agentReviewStateAction, caseReplyAction, getCaseAction, visitorChatPhotoAction, visitorChatPollAction, visitorChatSendAction, type ChatMsg, type MyReview, type PublicCase } from "@/app/chatActions";
 import { prepareImage } from "@/lib/clientImage";
 
 // A photo the customer sent ("📷 <url>").
 const PHOTO = /^📷\s+(https:\/\/\S+)$/;
 
 // The page chat as the owner's service agent (see lib/serviceAgent.ts).
-export type ChatAgent = { name: string; greeting: string; offers: { id: string; title: string; detail: string; label: string; welcome?: string }[] };
+export type ChatAgent = { name: string; greeting: string; offers: { id: string; title: string; detail: string; label: string; welcome?: string }[]; does?: string };
 const PAY = /\s*\[\[pay\]\]\s*$/;
+// The file of a task the agent is doing ("[[case:<id>]]" at the end of its message).
+const CASE = /\s*\[\[case:([A-Za-z0-9_-]{6,64})\]\]\s*$/;
 // Official links the agent cites (and the owner's WhatsApp) open in a new tab.
 const URL_RE = /(https?:\/\/[^\s<>()]+[^\s<>().,;:!?¿¡"'])/g;
 function Linked({ text }: { text: string }) {
@@ -65,6 +67,26 @@ const TEXT = {
     uploading: "Subiendo la foto…",
     photoErrors: { type: "Envía una foto (JPG, PNG o HEIC).", big: "La foto es muy grande. Prueba con otra.", rate: "Enviaste muchas fotos. Espera un momento.", closed: "El chat no está disponible ahora.", failed: "No se pudo subir la foto. Inténtalo de nuevo." } as Record<string, string>,
     photoTip: "Tapa tu número de licencia u otros datos personales antes de enviarla.",
+    mic: "Hablar",
+    micStop: "Detener",
+    listening: "Te escucho…",
+    speak: "Leer respuestas en voz alta",
+    caseStatus: { working: "Trabajando en la página oficial…", needs_input: "Te necesito un momento", needs_ok: "Necesita tu OK", blocked: "Bloqueado: falta un paso tuyo", done: "Listo · verificado", pending: "Pendiente" } as Record<string, string>,
+    caseTest: "Modo de prueba: opera una oficina de práctica, nada se envía de verdad.",
+    caseFile: "Expediente",
+    caseOk: "Sí, hazlo",
+    caseFix: "Corregir algo",
+    caseFixPh: "¿Qué cambio?",
+    caseFixSend: "Enviar corrección",
+    caseTypeHere: (what: string) => `Escribe tu ${what} directamente aquí, en la página oficial. Ni Sevrii ni la IA lo ven ni lo guardan.`,
+    caseTyped: "Listo, ya lo escribí",
+    caseDidIt: "Ya lo hice",
+    caseOpen: "Abrir la página oficial",
+    caseAnswer: "Responde aquí en el chat.",
+    caseResult: "Resultado verificado",
+    caseDocs: "Documentos",
+    caseReminders: "Recordatorios",
+    casePendingNext: "Siguiente paso",
   },
   en: {
     open: "Chat with us",
@@ -101,6 +123,26 @@ const TEXT = {
     uploading: "Uploading the photo…",
     photoErrors: { type: "Send a photo (JPG, PNG or HEIC).", big: "That photo is too big. Try another one.", rate: "You sent many photos. Wait a moment.", closed: "Chat isn't available right now.", failed: "Couldn't upload the photo. Please try again." } as Record<string, string>,
     photoTip: "Cover your license number or other personal data before sending it.",
+    mic: "Speak",
+    micStop: "Stop",
+    listening: "Listening…",
+    speak: "Read replies aloud",
+    caseStatus: { working: "Working on the official page…", needs_input: "I need you for a moment", needs_ok: "Needs your OK", blocked: "Blocked: a step is missing", done: "Done · verified", pending: "Pending" } as Record<string, string>,
+    caseTest: "Test mode: it operates a practice office, nothing real is sent.",
+    caseFile: "Case file",
+    caseOk: "Yes, do it",
+    caseFix: "Change something",
+    caseFixPh: "What should change?",
+    caseFixSend: "Send correction",
+    caseTypeHere: (what: string) => `Type your ${what} right here, on the official page. Neither Sevrii nor the AI sees or stores it.`,
+    caseTyped: "Done, I typed it",
+    caseDidIt: "I did it",
+    caseOpen: "Open the official page",
+    caseAnswer: "Answer here in the chat.",
+    caseResult: "Verified result",
+    caseDocs: "Documents",
+    caseReminders: "Reminders",
+    casePendingNext: "Next step",
   },
 };
 
@@ -168,7 +210,9 @@ export default function ChatWidget({
   pick,
   campaign,
   agent,
+  room = false,
 }: {
+  room?: boolean; // the agent's own full-screen room (/site/<slug>/agente)
   agent?: ChatAgent | null;
   pick?: string; // a service the visitor just picked above the chat
   campaign?: string; // the campaign whose link brought the visitor (already checked by the page)
@@ -205,6 +249,20 @@ export default function ChatWidget({
   // Only the newest "pay" message shows the buttons.
   const payAt = agent ? msgs.reduce((at, m, i) => (m.role === "ai" && PAY.test(m.content) ? i : at), -1) : -1;
   const [paying, setPaying] = useState("");
+  // Only the newest file card in the chat is the live one (it drives the work).
+  const caseAt = agent ? msgs.reduce((at, m, i) => (m.role === "ai" && CASE.test(m.content) ? i : at), -1) : -1;
+  // Voice: dictate (and send) with the microphone; optionally hear the replies.
+  const [listening, setListening] = useState(false);
+  const [speakOn, setSpeakOn] = useState(false);
+  const recRef = useRef<{ stop: () => void } | null>(null);
+  const spokenRef = useRef(0);
+  // Known only in the browser (after the first render, so server and client match).
+  const [voice, setVoice] = useState({ listen: false, speak: false });
+  useEffect(() => {
+    const w = window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
+    setVoice({ listen: Boolean(w.SpeechRecognition || w.webkitSpeechRecognition), speak: "speechSynthesis" in window });
+  }, []);
+  const canListen = voice.listen;
 
   async function buy(offerId: string) {
     if (!token || paying) return;
@@ -375,8 +433,52 @@ export default function ChatWidget({
     }
   }
 
+  // Dictation: what they say goes in the box and is sent when they stop talking.
+  function listen() {
+    const W = window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec };
+    const Rec = W.SpeechRecognition || W.webkitSpeechRecognition;
+    if (!Rec) return;
+    const rec = new Rec();
+    rec.lang = lang === "es" ? "es-US" : "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+    let finalText = "";
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalText += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      setDraft((finalText + interim).trim());
+    };
+    rec.onend = () => {
+      setListening(false);
+      recRef.current = null;
+      if (finalText.trim()) send(finalText.trim());
+    };
+    rec.onerror = () => setListening(false);
+    recRef.current = rec;
+    setListening(true);
+    rec.start();
+  }
+
+  // Read the agent's new replies aloud (when they turned it on).
+  useEffect(() => {
+    if (!speakOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const fresh = msgs.slice(spokenRef.current).filter((m) => m.role !== "visitor");
+    spokenRef.current = msgs.length;
+    for (const m of fresh) {
+      const said = m.content.replace(CASE, "").replace(PAY, "").replace(URL_RE, "").replace(/\*\*/g, "").trim();
+      if (!said) continue;
+      const u = new SpeechSynthesisUtterance(said);
+      u.lang = lang === "es" ? "es-US" : "en-US";
+      window.speechSynthesis.speak(u);
+    }
+  }, [msgs, speakOn, lang]);
+
   return (
-    <div className="cw-inline" ref={rootRef} role="region" aria-label={t.open}>
+    <div className={`cw-inline${room ? " cw-room" : ""}`} ref={rootRef} role="region" aria-label={t.open}>
       <div className={`cw-panel${agent ? " agent" : ""}`}>
           <div className={`cw-head ${ownerHere ? "owner" : ""}`}>
             {ownerHere ? (
@@ -390,6 +492,18 @@ export default function ChatWidget({
                 <span className="cw-dot" /> {ownerHere ? (ownerRecent ? t.online : t.talkingWith(ownerLabel)) : agent ? t.agentStatus(businessName) : t.status}
               </div>
             </div>
+            {agent && voice.speak && (
+              <button type="button" className={`cw-speak${speakOn ? " on" : ""}`} aria-pressed={speakOn} aria-label={t.speak} title={t.speak} onClick={() => {
+                spokenRef.current = msgs.length;
+                setSpeakOn((v) => !v);
+                if (speakOn) window.speechSynthesis.cancel();
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M11 5 6 9H3v6h3l5 4z" />
+                  {speakOn && <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />}
+                </svg>
+              </button>
+            )}
           </div>
           <div className="cw-list" ref={listRef} aria-live="polite">
             <div className="cw-row cw-hello">
@@ -425,7 +539,14 @@ export default function ChatWidget({
                       <img src={PHOTO.exec(m.content)![1]} alt="" loading="lazy" />
                     </a>
                   ) : (
-                  <div className={`cw-msg ${m.role}`}>{m.role === "visitor" ? m.content : <Linked text={m.content.replace(PAY, "").replace(/\*\*(.+?)\*\*/g, "$1")} />}</div>
+                  <>
+                    {m.content.replace(CASE, "").replace(PAY, "").trim() && (
+                      <div className={`cw-msg ${m.role}`}>{m.role === "visitor" ? m.content : <Linked text={m.content.replace(CASE, "").replace(PAY, "").replace(/\*\*(.+?)\*\*/g, "$1")} />}</div>
+                    )}
+                    {m.role === "ai" && token && CASE.test(m.content) && (
+                      <CaseCard slug={slug} token={token} id={CASE.exec(m.content)![1]} lang={lang} live={i === caseAt} onChange={poll} />
+                    )}
+                  </>
                   )}
                   {i === payAt && agent && agent.offers.length > 0 && (
                     <div className="cw-offers">
@@ -453,6 +574,7 @@ export default function ChatWidget({
             {waiting && !sending && !ownerMsgs.length && <div className="cw-wait">{t.waiting(businessName)}</div>}
           </div>
           {error && <div className="cw-error">{error}</div>}
+          {listening && <div className="cw-wait">🎙 {t.listening}</div>}
           {uploading && <div className="cw-wait">{t.uploading} {t.photoTip}</div>}
           <form
             className="cw-form"
@@ -492,6 +614,14 @@ export default function ChatWidget({
                 }
               }}
             />
+            {agent && canListen && (
+              <button type="button" className={`cw-mic${listening ? " on" : ""}`} disabled={sending} aria-label={listening ? t.micStop : t.mic} title={listening ? t.micStop : t.mic} onClick={() => (listening ? recRef.current?.stop() : listen())}>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="9" y="3" width="6" height="11" rx="3" />
+                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+                </svg>
+              </button>
+            )}
             <button type="submit" disabled={sending || uploading || !draft.trim()} aria-label={t.send}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M5 12h14M13 6l6 6-6 6" />
@@ -600,5 +730,177 @@ function AgentReview({ slug, token, name, lang, refreshKey }: { slug: string; to
         {t.reviewSend}
       </button>
     </form>
+  );
+}
+
+type SpeechRec = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: (e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void;
+  onend: () => void;
+  onerror: () => void;
+  start: () => void;
+  stop: () => void;
+};
+
+// The case file, inside the chat: steps, what the agent needs from the customer
+// right now (an OK, something to type on the official page, an answer), the
+// documents and the verified result. The newest card keeps the work going.
+function CaseCard({ slug, token, id, lang, live, onChange }: { slug: string; token: string; id: string; lang: "es" | "en"; live: boolean; onChange: () => void }) {
+  const t = TEXT[lang];
+  const [c, setC] = useState<PublicCase | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [note, setNote] = useState("");
+  const driving = useRef(false);
+
+  const load = useCallback(async () => {
+    const r = await getCaseAction({ slug, token, id }).catch(() => null);
+    if (r) setC(r);
+    return r;
+  }, [slug, token, id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // While it works, the newest card asks the server to keep going.
+  useEffect(() => {
+    if (!live || !c || c.status !== "working" || driving.current) return;
+    driving.current = true;
+    let alive = true;
+    (async () => {
+      for (let i = 0; i < 40 && alive; i++) {
+        const r = await advanceCaseAction({ slug, token, id }).catch(() => null);
+        if (!alive) break;
+        if (r?.case) setC(r.case);
+        onChange();
+        if (!r || !r.more) break;
+        await new Promise((ok) => setTimeout(ok, 1500));
+      }
+      driving.current = false;
+      if (alive) {
+        await load();
+        onChange();
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [live, c, slug, token, id, onChange, load]);
+
+  // Something to do on the official page (or an answer pending elsewhere): refresh now and then.
+  useEffect(() => {
+    if (!live || !c || c.status === "done") return;
+    const iv = setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 8000);
+    return () => clearInterval(iv);
+  }, [live, c, load]);
+
+  async function reply(kind: "ok" | "fix" | "done") {
+    if (busy) return;
+    setBusy(true);
+    const r = await caseReplyAction({ slug, token, id, kind, note: kind === "fix" ? note : undefined }).catch(() => null);
+    setBusy(false);
+    if (r) setC(r);
+    setFixing(false);
+    setNote("");
+    onChange();
+  }
+
+  if (!c) return null;
+  if (!live)
+    return (
+      <div className="cw-case mini">
+        <span>{t.caseFile}: {c.title}</span>
+        <b>{t.caseStatus[c.status]}</b>
+      </div>
+    );
+  const w = c.waiting;
+  return (
+    <div className={`cw-case ${c.status}`}>
+      <div className="cw-case-head">
+        <span className="cw-case-title">{c.title}</span>
+        <span className="cw-case-chip">{c.status === "working" && <span className="cw-dot" />}{t.caseStatus[c.status]}</span>
+      </div>
+      {c.mode === "test" && <div className="cw-case-test">{t.caseTest}</div>}
+      {c.steps.length > 0 && (
+        <ol className="cw-case-steps">
+          {c.steps.map((s, i) => (
+            <li key={i} className={s.status}>
+              <span aria-hidden>{s.status === "done" ? "✓" : s.status === "doing" ? "…" : s.status === "failed" ? "!" : "·"}</span>
+              {s.label}
+            </li>
+          ))}
+        </ol>
+      )}
+      {w && c.status === "needs_ok" && (
+        <div className="cw-case-wait">
+          <p>{w.label}</p>
+          {fixing ? (
+            <div className="cw-case-fix">
+              <textarea rows={2} maxLength={600} value={note} placeholder={t.caseFixPh} onChange={(e) => setNote(e.target.value)} />
+              <button type="button" disabled={busy || !note.trim()} onClick={() => reply("fix")}>{t.caseFixSend}</button>
+            </div>
+          ) : (
+            <div className="cw-case-btns">
+              <button type="button" className="ok" disabled={busy} onClick={() => reply("ok")}>{t.caseOk}</button>
+              <button type="button" disabled={busy} onClick={() => setFixing(true)}>{t.caseFix}</button>
+            </div>
+          )}
+        </div>
+      )}
+      {w && (w.kind === "sensitive" || w.kind === "captcha") && (c.status === "needs_input" || c.status === "blocked") && (
+        <div className="cw-case-wait">
+          <p>{w.kind === "sensitive" ? t.caseTypeHere(w.label) : w.label}</p>
+          {w.detail && <p className="cw-case-detail">{w.detail}</p>}
+          {w.url && (/browserbase|\/api\/agent-case\/live/.test(w.url) ? (
+            <iframe className="cw-case-live" src={w.url} title={w.label} sandbox="allow-same-origin allow-scripts allow-forms allow-popups" allow="clipboard-read; clipboard-write" />
+          ) : (
+            <a className="cw-link" href={w.url} target="_blank" rel="noopener noreferrer">{t.caseOpen}</a>
+          ))}
+          <div className="cw-case-btns">
+            <button type="button" className="ok" disabled={busy} onClick={() => reply("done")}>{w.kind === "sensitive" ? t.caseTyped : t.caseDidIt}</button>
+          </div>
+        </div>
+      )}
+      {w && w.kind === "info" && c.status === "needs_input" && (
+        <div className="cw-case-wait">
+          <p>{w.label}</p>
+          <p className="cw-case-detail">{t.caseAnswer}</p>
+        </div>
+      )}
+      {w && c.status === "pending" && (
+        <div className="cw-case-wait">
+          <p>{w.label}</p>
+          {w.detail && <p className="cw-case-detail">{t.casePendingNext}: {w.detail}</p>}
+        </div>
+      )}
+      {c.result && (
+        <div className="cw-case-result">
+          <span>✓ {t.caseResult}{c.result.test ? " (prueba)" : ""}</span>
+          <b>{c.result.kind}: {c.result.value}</b>
+          {c.result.url && <a className="cw-link" href={c.result.url} target="_blank" rel="noopener noreferrer">{c.result.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)}</a>}
+        </div>
+      )}
+      {c.docs.length > 0 && (
+        <div className="cw-case-docs">
+          <span>{t.caseDocs}</span>
+          {c.docs.map((d, i) => (
+            <a key={i} className="cw-link" href={d.url} target="_blank" rel="noopener noreferrer">{d.name}</a>
+          ))}
+        </div>
+      )}
+      {c.reminders.length > 0 && (
+        <div className="cw-case-docs">
+          <span>{t.caseReminders}</span>
+          {c.reminders.map((r, i) => (
+            <em key={i}>{r.dueAt.slice(0, 10)} · {r.text}</em>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

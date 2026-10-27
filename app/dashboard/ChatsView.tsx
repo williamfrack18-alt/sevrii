@@ -314,7 +314,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
                         <span className="text-[11.5px] text-pfaint shrink-0">{when(c.lastMessageAt, lang)}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                        <span className={`min-w-0 text-[13.5px] md:text-[13px] truncate ${c.ownerUnread ? "text-pfg2" : "text-pfaint"}`}>{c.lastMessage.replace(/\s*\[\[pay\]\]\s*$/, "").replace(/^📷\s+https:\/\/\S+$/, lang === "es" ? "📷 Foto" : "📷 Photo")}</span>
+                        <span className={`min-w-0 text-[13.5px] md:text-[13px] truncate ${c.ownerUnread ? "text-pfg2" : "text-pfaint"}`}>{c.lastMessage.replace(/\s*\[\[(pay|case:[A-Za-z0-9_-]+)\]\]\s*$/, "").replace(/^📷\s+https:\/\/\S+$/, lang === "es" ? "📷 Foto" : "📷 Photo")}</span>
                         {c.handoff && <span className="ml-auto shrink-0 text-[11px] text-[#e0b54a]">{t.needsYou}</span>}
                         {!c.handoff && c.ownerUnread > 0 && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
                       </div>
@@ -401,7 +401,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
                                 <img src={m.content.replace(/^📷\s+/, "")} alt="" loading="lazy" className="max-w-[240px] max-h-[300px] rounded-[10px] object-cover" />
                               </a>
                             ) : (
-                              m.content.replace(/\s*\[\[pay\]\]\s*$/, "").replace(/\*\*(.+?)\*\*/g, "$1")
+                              m.content.replace(/\s*\[\[(pay|case:[A-Za-z0-9_-]+)\]\]\s*$/, "").replace(/\*\*(.+?)\*\*/g, "$1")
                             )}
                           </div>
                         </div>

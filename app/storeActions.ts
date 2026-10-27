@@ -361,9 +361,10 @@ export async function loadStoreAction(): Promise<{
 // ---------- Service agent (the page chat delivers the service) ----------
 export async function setAgentEnabledAction(on: boolean): Promise<{ ok: boolean; business: BusinessRow; missing: string[] }> {
   const business = await requireBusiness();
-  const { agentMissing, parseServiceAgent } = await import("@/lib/serviceAgentConfig");
+  const { agentMissing, parseServiceAgent, taskMissing } = await import("@/lib/serviceAgentConfig");
   const { setServiceAgent } = await import("@/lib/db");
-  const missing = on ? agentMissing(business.serviceAgent) : [];
+  // Switching on needs the complete task it does end to end (no task, no agent).
+  const missing = on ? [...agentMissing(business.serviceAgent), ...taskMissing(business.serviceAgent.task).map((x) => `task.${x}`)] : [];
   if (missing.length) return { ok: false, business, missing };
   await setServiceAgent(business.id, parseServiceAgent({ ...business.serviceAgent, enabled: on }));
   const fresh = (await getBusinessById(business.id))!;
