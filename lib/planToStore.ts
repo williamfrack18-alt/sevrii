@@ -31,6 +31,20 @@ export type StoreDraft = {
   services: { name: string; price: string; description: string }[];
 };
 
+// Text saved shortened by an older limit ("…por tu cuenta en tu…") is shown
+// whole when the Brain plan still has the full sentence it came from.
+export function completeFrom(text: string, plan: { service?: string; promise?: string }): string {
+  const t = (text || "").trim();
+  if (!t) return t;
+  const stem = t.replace(/…$/, "").trim();
+  if (stem.length < 12) return t;
+  for (const c of [plan.service, plan.promise]) {
+    const full = (c || "").trim().replace(/\s+/g, " ");
+    if (full.length > stem.length && full.toLowerCase().startsWith(stem.toLowerCase())) return full;
+  }
+  return t;
+}
+
 function cut(s: string, max: number): string {
   const t = (s || "").trim().replace(/\s+/g, " ");
   if (t.length <= max) return t;

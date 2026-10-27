@@ -574,6 +574,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   @media (max-width:860px){.s-faq{padding:72px 0;}}
   /* "Sevrii Agentes", like "Sevrii Afiliados" */
   .logo-sub{font-size:inherit;font-weight:400;color:#9a9a9a;margin-left:-2px;}
+  @media (max-width:600px){.logo{gap:7px}.logo img{height:34px}.nav-actions .btn{white-space:nowrap;padding:9px 14px;font-size:13px}}
 </style>
 </head>
 <body>
@@ -618,7 +619,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 <div class="sections">
 
 <!-- Explainer video: paste the YouTube video ID in data-youtube-id -->
-<section class="s-video" id="video">
+<section class="s-video" id="video" hidden>
   <div class="s-wrap">
     <div class="s-video-head reveal">
       <h2 class="s-h2">See how an agent works</h2>
@@ -902,6 +903,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
       var id = (p.getAttribute('data-youtube-id') || '').trim();
       var poster = p.querySelector('.s-poster');
       if (id) {
+        var vs = p.closest('section'); if (vs) vs.hidden = false;
         p.classList.add('has-video');
         p.querySelector('.s-poster-label').textContent = p.getAttribute('data-label-play');
         poster.addEventListener('click', function(){
@@ -909,7 +911,8 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
             '?autoplay=1&rel=0&modestbranding=1" title="Sevrii" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
         });
       } else {
-        poster.disabled = true;
+        // No video yet: hide the whole block instead of a disabled placeholder.
+        var sec = p.closest('section'); if (sec) sec.hidden = true;
       }
     }
 

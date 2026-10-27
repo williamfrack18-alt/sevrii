@@ -43,6 +43,7 @@ const TEXT = {
     needs: "Para activarlo falta:",
     needItems: { name: "su nombre", role: "qué hace", instructions: "su método" } as Record<string, string>,
     pay: "Para cobrar conecta Payments; mientras tanto da sus respuestas gratis y te pasa la conversación.",
+    payOff: "Para cobrar también tendrás que conectar Payments. Mientras esté apagado no responde en tu página.",
     payBtn: "Conectar",
     sales: (n: number, total: string) => `${n === 1 ? "1 venta" : `${n} ventas`} · ${total}`,
   },
@@ -77,6 +78,7 @@ const TEXT = {
     needs: "To switch it on it needs:",
     needItems: { name: "its name", role: "what it does", instructions: "its method" } as Record<string, string>,
     pay: "To charge, connect Payments; meanwhile it gives its free replies and passes the chat to you.",
+    payOff: "To charge you'll also need to connect Payments. While it's off it doesn't answer on your page.",
     payBtn: "Connect",
     sales: (n: number, total: string) => `${n === 1 ? "1 sale" : `${n} sales`} · ${total}`,
   },
@@ -265,7 +267,7 @@ function AgentRow({ business, onUpdated, onPayments }: { business: ClientBusines
       )}
       {!business.payReady && (
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[12.5px] text-psub leading-relaxed">{t.pay}</span>
+          <span className="text-[12.5px] text-psub leading-relaxed">{a.enabled ? t.pay : t.payOff}</span>
           {onPayments && (
             <button type="button" onClick={onPayments} className="text-[12.5px] font-semibold shrink-0 hover:underline" style={{ color: ACCENT }}>
               {t.payBtn} →

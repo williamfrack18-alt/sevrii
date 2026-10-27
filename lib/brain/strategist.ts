@@ -72,7 +72,7 @@ const PROPOSAL_PROPS = {
   problem: S("The problem or need, in the customer's words"),
   fears: S("What worries the customer before hiring"),
   promise: S("One-line honest value proposition"),
-  differentiators: { type: "array", items: { type: "string" }, description: "3-4 reasons to choose them, only backed by the expediente" },
+  differentiators: { type: "array", items: { type: "string" }, description: "3-4 reasons to choose them, only backed by the expediente. Each one a complete sentence of at most 200 characters." },
   packages: {
     type: "array",
     description: "2 or 3 packages",
@@ -173,12 +173,12 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
     service: str(d.service, 120),
     serviceIncludes: str(d.serviceIncludes, 400),
     serviceExcludes: str(d.serviceExcludes, 300),
-    steps: (Array.isArray(d.steps) ? d.steps : []).map((x) => str(x, 160)).filter(Boolean).slice(0, 5),
+    steps: (Array.isArray(d.steps) ? d.steps : []).map((x) => str(x, 320)).filter(Boolean).slice(0, 5),
     customer: str(d.customer, 240),
     problem: str(d.problem, 240),
     fears: str(d.fears, 240),
     promise: str(d.promise, 200),
-    differentiators: (Array.isArray(d.differentiators) ? d.differentiators : []).map((x) => str(x, 140)).filter(Boolean).slice(0, 5),
+    differentiators: (Array.isArray(d.differentiators) ? d.differentiators : []).map((x) => str(x, 320)).filter(Boolean).slice(0, 5),
     packages: (Array.isArray(d.packages) ? d.packages : []).slice(0, 4).map((x) => {
       const p = (x ?? {}) as Record<string, unknown>;
       return { name: str(p.name, 80), price: str(p.price, 40), includes: str(p.includes, 240), note: str(p.note, 140) };
@@ -187,7 +187,7 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
     // A suggestion only: no end date until the owner sets a real one.
     offer: label ? { label, detail: str(offer.detail, 200), endsAt: "", forNewClients: offer.forNewClients === true } : null,
     videoScript: typeof d.videoScript === "string" ? d.videoScript.trim().slice(0, 1200) : "",
-    photoIdeas: (Array.isArray(d.photoIdeas) ? d.photoIdeas : []).map((x) => str(x, 160)).filter(Boolean).slice(0, 6),
+    photoIdeas: (Array.isArray(d.photoIdeas) ? d.photoIdeas : []).map((x) => str(x, 240)).filter(Boolean).slice(0, 6),
     campaignType: str(d.campaignType, 200),
     channels: (Array.isArray(d.channels) ? d.channels : []).slice(0, 4).map((x) => {
       const c = (x ?? {}) as Record<string, unknown>;

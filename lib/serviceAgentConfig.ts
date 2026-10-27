@@ -60,6 +60,21 @@ const n = (v: unknown, lo: number, hi: number, d: number) => {
   return Number.isFinite(x) ? Math.max(lo, Math.min(hi, x)) : d;
 };
 
+// "12 meses", "1 año", "7 días", "48 horas" in an offer's text → hours of access.
+const MAX_ACCESS_HOURS = 24 * 366;
+export function periodHours(text: string): number | null {
+  const t = text.toLowerCase();
+  const y = /(\d{1,2}|un|una|one|a)\s*(a[ñn]os?|years?)\b/i.exec(t);
+  if (y) return Math.min(MAX_ACCESS_HOURS, (/^\d+$/.test(y[1]) ? Number(y[1]) : 1) * 365 * 24);
+  const m = /(\d{1,2})\s*(meses|mes|months?)\b/i.exec(t);
+  if (m) return Math.min(MAX_ACCESS_HOURS, (Number(m[1]) === 12 ? 365 : Number(m[1]) * 30) * 24);
+  const d = /(\d{1,3})\s*(d[ií]as?|days?)\b/i.exec(t);
+  if (d) return Math.min(MAX_ACCESS_HOURS, Number(d[1]) * 24);
+  const h = /(\d{1,3})\s*(horas?|hours?|hrs?)\b/i.exec(t);
+  if (h) return Math.min(MAX_ACCESS_HOURS, Number(h[1]));
+  return null;
+}
+
 export function parseOffer(raw: unknown, i = 0): AgentOffer | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -73,7 +88,14 @@ export function parseOffer(raw: unknown, i = 0): AgentOffer | null {
     detail: s(o.detail, AGENT_LIMITS.offerDetail),
     priceCents,
     billing,
-    hours: billing === "once" ? n(o.hours, 1, 24 * 90, 24) : 0,
+    // One-time access: the hours given, or (when missing or left at the 1-day
+    // default) the period the offer's own title or detail names ("12 meses").
+    hours: billing === "once" ? (() => {
+      const h = n(o.hours, 1, MAX_ACCESS_HOURS, 24);
+      if (o.hours !== undefined && h !== 24) return h;
+      const named = periodHours(title) ?? periodHours(s(o.detail, AGENT_LIMITS.offerDetail));
+      return named && named > h ? named : h;
+    })() : 0,
     replies: n(o.replies, 10, 5000, billing === "monthly" ? 600 : 120),
   };
 }
@@ -147,6 +169,16 @@ export function offerPriceLabel(o: AgentOffer, lang: "es" | "en"): string {
   const es = lang === "es";
   if (o.billing === "monthly") return es ? `${money(o.priceCents)} al mes` : `${money(o.priceCents)} a month`;
   const h = o.hours;
-  const span = h % 24 === 0 ? (h / 24 === 1 ? (es ? "1 día" : "1 day") : es ? `${h / 24} días` : `${h / 24} days`) : es ? `${h} horas` : `${h} hours`;
+  const d = h / 24;
+  const span =
+    h % 24 !== 0
+      ? es ? `${h} horas` : `${h} hours`
+      : d === 1
+        ? es ? "1 día" : "1 day"
+        : d % 365 === 0 || d === 366
+          ? d <= 366 ? (es ? "12 meses" : "12 months") : es ? `${Math.round(d / 365)} años` : `${Math.round(d / 365)} years`
+          : d % 30 === 0 && d >= 60
+            ? es ? `${d / 30} meses` : `${d / 30} months`
+            : es ? `${d} días` : `${d} days`;
   return es ? `${money(o.priceCents)} · acceso por ${span}` : `${money(o.priceCents)} · ${span} of access`;
 }

@@ -191,6 +191,14 @@ document.addEventListener('DOMContentLoaded', function(){
     scrollbar-width:none;
   }
   .category-bar .wrap::-webkit-scrollbar{display:none;}
+  /* More categories than fit: edge fades and arrows say the row scrolls */
+  .category-bar::before,.category-bar::after{content:"";position:absolute;top:0;bottom:1px;width:56px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:2;}
+  .category-bar::before{left:0;background:linear-gradient(to right,#fff 30%,rgba(255,255,255,0));}
+  .category-bar::after{right:0;background:linear-gradient(to left,#fff 30%,rgba(255,255,255,0));}
+  .category-bar.more-left::before,.category-bar.more-right::after{opacity:1;}
+  .cat-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid #e2e2df;background:#fff;color:#111;font-size:20px;line-height:1;display:none;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.08);}
+  .cat-arrow.prev{left:8px;} .cat-arrow.next{right:8px;}
+  .category-bar.more-left .cat-arrow.prev,.category-bar.more-right .cat-arrow.next{display:flex;}
   .category-item{
     display:flex;flex-direction:column;align-items:center;gap:7px;
     min-width:88px;flex-shrink:0;
@@ -501,6 +509,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <a href="/" onclick="try{localStorage.setItem('sevrii_lang','es')}catch(e){}" style="color:var(--muted);">ES</a>
     </div>
     <div style="display:flex;gap:14px;align-items:center;">
+      <a href="/login" class="btn btn-outline">Log in</a>
       <a href="/en/ofrecerservicios" class="btn btn-primary">Offer a Service</a>
     </div>
   </nav>
@@ -547,7 +556,19 @@ document.addEventListener('DOMContentLoaded', function(){
     <a href="#explorar" class="category-item" data-category="Fotografía"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><span>Photography</span></a>
     <a href="#explorar" class="category-item" data-category="Asesoría y Negocios"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><span>Consulting & Business</span></a>
   </div>
+  <button type="button" class="cat-arrow prev" aria-label="Previous categories">‹</button>
+  <button type="button" class="cat-arrow next" aria-label="More categories">›</button>
 </section>
+<script>
+  (function(){
+    var bar = document.querySelector('.category-bar'); if(!bar) return;
+    var row = bar.querySelector('.wrap');
+    function upd(){ bar.classList.toggle('more-left', row.scrollLeft > 4); bar.classList.toggle('more-right', row.scrollLeft + row.clientWidth < row.scrollWidth - 4); }
+    bar.querySelector('.cat-arrow.next').addEventListener('click', function(){ row.scrollBy({left: row.clientWidth * 0.7, behavior:'smooth'}); });
+    bar.querySelector('.cat-arrow.prev').addEventListener('click', function(){ row.scrollBy({left: -row.clientWidth * 0.7, behavior:'smooth'}); });
+    row.addEventListener('scroll', upd, {passive:true}); window.addEventListener('resize', upd); upd();
+  })();
+</script>
 
 <!-- ============== SERVICES SECTION — redesigned Amazon-style, categories filter removed ============== -->
 <section class="services" id="explorar">
@@ -723,7 +744,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="links">
       <a href="/en/terminos">Terms</a>
       <a href="/en/privacidad">Privacy</a>
-      <a href="https://wa.me/12245083851?text=Hi%2C%20I%20need%20help%20with%20Sevrii" target="_blank" rel="noopener">Support</a>
+      <a href="https://wa.me/12245083851?text=Hi%2C%20I%20need%20help%20with%20Sevrii" target="_blank" rel="noopener" title="Opens a WhatsApp chat with the Sevrii team">Support on WhatsApp</a>
     </div>
   </div>
 </footer>

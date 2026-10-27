@@ -53,7 +53,7 @@ const TEXT = {
     progressSub: (done: number, total: number) => `${done} de ${total} pasos · van en orden: cada uno cuenta cuando el anterior está listo`,
     // The real order: strategy → page → payments (to charge) → ads.
     steps: ["Estrategia lista", "Página publicada", "Pagos conectados", "Marketing aprobado"],
-    early: (prev: string) => `Ya lo hiciste; cuenta cuando completes «${prev}»`,
+    early: (prev: string) => `Pendiente: cuenta cuando completes «${prev}»`,
     views: "Visitas",
     contacts: "Contactos",
     unread: "Chats sin leer",
@@ -99,7 +99,7 @@ const TEXT = {
     progress: "Your progress",
     progressSub: (done: number, total: number) => `${done} of ${total} steps · in order: each counts once the one before is done`,
     steps: ["Strategy ready", "Page live", "Payments connected", "Marketing approved"],
-    early: (prev: string) => `Done already; it counts once you complete "${prev}"`,
+    early: (prev: string) => `Pending: it counts once you complete "${prev}"`,
     views: "Visits",
     contacts: "Contacts",
     unread: "Unread chats",
@@ -219,7 +219,7 @@ export default function ProjectsView({
               <ul className="flex flex-col gap-1.5 mt-1">
                 {tx.steps.map((s, i) => (
                   <li key={s} className="flex items-center gap-2.5 text-[14.5px]" style={{ color: steps[i] ? "#0A0A0A" : "#A1A1AA" }}>
-                    <span className="h-5 w-5 rounded-full flex items-center justify-center shrink-0" style={steps[i] ? { background: GREEN } : early[i] ? { boxShadow: `inset 0 0 0 1.5px ${GREEN}` } : { boxShadow: "inset 0 0 0 1.5px #D4D4D8" }}>
+                    <span className="h-5 w-5 rounded-full flex items-center justify-center shrink-0" style={steps[i] ? { background: GREEN } : { boxShadow: "inset 0 0 0 1.5px #D4D4D8" }}>
                       {steps[i] && (
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M5 12.5l4.5 4.5L19 7.5" />

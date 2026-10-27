@@ -319,6 +319,7 @@ document.addEventListener('DOMContentLoaded', function(){
     display:flex; width:max-content;
     animation:dealScroll 11s linear infinite;
   }
+  .deal-static{flex:1; min-width:0; display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px;}
   .deal-marquee-item{
     display:inline-flex; align-items:center; gap:6px; white-space:nowrap; padding-right:48px;
   }
@@ -573,9 +574,9 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="thumbs">
         <div class="thumb active thumb-media" data-thumb="0" onclick="showSlide(0)" style="background-image:url('assets/matheus-credito-video-poster.jpg');"><span class="thumb-play">▶</span></div>
         <div class="thumb thumb-media" data-thumb="1" onclick="showSlide(1)" style="background-image:url('assets/matheus-credito-video-2-poster.jpg');"><span class="thumb-play">▶</span></div>
-        <div class="thumb thumb-media" data-thumb="2" onclick="showSlide(2)" style="background-image:url('assets/matheus-slide-tarjetas.webp');"></div>
-        <div class="thumb thumb-media" data-thumb="3" onclick="showSlide(3)" style="background-image:url('assets/matheus-slide-hipotecario.webp');"></div>
-        <div class="thumb thumb-media" data-thumb="4" onclick="showSlide(4)" style="background-image:url('assets/matheus-slide-negocio.webp');"></div>
+        <div class="thumb thumb-media" data-thumb="2" onclick="showSlide(2)" role="button" aria-label="Tarjetas de crédito"><img src="assets/matheus-slide-tarjetas.webp" alt="Tarjetas de crédito" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;"></div>
+        <div class="thumb thumb-media" data-thumb="3" onclick="showSlide(3)" role="button" aria-label="Crédito hipotecario"><img src="assets/matheus-slide-hipotecario.webp" alt="Crédito hipotecario" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;"></div>
+        <div class="thumb thumb-media" data-thumb="4" onclick="showSlide(4)" role="button" aria-label="Crédito de negocio"><img src="assets/matheus-slide-negocio.webp" alt="Crédito de negocio" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;"></div>
       </div>
       <div class="gallery-stage">
         <div class="slide active" data-slide="0">
@@ -616,7 +617,8 @@ document.addEventListener('DOMContentLoaded', function(){
         </div>
       </div>
       <div style="display:flex; gap:32px; flex-wrap:wrap; align-items:flex-start; margin-bottom:8px;">
-        <div class="rating-dist" id="ratingDist" style="max-width:340px;">
+        <div class="rating-dist" id="ratingDist" style="max-width:340px;" aria-label="Reseñas con comentario escrito (3 de 32)">
+          <span class="mono" style="font-size:12px; color:var(--ink-dim); padding:0 10px 2px;">Reseñas con comentario escrito (3 de 32)</span>
           <button type="button" data-star="5" class="active"><span>5★</span><span class="bar-track"><span class="bar-fill" style="width:100%;"></span></span><span class="rd-count">3</span></button>
           <button type="button" data-star="4" class="active"><span>4★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
           <button type="button" data-star="3" class="active"><span>3★</span><span class="bar-track"><span class="bar-fill" style="width:0%;"></span></span><span class="rd-count">0</span></button>
@@ -637,7 +639,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <button class="rating-count tabular" onclick="document.getElementById('resenas').scrollIntoView({behavior:'smooth'})">4.9 · 32 reseñas</button>
         <span class="verified-badge">✓ Verificado por Sevrii</span>
       </div>
-      <div class="deal-badge"><span class="deal-badge-dot"></span><div class="deal-marquee"><div class="deal-marquee-track"><span class="deal-marquee-item"><strong>OFERTA</strong> · <span class="deal-old-price">Antes $299</span> <span class="deal-new-price">Ahora GRATIS</span> — termina hoy en <span class="offerCountdown tabular">00:00:00</span></span><span class="deal-marquee-item"><strong>OFERTA</strong> · <span class="deal-old-price">Antes $299</span> <span class="deal-new-price">Ahora GRATIS</span> — termina hoy en <span class="offerCountdown tabular">00:00:00</span></span></div></div></div>
+      <div class="deal-badge"><span class="deal-badge-dot"></span><span class="deal-static"><strong>OFERTA</strong> · <span class="deal-old-price">Antes $299</span> <span class="deal-new-price">Ahora GRATIS</span></span></div>
       <h1>Asesoría de crédito y financiera</h1>
       <ul class="about-list">
         <li><strong>Evaluación gratuita:</strong> revisamos tus tres burós de crédito antes de recomendarte nada.</li>

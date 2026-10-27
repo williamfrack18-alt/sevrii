@@ -397,7 +397,7 @@ export default function ChatPanel({
     <div className="flex-1 min-h-0 flex">
     <div className="flex-1 min-w-0 min-h-0 flex flex-col">
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-6 md:pb-8 flex flex-col gap-6 md:gap-7">
+        <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-10 md:pb-14 flex flex-col gap-6 md:gap-7">
           {head}
           {messages.length === 0 && greeting && (
             <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words" style={{ color: "#0A0A0A" }}>

@@ -1,6 +1,6 @@
 // Writes an approved Brain expediente into the store page (see planToStore.ts).
 import { addChatMessage, addService, deleteService, getBusinessById, listServices, mergeBusinessSite, setServiceAgent, updateBusinessDetails, type BusinessRow } from "./db";
-import { EMPTY_AGENT, parseServiceAgent, type AgentOffer, type ServiceAgent } from "./serviceAgentConfig";
+import { EMPTY_AGENT, parseServiceAgent, periodHours, type AgentOffer, type ServiceAgent } from "./serviceAgentConfig";
 import type { BusinessPlan } from "./plan";
 import { normalizePhone, type SiteData } from "./site";
 import { planFingerprint, planReadyForStore, storeFromPlan } from "./planToStore";
@@ -125,7 +125,7 @@ function offerFromPackage(p: BusinessPlan["packages"][number], i: number): Agent
         detail: p.includes,
         priceCents: cents,
         billing: monthly ? "monthly" : "once",
-        hours: days ? Number(days[1]) * 24 : hours ? Number(hours[1]) : 24,
+        hours: periodHours(text) ?? (days ? Number(days[1]) * 24 : hours ? Number(hours[1]) : 24),
       },
     ],
   }).offers[0] ?? null;

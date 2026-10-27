@@ -111,7 +111,7 @@ export const EMPTY_SITE: SiteData = {
 };
 
 export const LIMITS = {
-  headline: 90,
+  headline: 140,
   pitch: 400,
   serviceArea: 120,
   hours: 160,

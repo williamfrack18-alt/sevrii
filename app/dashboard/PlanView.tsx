@@ -223,7 +223,22 @@ export default function PlanView({
         : null
       : null;
   const partCard = (id: ApprovalBlock) => (
-    <PartCard id={id} plan={plan} busy={busy} onApprove={approve} onChange={change} onNoOffer={() => act(() => noOfferAction())} />
+    <PartCard
+      id={id}
+      plan={plan}
+      busy={busy}
+      onApprove={approve}
+      onChange={change}
+      onNoOffer={() => act(() => noOfferAction())}
+      onComplete={(block) =>
+        setPrefill({
+          key: Date.now(),
+          text: lang === "es"
+            ? `En «${t.blocks[block]}», escribe completas las frases que quedaron cortadas (terminan en «…»), sin cambiar nada más.`
+            : `In "${t.blocks[block]}", write out in full the sentences that were cut off (they end in "…"), without changing anything else.`,
+        })
+      }
+    />
   );
   const renderToken = ({ kind, arg, msgId }: ChatToken) => {
     if (kind === "part" && isBlock(arg)) return msgId === liveId ? partCard(arg) : <PartRow id={arg} plan={plan} stale={arg === reviewing} />;
@@ -559,6 +574,7 @@ function PartCard({
   onApprove,
   onChange,
   onNoOffer,
+  onComplete,
 }: {
   id: ApprovalBlock;
   plan: BusinessPlan;
@@ -566,9 +582,14 @@ function PartCard({
   onApprove: (b: ApprovalBlock) => void;
   onChange: (b: ApprovalBlock) => void;
   onNoOffer: () => void;
+  onComplete?: (b: ApprovalBlock) => void;
 }) {
-  const t = PLAN_TEXT[useLang()];
+  const lang = useLang();
+  const t = PLAN_TEXT[lang];
   const n = APPROVAL_BLOCKS.indexOf(id);
+  // Sentences an older length limit cut short (they end in "…"): the full text
+  // is gone, so the Brain rewrites them on request (the owner sends it).
+  const cut = cutTexts(plan, id);
   const notes = notesFor(plan, id);
   const canApprove = id !== "offer" || offerReady(plan);
   return (
@@ -582,6 +603,18 @@ function PartCard({
       </div>
       <div className="px-4 md:px-5 py-4 flex flex-col gap-4 min-w-0">
         <PartBody id={id} plan={plan} />
+        {cut > 0 && onComplete && (
+          <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(10,10,10,0.034)" }}>
+            <span className="text-[13px] text-pfg2 leading-relaxed min-w-0">
+              {lang === "es"
+                ? cut === 1 ? "Una frase quedó incompleta (termina en «…»)." : `${cut} frases quedaron incompletas (terminan en «…»).`
+                : cut === 1 ? "One sentence was cut short (it ends in \"…\")." : `${cut} sentences were cut short (they end in "…").`}
+            </span>
+            <button type="button" disabled={busy} onClick={() => onComplete(id)} className="h-9 px-4 rounded-full text-[13px] font-semibold shrink-0 disabled:opacity-60" style={GHOST_BTN}>
+              {lang === "es" ? "Pedir el texto completo" : "Ask for the full text"}
+            </button>
+          </div>
+        )}
         {notes.length > 0 && (
           <div className="flex flex-col gap-1.5 rounded-xl p-3" style={{ background: "rgba(245,196,81,0.06)", boxShadow: "inset 0 0 0 1px rgba(245,196,81,0.22)" }}>
             {notes.map((x, i) => (
@@ -613,6 +646,17 @@ function PartCard({
       </div>
     </div>
   );
+}
+
+// How many texts in a part end in "…" (cut by a length limit).
+function cutTexts(plan: BusinessPlan, id: ApprovalBlock): number {
+  const texts =
+    id === "pitch" ? [plan.promise, ...plan.differentiators]
+    : id === "service" ? [plan.serviceIncludes, plan.serviceExcludes, ...plan.steps]
+    : id === "packages" ? plan.packages.flatMap((p) => [p.includes, p.note])
+    : id === "offer" ? [plan.offer?.detail ?? ""]
+    : plan.faq.flatMap((f) => [f.q, f.a]);
+  return texts.filter((x) => /…$/.test((x || "").trim())).length;
 }
 
 // Six small dots: which parts are approved and which one is open.

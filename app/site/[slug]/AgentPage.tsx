@@ -2,11 +2,12 @@
 // chat. It sells differently from a service done by people: the chat is the
 // product, the visitor tries it for free first, pays for access inside the
 // chat, and needs to see who made it and why it's worth more than a free AI.
+import { completeFrom } from "@/lib/planToStore";
 import type { BusinessRow } from "@/lib/db";
 import { activeOffer, storeTheme } from "@/lib/site";
 import { reachLabel, resolveReach } from "@/lib/reach";
 import { STORE_TEXT } from "@/lib/storeI18n";
-import { money, offerPriceLabel, welcomeLabel } from "@/lib/serviceAgentConfig";
+import { money, offerPriceLabel, welcomeFor, welcomeLabel } from "@/lib/serviceAgentConfig";
 import ChatWidget, { ChatJump, type ChatAgent } from "./ChatWidget";
 import { ChatIcon, ChatLink, Gallery, type MediaItem } from "./StoreParts";
 
@@ -125,6 +126,8 @@ export default function AgentPage({
   chatAgent: ChatAgent | null;
 }) {
   const site = business.site;
+  // The full title, never one cut by an older limit.
+  const headline = completeFrom(site.headline, business.plan);
   const lang = site.lang === "en" ? "en" : "es";
   const t = TEXT[lang];
   const st = STORE_TEXT[site.lang].site;
@@ -149,12 +152,24 @@ export default function AgentPage({
   const area = site.serviceArea || reachLabel(reach, site.lang) || "";
   const langs = t.langNames[business.plan.profile.languages] || (site.spanish ? t.langNames.both : "");
   // The best first-purchase deal among the access options, if any.
-  const welcome = a.offers.map((o) => welcomeLabel(a, o, lang)).find(Boolean) || "";
+  // The welcome deal for the whole page: which access options it covers, not a
+  // single price that only fits one of them (each card shows its own price).
+  const welcomeOffers = a.offers.filter((o) => welcomeLabel(a, o, lang));
+  const welcomePct = welcomeOffers.length ? welcomeFor(a, welcomeOffers[0]) : 0;
+  const welcome = !welcomeOffers.length
+    ? ""
+    : welcomeOffers.length === 1
+      ? `${welcomeLabel(a, welcomeOffers[0], lang)} (${welcomeOffers[0].title})`
+      : welcomeOffers.length === a.offers.length
+        ? lang === "es" ? `${welcomePct}% menos en tu primera compra, en cualquier plan` : `${welcomePct}% off your first purchase, on any plan`
+        : lang === "es"
+          ? `${welcomePct}% menos en tu primera compra de ${welcomeOffers.map((o) => `«${o.title}»`).join(" o ")}`
+          : `${welcomePct}% off your first purchase of ${welcomeOffers.map((o) => `"${o.title}"`).join(" or ")}`;
   // The left side: the creator's video and photos, then a card per access option.
   const media: MediaItem[] = [];
   if (site.videoUrl) media.push({ kind: "video", src: site.videoUrl, poster: site.coverUrl, label: name });
   for (const src of [site.coverUrl, ...site.gallery].filter(Boolean)) media.push({ kind: "photo", src });
-  media.push({ kind: "slide", tone: "service", kicker: t.kicker, title: site.headline || name, price: cheapest > 0 ? t.from(money(cheapest)) : t.free(a.freeReplies), text: t.free(a.freeReplies) });
+  media.push({ kind: "slide", tone: "service", kicker: t.kicker, title: headline || name, price: cheapest > 0 ? t.from(money(cheapest)) : t.free(a.freeReplies), text: t.free(a.freeReplies) });
   if (welcome) media.push({ kind: "slide", tone: "offer", kicker: t.welcome, title: welcome, price: "", text: name });
   for (const o of a.offers.slice(0, 3)) media.push({ kind: "slide", tone: "service", kicker: t.accessKicker, title: o.title, price: offerPriceLabel(o, lang), text: o.detail || "" });
   const stars = (n: number) => "★★★★★".slice(0, Math.round(n)) + "☆☆☆☆☆".slice(0, 5 - Math.round(n));
@@ -181,7 +196,7 @@ export default function AgentPage({
         <div className="wrap breadcrumb">
           <span>{t.agents}</span>
           <span className="sep" aria-hidden>›</span>
-          <span className="current">{business.category.split(":")[0].trim() || name}</span>
+          <span className="current">{name}</span>
         </div>
 
         {/* Same product layout as every Sevrii page: media on the left, the
@@ -189,7 +204,7 @@ export default function AgentPage({
         <section className="product wrap">
           <div className="gallery-col">
             <div className="gallery-title">{name}</div>
-            <Gallery items={media} alt={name} lang={site.lang} empty={<div className="stage-empty"><span className="stage-kicker">{t.kicker}</span><div className="stage-title">{site.headline || name}</div></div>} />
+            <Gallery items={media} alt={name} lang={site.lang} empty={<div className="stage-empty"><span className="stage-kicker">{t.kicker}</span><div className="stage-title">{headline || name}</div></div>} />
           </div>
 
           <div className="below-gallery">
@@ -263,7 +278,7 @@ export default function AgentPage({
               </div>
             )}
 
-            <h1>{site.headline || name}</h1>
+            <h1>{headline || name}</h1>
             {cheapest > 0 && (
               <div className="from-price">
                 {t.from("")}

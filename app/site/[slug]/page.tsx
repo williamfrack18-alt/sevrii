@@ -1,3 +1,4 @@
+import { completeFrom } from "@/lib/planToStore";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
@@ -55,7 +56,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!business || !(await isLive(business))) return { title: "Sevrii", robots: { index: false } };
   const site = business.site;
   const where = site.serviceArea || business.city || "";
-  const title = clip(`${business.name}${site.headline ? ` · ${site.headline}` : business.category ? ` · ${business.category}` : ""}${where ? ` · ${where}` : ""}`, 70);
+  // The full title (no "…"): the page's headline as written, or its category.
+  const headline = completeFrom(site.headline, business.plan);
+  const category = completeFrom(business.category, business.plan);
+  const title = `${business.name}${headline ? ` · ${headline}` : category ? ` · ${category}` : ""}`;
   const fallback = [business.category, where].filter(Boolean).join(site.lang === "en" ? " in " : " en ");
   const description = clip(business.pitch.trim() || (fallback ? `${business.name} · ${fallback}` : business.name), 300);
   const image = site.coverUrl || site.gallery[0] || site.logoUrl || undefined;
@@ -150,7 +154,7 @@ export default async function PublicBusinessPage({
 
   const reach = resolveReach(site, business.city, business.plan.profile);
   const area = site.serviceArea || reachLabel(reach, site.lang) || business.city || "";
-  const mainTitle = site.headline || business.category || business.name;
+  const mainTitle = completeFrom(site.headline, business.plan) || completeFrom(business.category, business.plan) || business.name;
   const images = [site.coverUrl, ...site.gallery].filter(Boolean);
   const ordered = [...services].sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
   // One service only: the page focuses on it (no options to pick, one big card).
@@ -250,7 +254,7 @@ export default async function PublicBusinessPage({
           {business.category && (
             <>
               <span className="sep" aria-hidden>›</span>
-              <span className="current">{business.category}</span>
+              <span className="current">{completeFrom(business.category, business.plan)}</span>
             </>
           )}
         </div>
