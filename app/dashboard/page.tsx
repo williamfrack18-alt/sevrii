@@ -10,6 +10,9 @@ import { clientPlan, syncCheckoutSession } from "@/lib/billing";
 import DashboardTabs from "./DashboardTabs";
 import { DASHBOARD_VIEWS, toClientBusiness, type DashboardView } from "./types";
 
+// Marketing's cloud browser makes videos in steps of up to a few minutes (server actions of this page).
+export const maxDuration = 300;
+
 export default async function DashboardPage({
   searchParams,
 }: {

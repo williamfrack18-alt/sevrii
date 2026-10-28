@@ -27,7 +27,19 @@ const VIDEO = /^🎥\s+(https:\/\/\S+)$/;
 const OLD_CARD = /\[\[card:[a-z]+\]\]/g;
 // A card token at the end of an assistant message ("[[part:service]]"); the
 // chat that owns the cards draws them (Brain), the others just hide them.
-const TOKEN = /\s*\[\[([a-z]+)(?::([a-z]+))?\]\]\s*$/;
+const TOKEN = /\s*\[\[([a-z]+)(?::([A-Za-z0-9_-]+))?\]\]\s*$/;
+const ANY_TOKEN = /\[\[[a-z]+(?::[A-Za-z0-9_-]+)?\]\]/g;
+
+type SpeechRec = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: (e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void;
+  onend: () => void;
+  onerror: () => void;
+  start: () => void;
+  stop: () => void;
+};
 
 export type ChatToken = { kind: string; arg: string; msgId: string };
 
@@ -68,6 +80,8 @@ export default function ChatPanel({
   dock,
   dockLabel,
   chips,
+  voice,
+  context,
 }: {
   greeting: string;
   initialMessages: Msg[];
@@ -96,6 +110,10 @@ export default function ChatPanel({
   dock?: React.ReactNode;
   dockLabel?: string;
   chips?: ChatChip[];
+  // Microphone (dictate and send) and replies read aloud, when the browser supports them.
+  voice?: boolean;
+  // A pill above the composer: what the next message is about (e.g. a video), with ✕ to clear.
+  context?: { label: string; onClear: () => void } | null;
 }) {
   const lang = useLang();
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
@@ -237,6 +255,72 @@ export default function ChatPanel({
 
   const canSend = !busy && input.trim().length > 0;
 
+  // Voice: what they say goes in the box and is sent when they stop talking;
+  // with the speaker on, new replies are read aloud.
+  const [can, setCan] = useState({ listen: false, speak: false });
+  useEffect(() => {
+    const w = window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
+    setCan({ listen: Boolean(w.SpeechRecognition || w.webkitSpeechRecognition), speak: "speechSynthesis" in window });
+  }, []);
+  const [listening, setListening] = useState(false);
+  const [speakOn, setSpeakOn] = useState(false);
+  const recRef = useRef<{ stop: () => void } | null>(null);
+  const spoken = useRef<Set<string>>(new Set());
+  function listen() {
+    const W = window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec };
+    const Rec = W.SpeechRecognition || W.webkitSpeechRecognition;
+    if (!Rec || busy) return;
+    if (speakOn) window.speechSynthesis.cancel();
+    else if (can.speak) {
+      // Spoken to, answers aloud (the speaker button turns it off).
+      spoken.current = new Set(messages.map((m) => m.id));
+      setSpeakOn(true);
+    }
+    const rec = new Rec();
+    rec.lang = lang === "es" ? "es-US" : "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+    let finalText = "";
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalText += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      setInput((finalText + interim).trim());
+    };
+    rec.onend = () => {
+      setListening(false);
+      recRef.current = null;
+      if (finalText.trim()) send(finalText.trim());
+    };
+    rec.onerror = () => setListening(false);
+    recRef.current = rec;
+    setListening(true);
+    rec.start();
+  }
+  useEffect(() => {
+    if (!voice || !speakOn || !("speechSynthesis" in window)) return;
+    for (const m of messages) {
+      if (spoken.current.has(m.id)) continue;
+      spoken.current.add(m.id);
+      if (m.role === "user" || m.id.startsWith("local-")) continue;
+      const said = m.content.replace(ANY_TOKEN, "").replace(/https?:\/\/\S+/g, "").replace(/\*\*/g, "").replace(/[«»“”]/g, "").trim();
+      if (!said) continue;
+      const u = new SpeechSynthesisUtterance(said);
+      u.lang = lang === "es" ? "es-US" : "en-US";
+      window.speechSynthesis.speak(u);
+    }
+  }, [messages, speakOn, voice, lang]);
+  const toggleSpeak = () => {
+    spoken.current = new Set(messages.map((m) => m.id));
+    if (speakOn) window.speechSynthesis.cancel();
+    setSpeakOn((v) => !v);
+  };
+  const micLabel = listening ? (lang === "es" ? "Dejar de escuchar" : "Stop listening") : lang === "es" ? "Hablar" : "Speak";
+  const speakLabel = speakOn ? (lang === "es" ? "No leer respuestas en voz alta" : "Stop reading replies aloud") : lang === "es" ? "Leer respuestas en voz alta" : "Read replies aloud";
+
   // Shown while a photo or video uploads, also in an empty chat.
   const uploadRow = uploading && (
     <div className="flex justify-end" role="status" aria-live="polite">
@@ -288,6 +372,23 @@ export default function ChatPanel({
   ) : (
     <div className="w-full">
       {error && <p className="text-[13px] text-red-600 mb-2 px-4">{error}</p>}
+      {context && (
+        <div className="flex mb-2">
+          <span className="inline-flex items-center gap-2 h-8 pl-3.5 pr-1.5 rounded-full bg-pcard text-[13px] text-pfg max-w-full" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.08)" }}>
+            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: ACCENT }} />
+            <span className="truncate">{context.label}</span>
+            <button type="button" onClick={context.onClear} className="h-6 w-6 rounded-full flex items-center justify-center text-pmuted hover:bg-black/10" aria-label={lang === "es" ? "Quitar" : "Remove"}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </span>
+        </div>
+      )}
+      {voice && listening && (
+        <p className="text-[13px] text-psub mb-2 px-4 flex items-center gap-2" role="status" aria-live="polite">
+          <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
+          {lang === "es" ? "Te escucho… habla y lo envío cuando termines." : "Listening… talk and I'll send it when you stop."}
+        </p>
+      )}
       <form
         className="flex items-end gap-1.5 rounded-[26px] md:rounded-[28px] px-2 md:px-2.5 py-2 md:py-2.5"
         style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.18), 0 0 0 1px rgba(10,10,10,.06)" }}
@@ -342,6 +443,38 @@ export default function ChatPanel({
           }}
           disabled={busy}
         />
+        {voice && can.speak && (
+          <button
+            type="button"
+            onClick={toggleSpeak}
+            aria-pressed={speakOn}
+            aria-label={speakLabel}
+            title={speakLabel}
+            className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition hover:bg-black/10"
+            style={speakOn ? { color: ACCENT } : { color: "#71717A" }}
+          >
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M11 5 6 9H3v6h3l5 4z" />
+              {speakOn ? <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" /> : <path d="M16 9l5 6M21 9l-5 6" />}
+            </svg>
+          </button>
+        )}
+        {voice && can.listen && (
+          <button
+            type="button"
+            onClick={() => (listening ? recRef.current?.stop() : listen())}
+            disabled={busy && !listening}
+            aria-label={micLabel}
+            title={micLabel}
+            className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition disabled:opacity-40"
+            style={listening ? { background: ACCENT, color: "#fff" } : { color: "#3F3F46" }}
+          >
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+            </svg>
+          </button>
+        )}
         <button
           type="submit"
           aria-label={lang === "es" ? "Enviar" : "Send"}

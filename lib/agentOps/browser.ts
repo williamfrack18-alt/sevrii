@@ -114,6 +114,14 @@ const READ_JS = `(() => {
     if (el.tagName === 'SELECT') f.options = Array.from(el.options).map((o) => txt(o.text)).slice(0, 60);
     fields.push(f);
   });
+  // Rich text boxes (many web apps use them for prompts instead of a textarea).
+  document.querySelectorAll('[contenteditable="true"], [contenteditable=""], [role=textbox]').forEach((el) => {
+    if (el.matches('input, textarea, select') || el.closest('[data-sv]') || !vis(el) || fields.length >= 80) return;
+    const id = 'f' + (++n); el.setAttribute('data-sv', id);
+    const label = txt(el.getAttribute('aria-label') || el.getAttribute('data-placeholder') || el.getAttribute('placeholder') || el.title || 'text box').slice(0, 120);
+    const sensitive = SENS.test(label);
+    fields.push({ id, label, type: 'editable', value: sensitive ? '' : txt(el.innerText).slice(0, 200), sensitive, required: false });
+  });
   const buttons = [];
   document.querySelectorAll('button, input[type=submit], input[type=button], a[href], [role=button]').forEach((el) => {
     if (!vis(el) || buttons.length >= 60) return;
@@ -133,6 +141,13 @@ const FILL_JS = (id: string, value: string) => `(() => {
   const meta = [el.name, el.id, el.getAttribute('autocomplete') || '', el.getAttribute('aria-label') || '', el.getAttribute('placeholder') || ''].join(' ');
   if (type === 'password' || /cc-/.test(el.getAttribute('autocomplete') || '') || ${SENSITIVE_FIELD.toString()}.test(meta)) return 'sensitive';
   const v = ${JSON.stringify(value)};
+  if (el.isContentEditable) {
+    el.focus();
+    const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(range);
+    if (!document.execCommand('insertText', false, v)) el.textContent = v;
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, data: v, inputType: 'insertText' }));
+    return 'ok';
+  }
   if (el.tagName === 'SELECT') {
     const o = Array.from(el.options).find((o) => o.text.trim().toLowerCase() === v.toLowerCase() || o.value === v) || Array.from(el.options).find((o) => o.text.toLowerCase().includes(v.toLowerCase()));
     if (!o) return 'no such option';
@@ -246,6 +261,14 @@ class LiveBrowser {
     await this.settle();
     return r;
   }
+  // Runs a script in the page (for reading what the page shows, never to type secrets).
+  async evalJs<T>(expression: string): Promise<T> {
+    return this.eval<T>(expression);
+  }
+  // Files the page downloads are kept by the cloud browser (read with browserDownloads).
+  async allowDownloads(): Promise<void> {
+    await this.cdp.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: "downloads", eventsEnabled: true }).catch(() => {});
+  }
   async liveUrl(): Promise<string> {
     const d = await bb<{ debuggerFullscreenUrl?: string; pages?: { debuggerFullscreenUrl?: string }[] }>(`/sessions/${this.state.sessionId}/debug`);
     const url = d.pages?.[0]?.debuggerFullscreenUrl || d.debuggerFullscreenUrl || "";
@@ -255,6 +278,14 @@ class LiveBrowser {
   detach() {
     this.cdp.close();
   }
+}
+
+// What the cloud browser downloaded in this session (a zip from Browserbase), or null.
+export async function browserDownloads(sessionId: string): Promise<Buffer | null> {
+  const res = await fetch(`${BB}/sessions/${sessionId}/downloads`, { headers: { "X-BB-API-Key": process.env.BROWSERBASE_API_KEY || "" } }).catch(() => null);
+  if (!res || !res.ok) return null;
+  const buf = Buffer.from(await res.arrayBuffer());
+  return buf.length > 22 ? buf : null;
 }
 
 export async function releaseBrowser(state: BrowserState): Promise<void> {
@@ -274,6 +305,9 @@ export type Hands = {
   click(id: string): Promise<string>;
   liveUrl(): Promise<string>;
   done(): void;
+  // Live browser only: read the page with a script, keep downloads.
+  evalJs?<T>(expression: string): Promise<T>;
+  allowDownloads?(): Promise<void>;
 };
 
 // A case keeps the mode it was created with: a test case always runs in the
@@ -283,7 +317,17 @@ export async function getHands(state: BrowserState, ctx: { caseId: string; mode:
   if (ctx.mode === "live") {
     if (browserMode() !== "live") throw new Error("browserbase not configured");
     const b = await LiveBrowser.attach(state);
-    return { mode: "live", open: (u) => b.open(u), read: () => b.read(), fill: (i, v) => b.fill(i, v), click: (i) => b.click(i), liveUrl: () => b.liveUrl(), done: () => b.detach() };
+    return {
+      mode: "live",
+      open: (u) => b.open(u),
+      read: () => b.read(),
+      fill: (i, v) => b.fill(i, v),
+      click: (i) => b.click(i),
+      liveUrl: () => b.liveUrl(),
+      done: () => b.detach(),
+      evalJs: <T,>(e: string) => b.evalJs<T>(e),
+      allowDownloads: () => b.allowDownloads(),
+    };
   }
   if (state.sessionId) {
     // A cloud browser left open on a test case: close it and forget it.

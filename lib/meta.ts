@@ -280,7 +280,7 @@ async function createCreative(
 }
 
 // Meta's id for a US state ("TX" → its region key), or "" if not found.
-async function stateRegionKey(code: string, token: string): Promise<string> {
+export async function stateRegionKey(code: string, token: string): Promise<string> {
   const { US_STATES } = await import("./geo");
   const name = US_STATES[code.toUpperCase()];
   if (!name) return "";

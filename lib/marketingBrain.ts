@@ -2,6 +2,13 @@ import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock, TextBlock 
 import { MODEL, getClaude, logAiError } from "./claude";
 import type { Lang } from "./i18n";
 import {
+  createMarketingVideo,
+  deleteMarketingVideo,
+  getMetaConnection,
+  listMarketingVideos,
+  pendingMarketingAction,
+  proposeMarketingAction,
+  updateMarketingVideo,
   createCampaignSpec,
   deleteCampaign,
   listAgentItems,
@@ -18,6 +25,7 @@ import {
 import { maxDailySpend, normalizeCampaign, parseMarketing } from "./marketing";
 import { parsePlan } from "./plan";
 import { businessFacts, monthlyOf } from "./marketingAgent";
+import { ACTION_KINDS, actionSummary, DEFAULT_VIDEO_TOOL, VIDEO_TOOLS, type ActionKind } from "./marketingVideos";
 
 // Marketing tab = one chat, and the chat is the strategist. It already knows
 // the Brain plan and the store page, asks only what's missing (usually the
@@ -127,6 +135,61 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    name: "plan_video",
+    description:
+      "Add one planned AI video to «Mis videos» (one call per video). It's only a plan: nothing is made, published or spent. Then propose_action make_video for the one to make first.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Short name the owner reads, e.g. 'Antes y después del techo'" },
+        angle: { type: "string", description: "The angle in one line (owner's language)" },
+        prompt: { type: "string", description: "The prompt for the AI video tool, in English, concrete and visual: scene, people, action, camera, mood, vertical 9:16, 5-10 seconds. No text overlays, logos, real people or brands. Only facts from the page." },
+        tool: { type: "string", enum: Object.keys(VIDEO_TOOLS), description: "Default flow (Google Flow, Veo)" },
+        primaryText: { type: "string", description: "Ad text for this video, customers' language, ≤125 characters" },
+        headline: { type: "string", description: "≤40 characters" },
+        language: { type: "string", enum: ["es", "en"] },
+        specialCategory: { type: "string", enum: ["none", "credit", "employment", "housing", "financial"] },
+        likeVideoId: { type: "string", description: "When the owner asks for 'another like this one': the id of that video" },
+      },
+      required: ["title", "angle", "prompt", "primaryText", "headline"],
+    },
+  },
+  {
+    name: "update_video",
+    description: "Change a planned (not yet made) video's title, angle, prompt, tool or ad texts, or delete it (delete: true; only planned, ready or failed videos that aren't on Meta).",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        title: { type: "string" },
+        angle: { type: "string" },
+        prompt: { type: "string" },
+        tool: { type: "string", enum: Object.keys(VIDEO_TOOLS) },
+        primaryText: { type: "string" },
+        headline: { type: "string" },
+        delete: { type: "boolean" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "propose_action",
+    description:
+      "Propose ONE final action to the owner. It runs ONLY when the owner says yes ('dale', 'sí', 'hazlo') or taps the button under your message; one yes runs exactly this one action, then a new action needs a new proposal. make_video {videoId}; launch_video {videoId, dailyUsd, days} (publishes the ready video on Facebook + Instagram, spending the owner's money); pause_video {videoId}; resume_video {videoId}; set_budget {videoId, dailyUsd}; move_budget {videoId (from), toVideoId, usd (per day)}. The exact summary is written by the system and shown to the owner.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kind: { type: "string", enum: ACTION_KINDS },
+        videoId: { type: "string" },
+        toVideoId: { type: "string" },
+        dailyUsd: { type: "number" },
+        days: { type: "number" },
+        usd: { type: "number" },
+      },
+      required: ["kind", "videoId"],
+    },
+  },
+  {
     name: "delete_campaign",
     description: "Delete a campaign by id (only if the owner asks, or to replace it with a better one). Live campaigns can't be deleted here.",
     input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
@@ -161,6 +224,17 @@ Campaign rules:
 
 Style: warm, plain, short sentences a neighbor would understand. Under 90 words (up to 140 when you present the strategy). No markdown headings, tables, bold or emojis.`;
 
+const VIDEOS = `AI videos and voice (the "videos" part of the state; the owner sees them in «Mis videos» under this chat):
+- The owner may talk to you by voice (their words arrive as text) and may hear your reply read aloud: keep replies short, spoken-friendly, no lists or symbols.
+- When the owner wants video ads (or asks what to do), propose the video plan in plain words: how many videos (1-3 to start; 1 when the budget is under ~$300/month), the angle of each, the channel (Meta: Facebook + Instagram) and the money per day and how many days per video. Then save each with plan_video and propose_action make_video for the first one.
+- One yes = one action. Make the videos one at a time, each with its own proposal. When a video is "ready", propose launch_video with its dailyUsd and days (from the plan and the monthly budget: dailyUsd × days of all active videos and campaigns must fit the monthly budget). Never say a video is made, published, active or spending unless its status in the state says so.
+- Adjustments from the numbers (views, chats, spend in the state): propose move_budget to the video that brings chats, or pause_video for one that spends without bringing chats. Only propose; the owner decides.
+- "focusVideo" in the state is the video the owner tapped in the gallery: "this one", "pause this", "make another like this one" refer to it. For "another like this one", plan_video with likeVideoId and a new prompt that keeps its angle and style, then propose make_video.
+- The video is made by the cloud browser in an AI video tool (default Google Flow with Veo). If the tool asks the owner to sign in, buy credits or a plan, or solve a CAPTCHA, the owner does it in the live view; you never ask for passwords, codes or cards in the chat.
+- Publishing needs the owner's own Facebook connected with their ad account and page ("meta" in the state). If meta.connected is false, tell them to connect it in Marketing (button «Conectar Facebook») before launch_video. Meta charges their card.
+- If "pendingAction" exists, it's the one proposal waiting for the owner's yes; a new propose_action replaces it.
+- After propose_action, end your message asking for the OK in one short line (e.g. "¿Le doy?"). Never claim it's done in the same message.`;
+
 // One language for the owner, everywhere: what they read in this chat and
 // in the panel is never a mix. Only the ads and posts (what customers see) go
 // in the customers' language.
@@ -169,7 +243,7 @@ function ownerLanguageRule(lang: Lang): string {
   return `Language: the owner reads Sevrii in ${name}. Write in ${name} your replies AND every field the owner reads: the strategy (summary, stage actions, budgetPlan), the profile (goal, mainService, idealCustomer, area), each campaign's title, goal and audience, and the video script and photo ideas — even when the facts, the Brain plan or the owner's message are in another language (translate them). Only what customers see goes in the customers' language: the ad texts (primary text, headline, description) and the posts.`;
 }
 
-export type MarketingChatResult = { reply: string; business: BusinessRow; campaigns: CampaignRow[] };
+export type MarketingChatResult = { reply: string; business: BusinessRow; campaigns: CampaignRow[]; proposedActionId?: string };
 
 // Only what really has to be asked; everything else comes from the facts.
 function toAsk(b: BusinessRow, serviceCount: number): string[] {
@@ -181,8 +255,8 @@ function toAsk(b: BusinessRow, serviceCount: number): string[] {
   return out;
 }
 
-async function state(b: BusinessRow, campaigns: CampaignRow[]) {
-  const [facts, services] = await Promise.all([businessFacts(b), listServices(b.id)]);
+async function state(b: BusinessRow, campaigns: CampaignRow[], focusVideoId?: string) {
+  const [facts, services, videos, pending, conn] = await Promise.all([businessFacts(b), listServices(b.id), listMarketingVideos(b.id), pendingMarketingAction(b.id), getMetaConnection(b.id)]);
   const approved = Boolean(b.marketing.approvedAt);
   const next: string[] = [];
   if (!b.marketing.strategy) next.push("strategy");
@@ -202,6 +276,23 @@ async function state(b: BusinessRow, campaigns: CampaignRow[]) {
     plannedMonthlyUsd: Math.round(campaigns.filter((c) => c.spec && c.status !== "declined").reduce((s, c) => s + monthlyOf(c), 0) * 100) / 100,
     toAsk: toAsk(b, services.length),
     next,
+    meta: { connected: Boolean(conn?.adAccountId && conn?.pageId), page: conn?.pageName || null },
+    videoTools: Object.entries(VIDEO_TOOLS).map(([key, t]) => ({ key, name: t.name })),
+    videos: videos.slice(0, 20).map((v) => ({
+      id: v.id,
+      title: v.title,
+      angle: v.angle,
+      tool: v.tool,
+      status: v.status,
+      waitingFor: v.status === "making" && v.job.state === "waiting" ? v.job.waiting?.kind || null : null,
+      dailyUsd: v.meta.dailyUsd ?? null,
+      days: v.meta.days ?? null,
+      endsAt: v.meta.endsAt ?? null,
+      stats: { views: v.stats.views ?? 0, chats: v.stats.chats ?? 0, spend: v.stats.spend ?? 0, clicks: v.stats.clicks ?? 0 },
+      error: v.job.error || v.meta.error || null,
+    })),
+    focusVideo: focusVideoId ? videos.find((v) => v.id === focusVideoId)?.id ?? null : null,
+    pendingAction: pending ? { kind: pending.kind, summary: pending.summary } : null,
   };
 }
 
@@ -215,8 +306,74 @@ async function withdrawProposal(b: BusinessRow, campaignId: string) {
 
 const isOnMeta = (c: CampaignRow) => Boolean(c.meta?.campaignId) || c.status === "live" || c.status === "paused";
 
-async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, campaigns: CampaignRow[], lang: Lang): Promise<string> {
+async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, campaigns: CampaignRow[], lang: Lang, turn: { proposedActionId?: string } = {}): Promise<string> {
   switch (name) {
+    case "plan_video": {
+      const all = await listMarketingVideos(b.id);
+      if (all.filter((v) => ["planned", "making", "ready", "launching"].includes(v.status)).length >= 6) return "error: too many videos waiting; make or delete some first";
+      const like = typeof input.likeVideoId === "string" ? all.find((v) => v.id === input.likeVideoId) : undefined;
+      const tool = typeof input.tool === "string" && VIDEO_TOOLS[input.tool] ? input.tool : like?.tool || DEFAULT_VIDEO_TOOL;
+      const cat = String(input.specialCategory || like?.ad.specialCategory || "none");
+      const v = await createMarketingVideo({
+        businessId: b.id,
+        title: String(input.title || "").trim().slice(0, 80) || "Video",
+        angle: String(input.angle || "").trim().slice(0, 300),
+        prompt: String(input.prompt || "").trim().slice(0, 1500),
+        tool,
+        ad: {
+          primaryText: String(input.primaryText || "").trim().slice(0, 600),
+          headline: String(input.headline || "").trim().slice(0, 40),
+          language: input.language === "en" || input.language === "es" ? input.language : lang,
+          specialCategory: cat === "none" ? "" : cat,
+        },
+      });
+      return `planned (id ${v.id}, tool ${VIDEO_TOOLS[tool].name}). Nothing made yet: propose_action make_video when it's this one's turn`;
+    }
+    case "update_video": {
+      const all = await listMarketingVideos(b.id);
+      const v = all.find((x) => x.id === input.id);
+      if (!v) return "error: unknown video id";
+      if (input.delete) {
+        if (!["planned", "failed", "ready"].includes(v.status) || v.meta.adId) return "error: this video is being made or is on Meta; it can't be deleted (it can be paused)";
+        await deleteMarketingVideo(b.id, v.id);
+        return "deleted";
+      }
+      if (v.status !== "planned" && v.status !== "failed") {
+        // Made already: only the ad texts can change before publishing.
+        if (v.status !== "ready") return "error: only planned, failed or ready (ad texts) videos can be changed";
+      }
+      const editable = v.status === "planned" || v.status === "failed";
+      await updateMarketingVideo(b.id, v.id, {
+        ...(editable && typeof input.title === "string" ? { title: input.title.slice(0, 80) } : {}),
+        ...(editable && typeof input.angle === "string" ? { angle: input.angle.slice(0, 300) } : {}),
+        ...(editable && typeof input.prompt === "string" ? { prompt: input.prompt.slice(0, 1500) } : {}),
+        ...(editable && typeof input.tool === "string" && VIDEO_TOOLS[input.tool] ? { tool: input.tool } : {}),
+        ad: {
+          ...v.ad,
+          ...(typeof input.primaryText === "string" ? { primaryText: input.primaryText.slice(0, 600) } : {}),
+          ...(typeof input.headline === "string" ? { headline: input.headline.slice(0, 40) } : {}),
+        },
+        ...(v.status === "failed" && editable ? { status: "planned" as const, job: {} } : {}),
+      });
+      return "saved";
+    }
+    case "propose_action": {
+      const kind = String(input.kind || "") as ActionKind;
+      if (!ACTION_KINDS.includes(kind)) return "error: unknown kind";
+      const params: Record<string, unknown> = { videoId: String(input.videoId || "") };
+      if (input.toVideoId) params.toVideoId = String(input.toVideoId);
+      if (input.dailyUsd !== undefined) params.dailyUsd = Math.round(Number(input.dailyUsd) * 100) / 100;
+      if (input.days !== undefined) params.days = Math.round(Number(input.days));
+      if (input.usd !== undefined) params.usd = Math.round(Number(input.usd) * 100) / 100;
+      const [videos, conn] = await Promise.all([listMarketingVideos(b.id), getMetaConnection(b.id)]);
+      if (kind === "launch_video" && !(conn?.adAccountId && conn?.pageId)) return "error: the owner's Facebook isn't connected with an ad account and page: ask them to connect it in Marketing first";
+      if (kind === "make_video" && videos.some((v) => v.status === "making")) return "error: another video is being made right now; wait until it's ready";
+      const summary = actionSummary(kind, params, videos, conn, lang);
+      if (typeof summary !== "string") return `error: ${summary.error}`;
+      const a = await proposeMarketingAction(b.id, kind, params, summary);
+      turn.proposedActionId = a.id;
+      return `proposed. The owner sees exactly: "${summary}" with a button. Ask for their OK in one short line; it runs only when they say yes.`;
+    }
     case "save_profile": {
       const m = parseMarketing({ ...b.marketing, profile: { ...b.marketing.profile, ...input } });
       await updateBusinessMarketing(b.id, m);
@@ -298,6 +455,7 @@ export async function runMarketingChatTurn(opts: {
   history: { role: "user" | "assistant"; content: string }[];
   message: string;
   lang: Lang;
+  focusVideoId?: string;
 }): Promise<MarketingChatResult> {
   let business = opts.business;
   let campaigns = await listCampaigns(business.id);
@@ -314,10 +472,11 @@ export async function runMarketingChatTurn(opts: {
     };
   }
 
-  const system = `${SYSTEM}\n\n${ownerLanguageRule(opts.lang)}`;
+  const system = `${SYSTEM}\n\n${VIDEOS}\n\n${ownerLanguageRule(opts.lang)}`;
+  const turn: { proposedActionId?: string } = {};
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
-    { role: "user", content: `State (JSON):\n${JSON.stringify(await state(business, campaigns))}\n\nOwner: ${opts.message}` },
+    { role: "user", content: `State (JSON):\n${JSON.stringify(await state(business, campaigns, opts.focusVideoId))}\n\nOwner: ${opts.message}` },
   ];
 
   let reply = "";
@@ -345,7 +504,7 @@ export async function runMarketingChatTurn(opts: {
       for (const u of uses) {
         let out: string;
         try {
-          out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, campaigns, opts.lang);
+          out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, campaigns, opts.lang, turn);
         } catch (err) {
           console.error("[ai:marketing] tool failed", u.name, err);
           out = "error: could not save";
@@ -357,7 +516,7 @@ export async function runMarketingChatTurn(opts: {
       messages.push({ role: "assistant", content: res.content });
       messages.push({
         role: "user",
-        content: [...results, { type: "text", text: `Updated state (JSON):\n${JSON.stringify(await state(business, campaigns))}` }],
+        content: [...results, { type: "text", text: `Updated state (JSON):\n${JSON.stringify(await state(business, campaigns, opts.focusVideoId))}` }],
       });
     }
   } catch (err) {
@@ -367,7 +526,7 @@ export async function runMarketingChatTurn(opts: {
       : "I had a problem saving that. Please try again in a moment.";
   }
 
-  return { reply: reply || (es ? "Listo." : "Done."), business, campaigns };
+  return { reply: reply || (es ? "Listo." : "Done."), business, campaigns, proposedActionId: turn.proposedActionId };
 }
 
 export function marketingGreeting(lang: Lang, b: BusinessRow): string {

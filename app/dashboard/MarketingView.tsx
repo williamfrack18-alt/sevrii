@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getCampaignResultsAction } from "@/app/marketingResultsActions";
 import { approveStrategyAction, getAgentStateAction } from "@/app/agentActions";
 import type { CampaignStats } from "@/lib/db";
@@ -14,7 +14,9 @@ import { MK_TEXT } from "@/lib/marketingI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { maxDailySpend, type CampaignSpec } from "@/lib/marketing";
 import { activeOffer } from "@/lib/site";
-import { sendMarketingChatAction } from "@/app/marketingActions";
+import { advanceMarketingVideoAction, approveMarketingActionAction, listMarketingVideosAction, sendMarketingChatAction, videoReplyAction, type MarketingVideosResponse } from "@/app/marketingActions";
+import type { PublicVideo } from "@/lib/marketingVideos";
+import { ActionCard, VideoGallery, VideoJobCard } from "./MarketingVideos";
 import ChatPanel, { type Msg } from "./ChatPanel";
 import ProjectDock, { Sheet, StepList, type StepItem } from "./ProjectDock";
 import AgentPanel from "./AgentPanel";
@@ -67,6 +69,86 @@ export default function MarketingView({
   const [agent, setAgent] = useState<AgentState | null | undefined>(undefined);
   const [approving, setApproving] = useState(false);
   const [approveErr, setApproveErr] = useState<string | null>(null);
+
+  // AI videos: the gallery under the chat, the one proposal waiting for an OK,
+  // the video the owner tapped (the chat's context) and the chat kept in step.
+  const [vids, setVids] = useState<PublicVideo[]>([]);
+  const [okPending, setOkPending] = useState<{ id: string; summary: string } | null>(null);
+  const [focus, setFocus] = useState<PublicVideo | null>(null);
+  const [chatSync, setChatSync] = useState<{ key: number; messages: Msg[] } | undefined>(undefined);
+  const [chatMsgs, setChatMsgs] = useState<Msg[]>(initialMessages);
+  const [prefill, setPrefill] = useState<{ key: number; text: string } | undefined>(undefined);
+  const chatRef = useRef<HTMLElement>(null);
+  const sigOf = (ms: Msg[]) => `${ms.length}:${ms[ms.length - 1]?.id ?? ""}:${ms[ms.length - 1]?.content.length ?? 0}`;
+  const sig = useRef(sigOf(initialMessages));
+  const approvedNow = useRef(Boolean(business.marketing.approvedAt));
+  approvedNow.current = Boolean(business.marketing.approvedAt);
+  const applyVideos = useCallback(
+    (res: MarketingVideosResponse) => {
+      setVids(res.videos);
+      setOkPending(res.pending);
+      const s = sigOf(res.messages);
+      if (s !== sig.current) {
+        sig.current = s;
+        setChatMsgs(res.messages);
+        setChatSync({ key: Date.now(), messages: withLiveButtons(res.messages, approvedNow.current, lang === "es") });
+        onMessages?.(res.messages);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lang]
+  );
+  useEffect(() => {
+    if (locked) return;
+    listMarketingVideosAction().then(applyVideos).catch(() => {});
+  }, [locked, applyVideos]);
+  // The video being made advances a few steps per call while the owner isn't needed.
+  const working = vids.find((v) => v.status === "making" && !v.waiting);
+  const launching = vids.some((v) => v.status === "launching");
+  const onMetaNow = vids.some((v) => v.status === "active" || v.status === "paused");
+  const advancing = useRef(false);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (locked || !working || advancing.current) return;
+    advancing.current = true;
+    let alive = true;
+    (async () => {
+      try {
+        for (let i = 0; i < 30 && alive; i++) {
+          const r = await advanceMarketingVideoAction(working.id);
+          applyVideos(r);
+          if (!r.more) break;
+          await new Promise((ok) => setTimeout(ok, 1500));
+        }
+      } catch {
+        // the next tick tries again
+      } finally {
+        advancing.current = false;
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [working?.id, tick, locked, applyVideos]);
+  useEffect(() => {
+    if (locked) return;
+    const every = launching ? 20_000 : working ? 30_000 : onMetaNow ? 300_000 : 0;
+    if (!every) return;
+    const id = setInterval(() => {
+      if (working) setTick((t) => t + 1);
+      else listMarketingVideosAction().then(applyVideos).catch(() => {});
+    }, every);
+    return () => clearInterval(id);
+  }, [locked, launching, Boolean(working), onMetaNow, applyVideos]);
+  // The newest chat message about each video is the one with the live controls.
+  const lastVideoMsg = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const msg of chatMsgs) {
+      const mm = /\[\[mkvideo:([A-Za-z0-9_-]+)\]\]\s*$/.exec(msg.content);
+      if (mm) out[mm[1]] = msg.id;
+    }
+    return out;
+  }, [chatMsgs]);
 
   const campaignKey = campaigns.map((c) => `${c.id}:${c.status}`).join(",");
   useEffect(() => {
@@ -249,7 +331,7 @@ export default function MarketingView({
   return (
     <div style={{ background: "#F5F5F3" }} className="overflow-x-clip">
       {/* 1. The strategist: the chat comes first, full height */}
-      <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
+      <section ref={chatRef} className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
         <div className="shrink-0 h-12 md:h-14 px-4 md:px-6 flex items-center justify-between gap-3">
           <span className="min-w-0 truncate text-[16px] md:text-[17px] font-semibold text-pfg">
             {business.name} <span className="text-pmuted font-normal">· {t.flow.title}</span>
@@ -262,8 +344,34 @@ export default function MarketingView({
           texts={{ ...t.chat, seeBelow: "", seeBelowHref: "" }}
           dock={dock}
           dockLabel={es ? "Tu estrategia de marketing" : "Your marketing strategy"}
+          voice
+          sync={chatSync}
+          prefill={prefill}
+          context={focus ? { label: `${es ? "Sobre" : "About"}: ${focus.title}`, onClear: () => setFocus(null) } : null}
+          renderToken={(tk) => {
+            if (tk.kind === "mkok") {
+              if (!okPending || okPending.id !== tk.arg) return null;
+              return (
+                <ActionCard
+                  summary={okPending.summary}
+                  es={es}
+                  onOk={async () => applyVideos(await approveMarketingActionAction(tk.arg))}
+                  onNo={() => setPrefill({ key: Date.now(), text: es ? "No, mejor cambia " : "No, change " })}
+                />
+              );
+            }
+            if (tk.kind === "mkvideo") {
+              const v = vids.find((x) => x.id === tk.arg);
+              if (!v) return null;
+              return <VideoJobCard v={v} es={es} live={lastVideoMsg[v.id] === tk.msgId} onReply={async (r) => applyVideos(await videoReplyAction(v.id, r))} />;
+            }
+            return null;
+          }}
           onSend={async (text) => {
-            const res = await sendMarketingChatAction(text);
+            const res = await sendMarketingChatAction(text, focus?.id);
+            sig.current = sigOf(res.messages);
+            setChatMsgs(res.messages);
+            listMarketingVideosAction().then(applyVideos).catch(() => {});
             onMessages?.(res.messages);
             applyUpdate(res);
             // The chat may have changed campaigns the agent was proposing.
@@ -272,6 +380,22 @@ export default function MarketingView({
           }}
         />
       </section>
+
+      {/* 2. «Mis videos»: the results, without searching the conversation */}
+      <VideoGallery
+        videos={vids}
+        es={es}
+        focusId={focus?.id ?? null}
+        onPick={(v) => {
+          setFocus(v);
+          setPrefill({ key: Date.now(), text: es ? `Sobre «${v.title}»: ` : `About “${v.title}”: ` });
+          chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+        onAsk={(text) => {
+          setPrefill({ key: Date.now(), text });
+          chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      />
 
       {showAgent && agent && (
         <Sheet open={runningOpen} title={es ? "Lo que está en marcha" : "What's running"} onClose={() => setRunningOpen(false)} wide>

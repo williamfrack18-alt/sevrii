@@ -510,6 +510,42 @@ async function migrate(): Promise<void> {
         )
       `;
       await sql`CREATE INDEX IF NOT EXISTS agent_cases_conv_idx ON agent_cases ("conversationId", "createdAt" DESC)`;
+      // Marketing videos: made with AI video tools in the cloud browser and run as
+      // Meta video ads through the Marketing API (each one its own ad set).
+      await sql`
+        CREATE TABLE IF NOT EXISTS marketing_videos (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          angle TEXT NOT NULL DEFAULT '',
+          prompt TEXT NOT NULL DEFAULT '',
+          ad JSONB NOT NULL DEFAULT '{}'::jsonb,
+          tool TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'planned',
+          job JSONB NOT NULL DEFAULT '{}'::jsonb,
+          "videoUrl" TEXT NOT NULL DEFAULT '',
+          meta JSONB NOT NULL DEFAULT '{}'::jsonb,
+          stats JSONB NOT NULL DEFAULT '{}'::jsonb,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS marketing_videos_biz_idx ON marketing_videos ("businessId", "createdAt" DESC)`;
+      // What the marketing chat proposed and waits for the owner's OK (one OK, one action).
+      await sql`
+        CREATE TABLE IF NOT EXISTS marketing_actions (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          params JSONB NOT NULL DEFAULT '{}'::jsonb,
+          summary TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'pending',
+          result TEXT NOT NULL DEFAULT '',
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS marketing_actions_biz_idx ON marketing_actions ("businessId", "createdAt" DESC)`;
       // Old strategist messages sent owners to an approve button "in the card
       // here in the chat"; it's in the strategy panel next to the chat.
       await sql`UPDATE chat_messages SET content = regexp_replace(regexp_replace(content, 'en tu tarjeta de estrategia,? (justo )?aqu[ií] en el chat', 'al final del panel «Tu estrategia de marketing», junto al chat', 'gi'), 'in your strategy card,? (right )?here in the chat', 'at the bottom of the "Your marketing strategy" panel next to the chat', 'gi') WHERE channel = 'brain' AND (content ~* 'tarjeta de estrategia,? (justo )?aqu[ií] en el chat' OR content ~* 'strategy card,? (right )?here in the chat')`;
@@ -1889,7 +1925,11 @@ export async function addCampaignEvent(businessId: string, campaignId: string, k
 // Is this a campaign of this business? (A link someone edited can't count for another.)
 export async function campaignBelongs(businessId: string, campaignId: string): Promise<boolean> {
   await ensureSchema();
-  const rows = (await sql`SELECT 1 FROM campaigns WHERE id = ${campaignId} AND "businessId" = ${businessId}`) as unknown[];
+  // A campaign, or one of the business's marketing videos (each video ad has its own link).
+  const rows = (await sql`
+    SELECT 1 FROM campaigns WHERE id = ${campaignId} AND "businessId" = ${businessId}
+    UNION ALL SELECT 1 FROM marketing_videos WHERE id = ${campaignId} AND "businessId" = ${businessId}
+  `) as unknown[];
   return rows.length > 0;
 }
 
@@ -2542,4 +2582,180 @@ export async function listPendingCasesToRecheck(limit = 20): Promise<AgentCaseRo
     ORDER BY "updatedAt" ASC LIMIT ${limit}
   `) as Record<string, unknown>[];
   return rows.map(caseRow);
+}
+
+// ---------- Marketing videos ----------
+
+export type MarketingVideoStatus = "planned" | "making" | "ready" | "launching" | "active" | "paused" | "ended" | "failed";
+export type VideoJobWaiting = { kind: "login" | "pay" | "captcha" | "info"; label: string; detail: string; url: string };
+export type VideoJob = {
+  state?: "working" | "waiting" | "done" | "failed";
+  waiting?: VideoJobWaiting | null;
+  browser?: { sessionId?: string; connectUrl?: string; liveUrl?: string; url?: string; lastText?: string };
+  memo?: string[];
+  steps?: { label: string; status: "done" | "doing" | "failed" }[];
+  error?: string;
+  runAt?: string;
+  okAt?: string;
+};
+export type MarketingVideoMeta = {
+  campaignId?: string;
+  adSetId?: string;
+  adId?: string;
+  videoId?: string;
+  dailyUsd?: number;
+  days?: number;
+  launchedAt?: string;
+  endsAt?: string;
+  pendingLaunch?: { dailyUsd: number; days: number; at: string } | null;
+  error?: string;
+};
+export type MarketingVideoStats = { views: number; impressions: number; clicks: number; spend: number; chats: number; at: string };
+export type MarketingVideoRow = {
+  id: string;
+  businessId: string;
+  title: string;
+  angle: string;
+  prompt: string;
+  ad: { primaryText?: string; headline?: string; language?: string; specialCategory?: string };
+  tool: string;
+  status: MarketingVideoStatus;
+  job: VideoJob;
+  videoUrl: string;
+  meta: MarketingVideoMeta;
+  stats: Partial<MarketingVideoStats>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function videoRow(r: Record<string, unknown>): MarketingVideoRow {
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : "");
+  return {
+    id: String(r.id),
+    businessId: String(r.businessId),
+    title: String(r.title ?? ""),
+    angle: String(r.angle ?? ""),
+    prompt: String(r.prompt ?? ""),
+    ad: (r.ad as MarketingVideoRow["ad"]) ?? {},
+    tool: String(r.tool ?? ""),
+    status: String(r.status ?? "planned") as MarketingVideoStatus,
+    job: (r.job as VideoJob) ?? {},
+    videoUrl: String(r.videoUrl ?? ""),
+    meta: (r.meta as MarketingVideoMeta) ?? {},
+    stats: (r.stats as MarketingVideoRow["stats"]) ?? {},
+    createdAt: iso(r.createdAt),
+    updatedAt: iso(r.updatedAt),
+  };
+}
+
+export async function createMarketingVideo(input: { businessId: string; title: string; angle: string; prompt: string; tool: string; ad: MarketingVideoRow["ad"] }): Promise<MarketingVideoRow> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO marketing_videos (id, "businessId", title, angle, prompt, tool, ad)
+    VALUES (${newId()}, ${input.businessId}, ${input.title}, ${input.angle}, ${input.prompt}, ${input.tool}, ${JSON.stringify(input.ad)}::jsonb)
+    RETURNING *
+  `) as Record<string, unknown>[];
+  return videoRow(rows[0]);
+}
+
+export async function getMarketingVideo(businessId: string, id: string): Promise<MarketingVideoRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM marketing_videos WHERE id = ${id} AND "businessId" = ${businessId}`) as Record<string, unknown>[];
+  return rows[0] ? videoRow(rows[0]) : null;
+}
+
+export async function listMarketingVideos(businessId: string): Promise<MarketingVideoRow[]> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM marketing_videos WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT 60`) as Record<string, unknown>[];
+  return rows.map(videoRow);
+}
+
+export async function updateMarketingVideo(
+  businessId: string,
+  id: string,
+  patch: Partial<Pick<MarketingVideoRow, "title" | "angle" | "prompt" | "ad" | "tool" | "status" | "job" | "videoUrl" | "meta" | "stats">>
+): Promise<MarketingVideoRow | null> {
+  await ensureSchema();
+  const cur = await getMarketingVideo(businessId, id);
+  if (!cur) return null;
+  const n = { ...cur, ...patch };
+  const rows = (await sql`
+    UPDATE marketing_videos SET title = ${n.title}, angle = ${n.angle}, prompt = ${n.prompt}, ad = ${JSON.stringify(n.ad)}::jsonb,
+      tool = ${n.tool}, status = ${n.status}, job = ${JSON.stringify(n.job)}::jsonb, "videoUrl" = ${n.videoUrl},
+      meta = ${JSON.stringify(n.meta)}::jsonb, stats = ${JSON.stringify(n.stats)}::jsonb, "updatedAt" = now()
+    WHERE id = ${id} AND "businessId" = ${businessId} RETURNING *
+  `) as Record<string, unknown>[];
+  return rows[0] ? videoRow(rows[0]) : null;
+}
+
+export async function deleteMarketingVideo(businessId: string, id: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM marketing_videos WHERE id = ${id} AND "businessId" = ${businessId} AND status IN ('planned', 'failed', 'ready')`;
+}
+
+export type MarketingActionRow = {
+  id: string;
+  businessId: string;
+  kind: string;
+  params: Record<string, unknown>;
+  summary: string;
+  status: "pending" | "done" | "cancelled" | "failed" | "running";
+  result: string;
+  createdAt: string;
+};
+
+function actionRow(r: Record<string, unknown>): MarketingActionRow {
+  return {
+    id: String(r.id),
+    businessId: String(r.businessId),
+    kind: String(r.kind),
+    params: (r.params as Record<string, unknown>) ?? {},
+    summary: String(r.summary ?? ""),
+    status: String(r.status) as MarketingActionRow["status"],
+    result: String(r.result ?? ""),
+    createdAt: r.createdAt ? new Date(r.createdAt as string).toISOString() : "",
+  };
+}
+
+// A new proposal replaces any earlier one still waiting: there's only ever one thing to say "dale" to.
+export async function proposeMarketingAction(businessId: string, kind: string, params: Record<string, unknown>, summary: string): Promise<MarketingActionRow> {
+  await ensureSchema();
+  await sql`UPDATE marketing_actions SET status = 'cancelled', "updatedAt" = now() WHERE "businessId" = ${businessId} AND status = 'pending'`;
+  const rows = (await sql`
+    INSERT INTO marketing_actions (id, "businessId", kind, params, summary)
+    VALUES (${newId()}, ${businessId}, ${kind}, ${JSON.stringify(params)}::jsonb, ${summary})
+    RETURNING *
+  `) as Record<string, unknown>[];
+  return actionRow(rows[0]);
+}
+
+export async function getMarketingAction(businessId: string, id: string): Promise<MarketingActionRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM marketing_actions WHERE id = ${id} AND "businessId" = ${businessId}`) as Record<string, unknown>[];
+  return rows[0] ? actionRow(rows[0]) : null;
+}
+
+export async function pendingMarketingAction(businessId: string): Promise<MarketingActionRow | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT * FROM marketing_actions WHERE "businessId" = ${businessId} AND status = 'pending' AND "createdAt" > now() - interval '30 minutes'
+    ORDER BY "createdAt" DESC LIMIT 1
+  `) as Record<string, unknown>[];
+  return rows[0] ? actionRow(rows[0]) : null;
+}
+
+// Takes the action for running exactly once (an OK can't run it twice).
+export async function claimMarketingAction(businessId: string, id: string): Promise<MarketingActionRow | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE marketing_actions SET status = 'running', "updatedAt" = now()
+    WHERE id = ${id} AND "businessId" = ${businessId} AND status = 'pending' AND "createdAt" > now() - interval '30 minutes'
+    RETURNING *
+  `) as Record<string, unknown>[];
+  return rows[0] ? actionRow(rows[0]) : null;
+}
+
+export async function finishMarketingAction(businessId: string, id: string, status: "done" | "failed" | "cancelled", result: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE marketing_actions SET status = ${status}, result = ${result.slice(0, 600)}, "updatedAt" = now() WHERE id = ${id} AND "businessId" = ${businessId}`;
 }
