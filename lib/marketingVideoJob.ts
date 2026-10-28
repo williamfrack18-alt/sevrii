@@ -82,6 +82,17 @@ How you work:
 - Keep progress updated with step (short labels in ${es ? "Spanish" : "English"}). Your text replies are short, plain, in ${es ? "Spanish" : "English"}.`;
 }
 
+// Google's own pages (Flow, sign-in) carry an invisible reCAPTCHA badge and a
+// "protected by reCAPTCHA" note: that isn't a check for the owner. Only a
+// challenge actually shown on screen (or its words) counts as a CAPTCHA.
+const SHOWN_CAPTCHA_JS = `(() => {
+  const vis = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 40 && r.height > 40 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) > 0.1; };
+  const frames = [...document.querySelectorAll('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="challenges.cloudflare"], iframe[src*="arkoselabs"]')].filter((f) => !/size=invisible/.test(f.src) && vis(f));
+  const boxes = [...document.querySelectorAll('.g-recaptcha:not([data-size="invisible"]), .h-captcha, .cf-turnstile')].filter(vis);
+  const words = /(verify you are human|verifica que eres humano|no soy un robot|i.m not a robot|are you a robot|unusual traffic|tr[aá]fico inusual|complete the security check|select all images)/i.test(document.body.innerText.slice(0, 5000));
+  return frames.length + boxes.length > 0 || words;
+})()`;
+
 // Lists <video> elements (and video links) on the page, tagging them for save_video.
 const VIDEO_JS = `(() => {
   const out = [];
@@ -276,7 +287,10 @@ export async function advanceVideoJob(b: BusinessRow, id: string): Promise<{ vid
   };
 
   try {
-    hands = await getHands(state, { caseId: v.id, mode: "live", platform: tool.name, needs: [], baseUrl: "" });
+    const raw = await getHands(state, { caseId: v.id, mode: "live", platform: tool.name, needs: [], baseUrl: "" });
+    // A "captcha" flag only stands when a challenge is really shown (see SHOWN_CAPTCHA_JS).
+    const shown = async (p: PageView): Promise<PageView> => (p.captcha && raw.evalJs && !(await raw.evalJs<boolean>(SHOWN_CAPTCHA_JS).catch(() => true)) ? { ...p, captcha: false } : p);
+    hands = { ...raw, open: async (u) => shown(await raw.open(u)), read: async () => shown(await raw.read()) };
     await hands.allowDownloads?.();
     last = state.url ? await hands.read().catch(() => null) : null;
     const messages: MessageParam[] = [
