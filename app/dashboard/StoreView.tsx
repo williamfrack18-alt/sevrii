@@ -29,7 +29,9 @@ export default function StoreView({
   onChats,
   onPayments,
   onBrain,
+  onAgent,
 }: {
+  onAgent?: () => void;
   onBrain?: () => void;
   onChats?: () => void;
   onPayments?: () => void;
@@ -101,12 +103,10 @@ export default function StoreView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [business.id]);
 
-  const isAgent = business.plan.mode === "agent" || Boolean(business.serviceAgent.name);
   const hasPage = services.length > 0 || Boolean(business.site.headline || business.pitch || business.category) || Boolean(business.serviceAgent.name) || planPending;
   const es = lang === "es";
   const chips: ChatChip[] = hasPage
     ? [
-        ...(isAgent ? [{ label: es ? "Darle más información" : "Give it more information", text: es ? "Quiero que el agente sepa esto: " : "I want the agent to know this: " }] : []),
         { label: es ? "Agregar fotos" : "Add photos", upload: true },
         { label: es ? "Agregar un video" : "Add a video", upload: true },
         { label: es ? "Cambiar el título" : "Change the headline", text: es ? "Cambia el título de mi página a: " : "Change my page headline to: " },
@@ -240,7 +240,7 @@ export default function StoreView({
           sync={sync}
           greeting={greeting}
           chips={chips}
-          dockLabel={lang === "es" ? "Tu página: resumen y agente" : "Your page: summary and agent"}
+          dockLabel={lang === "es" ? "Tu página: resumen" : "Your page: summary"}
           dock={
             hasPage ? (
               <StoreSummary
@@ -252,6 +252,7 @@ export default function StoreView({
                 onFill={fillFromPlan}
                 onOpenPage={() => setPageOpen(true)}
                 onPayments={onPayments}
+                onAgent={onAgent}
                 onUpdated={(b) => {
                   onUpdated(b, services);
                   setPreviewKey((k) => k + 1);

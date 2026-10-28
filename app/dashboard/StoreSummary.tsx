@@ -33,6 +33,7 @@ const TEXT = {
     building: "Armando…",
     failed: "No se pudo. Inténtalo de nuevo.",
     agent: "Tu agente",
+    agentArea: "Configurar en Agente",
     on: "Activo",
     off: "Apagado",
     turnOn: "Activar",
@@ -74,6 +75,7 @@ const TEXT = {
     building: "Building…",
     failed: "That didn't work. Try again.",
     agent: "Your agent",
+    agentArea: "Set up in Agent",
     on: "Live",
     off: "Off",
     turnOn: "Switch on",
@@ -108,7 +110,9 @@ export default function StoreSummary({
   onOpenPage,
   onUpdated,
   onPayments,
+  onAgent,
 }: {
+  onAgent?: () => void;
   business: ClientBusiness;
   services: ClientService[];
   planPending: boolean;
@@ -206,7 +210,22 @@ export default function StoreSummary({
         </div>
       )}
 
-      {isAgent && <AgentRow business={business} onUpdated={onUpdated} onPayments={onPayments} />}
+      {/* The agent itself is set up in its own area (Agente, right below Store). */}
+      {isAgent && (
+        <button type="button" onClick={onAgent} className="flex items-center justify-between gap-3 pt-3 text-left" style={{ borderTop: `1px solid ${HAIR}` }}>
+          <span className="min-w-0 flex flex-col">
+            <span className="text-[12px] text-pmuted">{t.agent}</span>
+            <span className="text-[14.5px] font-medium text-pfg truncate">{a.name || "—"}</span>
+          </span>
+          <span className="flex items-center gap-2 shrink-0">
+            <span className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: a.enabled ? ACCENT : "#52525B" }}>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: a.enabled ? ACCENT : "#A1A1AA" }} />
+              {a.enabled ? t.on : t.off}
+            </span>
+            <span className="text-[12.5px] font-semibold" style={{ color: ACCENT }}>{t.agentArea} →</span>
+          </span>
+        </button>
+      )}
 
       {missing.length > 0 && (
         <p className="text-[12.5px] leading-relaxed text-psub">
@@ -217,7 +236,7 @@ export default function StoreSummary({
   );
 }
 
-function AgentRow({ business, onUpdated, onPayments }: { business: ClientBusiness; onUpdated: (b: ClientBusiness) => void; onPayments?: () => void }) {
+export function AgentRow({ business, onUpdated, onPayments }: { business: ClientBusiness; onUpdated: (b: ClientBusiness) => void; onPayments?: () => void }) {
   const lang = useLang();
   const t = TEXT[lang];
   const a = business.serviceAgent;

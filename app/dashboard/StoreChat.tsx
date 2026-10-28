@@ -20,7 +20,9 @@ export default function StoreChat({
   dock,
   dockLabel,
   chips,
+  area = "store",
 }: {
+  area?: "store" | "agent"; // Store (the sales page) or Agente (the agent itself)
   head?: React.ReactNode;
   dock?: React.ReactNode;
   dockLabel?: string;
@@ -59,7 +61,7 @@ export default function StoreChat({
         uploadFailed: t.photos.failed,
       }}
       onSend={async (text) => {
-        const res = await sendStoreChatAction(text);
+        const res = await sendStoreChatAction(text, area);
         onMessages?.(res.messages);
         onUpdated(
           toClientBusiness(res.business),

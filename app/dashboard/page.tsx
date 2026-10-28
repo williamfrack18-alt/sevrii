@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getLang } from "@/lib/lang";
-import { storeGreeting } from "@/lib/storeAgent";
+import { agentAreaGreeting, storeGreeting } from "@/lib/storeAgent";
 import { marketingGreeting } from "@/lib/marketingBrain";
 import { planGreeting } from "@/lib/planBrain";
 import { getCurrentUser } from "@/lib/session";
@@ -40,6 +40,7 @@ export default async function DashboardPage({
   const planMessages = await listChatMessages(business.id, "plan");
   const marketingMessages = await listChatMessages(business.id, "brain");
   const editorMessages = await listChatMessages(business.id, "store");
+  const agentMessages = await listChatMessages(business.id, "agent");
   const lang = await getLang();
   // Owners from before languages were saved: keep the one they're reading in.
   if (user.lang !== "es" && user.lang !== "en") await setUserLang(user.id, lang).catch(() => {});
@@ -73,6 +74,8 @@ export default async function DashboardPage({
       marketingMessages={marketingMessages.map((m) => ({ id: m.id, role: m.role, content: m.content }))}
       editorMessages={editorMessages.map((m) => ({ id: m.id, role: m.role, content: m.content }))}
       storeGreeting={storeGreetingText}
+      agentMessages={agentMessages.map((m) => ({ id: m.id, role: m.role, content: m.content }))}
+      agentGreeting={agentAreaGreeting(lang, business)}
       marketingGreeting={marketingGreeting(lang, business)}
     />
   );

@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { getBusinessBySlug, getUserById } from "@/lib/db";
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
-import { storeTheme } from "@/lib/site";
 import ChatWidget from "../ChatWidget";
 import { chatAgentFor } from "../agentChat";
 import "../store.css";
@@ -43,7 +42,8 @@ export default async function AgentRoom({ params, searchParams }: { params: Prom
   const rawC = (await searchParams).c;
   const campaign = typeof rawC === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(rawC) ? rawC : "";
   return (
-    <div className="mt ag ag-room" lang={site.lang} style={storeTheme(b.accentColor) as React.CSSProperties}>
+    // Always Sevrii's black, white and green here (not the project's accent color).
+    <div className="mt ag ag-room" lang={site.lang}>
       {!live && <div className="draft-bar">{lang === "es" ? "Borrador: solo tú puedes ver esta página." : "Draft: only you can see this page."}</div>}
       <div className="ag-room-top">
         <a href={`/site/${b.slug}`}>← {b.name}</a>

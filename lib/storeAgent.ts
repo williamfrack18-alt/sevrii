@@ -442,6 +442,8 @@ export async function runStoreChatTurn(opts: {
   message: string;
   lang: Lang;
   canPublish: boolean;
+  // Which panel area this chat is: Store (the sales page) or Agente (the agent itself).
+  area?: "store" | "agent";
 }): Promise<StoreChatResult> {
   let business = opts.business;
   let services = await listServices(business.id);
@@ -468,7 +470,14 @@ export async function runStoreChatTurn(opts: {
     .filter((u) => !/\/video-|\.(mp4|mov|m4v|webm|qt)(\?|$)/i.test(u));
   const photos = [...new Set(recent)].slice(0, 2);
   const justUploaded = (opts.message.match(BLOB) ?? []).some((u) => photos[0] === u);
-  const system = `${SYSTEM}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}. Page text goes in the page's language (page.lang) unless the owner asks otherwise.`;
+  const isAgentProject = business.plan.mode === "agent" || Boolean(business.serviceAgent.name);
+  const areaNote =
+    opts.area === "agent"
+      ? `\n\nTHIS CHAT IS THE AGENT AREA (in the panel, right below Store). Here the owner sets up the AI agent itself: its name, what it does end to end (set_agent_task), its method (instructions), limits, greeting, knowledge, access offers, on/off — and how its chat looks to customers: a full-screen conversation with the agent's name and identity, always in Sevrii's black, white and green. The sales page (headline, texts, key points, photos, video, FAQ, publishing) is set up in Store: if they ask for page changes here, say in one line that it's done in Store and don't change the page.`
+      : isAgentProject
+        ? `\n\nTHIS CHAT IS STORE: the sales page. The agent itself (what it does, its method, limits, greeting, knowledge, on/off) is set up in the Agente area, right below Store in the panel: if the owner asks here to change the agent, say in one line that it's done in Agente and don't change it. Access offers and prices can be changed here too.`
+        : "";
+  const system = `${SYSTEM}${areaNote}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}. Page text goes in the page's language (page.lang) unless the owner asks otherwise.`;
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
     {
@@ -533,6 +542,15 @@ export async function runStoreChatTurn(opts: {
   return { reply: reply || (es ? "Listo." : "Done."), business, services };
 }
 
+// First message of the Agente area (no AI call needed).
+export function agentAreaGreeting(lang: Lang, b: BusinessRow): string {
+  const es = lang === "es";
+  const name = b.serviceAgent.name;
+  return es
+    ? `Aquí configuras ${name ? `a "${name}"` : "tu agente"}: lo que hace de punta a punta, su método, sus límites, su saludo, lo que sabe y cómo se ve su chat para tus clientes. Aquí al lado tienes su estado y cómo lo ven. ¿Qué quieres cambiar?`
+    : `Here you set up ${name ? `"${name}"` : "your agent"}: what it does end to end, its method, its limits, its greeting, what it knows and how its chat looks to your customers. Its status and how customers see it are right here. What do you want to change?`;
+}
+
 // First message when the chat is empty — no AI call needed.
 export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number): string {
   const es = lang === "es";
@@ -549,8 +567,8 @@ export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number):
   if (serviceCount > 0 || b.site.headline) {
     if (b.plan.mode === "agent" && b.serviceAgent.name)
       return es
-        ? `Tu agente y su página ya están armados con lo que aprobamos. Aquí abajo tienes el resumen, y con «Ver mi página» la ves completa. Aquí puedo darle más información, cambiar sus precios, el título o la oferta, y agregar fotos o un video. ¿Qué quieres cambiar?`
-        : `Your agent and its page are built from what we approved. The summary is right below, and "See my page" shows it in full. Here I can give it more information, change its prices, the headline or the offer, and add photos or a video. What do you want to change?`;
+        ? `Tu agente y su página ya están armados con lo que aprobamos. Aquí abajo tienes el resumen de la página, y con «Ver mi página» la ves completa. Aquí puedo cambiar el título, la oferta o los precios, y agregar fotos o un video. El agente se configura en «Agente», justo debajo de Store. ¿Qué quieres cambiar?`
+        : `Your agent and its page are built from what we approved. The page summary is right below, and "See my page" shows it in full. Here I can change the headline, the offer or the prices, and add photos or a video. The agent itself is set up in "Agent", right below Store. What do you want to change?`;
     return es
       ? `Tu página ya está armada con lo que aprobamos. Aquí abajo tienes el resumen, y con «Ver mi página» la ves completa. Aquí puedo agregar fotos o un video, cambiar el título, la oferta o los precios. ¿Qué quieres cambiar?`
       : `Your page is built from what we approved. The summary is right below, and "See my page" shows it in full. Here I can add photos or a video, change the headline, the offer or the prices. What do you want to change?`;

@@ -480,6 +480,55 @@
 .mt.ag-room .ag-room-main { flex: 1; min-height: 0; display: flex; justify-content: center; }
 .mt.ag-room .ag-room-chat { width: 100%; max-width: 860px; height: calc(100dvh - 44px); }
 
+/* The room's look (customer side): a clean full-thread conversation, like an
+   AI assistant app — the agent's name and identity, always Sevrii's black,
+   white and green (never the project's own accent color). */
+.mt.ag-room {
+  --ink: #0a0a0a; --ink-dim: #52525b; --ink-faint: #71717a;
+  --line: rgba(10, 10, 10, 0.08); --line-strong: rgba(10, 10, 10, 0.14);
+  --surface: #f5f5f3; --surface-2: #ececea;
+  --accent-grad: #0a0a0a; --accent-on: #ffffff; --accent-grad-solid: #15803d; --accent-text-grad: #0a0a0a;
+  --header-grad: #0a0a0a; --accent-bg: rgba(22, 163, 74, 0.1); --accent-border: rgba(22, 163, 74, 0.35);
+  background: #fff;
+}
+.mt.ag-room .ag-room-top { background: #fff; color: var(--ink-dim); border-bottom: 1px solid var(--line); }
+.mt.ag-room .ag-room-top a { color: var(--ink); opacity: 1; font-weight: 600; }
+.mt.ag-room .ag-room-chat { max-width: none; }
+.mt .cw-room .cw-panel { background: #fff; }
+.mt .cw-room .cw-head, .mt .cw-room .cw-head.owner { background: #fff; color: var(--ink); border-bottom: 1px solid var(--line); padding: 12px max(16px, calc((100% - 760px) / 2)); }
+.mt .cw-room .cw-avatar { width: 36px; height: 36px; background: #0a0a0a; color: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #16a34a; }
+.mt .cw-room .cw-head.owner .cw-avatar { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #16a34a; }
+.mt .cw-room .cw-name { font-size: 15.5px; }
+.mt .cw-room .cw-status { opacity: 1; color: var(--ink-dim); }
+.mt .cw-room .cw-dot { background: #16a34a; }
+.mt .cw-room .cw-speak { border-color: var(--line-strong); color: var(--ink); }
+.mt .cw-room .cw-speak.on { background: #0a0a0a; border-color: #0a0a0a; color: #fff; }
+.mt .cw-room .cw-list { background: #fff; padding: 28px max(16px, calc((100% - 760px) / 2)) 20px; gap: 18px; }
+.mt .cw-room .cw-row { gap: 8px; }
+.mt .cw-room .cw-row.cw-hello { flex-direction: column; align-items: flex-start; gap: 10px; }
+.mt .cw-room .cw-mini { background: #0a0a0a; color: #fff; }
+.mt .cw-room .cw-msg { font-size: 16px; line-height: 1.6; }
+.mt .cw-room .cw-msg.ai { background: none; border: none; padding: 0; max-width: 100%; border-radius: 0; color: var(--ink); }
+.mt .cw-room .cw-msg.owner { padding: 10px 14px; border-radius: 18px; max-width: 85%; }
+.mt .cw-room .cw-msg.visitor { background: #0a0a0a; color: #fff; border-radius: 22px; padding: 10px 16px; max-width: 78%; }
+.mt .cw-room .cw-typing { padding: 6px 0; }
+.mt .cw-room .cw-form { width: calc(100% - 32px); max-width: 760px; margin: 0 auto 10px; align-items: center; gap: 4px; padding: 6px 6px 6px 8px; background: #fff; border: 1px solid var(--line-strong); border-top: 1px solid var(--line-strong); border-radius: 28px; box-shadow: 0 10px 28px -18px rgba(10, 10, 10, 0.35); }
+.mt .cw-room .cw-form:focus-within { border-color: #0a0a0a; }
+.mt .cw-room .cw-form textarea { border: none; border-radius: 0; padding: 10px 6px; background: transparent; }
+.mt .cw-room .cw-form textarea:focus { border: none; box-shadow: none; }
+.mt .cw-room .cw-form button { width: 40px; height: 40px; background: #0a0a0a; color: #fff; }
+.mt .cw-room .cw-form button.cw-attach, .mt .cw-room .cw-form button.cw-mic { background: transparent; color: var(--ink-dim); }
+.mt .cw-room .cw-form button.cw-attach:hover, .mt .cw-room .cw-form button.cw-mic:hover { background: var(--surface); color: var(--ink); }
+.mt .cw-room .cw-form button.cw-mic.on { background: #16a34a; color: #fff; }
+.mt .cw-room .cw-error, .mt .cw-room .cw-note { background: #fff; text-align: center; }
+.mt .cw-room .cw-rate, .mt .cw-room .cw-review { width: calc(100% - 32px); max-width: 760px; margin: 0 auto; }
+.mt .cw-room .cw-case { border-radius: 18px; border-color: var(--line-strong); }
+.mt .cw-room .cw-case.blocked, .mt .cw-room .cw-case.needs_ok, .mt .cw-room .cw-case.needs_input { border-color: #0a0a0a; }
+.mt .cw-room .cw-case.done { border-color: #16a34a; }
+.mt .cw-room .cw-case-test { background: var(--surface); color: var(--ink); border-left: 3px solid #16a34a; }
+.mt .cw-room .cw-offer { border-radius: 16px; }
+.mt .cw-room .cw-offer-price { background: #16a34a; color: #fff; }
+
 /* Agent page: the way into the agent's room (instead of an inline chat). */
 .mt .ag-enter { display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 22px; background: #fff; border: 1px solid var(--line); box-shadow: 0 18px 40px -26px rgba(0,0,0,0.35); color: var(--ink); text-decoration: none; }
 .mt .ag-enter:hover { border-color: var(--accent-grad-solid); }

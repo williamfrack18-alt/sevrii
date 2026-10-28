@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { keepProjectAction, logoutAction } from "@/app/actions";
 import StoreView from "./StoreView";
+import AgentView from "./AgentView";
 import MarketingView from "./MarketingView";
 import ProjectsView from "./ProjectsView";
 import PlanView from "./PlanView";
@@ -56,6 +57,14 @@ const ICONS: Record<DashboardView, React.JSX.Element> = {
       <path d="M5 9v11h14V9" />
     </>
   ),
+  agent: (
+    <>
+      <rect x="4.5" y="8" width="15" height="11" rx="3.5" />
+      <path d="M12 8V4.5M10.5 4.5h3" />
+      <path d="M9.5 13.2h.01M14.5 13.2h.01" />
+      <path d="M2.5 12.5v2.5M21.5 12.5v2.5" />
+    </>
+  ),
   chats: (
     <>
       <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z" />
@@ -102,6 +111,8 @@ export default function DashboardTabs({
   planMessages,
   marketingMessages,
   editorMessages,
+  agentMessages = [],
+  agentGreeting = "",
   planGreeting,
   storeGreeting,
   marketingGreeting,
@@ -117,6 +128,8 @@ export default function DashboardTabs({
   planMessages: ClientMsg[];
   marketingMessages: ClientMsg[];
   editorMessages: ClientMsg[];
+  agentMessages?: ClientMsg[];
+  agentGreeting?: string;
   planGreeting: string;
   plan: ClientPlan;
   planNotice?: "success" | "cancel" | "projects" | "publish" | null;
@@ -170,6 +183,7 @@ export default function DashboardTabs({
   const [currentServices, setCurrentServices] = useState<ClientService[]>(services);
   const [currentCampaigns, setCurrentCampaigns] = useState<ClientCampaign[]>(campaigns);
   const [storeMessages, setStoreMessages] = useState<ClientMsg[]>(editorMessages);
+  const [agentMsgs, setAgentMsgs] = useState<ClientMsg[]>(agentMessages);
   const [brainMessages, setBrainMessages] = useState<ClientMsg[]>(marketingMessages);
   const [planMsgs, setPlanMsgs] = useState<ClientMsg[]>(planMessages);
   // Side rail: collapsed (icons only) by default; the choice is remembered on this device.
@@ -202,11 +216,15 @@ export default function DashboardTabs({
   }
 
   const chatsLabel = lang === "es" ? "Conversaciones" : "Conversations";
+  // An AI-agent project has its own area right below Store: the agent itself.
+  const isAgent = currentBusiness.plan.mode === "agent" || Boolean(currentBusiness.serviceAgent.name);
+  const agentLabel = lang === "es" ? "Agente" : "Agent";
   const homeLabel = lang === "es" ? "Inicio" : "Home";
   const items: { id: DashboardView; label: string; soon?: boolean }[] = [
     { id: "projects", label: homeLabel },
     { id: "plan", label: pt.nav.plan },
     { id: "store", label: t.dashboard.store },
+    ...(isAgent ? [{ id: "agent" as DashboardView, label: agentLabel }] : []),
     { id: "marketing", label: t.dashboard.marketing },
     { id: "payments", label: "Payments" },
     { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates" },
@@ -295,6 +313,7 @@ export default function DashboardTabs({
     </svg>
   );
   const sheetRows: { id: DashboardView; label: string; meta?: React.ReactNode }[] = [
+    ...(isAgent ? [{ id: "agent" as DashboardView, label: agentLabel }] : []),
     { id: "payments", label: "Payments" },
     { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates" },
     { id: "capital", label: "Capital", meta: <span className="dash-soon">{t.dashboard.soon}</span> },
@@ -597,6 +616,7 @@ export default function DashboardTabs({
             onChats={() => setView("chats")}
             onPayments={() => setView("payments")}
             onBrain={() => setView("plan")}
+            onAgent={() => setView("agent")}
             business={currentBusiness}
             services={currentServices}
             initialMessages={storeMessages}
@@ -604,6 +624,21 @@ export default function DashboardTabs({
             canPublish={limits.canPublish}
             onPlans={() => setView("plans")}
             onMessages={setStoreMessages}
+            onUpdated={(b, s) => {
+              setCurrentBusiness(b);
+              setCurrentServices(s);
+            }}
+          />
+        )}
+        {view === "agent" && (
+          <AgentView
+            business={currentBusiness}
+            services={currentServices}
+            initialMessages={agentMsgs}
+            greeting={agentGreeting}
+            onMessages={setAgentMsgs}
+            onPayments={() => setView("payments")}
+            onStore={() => setView("store")}
             onUpdated={(b, s) => {
               setCurrentBusiness(b);
               setCurrentServices(s);

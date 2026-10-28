@@ -72,6 +72,6 @@ export type ClientMsg = { id: string; role: string; content: string };
 
 export type ClientProject = ProjectSummary;
 
-export type DashboardView = "projects" | "plan" | "store" | "chats" | "marketing" | "payments" | "affiliates" | "capital" | "plans";
-export const DASHBOARD_VIEWS: DashboardView[] = ["projects", "plan", "store", "chats", "marketing", "payments", "affiliates", "capital", "plans"];
+export type DashboardView = "projects" | "plan" | "store" | "chats" | "agent" | "marketing" | "payments" | "affiliates" | "capital" | "plans";
+export const DASHBOARD_VIEWS: DashboardView[] = ["projects", "plan", "store", "chats", "agent", "marketing", "payments", "affiliates", "capital", "plans"];
 

@@ -22,7 +22,7 @@ import {
 import { isOurBlob, ownsBlob, LIMITS, normalizePhone, publishGaps, type PublishGap, type SiteData } from "@/lib/site";
 import { allow, LIMITS as RATE } from "@/lib/guard";
 import { addChatMessage, listChatMessages } from "@/lib/db";
-import { runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
+import { agentAreaGreeting, runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
 import { limitsFor, limitsForUserId } from "@/lib/billing";
 import { publishBusiness } from "@/lib/marketplace";
 import { chatGate, gateMessage, runForUser } from "@/lib/usage";
@@ -268,15 +268,18 @@ export type StoreChatResponse = {
   services: ServiceRow[];
 };
 
-export async function sendStoreChatAction(message: string): Promise<StoreChatResponse> {
+// area "agent" = the Agente section of the panel: the same builder, its own
+// conversation, focused on the agent (the sales page stays in Store).
+export async function sendStoreChatAction(message: string, area: "store" | "agent" = "store"): Promise<StoreChatResponse> {
   const business = await requireBusiness();
   const lang = await getLang();
   const t = getDict(lang).dashboard;
   const text = String(message || "").trim();
-  let history = await listChatMessages(business.id, "store");
+  const channel = area === "agent" ? "agent" : "store";
+  let history = await listChatMessages(business.id, channel);
 
   const respond = async (b: BusinessRow) => ({
-    messages: (await listChatMessages(business.id, "store")).map((m) => ({ id: m.id, role: m.role, content: m.content })),
+    messages: (await listChatMessages(business.id, channel)).map((m) => ({ id: m.id, role: m.role, content: m.content })),
     business: b,
     services: await listServices(business.id),
   });
@@ -284,8 +287,8 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
   if (!text) return respond(business);
 
   if (history.length === 0) {
-    await addChatMessage(business.id, "store", "ai", storeGreeting(lang, business, (await listServices(business.id)).length));
-    history = await listChatMessages(business.id, "store");
+    await addChatMessage(business.id, channel, "ai", channel === "agent" ? agentAreaGreeting(lang, business) : storeGreeting(lang, business, (await listServices(business.id)).length));
+    history = await listChatMessages(business.id, channel);
   }
 
   let blocked: string | null = null;
@@ -295,11 +298,11 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
     if (reason) blocked = gateMessage(reason, t);
   }
   if (blocked) {
-    await addChatMessage(business.id, "store", "ai", blocked);
+    await addChatMessage(business.id, channel, "ai", blocked);
     return respond(business);
   }
 
-  await addChatMessage(business.id, "store", "user", text);
+  await addChatMessage(business.id, channel, "user", text);
   const canPublish = (await limitsForUserId(business.userId)).canPublish;
   const result = await runForUser(business.userId, () => runStoreChatTurn({
     business,
@@ -317,8 +320,9 @@ export async function sendStoreChatAction(message: string): Promise<StoreChatRes
           : "I uploaded my video (it's already on the page, first in the gallery)."
         : text,
     lang,
+    area: channel,
   }));
-  await addChatMessage(business.id, "store", "ai", result.reply);
+  await addChatMessage(business.id, channel, "ai", result.reply);
   refresh(result.business.slug);
   return respond(result.business);
 }
