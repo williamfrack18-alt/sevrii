@@ -65,7 +65,9 @@ document.addEventListener('DOMContentLoaded', function(){
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sevrii | Service agents</title>
 <meta name="description" content="All the service agents you need, in one place: AI agents that guide you by chat, 24/7. Try them free.">
-<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="icon" href="/favicon.ico?v=2" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
 <style>
   :root{
     --bg:#000;
@@ -488,6 +490,36 @@ document.addEventListener('DOMContentLoaded', function(){
   .mk-tabs a.on{background:#fff;color:#000;font-weight:600;}
   .hero-inner{max-width:860px;}
 </style>
+<style>
+  /* Top bar: dark and readable once you scroll (also over light sections), clear buttons. */
+  header.scrolled{background:rgba(8,8,8,.94)!important;backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px);border-bottom:1px solid rgba(255,255,255,.08)!important;box-shadow:0 10px 30px -18px rgba(0,0,0,.7);}
+  header{transition:background .15s ease,border-color .15s ease!important;}
+  .nav-links{color:#f4f4f2!important;}
+  .nav-links a{opacity:.88;transition:opacity .15s ease;}
+  .nav-links a:hover{opacity:1;color:#fff!important;}
+  header .btn-outline{color:#fff!important;border:1px solid rgba(255,255,255,.6)!important;background:rgba(255,255,255,.07)!important;}
+  header .btn-outline:hover{background:rgba(255,255,255,.16)!important;border-color:#fff!important;}
+  header .btn-primary{background:#fff!important;color:#0a0a0a!important;}
+  header .btn-primary:hover{background:#ededeb!important;}
+</style>
+<style>
+  /* Location: a quiet, refined bar (thin line icon, pill button) instead of the emoji pin. */
+  .loc-bar{background:#fff!important;border:1px solid #ebebe8!important;border-radius:18px!important;padding:10px 10px 10px 10px!important;box-shadow:0 1px 2px rgba(10,10,10,.04),0 14px 34px -24px rgba(10,10,10,.28);}
+  .loc-now{gap:12px!important;font-size:14.5px;color:#52525b!important;flex-wrap:nowrap!important;}
+  .loc-now b,.loc-now strong{color:#0a0a0a;font-weight:600;}
+  .loc-ic{width:36px;height:36px;flex:0 0 36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#f5f5f3;color:#0a0a0a;box-shadow:inset 0 0 0 1px rgba(10,10,10,.06);}
+  .loc-ic svg{width:17px;height:17px;}
+  #locText{flex:1;min-width:0;line-height:1.4;}
+  .loc-link{margin-left:auto;flex:0 0 auto;text-decoration:none!important;color:#0a0a0a!important;font-size:13px!important;font-weight:600!important;padding:8px 15px!important;border-radius:999px!important;border:1px solid #e2e2df!important;background:#fff!important;transition:background .15s ease,border-color .15s ease;}
+  .loc-link:hover{background:#f5f5f3!important;border-color:#cfcfcb!important;}
+  .loc-form{padding:6px 2px 2px;}
+  .loc-form input{border-color:#e2e2df!important;}
+  .loc-form input:focus{outline:none;border-color:#0a0a0a!important;}
+  .loc-form button{background:#0a0a0a!important;color:#fff!important;}
+  .loc-form .loc-ghost{background:#fff!important;color:#0a0a0a!important;border:1px solid #e2e2df!important;}
+  .result-reach{color:#3f3f46!important;font-weight:500!important;}
+  .result-reach::before{content:"";width:12px;height:12px;flex:0 0 12px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z'/%3E%3Ccircle cx='12' cy='10' r='2.3'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z'/%3E%3Ccircle cx='12' cy='10' r='2.3'/%3E%3C/svg%3E") center/contain no-repeat;}
+</style>
 </head>
 <body>
 
@@ -556,7 +588,7 @@ document.addEventListener('DOMContentLoaded', function(){
   <div class="wrap">
 
     <div class="loc-bar" id="locBar">
-      <div class="loc-now">📍 <span id="locText">Finding agents for you…</span> <button type="button" id="locChange" class="loc-link">Change</button></div>
+      <div class="loc-now"><span class="loc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span><span id="locText">Finding agents for you…</span> <button type="button" id="locChange" class="loc-link">Change</button></div>
       <form class="loc-form" id="locForm" style="display:none;">
         <input type="text" id="locInput" placeholder="Your city or ZIP code (e.g. Miami, FL or 33172)" maxlength="80" autocomplete="postal-code">
         <button type="submit">See services</button>
@@ -912,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function(){
     body.appendChild(el('p', 'result-title', l.title));
     body.appendChild(el('div', 'result-by', T.by + l.name));
     if (l.reach === 'remote') body.appendChild(el('div', 'result-reach', '💻 ' + T.online));
-    else if (l.serves && l.miles !== null && !showAll) body.appendChild(el('div', 'result-reach', '📍 ' + T.miles(l.miles)));
+    else if (l.serves && l.miles !== null && !showAll) body.appendChild(el('div', 'result-reach', T.miles(l.miles)));
     var where = l.reachText || l.location;
     if (where && l.reach !== 'remote') body.appendChild(el('div', 'result-loc', where));
     if (l.price) body.appendChild(el('div', 'result-price', /^(desde|from)\b/i.test(l.price) ? l.price : T.from + l.price));

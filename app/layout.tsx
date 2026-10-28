@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t.meta.title,
     description: t.meta.description,
-    icons: { apple: "/apple-touch-icon.png" },
+    icons: { icon: [{ url: "/favicon.ico", sizes: "any" }, { url: "/assets/favicon.png", type: "image/png", sizes: "32x32" }], apple: "/apple-touch-icon.png" },
     appleWebApp: { capable: true, title: "Sevrii", statusBarStyle: "black-translucent" },
   };
 }

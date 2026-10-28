@@ -64,7 +64,9 @@ document.addEventListener('DOMContentLoaded', function(){
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sevrii | All Your Services in One Place</title>
-<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="icon" href="/favicon.ico?v=2" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
 <style>
   :root{
     --bg:#000;
@@ -494,6 +496,98 @@ document.addEventListener('DOMContentLoaded', function(){
   .mk-tabs a:hover{color:#fff;}
   .mk-tabs a.on{background:#fff;color:#000;font-weight:600;}
 </style>
+<style>
+  /* Top bar: dark and readable once you scroll (also over light sections), clear buttons. */
+  header.scrolled{background:rgba(8,8,8,.94)!important;backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px);border-bottom:1px solid rgba(255,255,255,.08)!important;box-shadow:0 10px 30px -18px rgba(0,0,0,.7);}
+  header{transition:background .15s ease,border-color .15s ease!important;}
+  .nav-links{color:#f4f4f2!important;}
+  .nav-links a{opacity:.88;transition:opacity .15s ease;}
+  .nav-links a:hover{opacity:1;color:#fff!important;}
+  header .btn-outline{color:#fff!important;border:1px solid rgba(255,255,255,.6)!important;background:rgba(255,255,255,.07)!important;}
+  header .btn-outline:hover{background:rgba(255,255,255,.16)!important;border-color:#fff!important;}
+  header .btn-primary{background:#fff!important;color:#0a0a0a!important;}
+  header .btn-primary:hover{background:#ededeb!important;}
+</style>
+<style>
+  /* Location: a quiet, refined bar (thin line icon, pill button) instead of the emoji pin. */
+  .loc-bar{background:#fff!important;border:1px solid #ebebe8!important;border-radius:18px!important;padding:10px 10px 10px 10px!important;box-shadow:0 1px 2px rgba(10,10,10,.04),0 14px 34px -24px rgba(10,10,10,.28);}
+  .loc-now{gap:12px!important;font-size:14.5px;color:#52525b!important;flex-wrap:nowrap!important;}
+  .loc-now b,.loc-now strong{color:#0a0a0a;font-weight:600;}
+  .loc-ic{width:36px;height:36px;flex:0 0 36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#f5f5f3;color:#0a0a0a;box-shadow:inset 0 0 0 1px rgba(10,10,10,.06);}
+  .loc-ic svg{width:17px;height:17px;}
+  #locText{flex:1;min-width:0;line-height:1.4;}
+  .loc-link{margin-left:auto;flex:0 0 auto;text-decoration:none!important;color:#0a0a0a!important;font-size:13px!important;font-weight:600!important;padding:8px 15px!important;border-radius:999px!important;border:1px solid #e2e2df!important;background:#fff!important;transition:background .15s ease,border-color .15s ease;}
+  .loc-link:hover{background:#f5f5f3!important;border-color:#cfcfcb!important;}
+  .loc-form{padding:6px 2px 2px;}
+  .loc-form input{border-color:#e2e2df!important;}
+  .loc-form input:focus{outline:none;border-color:#0a0a0a!important;}
+  .loc-form button{background:#0a0a0a!important;color:#fff!important;}
+  .loc-form .loc-ghost{background:#fff!important;color:#0a0a0a!important;border:1px solid #e2e2df!important;}
+  .result-reach{color:#3f3f46!important;font-weight:500!important;}
+  .result-reach::before{content:"";width:12px;height:12px;flex:0 0 12px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z'/%3E%3Ccircle cx='12' cy='10' r='2.3'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z'/%3E%3Ccircle cx='12' cy='10' r='2.3'/%3E%3C/svg%3E") center/contain no-repeat;}
+</style>
+<style>
+  /* Home · Agents and Affiliates: two inset cards on black, like the
+     "Ofrecer servicios" pillars (pearl and green glow), same type scale. */
+  .ax{background:#000!important;color:#0b0b0b;padding:12px 12px 0;border-top:0!important;overflow:visible!important;}
+  .ax::before,.ax::after{content:none!important;}
+  .ax-in{position:relative;overflow:hidden;max-width:none!important;margin:0!important;border-radius:40px;background:#dcdddb;padding:120px max(40px,calc((100% - 1200px)/2))!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:72px!important;}
+  .ax-in::before{content:"";position:absolute;inset:-40px;background:url('/assets/robotics/blur.jpg') center/cover;filter:blur(28px);opacity:.2;pointer-events:none;}
+  .ax-in::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 45% 60% at 72% 45%,rgba(255,255,255,.5),transparent 70%);pointer-events:none;}
+  .ax-in>*{position:relative;z-index:1;}
+  .ax-label,.af-label{font-size:14px!important;font-weight:450;letter-spacing:0!important;text-transform:none!important;}
+  .ax-label{color:#2f6f4f!important;}
+  .ax-live{font-size:12.5px!important;padding:5px 12px!important;background:rgba(255,255,255,.55);border-color:rgba(47,111,79,.35)!important;}
+  .ax-h,.af-h{font-size:clamp(34px,4.6vw,56px)!important;font-weight:330!important;letter-spacing:-.02em!important;line-height:1.08!important;text-transform:none!important;margin:18px 0 20px!important;max-width:560px!important;}
+  .ax-p,.af-p{font-size:18px!important;line-height:1.5!important;max-width:540px!important;}
+  .ax-steps{margin-top:36px!important;border-bottom:1px solid rgba(0,0,0,.14);}
+  .ax-steps li{grid-template-columns:44px 1fr!important;padding:18px 0!important;}
+  .ax-n{font-size:13px!important;letter-spacing:0!important;color:#2f6f4f!important;padding-top:3px!important;}
+  .ax-steps h3{font-size:16px!important;font-weight:500!important;}
+  .ax-steps p{font-size:14px!important;}
+  .ax-btn{height:50px!important;padding:0 24px!important;font-size:15.5px!important;}
+  .ax-note{font-size:12.5px!important;}
+  /* The example chat, drawn like the real agent chat: white, black and green. */
+  .ax-chat{max-width:460px!important;border-radius:26px!important;background:#fff;box-shadow:0 50px 100px -40px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.06)!important;}
+  .ax-head{background:#fff!important;color:#0b0b0b!important;border-bottom:1px solid rgba(0,0,0,.07);padding:14px 18px!important;}
+  .ax-av{background:#0a0a0a!important;color:#fff;box-shadow:0 0 0 2px #fff,0 0 0 3.5px #16a34a;}
+  .ax-st{opacity:1!important;color:#52525b;}
+  .ax-st i{background:#16a34a!important;}
+  .ax-list{background:#fff!important;padding:20px 18px!important;gap:14px!important;}
+  .ax-m{font-size:14.5px!important;line-height:1.55!important;}
+  .ax-m.ai{background:none!important;border:0!important;padding:0!important;max-width:100%!important;color:#0b0b0b;}
+  .ax-m.me{background:#0a0a0a!important;border-radius:20px!important;padding:9px 15px!important;}
+  .ax-offers{width:100%!important;}
+  .ax-o{border-color:#e4e4e1!important;border-radius:16px!important;}
+  .ax-o span{background:#16a34a!important;}
+  .ax-cap{max-width:460px!important;letter-spacing:.14em!important;}
+
+  .af{background:#000!important;padding:12px 12px 12px;border-top:0!important;}
+  .af-in{position:relative;overflow:hidden;max-width:none!important;margin:0!important;border-radius:40px;padding:120px max(40px,calc((100% - 1200px)/2))!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:72px!important;align-items:center!important;background:radial-gradient(ellipse 50% 60% at 75% 50%,rgba(61,220,132,.16),transparent 70%),#050806;border:1px solid rgba(255,255,255,.07);}
+  .af-label{color:#3ddc84!important;}
+  .af-h{color:#fff;}
+  .af-p{color:rgba(255,255,255,.72)!important;margin:0!important;}
+  .af-steps{list-style:none;margin:32px 0 0;padding:0;border-top:1px solid rgba(255,255,255,.12);max-width:540px;}
+  .af-steps li{display:grid;grid-template-columns:44px 1fr;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.12);}
+  .af-steps span{font-size:13px;color:#3ddc84;padding-top:2px;}
+  .af-steps b{display:block;font-size:16px;font-weight:500;color:#fff;margin-bottom:3px;}
+  .af-steps em{font-style:normal;font-size:14px;line-height:1.5;color:rgba(255,255,255,.62);}
+  .af-cta{margin-top:32px;}
+  .af-card{background:#fff;color:#0b0b0b;border-radius:26px;padding:26px;max-width:420px;margin-left:auto;box-shadow:0 50px 100px -40px rgba(61,220,132,.35),0 0 0 1px rgba(255,255,255,.08);display:flex;flex-direction:column;gap:14px;}
+  .af-card .k{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:#71717a;}
+  .af-card .lnk{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#f5f5f3;border-radius:12px;padding:10px 12px;color:#27272a;word-break:break-all;}
+  .af-card .row{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:12px 0;border-top:1px solid #eeeeec;}
+  .af-card .row span{color:#52525b;}
+  .af-card .earn{font-size:40px;font-weight:330;letter-spacing:-.02em;color:#15803d;line-height:1;}
+  .af-card .note{font-size:12.5px;color:#71717a;}
+  .af-cap{display:block;max-width:420px;margin:14px 0 0 auto;text-align:right;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.45);}
+  @media (max-width:860px){
+    .ax,.af{padding-left:8px!important;padding-right:8px!important;}
+    .ax-in,.af-in{grid-template-columns:1fr!important;padding:72px 22px!important;gap:44px!important;border-radius:28px;}
+    .af-card,.af-cap{margin-left:0;max-width:none;}
+    .af-cap{text-align:left;}
+  }
+</style>
 </head>
 <body>
 
@@ -575,7 +669,7 @@ document.addEventListener('DOMContentLoaded', function(){
   <div class="wrap">
 
     <div class="loc-bar" id="locBar">
-      <div class="loc-now">📍 <span id="locText">Finding services near you…</span> <button type="button" id="locChange" class="loc-link">Change</button></div>
+      <div class="loc-now"><span class="loc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span><span id="locText">Finding services near you…</span> <button type="button" id="locChange" class="loc-link">Change</button></div>
       <form class="loc-form" id="locForm" style="display:none;">
         <input type="text" id="locInput" placeholder="Your city or ZIP code (e.g. Miami, FL or 33172)" maxlength="80" autocomplete="postal-code">
         <button type="submit">See services</button>
@@ -643,13 +737,24 @@ document.addEventListener('DOMContentLoaded', function(){
     <div>
       <div class="af-label">Sevrii · Affiliates</div>
       <h2 class="af-h" id="af-title">Earn money recommending services</h2>
-    </div>
-    <div>
       <p class="af-p">Pick a service or an agent you like, share your link and earn the commission the owner sets for every customer who pays. Free, no inventory.</p>
+      <ol class="af-steps"><li><span>01</span><div><b>Pick a service</b><em>See what it charges and the commission it pays.</em></div></li><li><span>02</span><div><b>Share your link</b><em>Each visit is remembered for 30 days.</em></div></li><li><span>03</span><div><b>Get your commission</b><em>Sent to your bank 30 days after the sale.</em></div></li></ol>
       <div class="af-cta">
         <a class="ax-btn" href="/ser-afiliado">Become an affiliate <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
         <a class="ax-link" href="/en/afiliados">How it works</a>
       </div>
+    </div>
+    <div role="img" aria-label="Example of what an affiliate earns">
+      <div class="af-card" aria-hidden="true">
+        <span class="k">Your link</span>
+        <div class="lnk">sevrii.com/site/tutor-tx?ref=ana2026</div>
+        <div class="row"><span>Sale</span><b>Monthly access · $89</b></div>
+        <div class="row"><span>Business's commission</span><b>20%</b></div>
+        <span class="k">You earn</span>
+        <span class="earn">$17.80</span>
+        <span class="note">Paid to your bank 30 days after the sale.</span>
+      </div>
+      <span class="af-cap">Illustrative example</span>
     </div>
   </div>
 </section>
@@ -947,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', function(){
     body.appendChild(el('p', 'result-title', l.title));
     body.appendChild(el('div', 'result-by', T.by + l.name));
     if (l.reach === 'remote') body.appendChild(el('div', 'result-reach', '💻 ' + T.online));
-    else if (l.serves && l.miles !== null && !showAll) body.appendChild(el('div', 'result-reach', '📍 ' + T.miles(l.miles)));
+    else if (l.serves && l.miles !== null && !showAll) body.appendChild(el('div', 'result-reach', T.miles(l.miles)));
     var where = l.reachText || l.location;
     if (where && l.reach !== 'remote') body.appendChild(el('div', 'result-loc', where));
     if (l.price) body.appendChild(el('div', 'result-price', /^(desde|from)\b/i.test(l.price) ? l.price : T.from + l.price));

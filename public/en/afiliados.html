@@ -21,12 +21,11 @@
         localStorage.setItem('sevrii_lang', 'en');
       } else {
         var lang = ((navigator.language || (navigator.languages && navigator.languages[0]) || '') + '').toLowerCase();
-        // English for everyone, unless the browser prefers Spanish.
-        if (lang.indexOf('es') === 0) {
-          localStorage.setItem('sevrii_lang', 'es');
-        } else {
+        if (lang.indexOf('en') === 0) {
           localStorage.setItem('sevrii_lang', 'en');
           if (path !== enTarget) { window.location.href = enTarget; }
+        } else {
+          localStorage.setItem('sevrii_lang', 'es');
         }
       }
     }
@@ -59,152 +58,910 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 <meta property="og:title" content="Sevrii Affiliates | Earn money recommending services">
 <meta property="og:description" content="Recommend services and AI agents from businesses on Sevrii and earn a commission on every sale. Or open your service so others sell it for you.">
 <meta property="og:type" content="website">
-<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="icon" href="/favicon.ico?v=2" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#000;
+    --text:#f5f5f5;
+    --muted:#9aa0a8;
+    --muted-2:#6b7178;
+    --green:#3ddc84;
+    --green-dark:#0d2818;
+    --border:rgba(255,255,255,.1);
+
+    /* Shopify-inspired system — scoped to everything after the hero.
+       Values below (weights, sizes, radii, colors) were read directly
+       off shopify.com's computed styles, not eyeballed. */
+    --sp-bg:#050505;
+    --sp-bg-raised:#0e100e;
+    --sp-border:rgba(255,255,255,.08);
+    --sp-border-2:rgba(255,255,255,.16);
+    --sp-text:#f5f6f5;
+    --sp-text-2:rgba(245,246,245,.7);
+    --sp-text-3:rgba(245,246,245,.46);
+    --sp-muted:#a1a1aa;
+    --sp-accent:#3ddc84;
+    --sp-accent-soft:rgba(61,220,132,.14);
+    --sp-font:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 40px;}
+
+  header{
+    position:sticky;top:0;z-index:50;
+    background:transparent;border-bottom:1px solid transparent;
+    transition:background .25s ease, border-color .25s ease, backdrop-filter .25s ease;
+  }
+  header.scrolled{
+    background:rgba(0,0,0,.75);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  nav.wrap{display:flex;align-items:center;justify-content:space-between;height:78px;}
+  .logo{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px;}
+  .logo img{height:44px;width:auto;display:block;}
+  .nav-links{display:flex;gap:30px;font-size:14px;color:#d9dbde;}
+  .nav-links a:hover{color:#fff;}
+  .nav-actions{display:flex;gap:14px;align-items:center;}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;border:1px solid var(--border);cursor:pointer;}
+  .btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);}
+  .btn-outline:hover{background:rgba(255,255,255,.08);}
+  .btn-primary{background:#fff;color:#000;border:none;}
+  .btn-primary:hover{background:#e6e6e6;}
+  .btn-green{background:var(--green);color:#04150c;border:none;}
+  .btn-green:hover{background:#5ee89b;}
+
+  section{padding:120px 24px;}
+  h2.section-title{font-size:clamp(28px,4.5vw,44px);font-weight:600;text-align:center;letter-spacing:-0.5px;}
+
+  /* HERO — untouched */
+  .hero{
+    min-height:calc(85vh + 78px);
+    margin-top:-78px;padding-top:78px;
+    display:flex;flex-direction:column;justify-content:center;
+    position:relative;overflow:hidden;
+    background:#020a06;
+  }
+  .hero .video-bg{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;}
+  .hero .video-bg iframe{
+    position:absolute;top:50%;left:50%;
+    width:100vw;height:56.25vw;
+    min-height:100%;min-width:177.78vh;
+    transform:translate(-50%,-50%);
+  }
+  .hero .video-overlay{
+    position:absolute;inset:0;z-index:1;
+    background:linear-gradient(to bottom, rgba(2,10,6,.72) 0%, rgba(2,10,6,.55) 45%, rgba(2,10,6,.85) 100%);
+  }
+  .hero .network{position:absolute;inset:0;z-index:2;pointer-events:none;}
+  .hero .horizon{
+    position:absolute;left:-10%;right:-10%;bottom:-38%;height:42%;
+    border-radius:50%;
+    background:radial-gradient(ellipse at center, #163d2c 0%, #0d2818 35%, #06130c 60%, transparent 78%);
+    box-shadow:0 -2px 50px rgba(61,220,132,.12);
+    z-index:1;
+  }
+  .hero-content{
+    position:relative;z-index:3;
+    padding:0 60px;
+  }
+  .hero-inner{max-width:600px;text-align:left;}
+  .hero h1{
+    font-size:clamp(38px,6vw,72px);font-weight:300;line-height:1.12;letter-spacing:-1.8px;
+    margin-bottom:28px;
+  }
+  .hero h1 span{display:block;}
+  .hero h1 .l1{color:#fff;}
+  .hero h1 .l2{color:rgba(255,255,255,.65);}
+  .hero h1 .l3{color:rgba(255,255,255,.4);}
+  .hero p{color:var(--muted);font-size:18px;max-width:520px;margin-bottom:40px;}
+
+  /* ============ Everything after the hero: explainer video + the 4 pillars (Store, Marketing, Payments, Capital), modeled on shopify.com's homepage ============
+     Measured from shopify.com (getComputedStyle): display headings weight 330 with
+     ~-2% tracking, card titles 18px/450, body 14px/420 in rgb(161,161,170),
+     pill buttons weight 550, feature cards radius 12px with a big media area on top
+     and short text below, horizontal carousels, full-bleed colored blocks. */
+
+  .sections{
+    --s-bg:#000;
+    --s-card:#0c0f0d;
+    --s-line:rgba(255,255,255,.1);
+    --s-text:#fff;
+    --s-muted:#a1a1aa;
+    --s-green:#3ddc84;
+    --s-font:'Inter',Helvetica,Arial,sans-serif;
+    background:var(--s-bg);color:var(--s-text);font-family:var(--s-font);
+  }
+  .sections section{padding:0;}
+  .s-wrap{max-width:1280px;margin:0 auto;padding:0 40px;}
+  .sections .s-block{padding:120px 0;}
+
+  .s-h2{font-size:clamp(34px,4.6vw,56px);font-weight:330;letter-spacing:-0.02em;line-height:1.08;max-width:760px;}
+  .s-lead{font-size:18px;font-weight:420;line-height:1.5;color:var(--s-muted);max-width:560px;margin-top:20px;}
+  .s-eyebrow{font-size:14px;font-weight:450;color:var(--s-green);margin-bottom:18px;}
+  .s-head{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;margin-bottom:48px;}
+
+  .s-btn{display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 24px;border-radius:9999px;font-size:16px;font-weight:550;border:2px solid transparent;transition:background .2s ease,color .2s ease,border-color .2s ease;white-space:nowrap;}
+  .s-btn-white{background:#fff;color:#000;}
+  .s-btn-white:hover{background:#e6e6e6;}
+  .s-btn-outline{background:transparent;color:#fff;border-color:#fff;}
+  .s-btn-outline:hover{background:#fff;color:#000;}
+  .s-btn-green{background:var(--s-green);color:#04150c;}
+  .s-btn-green:hover{background:#5ee89b;}
+  .s-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:36px;}
+
+  .s-link{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.4);}
+  .s-link:hover{text-decoration-color:#fff;}
+
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .7s ease,transform .7s ease;}
+  .reveal.is-visible{opacity:1;transform:none;}
+
+  /* ---------- Explainer video ---------- */
+  .sections .s-video{padding:110px 0 80px;}
+  .s-video-head{margin-bottom:40px;}
+  .s-player{
+    position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;
+    background:#0b120e;border:1px solid var(--s-line);
+  }
+  .s-player iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+  .s-poster{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
+    background:
+      radial-gradient(ellipse 60% 70% at 50% 45%, rgba(61,220,132,.16), transparent 70%),
+      linear-gradient(180deg,#0b120e 0%,#050806 100%);
+    border:0;width:100%;color:#fff;font-family:var(--s-font);cursor:default;
+  }
+  .s-player.has-video .s-poster{cursor:pointer;}
+  .s-play{
+    width:88px;height:88px;border-radius:50%;background:#fff;color:#000;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 20px 50px -10px rgba(0,0,0,.6);transition:transform .25s ease;
+  }
+  .s-player.has-video .s-poster:hover .s-play{transform:scale(1.06);}
+  .s-play svg{width:30px;height:30px;margin-left:5px;}
+  .s-poster-label{font-size:16px;font-weight:450;color:rgba(255,255,255,.8);}
+
+  @media(max-width:700px){
+    .sections .s-video{padding:72px 0 48px;}
+    .s-video-head{margin-bottom:28px;}
+    .s-player{border-radius:12px;}
+    .s-play{width:68px;height:68px;}
+    .s-play svg{width:24px;height:24px;}
+  }
+
+  /* ---------- Overview of the 4 pillars ---------- */
+  .sections .s-overview{padding:120px 0 72px;}
+  .s-ov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:56px;}
+  .s-ov{display:block;border-top:1px solid var(--s-line);padding-top:24px;transition:border-color .2s ease;}
+  .s-ov:hover{border-color:var(--s-green);}
+  .s-ov .n{font-size:14px;font-weight:450;color:var(--s-green);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+  .s-ov h3{font-size:24px;font-weight:450;letter-spacing:-.01em;margin-bottom:8px;}
+  .s-ov p{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);margin-bottom:16px;}
+  .s-ov .go{font-size:14px;font-weight:450;color:#fff;}
+  .s-tag{display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:9999px;font-size:11px;font-weight:550;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);}
+
+  /* ---------- Sticky pillar nav ---------- */
+  .s-pnav{position:sticky;top:78px;z-index:40;background:rgba(0,0,0,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--s-line);border-bottom:1px solid var(--s-line);}
+  .s-pnav .s-wrap{display:flex;gap:8px;height:64px;align-items:center;overflow-x:auto;scrollbar-width:none;}
+  .s-pnav .s-wrap::-webkit-scrollbar{display:none;}
+  .s-pnav a{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:9999px;font-size:15px;font-weight:450;color:rgba(255,255,255,.7);white-space:nowrap;transition:background .2s ease,color .2s ease;}
+  .s-pnav a span{font-size:12px;color:rgba(255,255,255,.45);}
+  .s-pnav a:hover{color:#fff;background:rgba(255,255,255,.08);}
+  .s-pnav a.on{background:#fff;color:#000;}
+  .s-pnav a.on span{color:rgba(0,0,0,.5);}
+
+  /* ---------- One section per pillar ---------- */
+  .sections .s-pillar{padding:120px 0;scroll-margin-top:142px;}
+  .s-pillar-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:72px;align-items:center;}
+  .s-pillar.flip .s-pillar-text{order:2;}
+  .s-pillar .n{font-size:15px;font-weight:450;color:var(--s-green);margin-bottom:18px;display:flex;align-items:center;gap:12px;}
+  .s-pillar .s-h2{max-width:520px;}
+  .s-points{list-style:none;margin-top:36px;border-top:1px solid var(--s-line);}
+  .s-points li{padding:18px 0;border-bottom:1px solid var(--s-line);}
+  .s-points b{display:block;font-size:16px;font-weight:450;margin-bottom:4px;}
+  .s-points span{font-size:14px;font-weight:420;line-height:1.5;color:var(--s-muted);}
+  .s-pillar .s-media{height:560px;border-radius:16px;}
+  .s-pillar.is-green{background:linear-gradient(160deg,#0f4d34 0%,#0a3322 45%,#061c13 100%);border-radius:40px;margin:0 12px;}
+  .s-pillar.is-green .s-lead,.s-pillar.is-green .s-points span{color:rgba(255,255,255,.72);}
+  .s-pillar.is-green .s-points,.s-pillar.is-green .s-points li{border-color:rgba(255,255,255,.16);}
+  .s-pillar.is-green .n{color:#8ff0bb;}
+  .s-pillar.is-green + .s-pillar.is-green{margin-top:12px;}
+  .s-pillar.is-glow{background:radial-gradient(ellipse 50% 60% at 75% 50%, rgba(61,220,132,.14), transparent 70%),#000;}
+
+  /* ---------- Pillar visuals: photo + light Sevrii UI on top ---------- */
+  .s-media{
+    position:relative;height:460px;border-radius:12px;overflow:hidden;background:#0c1410;
+  }
+  .s-media > img.s-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .s-media::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.35) 100%);pointer-events:none;}
+  .s-soon{
+    position:absolute;top:18px;left:18px;z-index:3;
+    background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    color:#fff;font-size:12px;font-weight:550;padding:7px 14px;border-radius:9999px;border:1px solid rgba(255,255,255,.2);
+  }
+
+  /* Light product UI floating over the media, like shopify.com's editor overlays.
+     Colors/radii mirror the real Sevrii app (tailwind: ink #122118, mint #EFF3F1,
+     border #E4E0D6, cream #F6F4EF). */
+  .ui{position:absolute;z-index:2;font-family:var(--s-font);color:#122118;}
+  .ui-window{background:#fff;border-radius:12px;box-shadow:0 30px 60px -20px rgba(0,0,0,.6);overflow:hidden;}
+  .ui-bar{height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#F6F4EF;border-bottom:1px solid #E4E0D6;}
+  .ui-bar i{width:8px;height:8px;border-radius:50%;background:#DAD6C9;display:block;}
+  .ui-bar span{margin-left:10px;font-size:10.5px;color:#9A968A;}
+  .ui-serif{font-family:Georgia,'Times New Roman',serif;}
+  .ui-muted{color:#6E7268;}
+  .ui-pill{display:inline-flex;align-items:center;height:28px;padding:0 14px;border-radius:9999px;color:#fff;font-size:11px;font-weight:600;}
+  .ui-bubble{padding:9px 12px;font-size:12px;line-height:1.4;max-width:230px;}
+  .ui-bubble.user{background:#122118;color:#fff;border-radius:12px 12px 3px 12px;margin-left:auto;}
+  .ui-bubble.ai{background:#EFF3F1;color:#122118;border-radius:12px 12px 12px 3px;}
+  .ui-card{background:#fff;border:1px solid #E4E0D6;border-radius:16px;}
+
+  /* Store slide */
+  .ui-store{left:8%;right:22%;bottom:-20px;}
+  .ui-store .body{padding:18px 20px 34px;}
+  .ui-store .top{display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid #E4E0D6;margin-bottom:14px;}
+  .ui-store .name{font-size:15px;font-weight:600;color:#9b3b5a;}
+  .ui-store .cat{font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .ui-store h4{font-size:22px;font-weight:600;line-height:1.15;margin-bottom:6px;}
+  .ui-store .pitch{font-size:12px;line-height:1.45;margin-bottom:14px;}
+  .ui-store .svc{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .ui-store .svc div{border:1px solid #E4E0D6;border-radius:10px;padding:9px 10px;font-size:11.5px;font-weight:600;}
+  .ui-store .svc small{display:block;font-weight:400;color:#6E7268;margin-top:2px;}
+  .ui-store-chat{right:5%;top:40px;width:230px;display:flex;flex-direction:column;gap:8px;}
+  .ui-store-chat .ui-bubble{box-shadow:0 12px 30px -10px rgba(0,0,0,.5);}
+
+  /* Marketing slide — green radar graphic like shopify's "Controla todo" card */
+  .s-radar{position:absolute;inset:0;background:radial-gradient(circle at 70% 55%,#1c5a3d 0%,#0e2c1f 35%,#07140e 70%);}
+  .s-radar i{position:absolute;left:70%;top:55%;border:1px solid rgba(61,220,132,.22);border-radius:50%;transform:translate(-50%,-50%);display:block;}
+  .s-radar i:nth-child(1){width:180px;height:180px;}
+  .s-radar i:nth-child(2){width:360px;height:360px;}
+  .s-radar i:nth-child(3){width:560px;height:560px;}
+  .s-radar i:nth-child(4){width:780px;height:780px;}
+  .s-chip{position:absolute;z-index:2;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.22);color:#fff;font-size:13px;font-weight:450;padding:8px 16px;border-radius:9999px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+  .ui-campaign{left:7%;top:50%;transform:translateY(-50%);width:300px;padding:16px;}
+  .ui-campaign .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;}
+  .ui-campaign .t{font-size:13px;font-weight:600;}
+  .ui-campaign .st{font-size:10px;font-weight:500;color:#6E7268;background:#EFF3F1;padding:3px 8px;border-radius:9999px;}
+  .ui-campaign p{font-size:11px;line-height:1.45;color:#6E7268;margin-bottom:3px;}
+  /* Agents slide: the agent's chat with its pay buttons */
+  .s-agentbg{position:absolute;inset:0;background:radial-gradient(circle at 60% 45%,#1c5a3d 0%,#0e2c1f 38%,#07140e 72%);}
+  .ui-agent{left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,86%);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 30px 70px -20px rgba(0,0,0,.7);}
+  .ui-agent .hd{display:flex;align-items:center;gap:9px;padding:11px 13px;background:linear-gradient(135deg,#12432a,#0b2918);color:#fff;}
+  .ui-agent .av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+  .ui-agent .nm{font-size:12.5px;font-weight:700;}
+  .ui-agent .st{font-size:10px;opacity:.85;}
+  .ui-agent .ls{background:#F6F4EF;padding:12px;display:flex;flex-direction:column;gap:7px;}
+  .ui-agent .ui-bubble{max-width:88%;}
+  .ui-agent .ui-bubble.ai{background:#fff;border:1px solid #E4E0D6;}
+  .ui-agent .of{background:#fff;border:1px solid #DAD6C9;border-radius:11px;padding:8px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;width:88%;}
+  .ui-agent .of b{font-size:11.5px;}
+  .ui-agent .of span{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:9999px;background:#163a27;color:#fff;}
+  .ui-agent .of em{font-style:normal;font-size:10px;font-weight:600;color:#137a3d;}
+  .ui-sale{right:5%;top:28px;}
+
+  .ui-campaign p b{color:#122118;font-weight:600;}
+  .ui-campaign .ad{background:#EFF3F1;border-radius:10px;padding:9px 10px;margin-top:10px;}
+  .ui-campaign .ad strong{display:block;font-size:11.5px;margin-bottom:2px;}
+  .ui-campaign .ad span{font-size:10.5px;color:#6E7268;}
+
+  /* Payments slide (concept) */
+  .ui-pay{right:8%;bottom:28px;width:250px;padding:18px;}
+  .ui-pay .lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9A968A;margin-bottom:8px;}
+  .ui-pay .svc{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .ui-pay .amt{font-size:26px;font-weight:600;letter-spacing:-.01em;margin-bottom:14px;}
+  .ui-pay .pay{display:flex;align-items:center;justify-content:center;height:38px;border-radius:9999px;background:#122118;color:#fff;font-size:12px;font-weight:600;}
+  .ui-pay .url{font-size:10px;color:#9A968A;text-align:center;margin-top:8px;}
+  .ui-toast{right:8%;top:28px;display:flex;align-items:center;gap:8px;background:#fff;border-radius:9999px;padding:8px 14px 8px 8px;font-size:12px;font-weight:600;box-shadow:0 14px 30px -10px rgba(0,0,0,.5);}
+  .ui-toast b{width:22px;height:22px;border-radius:50%;background:#3ddc84;color:#04150c;display:flex;align-items:center;justify-content:center;font-size:12px;}
+
+  /* Capital slide (concept) */
+  .ui-capital{left:8%;bottom:28px;width:290px;padding:18px;}
+  .ui-capital .lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9A968A;margin-bottom:4px;}
+  .ui-capital .t{font-size:14px;font-weight:600;margin-bottom:14px;}
+  .ui-bars{display:flex;align-items:flex-end;gap:8px;height:90px;padding-bottom:6px;border-bottom:1px solid #E4E0D6;}
+  .ui-bars span{flex:1;background:#EFF3F1;border-radius:5px 5px 0 0;}
+  .ui-bars span.on{background:#3ddc84;}
+  .ui-capital .offer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:11.5px;font-weight:600;}
+  .ui-capital .offer em{font-style:normal;font-size:10px;font-weight:500;color:#6E7268;background:#EFF3F1;padding:3px 8px;border-radius:9999px;}
+
+  /* ---------- Closing (like shopify's starfield + glow section) ---------- */
+  .sections .s-close{
+    position:relative;overflow:hidden;padding:160px 0 170px;
+    background:
+      radial-gradient(ellipse 55% 60% at 30% 75%, rgba(61,220,132,.16), transparent 70%),
+      linear-gradient(180deg,#000 0%,#06140d 100%);
+  }
+  .s-close::before{
+    content:'';position:absolute;inset:0;pointer-events:none;opacity:.7;
+    background-image:
+      radial-gradient(1.5px 1.5px at 8% 18%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 22% 8%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 35% 30%, rgba(255,255,255,.7) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 52% 12%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 64% 26%, rgba(255,255,255,.6) 50%, transparent 51%),
+      radial-gradient(1px 1px at 76% 9%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 88% 22%, rgba(255,255,255,.8) 50%, transparent 51%),
+      radial-gradient(1px 1px at 94% 40%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 14% 44%, rgba(255,255,255,.5) 50%, transparent 51%),
+      radial-gradient(1px 1px at 44% 52%, rgba(255,255,255,.5) 50%, transparent 51%);
+  }
+  .s-close .s-wrap{position:relative;display:flex;justify-content:flex-end;}
+  .s-close .s-inner{max-width:560px;}
+
+  /* ---------- Footer ---------- */
+  .s-foot{padding:80px 0 40px;border-top:1px solid var(--s-line);}
+  .s-foot-top{display:grid;grid-template-columns:1.2fr repeat(3,1fr);gap:32px;margin-bottom:64px;}
+  .s-foot .logo img{height:40px;}
+  .s-foot h4{font-size:16px;font-weight:450;margin-bottom:18px;}
+  .s-foot ul{list-style:none;display:flex;flex-direction:column;gap:12px;}
+  .s-foot li a{font-size:14px;font-weight:420;color:var(--s-muted);}
+  .s-foot li a:hover{color:#fff;}
+  .s-foot-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;padding-top:28px;border-top:1px solid var(--s-line);font-size:14px;font-weight:420;color:var(--s-muted);}
+  .s-foot-bottom a:hover{color:#fff;}
+  .s-foot-bottom .links{display:flex;gap:28px;}
+
+  @media(max-width:1000px){
+    .s-ov-grid{grid-template-columns:1fr 1fr;row-gap:40px;}
+    .s-pillar-grid{grid-template-columns:1fr;gap:44px;}
+    .s-pillar.flip .s-pillar-text{order:0;}
+    .s-pillar .s-h2{max-width:none;}
+    .s-foot-top{grid-template-columns:1fr 1fr;}
+    .s-foot-top > div:first-child{grid-column:1 / -1;}
+  }
+  @media(max-width:900px){
+    .nav-links{display:none;}
+  }
+  @media(max-width:700px){
+    .s-wrap{padding:0 20px;}
+    .sections .s-overview{padding:80px 0 48px;}
+    .s-ov-grid{grid-template-columns:1fr;gap:28px;margin-top:36px;}
+    .s-pnav .s-wrap{height:56px;padding:0 12px;}
+    .s-pnav a{height:36px;padding:0 13px;font-size:14px;}
+    .s-pnav a span{display:none;}
+    .sections .s-pillar{padding:80px 0;scroll-margin-top:134px;}
+    .s-pillar .s-media{height:400px;border-radius:12px;}
+    .s-pillar.is-green{border-radius:28px;margin:0 8px;}
+    .ui-store{left:5%;right:5%;}
+    .ui-store-chat{display:none;}
+    .ui-campaign{left:5%;right:5%;width:auto;top:auto;bottom:22px;transform:none;}
+    .s-chip.c3,.s-chip.c4{display:none;}
+    .ui-pay{right:5%;left:5%;width:auto;}
+    .ui-capital{left:5%;right:5%;width:auto;}
+    .sections .s-close{padding:110px 0 120px;}
+    .s-close .s-wrap{justify-content:flex-start;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .reveal{opacity:1;transform:none;transition:none;}
+  }
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
-:root{--bg:#000;--fg:#fff;--dim:#a3a3a3;--line:rgba(255,255,255,.14);--green:#3ddc84;--mint:#8ff0bb;--deep:#1f6644}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-a{color:inherit;text-decoration:none}
-.w{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-.in{max-width:1180px;margin:0 auto;padding:0 32px}
-.nav{position:sticky;top:0;z-index:20;background:rgba(0,0,0,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08)}
-.nav .in{height:72px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-.brand{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:700}
-.brand img{height:40px;width:auto;display:block}
-.brand small{font-size:21px;font-weight:400;color:#9a9a9a}
-.links{display:flex;gap:28px;font-size:14px;color:#d9dbde}
-.links a:hover{color:#fff}
-.links a.lang{color:#8a8f98}
-.pill{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:999px;font-size:14px;font-weight:600;background:#fff;color:#000;white-space:nowrap}
-.pill:hover{background:#e6e6e6}
-.ghost{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:999px;font-size:15px;font-weight:500;border:1px solid rgba(255,255,255,.4);color:#fff;white-space:nowrap}
-.ghost:hover{border-color:#fff}
-.big{padding:14px 26px;font-size:15.5px}
-.label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--mint)}
-.hero{position:relative;overflow:hidden;background:radial-gradient(ellipse 60% 70% at 78% 40%,rgba(61,220,132,.16),transparent 70%),#000}
-.hero .in{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;padding-top:96px;padding-bottom:110px}
-h1{font-weight:400;font-size:clamp(38px,5.4vw,76px);line-height:1;letter-spacing:.005em;text-transform:uppercase;margin:22px 0 22px}
-.lede{font-size:18px;line-height:1.6;color:#d6d6d6;max-width:540px;margin:0}
-.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
-.card{background:#fff;color:#111;border-radius:22px;padding:22px;box-shadow:0 40px 90px -40px rgba(61,220,132,.45);max-width:420px;margin-left:auto;display:flex;flex-direction:column;gap:14px}
-.card .k{font-size:12px;color:#6b6e64;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
-.card .link{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#f3f4f1;border:1px solid #e4e5e1;border-radius:12px;padding:10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.card .row{display:flex;justify-content:space-between;align-items:baseline;font-size:14.5px;padding:10px 0;border-top:1px solid #ececea}
-.card .row b{font-size:15px}
-.card .earn{font-size:30px;font-weight:800;color:#137a3d;letter-spacing:-.01em}
-.card .note{font-size:12.5px;color:#6b6e64}
-.cap{display:block;text-align:right;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:14px}
-section.s{padding:96px 0;border-top:1px solid rgba(255,255,255,.08)}
-.h2{font-weight:400;font-size:clamp(28px,3.4vw,46px);line-height:1.04;text-transform:uppercase;margin:14px 0 16px;max-width:760px}
-.sub{font-size:16.5px;line-height:1.6;color:#bdbdbd;max-width:620px;margin:0}
-.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:44px}
-.step{border:1px solid var(--line);border-radius:20px;padding:26px;display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.02)}
-.step .n{font-size:14px;color:#8f8f8f}
-.step h3{font-size:19px;font-weight:500;margin:0}
-.step p{font-size:15px;line-height:1.55;color:#bdbdbd;margin:0}
-.light{background:#ecedeb;color:#0b0b0b}
-.light .label{color:var(--deep)}
-.light .sub,.light .step p{color:#3b3b3b}
-.light .step{background:#fff;border-color:rgba(0,0,0,.08)}
-.light .step .n{color:#6b6b6b}
-.dark{display:inline-flex;align-items:center;gap:8px;padding:14px 26px;border-radius:999px;font-size:15.5px;font-weight:600;background:#0b0b0b;color:#fff;margin-top:34px}
-.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:40px}
-.rule{display:flex;gap:14px;padding:20px;border:1px solid var(--line);border-radius:18px}
-.rule i{font-style:normal;width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;background:rgba(61,220,132,.14);color:var(--mint)}
-.rule.no i{background:rgba(255,107,107,.14);color:#ff8a8a}
-.rule b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
-.rule span{font-size:14.5px;line-height:1.55;color:#bdbdbd}
-.faq{margin-top:36px;border-top:1px solid var(--line)}
-.faq details{border-bottom:1px solid var(--line);padding:20px 0}
-.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:20px;font-size:17px;font-weight:500}
-.faq summary::-webkit-details-marker{display:none}
-.faq summary span:last-child{color:#8f8f8f;transition:transform .2s}
-.faq details[open] summary span:last-child{transform:rotate(45deg)}
-.faq p{font-size:15.5px;line-height:1.6;color:#bdbdbd;margin:12px 0 0;max-width:760px}
-.final{text-align:center;padding:110px 0;background:radial-gradient(ellipse 50% 70% at 50% 100%,rgba(61,220,132,.16),transparent 70%),#000;border-top:1px solid rgba(255,255,255,.08)}
-.final .h2{margin-left:auto;margin-right:auto}
-.final .cta{justify-content:center}
-footer{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:28px 32px;font-size:13px;color:#8a8a8a;border-top:1px solid rgba(255,255,255,.08)}
-footer nav{display:flex;gap:20px;flex-wrap:wrap}
-footer a:hover{color:#fff}
-@media (max-width:900px){
-  .links{display:none}
-  .in{padding:0 18px}
-  .hero .in{grid-template-columns:1fr;padding-top:56px;padding-bottom:72px;gap:40px}
-  .card{margin-left:0;max-width:none}
-  .cap{text-align:left}
-  .steps,.rules{grid-template-columns:1fr}
-  section.s{padding:68px 0}
-  footer{padding:24px 18px}
-}
-/* Headings like the hero of Ofrecer servicios: light, tight, sentence case */
-h1.w,h2.w,h3.w,p.w:not(.word),.t.w{font-weight:300;letter-spacing:-.025em;text-transform:none;line-height:1.08}
-.word.w{font-weight:300}
+  /* Sevrii Robotics: vision section, styled after a studio-robot product page */
+  .sx{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .sx *{box-sizing:border-box;}
+  .sx-wide{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .sx-btn{display:inline-flex;align-items:center;gap:22px;height:50px;padding:0 20px;border:1px solid rgba(255,255,255,.85);border-radius:10px;color:#fff;font-size:15px;font-weight:500;text-decoration:none;white-space:nowrap;transition:background .2s ease,color .2s ease;}
+  .sx-btn:hover{background:#fff;color:#000;}
+  .sx-btn svg{width:13px;height:13px;flex-shrink:0;}
+  .sx-hero{position:relative;height:min(100vh,920px);min-height:600px;overflow:hidden;background:#000;}
+  .sx-hero .sx-bg{animation:sxZoom 26s ease-in-out infinite alternate;transform-origin:64% 60%;}
+  @keyframes sxZoom{from{transform:scale(1)}to{transform:scale(1.045)}}
+  @media (prefers-reduced-motion: reduce){.sx-hero .sx-bg{animation:none}}
+  .sx-hero video,.sx-hero .sx-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 15%;}
+  .sx-hit{position:absolute;inset:0;z-index:1;}
+  .sx-close .sx-hit{z-index:3;}
+  .sx-bottom,.sx-top{pointer-events:none;}
+  .sx-bottom > *,.sx-top > *{pointer-events:auto;}
+  .sx-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.6) 100%);pointer-events:none;}
+  .sx-top{position:absolute;top:30px;left:50px;z-index:2;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.9);}
+  .sx-bottom{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:0 50px 54px;}
+  .sx-h{font-weight:400;font-size:clamp(24px,2.3vw,34px);line-height:1.1;letter-spacing:.01em;text-transform:uppercase;margin:0 0 16px;max-width:600px;}
+  .sx-p{font-size:16.5px;line-height:1.6;color:#ececec;max-width:480px;margin:0;}
+  .sx-band{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:76px 50px;}
+  .sx-band .sx-p{color:#d9d9d9;}
+  .sx-close{position:relative;height:min(80vh,780px);min-height:420px;overflow:hidden;background:#000;}
+  .sx-close img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;}
+  .sx-cap{position:absolute;left:50px;bottom:28px;z-index:2;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.8);}
+  .sx-index{position:relative;background:#dcdddb;color:#0b0b0b;overflow:hidden;}
+  .sx-index .sx-blur{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px);opacity:.2;}
+  .sx-index-in{position:relative;display:grid;grid-template-columns:1fr 1.15fr;gap:64px;padding:96px 50px 90px;}
+  .sx-word{font-weight:400;font-size:clamp(52px,7.4vw,118px);line-height:.9;letter-spacing:.32em;margin:0;}
+  .sx-sub{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#3c3c3c;margin-top:16px;}
+  .sx-keep{margin-top:56px;max-width:440px;}
+  .sx-keep h3{font-size:22px;font-weight:500;margin:0 0 8px;color:#0b0b0b;}
+  .sx-keep p{font-size:15.5px;line-height:1.55;color:#2b2b2b;margin:0;}
+  .sx-dark{display:inline-flex;align-items:center;gap:12px;height:50px;padding:0 24px;border-radius:999px;background:#0b0b0b;color:#fff;font-size:15px;font-weight:500;text-decoration:none;margin-top:24px;}
+  .sx-dark svg{width:13px;height:13px;}
+  .sx-keep .sx-note{font-size:12.5px;line-height:1.5;color:#555;margin-top:20px;}
+  .sx-list{align-self:center;}
+  .sx-row{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:16px;padding:20px 0;border-bottom:1px solid rgba(0,0,0,.18);}
+  .sx-row:first-child{padding-top:0;}
+  .sx-num{font-size:20px;color:#1a1a1a;}
+  .sx-title{font-weight:400;font-size:clamp(34px,4.6vw,68px);line-height:1;text-transform:uppercase;color:#0b0b0b;}
+  .sx-row.dim .sx-title{color:#6b6b6b;}
+  .sx-st{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:#3a3a3a;white-space:nowrap;}
+  .sx-row.on .sx-st{color:#1f6644;}
+  @media (max-width:860px){
+    .sx-top{left:16px;top:20px;}
+    .sx-bottom{flex-direction:column;align-items:flex-start;padding:0 16px 32px;}
+    .sx-hero{height:86vh;min-height:560px;}
+    .sx-hero video,.sx-hero .sx-bg{object-position:50% 0%;}
+    .sx-band{grid-template-columns:1fr;padding:48px 16px;gap:28px;}
+    .sx-band > div:first-child{order:2;}
+    .sx-close{height:56vh;min-height:320px;}
+    .sx-cap{left:16px;}
+    .sx-index-in{grid-template-columns:1fr;padding:64px 16px;gap:48px;}
+    .sx-keep{margin-top:36px;}
+    .sx-row{grid-template-columns:34px 1fr auto;gap:10px;}
+    .sx-title{font-size:30px;}
+    .sx-st{font-size:10.5px;letter-spacing:.04em;}
+    .sx-word{letter-spacing:.24em;}
+  }
+  .sx-hero .sx-bg{object-position:50% 40%;}
+  .sx-hero::after{background:linear-gradient(180deg,rgba(0,0,0,.25) 0,rgba(0,0,0,0) 25%,rgba(0,0,0,.15) 50%,rgba(0,0,0,.8) 100%),linear-gradient(90deg,rgba(0,0,0,.55) 0,rgba(0,0,0,0) 55%) !important;}
+  .sx-hero .sx-h{font-size:clamp(28px,3.2vw,52px);line-height:1.04;max-width:min(640px,48vw);}
+  .sx-split{position:relative;height:min(100vh,900px);min-height:560px;overflow:hidden;background:#000;}
+  .sx-split img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:36% 22%;}
+  .sx-split-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(0,0,0,.85) 0,rgba(0,0,0,.5) 34%,rgba(0,0,0,0) 58%),linear-gradient(0deg,rgba(0,0,0,.5) 0,rgba(0,0,0,0) 30%);pointer-events:none;}
+  .sx-split-in{position:absolute;left:50px;top:0;bottom:0;z-index:4;display:flex;flex-direction:column;justify-content:center;max-width:min(520px,40vw);pointer-events:none;}
+  .sx-split-in > *{pointer-events:auto;}
+  .sx-split .sx-h{font-size:clamp(26px,2.8vw,44px);line-height:1.05;margin:18px 0 18px;}
+  .sx-split .sx-p{color:#d9d9d9;margin-bottom:30px;}
+  .sx-split .sx-btn{align-self:flex-start;}
+  .sx-label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#7dbf9c;}
+  .sx-split .sx-hit{z-index:3;}
+  .sx-split .sx-cap{z-index:4;}
+  @media (max-width:860px){
+    .sx-hero .sx-h{max-width:none;font-size:clamp(28px,8vw,36px);}
+    .sx-hero::after{background:linear-gradient(180deg,rgba(0,0,0,.25) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,.55) 55%,rgba(0,0,0,.92) 100%) !important;}
+    .sx-hero .sx-bg{object-position:42% 50%;}
+    .sx-split{height:auto;min-height:0;padding-top:118vw;}
+    .sx-split img{height:130vw;bottom:auto;object-position:50% 0%;}
+    .sx-split-shade{background:linear-gradient(180deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 55%,rgba(0,0,0,.85) 80%,#000 100%);height:130vw;bottom:auto;}
+    .sx-split-in{position:relative;left:auto;top:auto;bottom:auto;max-width:none;padding:0 16px 56px;}
+    .sx-split .sx-cap{display:none;}
+  }
+  /* Headings like the hero of Ofrecer servicios: light, tight, sentence case */
+  .sx-h.sx-wide,.ax-h.sx-wide,.af-h,.sx-title.sx-wide{font-weight:300;letter-spacing:-.025em;text-transform:none;line-height:1.08;}
+  .sx-word.sx-wide{font-weight:300;}
+  /* Pearl white pillars (the look of the Sevrii Robotics index) */
+  .s-pillar.is-pearl{position:relative;overflow:hidden;background:#dcdddb;color:#0b0b0b;border-radius:40px;margin:0 12px;}
+  .s-pillar.is-pearl::before{content:"";position:absolute;inset:-40px;background:url('/assets/robotics/blur.jpg') center/cover;filter:blur(28px);opacity:.2;pointer-events:none;}
+  .s-pillar.is-pearl::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 45% 60% at 70% 40%,rgba(255,255,255,.45),transparent 70%);pointer-events:none;}
+  .s-pillar.is-pearl > .s-wrap{position:relative;z-index:1;}
+  .s-pillar.is-pearl .s-h2,.s-pillar.is-pearl .s-points b{color:#0b0b0b;}
+  .s-pillar.is-pearl .s-lead,.s-pillar.is-pearl .s-points span{color:#3a3a3a;}
+  .s-pillar.is-pearl .s-points,.s-pillar.is-pearl .s-points li{border-color:rgba(0,0,0,.14);}
+  .s-pillar.is-pearl .n{color:#2f6f4f;}
+  .s-pillar.is-pearl .s-tag{color:#0b0b0b;background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.16);}
+  .s-pillar.is-pearl .s-btn-white{background:#0b0b0b;color:#fff;}
+  .s-pillar.is-pearl .s-btn-white:hover{background:#262626;}
+  .s-pillar.is-pearl .s-btn-outline{color:#0b0b0b;border-color:#0b0b0b;}
+  .s-pillar.is-pearl .s-btn-outline:hover{background:#0b0b0b;color:#fff;}
+  .s-pillar.is-pearl + .s-pillar.is-pearl{margin-top:12px;}
+  .s-points li[id]{scroll-margin-top:160px;}
+  .s-points b .s-tag{margin-left:8px;vertical-align:1px;}
+  @media (max-width:860px){.s-pillar.is-pearl{border-radius:28px;margin:0 8px;}}
+  /* Agents page */
+  .ag-ideas{left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,86%);padding:16px;}
+  .ag-ideas .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .ag-ideas .t{font-size:13px;font-weight:600;}
+  .ag-ideas .st{font-size:10px;font-weight:500;color:#6E7268;background:#EFF3F1;padding:3px 8px;border-radius:9999px;}
+  .ag-ideas .row{border:1px solid #E4E0D6;border-radius:11px;padding:9px 10px;margin-bottom:7px;}
+  .ag-ideas .row b{display:block;font-size:12px;font-weight:600;}
+  .ag-ideas .row span{font-size:10.5px;color:#6E7268;}
+  .ag-ideas .row:first-of-type{border-color:#2e7a55;box-shadow:0 0 0 1px #2e7a55;}
+  .ag-ideas .nt{font-size:10.5px;color:#6E7268;margin-top:6px;}
+  .ag-req{left:50%;top:50%;transform:translate(-50%,-50%);width:min(300px,86%);padding:18px;}
+  .ag-req .t{font-size:13px;font-weight:600;margin-bottom:10px;}
+  .ag-req li{list-style:none;display:flex;gap:9px;align-items:center;font-size:12.5px;padding:8px 0;border-top:1px solid #EFECE4;}
+  .ag-req li i{font-style:normal;width:18px;height:18px;border-radius:50%;background:#2e7a55;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .s-faq{padding:110px 0;}
+  .s-faq .s-h2{margin-bottom:34px;}
+  .s-faq details{border-top:1px solid var(--s-line);padding:22px 0;max-width:860px;}
+  .s-faq details:last-child{border-bottom:1px solid var(--s-line);}
+  .s-faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:20px;font-size:18px;font-weight:450;}
+  .s-faq summary::-webkit-details-marker{display:none;}
+  .s-faq summary span{color:var(--s-green);font-size:22px;line-height:1;transition:transform .2s ease;}
+  .s-faq details[open] summary span{transform:rotate(45deg);}
+  .s-faq p{color:var(--s-muted);font-size:16px;line-height:1.6;margin-top:12px;max-width:720px;}
+  @media (max-width:860px){.s-faq{padding:72px 0;}}
+  /* "Sevrii Agentes", like "Sevrii Afiliados" */
+  .logo-sub{font-size:inherit;font-weight:400;color:#9a9a9a;margin-left:-2px;}
+  @media (max-width:600px){.logo{gap:7px}.logo img{height:34px}.nav-actions .btn{white-space:nowrap;padding:9px 14px;font-size:13px}}
 </style>
+<style>
+  /* Top bar: dark and readable once you scroll (also over light sections), clear buttons. */
+  header.scrolled{background:rgba(8,8,8,.94)!important;backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px);border-bottom:1px solid rgba(255,255,255,.08)!important;box-shadow:0 10px 30px -18px rgba(0,0,0,.7);}
+  header{transition:background .15s ease,border-color .15s ease!important;}
+  .nav-links{color:#f4f4f2!important;}
+  .nav-links a{opacity:.88;transition:opacity .15s ease;}
+  .nav-links a:hover{opacity:1;color:#fff!important;}
+  header .btn-outline{color:#fff!important;border:1px solid rgba(255,255,255,.6)!important;background:rgba(255,255,255,.07)!important;}
+  header .btn-outline:hover{background:rgba(255,255,255,.16)!important;border-color:#fff!important;}
+  header .btn-primary{background:#fff!important;color:#0a0a0a!important;}
+  header .btn-primary:hover{background:#ededeb!important;}
+</style>
+<style>
+  /* Afiliados: example cards inside the pillars */
+  .af-earn{left:50%;top:50%;transform:translate(-50%,-50%);width:min(330px,86%);padding:20px;}
+  .af-earn .k{display:block;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9A968A;margin-bottom:8px;}
+  .af-earn .lnk{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;background:#F5F5F3;border-radius:10px;padding:9px 10px;color:#27272a;word-break:break-all;margin-bottom:6px;}
+  .af-earn .row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:10px 0;border-top:1px solid #EFECE4;}
+  .af-earn .row span{color:#6E7268;}
+  .af-earn .row:last-of-type{margin-bottom:12px;}
+  .af-earn .earn{display:block;font-size:34px;font-weight:330;letter-spacing:-.02em;color:#15803d;line-height:1;margin-bottom:8px;}
+  .af-earn .nt{font-size:10.5px;color:#6E7268;}
+  .af-biz{left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,86%);padding:18px;}
+  .af-biz .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .af-biz .t{font-size:13px;font-weight:600;}
+  .af-biz .sw{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#15803d;}
+  .af-biz .sw i{width:30px;height:18px;border-radius:999px;background:#16a34a;position:relative;display:inline-block;}
+  .af-biz .sw i::after{content:"";position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;}
+  .af-biz .row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:10px 0;border-top:1px solid #EFECE4;}
+  .af-biz .row span{color:#6E7268;}
+  .af-biz .msg{font-size:11.5px;line-height:1.45;color:#3f3f46;background:#F5F5F3;border-radius:10px;padding:9px 10px;margin-top:4px;}
+  .af-rules li i.no{background:#0a0a0a;}
+  .hero .hero-actions{display:flex;gap:12px;flex-wrap:wrap;}
+</style>
+<style>@media (max-width:480px){header .logo-sub{display:none;}}</style>
 </head>
 <body>
-<header class="nav"><div class="in">
-  <a class="brand" href="/en"><img src="/assets/sevrii-logo.png" alt="Sevrii">Sevrii<small>Affiliates</small></a>
-  <nav class="links"><a href="#como">How it works</a><a href="#negocios">For businesses</a><a href="#reglas">Rules</a><a href="#faq">FAQ</a><a class="lang" href="/afiliados">ES</a></nav>
-  <a class="pill" href="/ser-afiliado">Become an affiliate</a>
-</div></header>
 
-<section class="hero"><div class="in">
-  <div>
-    <div class="label w">Sevrii · Affiliates</div>
-    <h1 class="w">Earn money recommending services</h1>
-    <p class="lede">Pick a service or an AI agent you like, share your link and earn a commission for every customer who pays. No inventory, no customer service, free.</p>
-    <div class="cta"><a class="pill big" href="/ser-afiliado">Become an affiliate <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a><a class="ghost big" href="#negocios">I have a service</a></div>
-  </div>
-  <div role="img" aria-label="Illustrative example">
-    <div class="card" aria-hidden="true">
-      <span class="k">Your link</span>
-      <div class="link">sevrii.com/site/tutor-tx?ref=ana2026</div>
-      <div class="row"><span>Sale</span><b>Monthly access · $89</b></div>
-      <div class="row"><span>Business&#x27;s commission</span><b>20%</b></div>
-      <span class="k">You earn</span>
-      <span class="earn">$17.80</span>
-      <span class="note">Paid to your bank 30 days after the sale.</span>
+<header>
+  <nav class="wrap">
+    <a href="/en" class="logo"><img src="/assets/sevrii-logo.png" alt="Sevrii">Sevrii<small class="logo-sub">Affiliates</small></a>
+    <div class="nav-links">
+      <a href="#como">How it works</a><a href="#negocios">For businesses</a><a href="#reglas">Rules</a><a href="#preguntas">FAQ</a>
+      <a href="/afiliados" onclick="try{localStorage.setItem('sevrii_lang','es')}catch(e){}" style="color:var(--muted);">ES</a>
     </div>
-    <span class="cap w">Illustrative example</span>
+    <div class="nav-actions">
+      <a href="/ser-afiliado" class="btn btn-primary">Become an affiliate</a>
+    </div>
+  </nav>
+</header>
+
+<section class="hero" id="inicio">
+  <div class="video-bg">
+    <iframe src="https://www.youtube.com/embed/EsrX_WSx2UM?autoplay=1&mute=1&loop=1&playlist=EsrX_WSx2UM&controls=0&showinfo=0&modestbranding=1&rel=0&disablekb=1" title="Sevrii background video" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
   </div>
-</div></section>
+  <div class="video-overlay"></div>
+  <canvas class="network" id="network"></canvas>
+  <div class="horizon"></div>
+  <div class="hero-content">
+    <div class="hero-inner">
+      <h1>
+        <span class="l1">Earn money</span>
+        <span class="l2">recommending</span>
+        <span class="l3">services.</span>
+      </h1>
+      <p>Pick a service or an AI agent you like, share your link and earn a commission for every customer who pays. No inventory, no customer service, free.</p>
+      <div class="hero-actions">
+        <a href="/ser-afiliado" class="btn btn-primary" style="padding:16px 32px;font-size:15px;">Become an affiliate</a>
+        <a href="#negocios" class="btn btn-outline" style="padding:16px 28px;font-size:15px;">I have a service</a>
+      </div>
+    </div>
+  </div>
+</section>
 
-<section class="s" id="como"><div class="in">
-  <div class="label w">For affiliates</div>
-  <h2 class="h2 w">Three steps and you start earning</h2>
-  <p class="sub">Anyone with a Sevrii account can be an affiliate. You don&#x27;t need a business.</p>
-  <div class="steps"><div class="step"><span class="n w">01</span><h3>Pick a service</h3><p>In the Affiliates section you see the open services, what they charge and the commission each one pays.</p></div><div class="step"><span class="n w">02</span><h3>Share your link</h3><p>Your link is unique. Post it on your social media, your group chats, your channel or your site. Each visit is remembered for 30 days.</p></div><div class="step"><span class="n w">03</span><h3>Get your commission</h3><p>When the customer pays through Sevrii, the commission is yours. We send it to your bank 30 days later, with Stripe.</p></div></div>
-</div></section>
+<div class="sections">
 
-<section class="s light" id="negocios"><div class="in">
-  <div class="label w">For businesses</div>
-  <h2 class="h2 w">Let others sell your service for you</h2>
-  <p class="sub">Open your service to affiliates and let creators, promoters and happy customers bring you sales. You only pay when they sell.</p>
-  <div class="steps"><div class="step"><span class="n w">01</span><h3>Open your service</h3><p>One switch in Affiliates. Your page must be published with Payments connected.</p></div><div class="step"><span class="n w">02</span><h3>Set your commission</h3><p>From 5% to 50% of each sale. Write a note for affiliates: who your service is for and what not to promise.</p></div><div class="step"><span class="n w">03</span><h3>Pay only for results</h3><p>The commission is charged automatically at payment, with Payments&#x27; 5%. No sales, no cost.</p></div></div>
-  <a class="dark" href="/dashboard?view=affiliates">Open my service <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a>
-</div></section>
+<!-- Explainer video: paste the YouTube video ID in data-youtube-id -->
+<section class="s-video" id="video">
+  <div class="s-wrap">
+    <div class="s-video-head reveal">
+      <h2 class="s-h2">See how Affiliates works</h2>
+      <p class="s-lead">In a few minutes: how you pick a service, share your link and get your commission.</p>
+    </div>
+    <div class="s-player reveal" id="explainer" data-youtube-id="" data-label-play="Watch video">
+      <button class="s-poster" type="button" aria-label="Play video">
+        <span class="s-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+        <span class="s-poster-label">Video coming soon</span>
+      </button>
+    </div>
+  </div>
+</section>
 
-<section class="s" id="reglas"><div class="in">
-  <div class="label w">Clear rules</div>
-  <h2 class="h2 w">What counts and what doesn&#x27;t</h2>
-  <div class="rules"><div class="rule"><i>✓</i><div><b>Payments made through Sevrii</b><span>Payment links and AI agent access count. Cash or outside payments can&#x27;t be verified.</span></div></div><div class="rule"><i>✓</i><div><b>30 days from the visit</b><span>If the customer comes through your link and pays within 30 days, the sale is yours.</span></div></div><div class="rule"><i>✓</i><div><b>Monthly payments too</b><span>If you sell monthly access to an agent, you earn a commission every month the customer keeps paying.</span></div></div><div class="rule"><i>✓</i><div><b>Refunds</b><span>If the customer gets a refund before the 30 days, the commission is voided.</span></div></div><div class="rule no"><i>!</i><div><b>Always say you earn a commission</b><span>It&#x27;s the law in the US and it protects your trust. No fake reviews.</span></div></div><div class="rule no"><i>!</i><div><b>No spam or false promises</b><span>Don&#x27;t promise what the service doesn&#x27;t, don&#x27;t run ads with the business&#x27;s brand without permission, and don&#x27;t buy with your own link.</span></div></div></div>
-</div></section>
+<div class="s-pillars" id="afiliados">
+  <nav class="s-pnav" aria-label="Affiliates | Sevrii">
+    <div class="s-wrap">
+      <a href="#como" data-pillar="como"><span>01</span>For affiliates</a>
+      <a href="#negocios" data-pillar="negocios"><span>02</span>For businesses</a>
+      <a href="#reglas" data-pillar="reglas"><span>03</span>Rules</a>
+    </div>
+  </nav>
 
-<section class="s" id="faq"><div class="in">
-  <h2 class="h2 w">Frequently asked questions</h2>
-  <div class="faq"><details><summary><span>How much does it cost to be an affiliate?</span><span aria-hidden="true">+</span></summary><p>Nothing. Sign up for free on Sevrii and open the Affiliates section.</p></details><details><summary><span>Do I need a business?</span><span aria-hidden="true">+</span></summary><p>No. You can be just an affiliate. If you also have a business, you can open it to affiliates.</p></details><details><summary><span>When and how do I get paid?</span><span aria-hidden="true">+</span></summary><p>30 days after each sale, straight to your bank account with Stripe. The first time you connect your account in Affiliates; Stripe asks for your details so it can pay you.</p></details><details><summary><span>What can I promote?</span><span aria-hidden="true">+</span></summary><p>What owners opened to affiliates: services done by people and AI agents that deliver a service by themselves.</p></details><details><summary><span>How do I know what I earned?</span><span aria-hidden="true">+</span></summary><p>In Affiliates you see your visits, your sales, what is pending and what was already paid.</p></details><details><summary><span>I own a business, what does it cost me?</span><span aria-hidden="true">+</span></summary><p>Only the commission you choose, and only on sales an affiliate brings. It&#x27;s charged with Payments&#x27; 5%.</p></details></div>
-</div></section>
+  <section class="s-pillar is-pearl" id="como">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">01 · For affiliates</div>
+        <h2 class="s-h2">Three steps and you start earning.</h2>
+        <p class="s-lead">Anyone with a Sevrii account can be an affiliate. You don&#x27;t need a business.</p>
+        <ul class="s-points"><li><b>Pick a service</b><span>In the Affiliates section you see the open services, what they charge and the commission each one pays.</span></li><li><b>Share your link</b><span>Your link is unique. Post it on your social media, your group chats, your channel or your site. Each visit is remembered for 30 days.</span></li><li><b>Get your commission</b><span>When the customer pays through Sevrii, the commission is yours. We send it to your bank 30 days later, with Stripe.</span></li></ul>
+        <div class="s-actions"><a href="/ser-afiliado" class="s-btn s-btn-white">Become an affiliate</a></div>
+      </div>
+      <div class="s-media reveal" aria-hidden="true">
+        <div class="s-agentbg"></div>
+        <div class="ui ui-toast ui-sale"><b>✓</b>Commission: $17.80</div>
+        <div class="ui ui-card af-earn">
+          <span class="k">Your link</span>
+          <div class="lnk">sevrii.com/site/tutor-tx?ref=ana2026</div>
+          <div class="row"><span>Sale</span><b>Monthly access · $89</b></div>
+          <div class="row"><span>Business&#x27;s commission</span><b>20%</b></div>
+          <span class="k">You earn</span>
+          <span class="earn">$17.80</span>
+          <div class="nt">Paid to your bank 30 days after the sale.</div>
+        </div>
+        <span class="s-soon" style="top:auto;bottom:18px;left:18px;right:auto">Illustrative example</span>
+      </div>
+    </div>
+  </section>
 
-<section class="final"><div class="in">
-  <h2 class="h2 w">Start earning with your link</h2>
-  <p class="sub" style="margin:0 auto">Sign up for free, pick a service and share.</p>
-  <div class="cta"><a class="pill big" href="/ser-afiliado">Become an affiliate <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 11L11 3M5 3h6v6"/></svg></a></div>
-</div></section>
+  <section class="s-pillar is-glow flip" id="negocios">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">02 · For businesses</div>
+        <h2 class="s-h2">Let others sell your service for you.</h2>
+        <p class="s-lead">Open your service to affiliates and let creators, promoters and happy customers bring you sales. You only pay when they sell.</p>
+        <ul class="s-points"><li><b>Open your service</b><span>One switch in Affiliates. Your page must be published with Payments connected.</span></li><li><b>Set your commission</b><span>From 5% to 50% of each sale. Write a note for affiliates: who your service is for and what not to promise.</span></li><li><b>Pay only for results</b><span>The commission is charged automatically at payment, with Payments&#x27; 5%. No sales, no cost.</span></li></ul>
+        <div class="s-actions"><a href="/dashboard?view=affiliates" class="s-btn s-btn-white">Open my service</a></div>
+      </div>
+      <div class="s-media reveal" aria-hidden="true">
+        <div class="s-radar"><i></i><i></i><i></i><i></i></div>
+        <div class="ui ui-card af-biz">
+          <div class="hd"><span class="t">Your service in Affiliates</span><span class="sw"><i></i>Open</span></div>
+          <div class="row"><span>Commission</span><b>20%</b></div>
+          <div class="row"><span>Sales by affiliates</span><b>3 this month</b></div>
+          <div class="msg">For people preparing their electrician license in Texas. Don&#x27;t promise they&#x27;ll pass the exam.</div>
+        </div>
+        <span class="s-soon" style="top:auto;bottom:18px">Illustrative example</span>
+      </div>
+    </div>
+  </section>
 
-<footer><span>© 2026 Sevrii · Affiliates</span><nav><a href="/en">Marketplace</a><a href="/en/ofrecerservicios">Offer services</a><a href="/en/terminos">Terms</a><a href="/en/privacidad">Privacy</a></nav></footer>
+  <section class="s-pillar is-pearl" id="reglas">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">03 · Rules</div>
+        <h2 class="s-h2">What counts and what doesn&#x27;t.</h2>
+        <p class="s-lead">Clear rules so your commission is fair and your recommendation can be trusted.</p>
+        <ul class="s-points"><li><b>Payments made through Sevrii</b><span>Payment links and AI agent access count. Cash or outside payments can&#x27;t be verified.</span></li><li><b>30 days from the visit</b><span>If the customer comes through your link and pays within 30 days, the sale is yours.</span></li><li><b>Monthly payments too</b><span>If you sell monthly access to an agent, you earn a commission every month the customer keeps paying.</span></li><li><b>Refunds</b><span>If the customer gets a refund before the 30 days, the commission is voided.</span></li><li><b>Always say you earn a commission</b><span>It&#x27;s the law in the US and it protects your trust. No fake reviews.</span></li><li><b>No spam or false promises</b><span>Don&#x27;t promise what the service doesn&#x27;t, don&#x27;t run ads with the business&#x27;s brand without permission, and don&#x27;t buy with your own link.</span></li></ul>
+      </div>
+      <div class="s-media reveal" aria-hidden="true">
+        <div class="s-agentbg"></div>
+        <div class="ui ui-card ag-req af-rules">
+          <div class="t">What counts</div>
+          <ul><li><i class="">✓</i>Payments made through Sevrii</li><li><i class="">✓</i>Sale within 30 days</li><li><i class="">✓</i>Every month they keep paying</li><li><i class="no">!</i>Always say you earn a commission</li><li><i class="no">!</i>No spam or false promises</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Questions -->
+<section class="s-faq" id="preguntas">
+  <div class="s-wrap">
+    <h2 class="s-h2 reveal">Frequently asked questions</h2>
+      <details class="reveal"><summary>How much does it cost to be an affiliate? <span aria-hidden="true">+</span></summary><p>Nothing. Sign up for free on Sevrii and open the Affiliates section.</p></details><details class="reveal"><summary>Do I need a business? <span aria-hidden="true">+</span></summary><p>No. You can be just an affiliate. If you also have a business, you can open it to affiliates.</p></details><details class="reveal"><summary>When and how do I get paid? <span aria-hidden="true">+</span></summary><p>30 days after each sale, straight to your bank account with Stripe. The first time you connect your account in Affiliates; Stripe asks for your details so it can pay you.</p></details><details class="reveal"><summary>What can I promote? <span aria-hidden="true">+</span></summary><p>What owners opened to affiliates: services done by people and AI agents that deliver a service by themselves.</p></details><details class="reveal"><summary>How do I know what I earned? <span aria-hidden="true">+</span></summary><p>In Affiliates you see your visits, your sales, what is pending and what was already paid.</p></details><details class="reveal"><summary>I own a business, what does it cost me? <span aria-hidden="true">+</span></summary><p>Only the commission you choose, and only on sales an affiliate brings. It&#x27;s charged with Payments&#x27; 5%.</p></details>
+  </div>
+</section>
+
+<!-- Closing -->
+<section class="s-close">
+  <div class="s-wrap">
+    <div class="s-inner reveal">
+      <h2 class="s-h2">Start earning with your link.</h2>
+      <p class="s-lead">Sign up for free, pick a service and share.</p>
+      <div class="s-actions">
+        <a href="/ser-afiliado" class="s-btn s-btn-white">Become an affiliate</a>
+        <a href="/login" class="s-btn s-btn-outline">Log in</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="s-foot">
+  <div class="s-wrap">
+    <div class="s-foot-top">
+      <div><a href="/en" class="logo"><img src="/assets/sevrii-logo.png" alt="Sevrii">Sevrii</a></div>
+      <div>
+        <h4>Sevrii</h4>
+        <ul><li><a href="/en">Services marketplace</a></li><li><a href="/en/ofrecerservicios">Offer services</a></li><li><a href="/en/agentes">AI agents</a></li></ul>
+      </div>
+      <div>
+        <h4>Affiliates</h4>
+        <ul><li><a href="#como">For affiliates</a></li><li><a href="#negocios">For businesses</a></li><li><a href="#reglas">Rules</a></li><li><a href="#preguntas">Frequently asked questions</a></li></ul>
+      </div>
+      <div>
+        <h4>Get started</h4>
+        <ul><li><a href="/ser-afiliado">Become an affiliate</a></li><li><a href="/login">Log in</a></li></ul>
+      </div>
+    </div>
+    <div class="s-foot-bottom">
+      <span>© 2026 Sevrii. All rights reserved.</span>
+      <div class="links"><a href="/en/privacidad">Privacy</a><a href="/en/terminos">Terms</a></div>
+    </div>
+  </div>
+</footer>
+
+</div><!-- /.sections -->
+
+<script>
+  (function(){
+    const canvas = document.getElementById('network');
+    if(!canvas) return;
+    const hero = canvas.closest('.hero');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+
+    function resize(){
+      W = canvas.width = hero.clientWidth;
+      H = canvas.height = hero.clientHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const N = 80;
+    const points = [];
+    for (let i=0;i<N;i++){
+      points.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        vx: (Math.random()-0.5)*0.25,
+        vy: (Math.random()-0.5)*0.25
+      });
+    }
+
+    const mouse = {x:0, y:0, active:false};
+    hero.addEventListener('mousemove', e=>{
+      const rect = hero.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+      mouse.active = true;
+    });
+    hero.addEventListener('mouseleave', ()=>{ mouse.active = false; });
+
+    function step(){
+      ctx.clearRect(0,0,W,H);
+
+      points.forEach(p=>{
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > W) p.vx *= -1;
+        if (p.y < 0 || p.y > H) p.vy *= -1;
+        if (mouse.active){
+          const dx = p.x - mouse.x, dy = p.y - mouse.y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 130 && dist > 0){
+            const force = (130 - dist) / 130 * 0.6;
+            p.x += (dx/dist) * force;
+            p.y += (dy/dist) * force;
+          }
+        }
+      });
+
+      for (let i=0;i<points.length;i++){
+        for (let j=i+1;j<points.length;j++){
+          const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 140){
+            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/140) * 0.3})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(points[i].x, points[i].y);
+            ctx.lineTo(points[j].x, points[j].y);
+            ctx.stroke();
+          }
+        }
+        if (mouse.active){
+          const dx = points[i].x - mouse.x, dy = points[i].y - mouse.y;
+          const dist = Math.sqrt(dx*dx+dy*dy);
+          if (dist < 180){
+            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/180) * 0.45})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(points[i].x, points[i].y);
+            ctx.lineTo(mouse.x, mouse.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      points.forEach(p=>{
+        ctx.fillStyle = 'rgba(255,255,255,.55)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+        ctx.fill();
+      });
+
+      requestAnimationFrame(step);
+    }
+    step();
+  })();
+</script>
+
+<script>
+  // Transparent nav over the hero video; solid once scrolled past it, so
+  // links stay readable over the lighter sections further down the page.
+  (function(){
+    var header = document.querySelector('header');
+    if (!header) return;
+    function onScroll(){
+      header.classList.toggle('scrolled', window.scrollY > 40);
+    }
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  })();
+</script>
+
+<script>
+  // Post-hero interactions: explainer video, sticky pillar nav, subtle fade-in on scroll.
+  (function(){
+    var p = document.getElementById('explainer');
+    if (p) {
+      var id = (p.getAttribute('data-youtube-id') || '').trim();
+      var poster = p.querySelector('.s-poster');
+      if (id) {
+        var vs = p.closest('section'); if (vs) vs.hidden = false;
+        p.classList.add('has-video');
+        p.querySelector('.s-poster-label').textContent = p.getAttribute('data-label-play');
+        poster.addEventListener('click', function(){
+          p.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) +
+            '?autoplay=1&rel=0&modestbranding=1" title="Sevrii" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        });
+      } else {
+        // No video yet: the section stays (second after the hero) with its placeholder.
+        poster.disabled = true;
+      }
+    }
+
+    // Sticky pillar nav: highlight the pillar currently on screen.
+    var links = document.querySelectorAll('.s-pnav a[data-pillar]');
+    if (links.length && 'IntersectionObserver' in window) {
+      var setOn = function(id){
+        links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('data-pillar') === id); });
+        var on = document.querySelector('.s-pnav a.on');
+        if (on && on.scrollIntoView && window.innerWidth < 700) {
+          var bar = on.parentElement;
+          bar.scrollTo({ left: on.offsetLeft - 12, behavior: 'smooth' });
+        }
+      };
+      var spy = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){ if (e.isIntersecting) setOn(e.target.id); });
+      }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
+      links.forEach(function(a){
+        var sec = document.getElementById(a.getAttribute('data-pillar'));
+        if (sec) spy.observe(sec);
+      });
+    }
+
+    var els = document.querySelectorAll('.reveal');
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!els.length) return;
+    if (reduce || !('IntersectionObserver' in window)) {
+      els.forEach(function(el){ el.classList.add('is-visible'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: .12 });
+    els.forEach(function(el){ io.observe(el); });
+  })();
+</script>
+
 </body>
 </html>
