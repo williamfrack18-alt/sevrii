@@ -236,7 +236,7 @@ export default function StoreSummary({
   );
 }
 
-export function AgentRow({ business, onUpdated, onPayments }: { business: ClientBusiness; onUpdated: (b: ClientBusiness) => void; onPayments?: () => void }) {
+export function AgentRow({ business, onUpdated, onPayments, bare = false }: { business: ClientBusiness; onUpdated: (b: ClientBusiness) => void; onPayments?: () => void; bare?: boolean }) {
   const lang = useLang();
   const t = TEXT[lang];
   const a = business.serviceAgent;
@@ -267,7 +267,7 @@ export function AgentRow({ business, onUpdated, onPayments }: { business: Client
   }
 
   return (
-    <div className="flex flex-col gap-2.5 pt-3" style={{ borderTop: `1px solid ${HAIR}` }}>
+    <div className={`flex flex-col gap-2.5 ${bare ? "" : "pt-3"}`} style={bare ? undefined : { borderTop: `1px solid ${HAIR}` }}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex flex-col">
           <span className="text-[12px] text-pmuted">{t.agent}</span>

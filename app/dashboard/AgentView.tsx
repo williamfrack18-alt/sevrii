@@ -131,7 +131,7 @@ export default function AgentView({
           dock={
             <div className="flex flex-col gap-4 min-w-0">
               <div className="rounded-[24px] p-4 md:p-5 min-w-0" style={CARD}>
-                <AgentRow business={business} onUpdated={(b) => onUpdated(b, services)} onPayments={onPayments} />
+                <AgentRow bare business={business} onUpdated={(b) => onUpdated(b, services)} onPayments={onPayments} />
               </div>
               <AgentLook business={business} />
             </div>
@@ -154,7 +154,7 @@ function AgentLook({ business }: { business: ClientBusiness }) {
   const name = a.name || business.name;
   const logo = business.site.logoUrl;
   const initial = (name.trim()[0] || "A").toUpperCase();
-  const hello = (a.greeting || t.hello).slice(0, 220);
+  const hello = a.greeting || t.hello;
   return (
     <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={CARD}>
       <div className="flex items-center justify-between gap-3">
