@@ -7,7 +7,7 @@ import type { BusinessRow } from "@/lib/db";
 import { activeOffer, storeTheme } from "@/lib/site";
 import { reachLabel, resolveReach } from "@/lib/reach";
 import { STORE_TEXT } from "@/lib/storeI18n";
-import { money, offerPriceLabel, welcomeFor, welcomeLabel } from "@/lib/serviceAgentConfig";
+import { hasTask, money, offerPriceLabel, welcomeFor, welcomeLabel } from "@/lib/serviceAgentConfig";
 import ChatWidget, { ChatJump, type ChatAgent } from "./ChatWidget";
 import { ChatIcon, ChatLink, Gallery, type MediaItem } from "./StoreParts";
 
@@ -24,10 +24,10 @@ const TEXT = {
     whyTitle: "Lo que no te da un chat genérico",
     howEyebrow: "Cómo funciona",
     howTitle: "Empieza en un minuto",
-    how: (n: number, name: string) => [
+    how: (n: number, name: string, does: boolean) => [
       { t: "Pruébalo gratis", d: n ? `Escríbele en el chat. Las primeras ${n === 1 ? "respuesta es gratis" : `${n} respuestas son gratis`}, sin registrarte.` : "Escríbele en el chat, sin registrarte." },
       { t: "Escoge tu acceso", d: "Cuando quieras seguir, eliges por días o por mes y pagas con tarjeta ahí mismo." },
-      { t: `Trabaja con ${name}`, d: "Te acompaña paso a paso, a cualquier hora, mientras dure tu acceso." },
+      { t: `Trabaja con ${name}`, d: does ? "Hace el trámite por ti en la página oficial y te pide tu OK antes de firmar, enviar o pagar." : "Te acompaña paso a paso, a cualquier hora, mientras dure tu acceso." },
     ],
     methodTitle: "Su método",
     accessEyebrow: "Acceso",
@@ -42,6 +42,8 @@ const TEXT = {
     finalTitle: (name: string) => `Prueba ${name} ahora`,
     finalText: "Escríbele en el chat. Sin registrarte, sin tarjeta para la prueba.",
     always: "Te guía y te acompaña paso a paso, pero no hace el trámite por ti ni reemplaza a la oficina oficial ni a un profesional con licencia cuando la ley lo pide. No promete resultados.",
+    // An agent that does the task (it operates the official page): its limit is the OK.
+    alwaysDoes: "No firma, no envía ni paga nada sin tu OK: antes se detiene y te muestra un resumen exacto (qué, para quién y cuánto). Cada OK vale para una sola acción final. No reemplaza a la oficina oficial ni a un profesional con licencia cuando la ley lo pide. No promete resultados.",
     reviewsEyebrow: "Reseñas",
     reviewsTitle: "Lo que dicen sus clientes",
     reviewsNone: "Todavía no tiene reseñas. Solo quienes pagan su acceso pueden calificarlo.",
@@ -73,10 +75,10 @@ const TEXT = {
     whyTitle: "What a generic chat won't give you",
     howEyebrow: "How it works",
     howTitle: "Start in a minute",
-    how: (n: number, name: string) => [
+    how: (n: number, name: string, does: boolean) => [
       { t: "Try it free", d: n ? `Write to it in the chat. The first ${n === 1 ? "reply is" : `${n} replies are`} free, no sign-up.` : "Write to it in the chat, no sign-up." },
       { t: "Pick your access", d: "When you want to keep going, choose by the day or by the month and pay by card right there." },
-      { t: `Work with ${name}`, d: "It guides you step by step, any time, while your access lasts." },
+      { t: `Work with ${name}`, d: does ? "It does the task for you on the official page and asks for your OK before signing, submitting or paying." : "It guides you step by step, any time, while your access lasts." },
     ],
     methodTitle: "Its method",
     accessEyebrow: "Access",
@@ -91,6 +93,7 @@ const TEXT = {
     finalTitle: (name: string) => `Try ${name} now`,
     finalText: "Write to it in the chat. No sign-up, no card for the trial.",
     always: "It guides you step by step, but it doesn't do the paperwork for you or replace the official office or a licensed professional when the law requires one. It doesn't promise results.",
+    alwaysDoes: "It doesn't sign, submit or pay anything without your OK: it stops first and shows you an exact summary (what, for whom and how much). Each OK covers one final action only. It doesn't replace the official office or a licensed professional when the law requires one. It doesn't promise results.",
     reviewsEyebrow: "Reviews",
     reviewsTitle: "What its customers say",
     reviewsNone: "No reviews yet. Only people who pay for access can rate it.",
@@ -364,7 +367,7 @@ export default function AgentPage({
               <h2>{t.howTitle}</h2>
             </div>
             <div className="ag-steps">
-              {t.how(a.freeReplies, name).map((s, i) => (
+              {t.how(a.freeReplies, name, hasTask(a)).map((s, i) => (
                 <div key={i} className="ag-step">
                   <span className="ag-step-n">{i + 1}</span>
                   <h3>{s.t}</h3>
@@ -422,7 +425,7 @@ export default function AgentPage({
               <p className="ag-lede">{t.honest(name, person)}</p>
             </div>
             <ul>
-              <li>{t.always}</li>
+              <li>{hasTask(a) ? t.alwaysDoes : t.always}</li>
               {a.limits.map((l, i) => (
                 <li key={i}>{l}</li>
               ))}
