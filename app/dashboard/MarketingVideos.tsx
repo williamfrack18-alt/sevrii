@@ -189,7 +189,7 @@ export function VideoJobCard({ v, es, live, onReply }: { v: PublicVideo; es: boo
     }
   };
   return (
-    <div className="rounded-[20px] p-4 md:p-5 flex flex-col gap-3 max-w-[560px]" style={CARD}>
+    <div className={`rounded-[20px] p-4 md:p-5 flex flex-col gap-3 ${w ? "w-full" : "max-w-[560px]"}`} style={CARD}>
       <div className="flex items-center justify-between gap-3 min-w-0">
         <span className="text-[14.5px] font-medium text-pfg truncate min-w-0">{v.title}</span>
         <Badge v={v} es={es} />
@@ -211,7 +211,7 @@ export function VideoJobCard({ v, es, live, onReply }: { v: PublicVideo; es: boo
           <p className="text-[14px] text-pfg leading-relaxed">{w.label}</p>
           {w.detail && <p className="text-[13px] text-pfg2 leading-relaxed">{w.detail}</p>}
           {w.url && /browserbase/.test(w.url) && (
-            <iframe src={w.url} title={w.label} className="w-full h-[420px] md:h-[520px] rounded-xl bg-white" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" allow="clipboard-read; clipboard-write" />
+            <iframe src={w.url} title={w.label} className="w-full aspect-[4/3] min-h-[360px] rounded-xl bg-white" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" allow="clipboard-read; clipboard-write" />
           )}
           <p className="text-[12px] text-psub">{es ? "Lo que escribas en la vista en vivo no lo veo ni lo guardo." : "What you type in the live view isn't seen or kept by me."}</p>
           <div className="flex gap-2 flex-wrap">

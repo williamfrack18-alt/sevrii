@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/session";
 import { limitsForUserId } from "@/lib/billing";
 import { addChatMessage, getBusinessById, getMarketingAction, listCampaigns, listChatMessages, listMarketingVideos, pendingMarketingAction, type BusinessRow, type CampaignRow } from "@/lib/db";
 import { actionToken, continueLaunch, publicVideo, refreshVideoStats, runMarketingAction, type PublicVideo } from "@/lib/marketingVideos";
-import { advanceVideoJob, resumeVideoJob } from "@/lib/marketingVideoJob";
+import { advanceVideoJob, resumeVideoJob, reviveIfClosed } from "@/lib/marketingVideoJob";
 import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
@@ -139,6 +139,8 @@ export async function listMarketingVideosAction(refresh = false): Promise<Market
   if (!allowed) return videosResponse(business);
   const lang = await getLang();
   const videos = await listMarketingVideos(business.id);
+  // A live view whose cloud browser already closed: open a new one (the owner is asked again).
+  for (const v of videos.filter((x) => x.status === "making" && x.job.state === "waiting")) await reviveIfClosed(business, v).catch(() => v);
   for (const v of videos.filter((x) => x.status === "launching")) {
     const msg = await continueLaunch(business, v.id, lang).catch(() => "");
     if (msg) await addChatMessage(business.id, CHANNEL, "ai", `${msg}\n\n[[mkvideo:${v.id}]]`);

@@ -363,7 +363,9 @@ export default function MarketingView({
             if (tk.kind === "mkvideo") {
               const v = vids.find((x) => x.id === tk.arg);
               if (!v) return null;
-              return <VideoJobCard v={v} es={es} live={lastVideoMsg[v.id] === tk.msgId} onReply={async (r) => applyVideos(await videoReplyAction(v.id, r))} />;
+              // Only the newest message about a video draws its card (older ones keep just their text).
+              if (lastVideoMsg[v.id] !== tk.msgId) return null;
+              return <VideoJobCard v={v} es={es} live onReply={async (r) => applyVideos(await videoReplyAction(v.id, r))} />;
             }
             return null;
           }}
@@ -425,7 +427,12 @@ function withLiveButtons<M extends { role: string; content: string }>(msgs: M[],
   const note = es
     ? "\n\n(Tu estrategia ya está aprobada, así que ese botón ya no aparece. Al final del panel «Tu estrategia de marketing» ahora está «Ver lo que está en marcha»: ahí das el OK a cada campaña con «Aprobar» o «Descartar».)"
     : "\n\n(Your strategy is already approved, so that button is gone. The \"Your marketing strategy\" panel now ends with \"See what's running\": that's where you give each campaign your OK with \"Approve\" or \"Dismiss\".)";
-  return msgs.map((m) => (m.role !== "user" && APPROVE_BTN.test(m.content) && !m.content.includes(note.trim()) ? { ...m, content: m.content + note } : m));
+  // The note goes before a card token at the end (the token must stay last to draw its card).
+  const add = (c: string) => {
+    const tk = /\s*\[\[[a-z]+(?::[A-Za-z0-9_-]+)?\]\]\s*$/.exec(c);
+    return tk ? `${c.slice(0, tk.index)}${note}\n\n${c.slice(tk.index).trim()}` : c + note;
+  };
+  return msgs.map((m) => (m.role !== "user" && APPROVE_BTN.test(m.content) && !m.content.includes(note.trim()) ? { ...m, content: add(m.content) } : m));
 }
 
 // The state in words, no unlabeled numbers: the strategy, the campaigns and

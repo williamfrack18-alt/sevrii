@@ -16,7 +16,7 @@ export type PageField = { id: string; label: string; type: string; value: string
 export type PageButton = { id: string; label: string; kind: "button" | "link" };
 export type PageView = { url: string; title: string; text: string; fields: PageField[]; buttons: PageButton[]; captcha: boolean };
 
-export type BrowserState = { sessionId?: string; connectUrl?: string; liveUrl?: string; url?: string; lastText?: string; sandbox?: SandboxState };
+export type BrowserState = { sessionId?: string; connectUrl?: string; liveUrl?: string; url?: string; lastText?: string; sandbox?: SandboxState; reconnect?: boolean };
 
 const BB = "https://api.browserbase.com/v1";
 
@@ -209,13 +209,26 @@ class LiveBrowser {
 
   static async attach(state: BrowserState): Promise<LiveBrowser> {
     if (!state.sessionId || !state.connectUrl) await LiveBrowser.create(state);
-    let cdp: Cdp;
+    let cdp: Cdp | null = null;
     try {
       cdp = await Cdp.connect(state.connectUrl!);
     } catch {
-      // The earlier browser ended (timeout): start a new one from the official page.
-      await LiveBrowser.create(state);
-      cdp = await Cdp.connect(state.connectUrl!);
+      // Opt-in (Marketing videos): the same browser may still be open (with the
+      // owner's sign-in in it); reconnect to it before starting a new one.
+      if (state.reconnect && state.sessionId && (await browserAlive(state.sessionId))) {
+        const fresh = await bb<{ connectUrl?: string }>(`/sessions/${state.sessionId}`).catch(() => null);
+        const urls = [fresh?.connectUrl, `wss://connect.browserbase.com?apiKey=${encodeURIComponent(process.env.BROWSERBASE_API_KEY || "")}&sessionId=${state.sessionId}`];
+        for (const u of urls) {
+          if (!u || cdp) continue;
+          cdp = await Cdp.connect(u).catch(() => null);
+          if (cdp && u === fresh?.connectUrl) state.connectUrl = u;
+        }
+      }
+      if (!cdp) {
+        // The earlier browser ended (timeout): start a new one from the official page.
+        await LiveBrowser.create(state);
+        cdp = await Cdp.connect(state.connectUrl!);
+      }
     }
     const { targetInfos } = await cdp.send<{ targetInfos: { targetId: string; type: string }[] }>("Target.getTargets");
     let page = targetInfos.find((t) => t.type === "page");
@@ -286,6 +299,13 @@ export async function browserDownloads(sessionId: string): Promise<Buffer | null
   if (!res || !res.ok) return null;
   const buf = Buffer.from(await res.arrayBuffer());
   return buf.length > 22 ? buf : null;
+}
+
+// Whether a cloud browser session is still open (sessions close after their time limit).
+export async function browserAlive(sessionId: string): Promise<boolean> {
+  if (!sessionId || browserMode() !== "live") return false;
+  const s = await bb<{ status?: string }>(`/sessions/${sessionId}`).catch(() => null);
+  return s?.status === "RUNNING";
 }
 
 export async function releaseBrowser(state: BrowserState): Promise<void> {

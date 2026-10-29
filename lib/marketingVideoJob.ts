@@ -10,7 +10,7 @@ import { inflateRawSync } from "node:zlib";
 import type { MessageParam, TextBlock, Tool, ToolResultBlockParam, ToolUseBlock } from "@anthropic-ai/sdk/resources/messages";
 import { AGENT_MODEL, MODELS, getAgentModel, getClaude, logAiError } from "./claude";
 import { addChatMessage, getMarketingVideo, updateMarketingVideo, type BusinessRow, type MarketingVideoRow, type VideoJob } from "./db";
-import { browserDownloads, browserMode, getHands, releaseBrowser, SENSITIVE_FIELD, type BrowserState, type Hands, type PageView } from "./agentOps/browser";
+import { browserAlive, browserDownloads, browserMode, getHands, releaseBrowser, SENSITIVE_FIELD, type BrowserState, type Hands, type PageView } from "./agentOps/browser";
 import { videoToken, videoToolOf } from "./marketingVideos";
 
 const CHANNEL = "brain";
@@ -261,7 +261,7 @@ export async function advanceVideoJob(b: BusinessRow, id: string): Promise<{ vid
   // Take the lock (one browser worker per video at a time).
   v = (await updateMarketingVideo(b.id, id, { job: { ...v.job, runAt: new Date().toISOString() } })) ?? v;
 
-  const state: BrowserState = { ...(v.job.browser as BrowserState) };
+  const state: BrowserState = { ...(v.job.browser as BrowserState), reconnect: true };
   const steps = [...(v.job.steps ?? [])];
   const memo = [...(v.job.memo ?? [])].slice(-40);
   const note = (s: string) => memo.push(s.slice(0, 300));
@@ -270,7 +270,8 @@ export async function advanceVideoJob(b: BusinessRow, id: string): Promise<{ vid
   let stop: { job: Partial<VideoJob>; status?: MarketingVideoRow["status"]; videoUrl?: string; say: string } | null = null;
 
   const setStep = (label: string, status: "done" | "doing" | "failed") => {
-    const i = steps.findIndex((s) => s.label.toLowerCase() === label.toLowerCase());
+    const key = (x: string) => x.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\b(el|la|un|una|the|a)\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const i = steps.findIndex((s) => key(s.label) === key(label));
     if (i >= 0) steps[i] = { label: steps[i].label, status };
     else steps.push({ label: label.slice(0, 80), status });
   };
@@ -287,11 +288,13 @@ export async function advanceVideoJob(b: BusinessRow, id: string): Promise<{ vid
   };
 
   try {
+    const before = state.sessionId;
     const raw = await getHands(state, { caseId: v.id, mode: "live", platform: tool.name, needs: [], baseUrl: "" });
     // A "captcha" flag only stands when a challenge is really shown (see SHOWN_CAPTCHA_JS).
     const shown = async (p: PageView): Promise<PageView> => (p.captcha && raw.evalJs && !(await raw.evalJs<boolean>(SHOWN_CAPTCHA_JS).catch(() => true)) ? { ...p, captcha: false } : p);
     hands = { ...raw, open: async (u) => shown(await raw.open(u)), read: async () => shown(await raw.read()) };
     await hands.allowDownloads?.();
+    if (before && state.sessionId !== before) note("A NEW cloud browser opened (the previous one closed): the owner's sign-in there is gone. Open the tool again; if it asks to sign in, ask_customer_login.");
     last = state.url ? await hands.read().catch(() => null) : null;
     const messages: MessageParam[] = [
       {
@@ -300,7 +303,7 @@ export async function advanceVideoJob(b: BusinessRow, id: string): Promise<{ vid
       },
     ];
     const started = Date.now();
-    for (let round = 0; round < ROUNDS_PER_CALL && !stop && Date.now() - started < 190_000; round++) {
+    for (let round = 0; round < ROUNDS_PER_CALL && !stop && Date.now() - started < 160_000; round++) {
       const res = meta
         ? await client.messages.create({ model: AGENT_MODEL, max_tokens: 1500, output_config: { effort: "low" }, system: system(b, v), tools: TOOLS, messages })
         : await client.messages.create({ model: MODELS.chat, max_tokens: 1500, system: system(b, v), tools: TOOLS, messages });
@@ -477,6 +480,18 @@ export async function advanceVideoJob(b: BusinessRow, id: string): Promise<{ vid
 }
 
 // The owner finished in the live view (signed in, paid, solved the check): continue.
+// While it waits for the owner, the cloud browser can close (time limit). Then
+// its live view is dead: start a fresh browser and ask again, instead of
+// leaving the owner in front of a closed live view.
+const CLOSED_NOTE = "The cloud browser closed while waiting for the owner (it closes after 1 hour). A new one opens now: anything the owner did there (like signing in) must be done again. Open the tool; if it asks to sign in, ask_customer_login.";
+export async function reviveIfClosed(b: BusinessRow, v: MarketingVideoRow): Promise<MarketingVideoRow> {
+  if (v.status !== "making" || v.job.state !== "waiting") return v;
+  const sid = v.job.browser?.sessionId || "";
+  if (sid && (await browserAlive(sid))) return v;
+  const memo = [...(v.job.memo ?? []), CLOSED_NOTE].slice(-40);
+  return (await updateMarketingVideo(b.id, v.id, { job: { ...v.job, state: "working", waiting: null, browser: {}, memo, runAt: undefined } })) ?? v;
+}
+
 export async function resumeVideoJob(b: BusinessRow, id: string, stopIt: boolean): Promise<MarketingVideoRow | null> {
   const v = await getMarketingVideo(b.id, id);
   if (!v || v.status !== "making" || v.job.state !== "waiting") return v;
@@ -486,6 +501,7 @@ export async function resumeVideoJob(b: BusinessRow, id: string, stopIt: boolean
     await say(b, es ? `Dejé el video ${v.title}. No se publicó ni se compró nada.` : `I stopped the video ${v.title}. Nothing was published or bought.`);
     return updateMarketingVideo(b.id, id, { status: "failed", job: { ...v.job, state: "failed", waiting: null, error: "stopped by the owner" } });
   }
-  const memo = [...(v.job.memo ?? []), `owner tapped Done after: ${v.job.waiting?.label || ""}`].slice(-40);
-  return updateMarketingVideo(b.id, id, { job: { ...v.job, state: "working", waiting: null, memo, runAt: undefined } });
+  const alive = Boolean(v.job.browser?.sessionId) && (await browserAlive(v.job.browser!.sessionId!));
+  const memo = [...(v.job.memo ?? []), `owner tapped Done after: ${v.job.waiting?.label || ""}`, ...(alive ? [] : [CLOSED_NOTE])].slice(-40);
+  return updateMarketingVideo(b.id, id, { job: { ...v.job, state: "working", waiting: null, memo, runAt: undefined, ...(alive ? {} : { browser: {} }) } });
 }
