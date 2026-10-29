@@ -18,6 +18,7 @@ import {
   getBusinessForUser,
   deleteBusinessForUser,
   getBusinessByUserId,
+  peekRateWindow,
   type BusinessRow,
 } from "@/lib/db";
 import { del } from "@vercel/blob";
@@ -33,7 +34,7 @@ import { deleteSessionRow } from "@/lib/db";
 import { startSession } from "@/lib/startSession";
 import { allow, clear, clientIp, LIMITS } from "@/lib/guard";
 import { EMPTY_PLAN } from "@/lib/plan";
-import { limitsFor } from "@/lib/billing";
+import { isAdmin, limitsFor } from "@/lib/billing";
 import { EMPTY_SITE, type SiteData } from "@/lib/site";
 import { getCurrentUser, setActiveProject, PROJECT_COOKIE } from "@/lib/session";
 import { getLang } from "@/lib/lang";
@@ -119,7 +120,13 @@ export async function logoutAction() {
 // project goes through the same start flow as the first one.
 const MAX_PROJECTS = 10;
 
-type NewProjectCheck = { userId: string; previous: BusinessRow | null };
+type NewProjectCheck = { userId: string; previous: BusinessRow | null; countDaily: boolean } | { error: string };
+
+// Anti-abuse: at most this many new projects per account in 24 hours. Only
+// projects actually created count (a blocked or failed attempt doesn't), and
+// admin / tester accounts (SEVRII_TESTER_EMAILS) aren't capped.
+const NEW_PROJECTS_PER_DAY = 8;
+const DAY_SECONDS = 24 * 60 * 60;
 
 async function checkNewProject(newProject: boolean | undefined): Promise<NewProjectCheck> {
   const user = await getCurrentUser();
@@ -128,8 +135,21 @@ async function checkNewProject(newProject: boolean | undefined): Promise<NewProj
   // Each plan allows a number of projects (Free and Starter: 1, Pro: 3, Team: 10). Counted every time.
   const allowed = Math.min(MAX_PROJECTS, limitsFor(user).projects);
   if ((await countProjects(user.id)) >= allowed) redirect("/dashboard?view=plans&need=projects");
-  if (user.business && !(await allow(`project:new:${user.id}`, 8, 24 * 60 * 60))) redirect("/dashboard?view=projects");
-  return { userId: user.id, previous: user.business };
+  const countDaily = Boolean(user.business) && !isAdmin(user);
+  if (countDaily) {
+    const w = await peekRateWindow(`project:new:${user.id}`).catch(() => ({ count: 0, endsAt: null }));
+    if (w.count >= NEW_PROJECTS_PER_DAY) {
+      // Said plainly, instead of sending them back to the panel without a word.
+      const es = (await getLang()) === "es";
+      const hours = w.endsAt ? Math.max(1, Math.ceil((Date.parse(w.endsAt) - Date.now()) / 3_600_000)) : 24;
+      return {
+        error: es
+          ? `Ya creaste ${NEW_PROJECTS_PER_DAY} proyectos en las últimas 24 horas, el máximo por día. Podrás crear otro en unas ${hours} ${hours === 1 ? "hora" : "horas"}. Mientras tanto puedes seguir con tus proyectos.`
+          : `You've created ${NEW_PROJECTS_PER_DAY} projects in the last 24 hours, the daily maximum. You can create another one in about ${hours} ${hours === 1 ? "hour" : "hours"}. Meanwhile you can keep working on your projects.`,
+      };
+    }
+  }
+  return { userId: user.id, previous: user.business, countDaily };
 }
 
 // Contact and trust details are the same business across projects: reuse them
@@ -147,40 +167,54 @@ function carriedSite(prev: BusinessRow | null): Partial<SiteData> {
 
 // Start a project from the two buttons on /start. The Brain does the rest:
 // no fixed questions here any more.
-export async function startProjectAction(mode: "existing" | "new" | "agent", newProject?: boolean) {
-  const { userId, previous } = await checkNewProject(newProject);
+export async function startProjectAction(mode: "existing" | "new" | "agent", newProject?: boolean): Promise<{ error: string } | void> {
+  const check = await checkNewProject(newProject);
+  if ("error" in check) return { error: check.error };
+  const { userId, previous, countDaily } = check;
   const lang = await getLang();
-  const m = mode === "new" ? "new" : mode === "agent" ? "agent" : "existing";
-  let slug = "";
-  for (let i = 0; i < 5 && (!slug || (await isSlugTaken(slug))); i++) slug = `proyecto-${randomBytes(4).toString("hex")}`;
-  const prev = previous?.plan.profile;
-  const business = await createBusiness({
-    userId,
-    slug,
-    name: lang === "es" ? "Proyecto nuevo" : "New project",
-    category: "",
-    description: "",
-    city: null,
-    pitch: "",
-    whatsapp: previous?.whatsapp ?? null,
-    site: { ...EMPTY_SITE, ...carriedSite(previous), lang },
-    plan: {
-      ...EMPTY_PLAN,
-      mode: m,
-      stage: "interview",
-      // Same person: the languages they speak carry over. Where they work is
-      // asked again (a new service may be in another city, or online).
-      profile: {
-        ...EMPTY_PLAN.profile,
-        // An agent's languages are the ones it talks to customers in: asked again.
-        languages: m === "agent" ? "" : prev?.languages ?? "",
-        // An agent always works online, in the page chat.
-        ...(m === "agent" ? { serviceMode: "remote" as const } : {}),
+  try {
+    const m = mode === "new" ? "new" : mode === "agent" ? "agent" : "existing";
+    let slug = "";
+    for (let i = 0; i < 5 && (!slug || (await isSlugTaken(slug))); i++) slug = `proyecto-${randomBytes(4).toString("hex")}`;
+    const prev = previous?.plan.profile;
+    const business = await createBusiness({
+      userId,
+      slug,
+      name: lang === "es" ? "Proyecto nuevo" : "New project",
+      category: "",
+      description: "",
+      city: null,
+      pitch: "",
+      whatsapp: previous?.whatsapp ?? null,
+      site: { ...EMPTY_SITE, ...carriedSite(previous), lang },
+      plan: {
+        ...EMPTY_PLAN,
+        mode: m,
+        stage: "interview",
+        // Same person: the languages they speak carry over. Where they work is
+        // asked again (a new service may be in another city, or online).
+        profile: {
+          ...EMPTY_PLAN.profile,
+          // An agent's languages are the ones it talks to customers in: asked again.
+          languages: m === "agent" ? "" : prev?.languages ?? "",
+          // An agent always works online, in the page chat.
+          ...(m === "agent" ? { serviceMode: "remote" as const } : {}),
+        },
       },
-    },
-  });
-  await setActiveProject(business.id);
-  (await cookies()).delete("sevrii_path");
+    });
+    await setActiveProject(business.id);
+    // Counted once the project exists.
+    if (countDaily) await allow(`project:new:${userId}`, NEW_PROJECTS_PER_DAY, DAY_SECONDS);
+    (await cookies()).delete("sevrii_path");
+  } catch (err) {
+    console.error("[projects] could not create the project", err);
+    return {
+      error:
+        lang === "es"
+          ? "No pudimos crear el proyecto. Inténtalo de nuevo en un momento; si sigue pasando, escríbenos."
+          : "We couldn't create the project. Please try again in a moment; if it keeps happening, contact us.",
+    };
+  }
   redirect("/dashboard?view=plan");
 }
 

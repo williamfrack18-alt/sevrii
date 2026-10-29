@@ -1,13 +1,30 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useT } from "@/components/LangProvider";
+import { useLang, useT } from "@/components/LangProvider";
 import { startProjectAction } from "@/app/actions";
 
 export default function PathPicker({ newProject = false, initial = null }: { newProject?: boolean; initial?: "existing" | "new" | "agent" | null }) {
   const [selected, setSelected] = useState<"existing" | "new" | "agent" | null>(initial);
   const [pending, start] = useTransition();
+  // Why the project wasn't created (shown under the button, never a silent return).
+  const [error, setError] = useState("");
   const t = useT();
+  const es = useLang() === "es";
+
+  function go(mode: "existing" | "new" | "agent") {
+    setError("");
+    start(async () => {
+      try {
+        const r = await startProjectAction(mode, newProject);
+        if (r && "error" in r) setError(r.error);
+      } catch (err) {
+        // Next's own navigation (the redirect into the new project) must go through.
+        if (String((err as { digest?: string })?.digest || "").startsWith("NEXT_")) throw err;
+        setError(es ? "No pudimos crear el proyecto. Revisa tu conexión e inténtalo de nuevo." : "We couldn't create the project. Check your connection and try again.");
+      }
+    });
+  }
 
   function cardStyle(active: boolean) {
     return `text-left rounded-2xl p-7 flex flex-col gap-4 border-2 transition ${
@@ -59,13 +76,18 @@ export default function PathPicker({ newProject = false, initial = null }: { new
       <button
         type="button"
         disabled={!selected || pending}
-        onClick={() => selected && start(() => startProjectAction(selected, newProject))}
+        onClick={() => selected && go(selected)}
         className={`w-[220px] h-[48px] rounded-[10px] text-[15px] font-semibold ${
           selected && !pending ? "btn-primary" : "bg-borderStrong text-mutedLight cursor-not-allowed"
         }`}
       >
         {pending ? "…" : t.common.continue}
       </button>
+      {error && (
+        <p role="alert" className="max-w-[520px] text-center text-[14px] leading-relaxed text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

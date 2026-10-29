@@ -625,6 +625,14 @@ export async function hitRateCounter(key: string, windowSeconds: number): Promis
   return rows[0]?.count ?? 1;
 }
 
+// A counter and when its window ends, without bumping it (count 0 when over).
+export async function peekRateWindow(key: string): Promise<{ count: number; endsAt: string | null }> {
+  await ensureSchema();
+  const rows = (await sql`SELECT count, "windowEndsAt" FROM rate_counters WHERE key = ${key} AND "windowEndsAt" > now()`) as { count: number; windowEndsAt: string | Date }[];
+  if (!rows[0]) return { count: 0, endsAt: null };
+  return { count: Number(rows[0].count) || 0, endsAt: new Date(rows[0].windowEndsAt).toISOString() };
+}
+
 // Reads a counter without bumping it (0 when its window is over).
 export async function peekRateCounter(key: string): Promise<number> {
   await ensureSchema();
