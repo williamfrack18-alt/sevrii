@@ -48,9 +48,50 @@ export function month(d = new Date()): string {
   return d.toISOString().slice(0, 7); // YYYY-MM (UTC)
 }
 
+// What all of Sevrii spends on the Claude API this month, to warn before the
+// credit runs out: AI_ALERT_MONTHLY_USD = the monthly limit set in the
+// Anthropic console (e.g. 35). Admins get one email at 80 % and one at 95 %.
+const TOTAL = "_claude_total";
+async function trackClaudeTotal(model: string, usd: number): Promise<void> {
+  if (!/claude/i.test(model) || usd <= 0) return;
+  try {
+    await addAiUsage(TOTAL, month(), Math.round(usd * 1_000_000));
+    const limit = Number(process.env.AI_ALERT_MONTHLY_USD || 0);
+    if (!limit) return;
+    const spent = (await getAiSpendMicros(TOTAL, month())) / 1_000_000;
+    for (const pct of [95, 80]) {
+      if (spent < (limit * pct) / 100) continue;
+      if (await allow(`ai:alert:${pct}:${month()}`, 1, 40 * 24 * 60 * 60)) {
+        const { notifyAdmins } = await import("./notify");
+        await notifyAdmins(
+          `Sevrii: la IA ya gastó el ${pct} % del límite del mes`,
+          `Este mes Sevrii lleva unos $${spent.toFixed(2)} en la API de Claude, de un límite de $${limit}. Cuando se llegue al límite, el Cerebro y los chats dejan de responder hasta el próximo mes.\n\nPara evitarlo: sube el límite o compra créditos en https://platform.claude.com/settings/billing (y actualiza AI_ALERT_MONTHLY_USD en Vercel si cambias el límite).`
+        );
+      }
+      break;
+    }
+  } catch (err) {
+    console.error("[usage] total", err);
+  }
+}
+
+// An AI call failed because the credit or the monthly limit ran out: tell the
+// admins right away (at most once an hour), so it doesn't stay dead unnoticed.
+export async function noteAiFailure(err: unknown): Promise<void> {
+  const m = String((err as { message?: string })?.message ?? err);
+  if (!/credit balance|usage limits|spend limit|billing/i.test(m)) return;
+  if (!(await allow("ai:alert:dead", 1, 60 * 60))) return;
+  const { notifyAdmins } = await import("./notify");
+  await notifyAdmins(
+    "Sevrii: el Cerebro se quedó sin crédito de Claude",
+    `La API de Claude está rechazando las llamadas (${m.slice(0, 160)}). Los clientes ven un aviso amable, pero el Cerebro y los chats no responden.\n\nRecarga créditos o sube el límite mensual en https://platform.claude.com/settings/billing.`
+  );
+}
+
 export async function recordAiUsage(model: string, usage: Usage | undefined | null): Promise<void> {
   const userId = store.getStore()?.userId;
   const usd = costUsd(model, usage);
+  await trackClaudeTotal(model, usd);
   if (!userId) {
     if (usd > 0) console.warn("[usage] AI call without an account", model, usd.toFixed(4));
     return;

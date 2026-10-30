@@ -44,6 +44,21 @@ Honestidad:
 - Nada de reseñas, cifras de clientes, "el número 1", "garantizado" ni urgencia falsa.
 - No inventes datos del dueño en el guion ni en las fotos.
 
+Verdad y consistencia (obligatorio, revísalo antes de responder):
+- Idiomas: usa SOLO profile.languages. "es" = atiende solo en español: nunca digas que atiende en inglés ni "bilingüe" (sí puedes decir que atiende en español si la competencia no lo hace). "en" = solo inglés. "both" = los dos. Nunca lo supongas.
+- Lo que el dueño dijo que NO quiere hacer o que le cuesta (profile.notWant, o un límite que dio) es sagrado: nunca lo uses como argumento de venta ni como experiencia.
+- Años: "años en el negocio" es solo profile.yearsOwnBusiness (los años por su cuenta). profile.yearsExperience son años de experiencia en el oficio; no los presentes como años del negocio.
+- Precio de hoy: profile.currentPrice es lo que cobra hoy. Si propones otro precio, dilo claro en pricingNote ("hoy cobras $30; te propongo $35 porque…") y en message; nunca lo cambies en silencio ni agregues niveles sin explicarlo.
+- Un solo juego de números: en message, promise, pricingNote, la oferta y las preguntas frecuentes usa exactamente los nombres y precios de "packages" y los rangos de market.prices tal como están. No menciones paquetes ni montos que no existen.
+- Cada paquete dice si su precio es fijo ("$850") o mínimo ("desde $850") y qué incluye; evita precios ambiguos. Los rangos de los paquetes no se pisan entre sí.
+- Costos: en pricingNote muestra la suma (materiales + horas × valor de la hora + traslado) y comprueba que cuadre.
+- Compara con la misma unidad: un paquete contra otro paquete, o convierte el paquete a precio por hora con las horas que dura antes de compararlo con tarifas por hora.
+- Competencia: solo nombra negocios que están en market.competitors y solo con el precio que trae la investigación. Si no está ahí, no lo cites.
+- Preguntas frecuentes: no inventes políticas (reembolsos, cancelaciones, depósitos, garantías). Si una respuesta depende de una política que el dueño no dio, responde que lo vean juntos por el chat.
+- No supongas que el dueño ya tiene video, fotos, reseñas, seguro ni licencia si el perfil no lo dice. El video es para grabarlo ("cuando grabes tu video").
+- Categorías especiales de Meta: solo productos financieros y crédito, empleo, vivienda (Meta incluye reparaciones de vivienda) y temas sociales o política. Limpieza, mudanzas, jardinería, belleza, barbería y armado de muebles NO lo son.
+- Revisa la gramática (concordancia: "la mayoría de las mudanzas… tienen").
+
 Oferta de bienvenida (ayuda mucho a convertir):
 - Propón siempre una oferta para clientes nuevos que el margen aguante: un % en el primer servicio (10 % a 20 %) o un extra sin costo.
 - Es solo para el primer servicio de cada cliente nuevo, así que no necesita fecha de fin (forNewClients = true). Nada de "solo hoy" ni urgencia falsa.
@@ -76,7 +91,7 @@ const PROPOSAL_PROPS = {
   packages: {
     type: "array",
     description: "2 or 3 packages",
-    items: obj({ name: S("Package name"), price: S("e.g. '$450' or 'from $120'"), includes: S("What it includes"), note: S("Who it's for / why this price") }),
+    items: obj({ name: S("Package name"), price: S("Fixed price, e.g. '$450', or a clear minimum, e.g. 'from $120' — the same wording everywhere"), includes: S("What it includes"), note: S("Who it's for / why this price") }),
   },
   pricingNote: S("How the prices were set: cost, margin, comparison with the local range. Mark estimates as estimates."),
   offerSuggestion: obj({
@@ -167,6 +182,31 @@ function expediente(plan: BusinessPlan) {
   };
 }
 
+// Every "$123" in a text, as plain numbers.
+function amounts(text: string): number[] {
+  return [...text.matchAll(/\$\s?(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g)].map((m) => Number(m[1].replace(/,/g, "")));
+}
+
+// The summary the owner reads first must not quote prices that aren't in the
+// proposal or the research. If it does, it's rewritten from the packages.
+function safeMessage(message: string, plan: BusinessPlan, d: Record<string, unknown>, lang: Lang): string {
+  const pk = (Array.isArray(d.packages) ? d.packages : []) as Record<string, unknown>[];
+  const known = new Set<number>([
+    ...pk.flatMap((p) => amounts(`${p.price ?? ""} ${p.includes ?? ""}`)),
+    ...amounts(JSON.stringify(plan.market.prices ?? {})),
+    ...amounts(`${plan.profile.currentPrice} ${plan.profile.costs} $${plan.profile.startBudgetUsd ?? ""}`),
+    ...amounts(String((d.offerSuggestion as Record<string, unknown> | undefined)?.label ?? "")),
+  ]);
+  const bad = amounts(message).filter((n) => !known.has(n));
+  if (!bad.length && message) return message;
+  const es = lang === "es";
+  const list = pk.filter((p) => p.name && p.price).map((p) => `${String(p.name)} (${String(p.price)})`);
+  const service = str(d.service, 200);
+  return es
+    ? `Te propongo ${service ? `«${service}»` : "tu servicio"}${list.length ? ` con ${list.length} paquetes: ${list.join(", ")}` : ""}. Te muestro cada parte para que la revises y me digas qué cambiar.`
+    : `I propose ${service ? `"${service}"` : "your service"}${list.length ? ` with ${list.length} packages: ${list.join(", ")}` : ""}. I'll show you each part so you can review it and tell me what to change.`;
+}
+
 export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: string[] = []): Promise<Partial<BusinessPlan> & { message: string }> {
   const fix = fixNotes.length
     ? `\n\nEl Guardián marcó estos problemas en tu propuesta anterior. Corrígelos:\n- ${fixNotes.join("\n- ")}`
@@ -178,37 +218,37 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
     isAgent ? AGENT_PROPOSAL_SCHEMA : PROPOSAL_SCHEMA
   );
   const offer = (d.offerSuggestion ?? {}) as Record<string, unknown>;
-  const label = str(offer.label, 80);
+  const label = str(offer.label, 160);
   return {
-    service: str(d.service, 120),
-    serviceIncludes: str(d.serviceIncludes, 400),
-    serviceExcludes: str(d.serviceExcludes, 300),
-    steps: (Array.isArray(d.steps) ? d.steps : []).map((x) => str(x, 320)).filter(Boolean).slice(0, 5),
-    customer: str(d.customer, 240),
-    problem: str(d.problem, 240),
-    fears: str(d.fears, 240),
-    promise: str(d.promise, 200),
-    differentiators: (Array.isArray(d.differentiators) ? d.differentiators : []).map((x) => str(x, 320)).filter(Boolean).slice(0, 5),
+    service: str(d.service, 200),
+    serviceIncludes: str(d.serviceIncludes, 800),
+    serviceExcludes: str(d.serviceExcludes, 600),
+    steps: (Array.isArray(d.steps) ? d.steps : []).map((x) => str(x, 500)).filter(Boolean).slice(0, 5),
+    customer: str(d.customer, 500),
+    problem: str(d.problem, 500),
+    fears: str(d.fears, 500),
+    promise: str(d.promise, 300),
+    differentiators: (Array.isArray(d.differentiators) ? d.differentiators : []).map((x) => str(x, 500)).filter(Boolean).slice(0, 5),
     packages: (Array.isArray(d.packages) ? d.packages : []).slice(0, 4).map((x) => {
       const p = (x ?? {}) as Record<string, unknown>;
-      return { name: str(p.name, 80), price: str(p.price, 40), includes: str(p.includes, 240), note: str(p.note, 140) };
+      return { name: str(p.name, 100), price: str(p.price, 80), includes: str(p.includes, 600), note: str(p.note, 400) };
     }),
-    pricingNote: str(d.pricingNote, 500),
+    pricingNote: str(d.pricingNote, 1500),
     // A suggestion only: no end date until the owner sets a real one.
-    offer: label ? { label, detail: str(offer.detail, 200), endsAt: "", forNewClients: offer.forNewClients === true } : null,
+    offer: label ? { label, detail: str(offer.detail, 500), endsAt: "", forNewClients: offer.forNewClients === true } : null,
     videoScript: typeof d.videoScript === "string" ? d.videoScript.trim().slice(0, 1200) : "",
-    photoIdeas: (Array.isArray(d.photoIdeas) ? d.photoIdeas : []).map((x) => str(x, 240)).filter(Boolean).slice(0, 6),
-    campaignType: str(d.campaignType, 200),
+    photoIdeas: (Array.isArray(d.photoIdeas) ? d.photoIdeas : []).map((x) => str(x, 400)).filter(Boolean).slice(0, 6),
+    campaignType: str(d.campaignType, 400),
     channels: (Array.isArray(d.channels) ? d.channels : []).slice(0, 4).map((x) => {
       const c = (x ?? {}) as Record<string, unknown>;
-      return { channel: str(c.channel, 80), why: str(c.why, 200) };
+      return { channel: str(c.channel, 120), why: str(c.why, 400) };
     }),
     faq: (Array.isArray(d.faq) ? d.faq : []).slice(0, 8).map((x) => {
       const f = (x ?? {}) as Record<string, unknown>;
-      return { q: str(f.q, 160), a: str(f.a, 400) };
+      return { q: str(f.q, 240), a: str(f.a, 900) };
     }),
     ...(isAgent ? { agent: parsePlanAgent(d.agent) } : {}),
-    message: str(d.message, 900),
+    message: safeMessage(str(d.message, 1200), plan, d, lang),
   };
 }
 
@@ -224,7 +264,7 @@ export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: La
     const base = researched[Number(o.index)];
     if (!base || picked.some((p) => p.title === base.title)) continue;
     const pts = ["fit", "demand", "cost", "requirements", "speed"].reduce((a, k) => a + Math.max(0, Math.min(5, Number(o[k]) || 0)), 0);
-    picked.push({ ...base, pros: str(o.pros, 240), cons: str(o.cons, 240), score: pts });
+    picked.push({ ...base, pros: str(o.pros, 600), cons: str(o.cons, 600), score: pts });
     if (picked.length === 3) break;
   }
   // Their own idea (researched first) is always shown, with its score.
@@ -234,5 +274,5 @@ export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: La
     const i = picked.findIndex((p) => p.title === own.title);
     if (i > 0) picked.unshift(...picked.splice(i, 1));
   }
-  return { ideas: parseIdeas(picked), message: str(d.message, 700) };
+  return { ideas: parseIdeas(picked), message: str(d.message, 1000) };
 }

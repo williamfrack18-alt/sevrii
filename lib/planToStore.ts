@@ -19,6 +19,8 @@ export type StoreDraft = {
     noLicenseNeeded: boolean;
     insured: boolean;
     spanish: boolean;
+    langs: "" | "es" | "en" | "both";
+    ownerName: string;
     yearsInBusiness: number | null;
     keyPoints: Point[];
     steps: Point[];
@@ -76,7 +78,7 @@ function uniformSteps(steps: string[]): Point[] {
 export function planFingerprint(plan: BusinessPlan): string {
   const p = plan.profile;
   const src = JSON.stringify([
-    p.businessName, p.city, p.state, p.radiusMiles, p.languages, p.yearsExperience, p.licenseStatus, p.insured,
+    p.businessName, p.city, p.state, p.radiusMiles, p.languages, p.yearsExperience, p.licenseStatus, p.insured, p.zip, p.ownerName, p.yearsOwnBusiness,
     plan.service, plan.serviceIncludes, plan.steps, plan.promise, plan.differentiators,
     plan.packages, plan.offer, plan.noOffer, plan.faq,
   ]);
@@ -124,7 +126,12 @@ export function storeFromPlan(plan: BusinessPlan, lang: Lang): StoreDraft {
       ? { label: cut(plan.offer.label, LIMITS.offerLabel), oldPrice: "", newPrice: "", endsAt: plan.offer.endsAt }
       : null;
 
-  const service = cut(plan.service, 60);
+  // The closing title ("¿Necesitas …?") uses the shortest name that fits whole;
+  // a long one never gets cut in the middle — it gets a plain question instead.
+  const lower = (x: string) => `${x.charAt(0).toLowerCase()}${x.slice(1)}`;
+  const shortName = [p.mainService, plan.service].map((x) => (x || "").trim().replace(/[.?!]+$/, "")).filter(Boolean).sort((a, b) => a.length - b.length)[0] || "";
+  const ask = shortName ? (es ? `¿Necesitas ${lower(shortName)}?` : `Need ${lower(shortName)}?`) : "";
+  const ctaTitle = ask && ask.length <= 70 ? ask : es ? "¿Te ayudamos? Escríbenos" : "Can we help? Message us";
   return {
     details: {
       name: p.businessName ? cut(p.businessName, LIMITS.name) : undefined,
@@ -139,12 +146,15 @@ export function storeFromPlan(plan: BusinessPlan, lang: Lang): StoreDraft {
       noLicenseNeeded: p.licenseStatus === "not_needed",
       insured: p.insured === "yes",
       spanish: p.languages === "es" || p.languages === "both",
-      yearsInBusiness: p.yearsExperience && p.yearsExperience > 0 ? p.yearsExperience : null,
+      langs: p.languages,
+      ownerName: (p.ownerName || "").slice(0, 40),
+      // "Years in business" are the years on their own, not their whole experience.
+      yearsInBusiness: p.yearsOwnBusiness && p.yearsOwnBusiness > 0 ? p.yearsOwnBusiness : null,
       keyPoints: plan.differentiators.slice(0, LIMITS.keyPoints).map(splitPoint),
       steps: uniformSteps(plan.steps.slice(0, LIMITS.steps)),
       faq: plan.faq.slice(0, LIMITS.faq).map((f) => ({ q: cut(f.q, LIMITS.faqQ), a: cut(f.a, LIMITS.faqA) })).filter((f) => f.q && f.a),
       offer,
-      ctaTitle: cut(es ? `¿Necesitas ${service.charAt(0).toLowerCase()}${service.slice(1)}?` : `Need ${service.charAt(0).toLowerCase()}${service.slice(1)}?`, LIMITS.ctaTitle),
+      ctaTitle,
       ctaText: es ? "Escríbenos aquí para agendar." : "Message us here to book.",
       lang: pageLang,
     },

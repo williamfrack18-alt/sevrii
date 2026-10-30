@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { keepProjectAction, logoutAction } from "@/app/actions";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { keepProjectAction, logoutAction, switchProjectAction } from "@/app/actions";
 import StoreView from "./StoreView";
 import AgentView from "./AgentView";
 import MarketingView from "./MarketingView";
@@ -138,12 +138,28 @@ export default function DashboardTabs({
 }) {
   const t = useT();
   const lang = useLang();
+  const es = lang === "es";
   const pt = PLAN_TEXT[lang];
   const bt = PLANS_TEXT[lang];
   const limits = PLANS[plan.id].limits;
   const [view, setViewState] = useState<DashboardView>(initialView);
   // Store opens a small sub-menu with the chats ("Conversaciones").
   const [storeOpen, setStoreOpen] = useState(true);
+  // The project switcher at the top of the side menu (opens a list of projects).
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [switching, startSwitch] = useTransition();
+  const switcherRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!switcherOpen) return;
+    const away = (e: MouseEvent) => switcherRef.current && !switcherRef.current.contains(e.target as Node) && setSwitcherOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setSwitcherOpen(false);
+    window.addEventListener("mousedown", away);
+    window.addEventListener("keydown", esc);
+    return () => {
+      window.removeEventListener("mousedown", away);
+      window.removeEventListener("keydown", esc);
+    };
+  }, [switcherOpen]);
   const [unreadChats, setUnreadChats] = useState(0);
   useEffect(() => {
     let alive = true;
@@ -452,11 +468,14 @@ export default function DashboardTabs({
           </div>
 
           {railOpen && (
+            <div ref={switcherRef} className="relative mb-5">
             <button
               type="button"
-              onClick={() => setView("projects")}
-              title={pt.nav.projects}
-              className="w-full text-left flex items-center gap-2.5 p-2.5 rounded-[20px] mb-5 bg-pbg hover:bg-psoft transition"
+              onClick={() => setSwitcherOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={switcherOpen}
+              title={es ? "Cambiar de proyecto" : "Switch project"}
+              className="w-full text-left flex items-center gap-2.5 p-2.5 rounded-[20px] bg-pbg hover:bg-psoft transition"
             >
               <div className="w-9 h-9 rounded-full text-white flex items-center justify-center text-[11.5px] font-medium shrink-0" style={{ background: "linear-gradient(135deg, #16A34A 0%, #052E16 100%)" }}>
                 {initials(currentBusiness.name)}
@@ -471,6 +490,45 @@ export default function DashboardTabs({
                 <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
               </svg>
             </button>
+            {switcherOpen && (
+              <div role="menu" className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 rounded-[18px] bg-white p-1.5 flex flex-col max-h-[60vh] overflow-y-auto" style={{ boxShadow: "0 12px 40px -12px rgba(10,10,10,.35), 0 0 0 1px rgba(10,10,10,.08)" }}>
+                <span className="px-3 pt-2 pb-1.5 text-[11.5px] text-pmuted">{es ? "Tus proyectos" : "Your projects"}</span>
+                {projects.map((p) => {
+                  const here = p.id === currentBusiness.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="menuitem"
+                      disabled={switching}
+                      onClick={() => {
+                        setSwitcherOpen(false);
+                        if (here) setView("plan");
+                        else startSwitch(() => switchProjectAction(p.id));
+                      }}
+                      className="w-full text-left flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-psoft transition disabled:opacity-60"
+                    >
+                      <span className="w-7 h-7 rounded-full text-white flex items-center justify-center text-[10.5px] font-medium shrink-0" style={{ background: "linear-gradient(135deg, #16A34A 0%, #052E16 100%)" }}>
+                        {initials(p.name)}
+                      </span>
+                      <span className="grow min-w-0 flex flex-col">
+                        <span className="text-[13.5px] font-medium text-pfg truncate">{p.name}</span>
+                        <span className="text-[11.5px] text-pmuted truncate">{p.published ? (es ? "Publicada" : "Published") : es ? "Borrador" : "Draft"}</span>
+                      </span>
+                      {here && <span className="text-[11px] font-semibold shrink-0" style={{ color: "#16A34A" }}>{es ? "Abierto" : "Open"}</span>}
+                    </button>
+                  );
+                })}
+                <div className="h-px bg-black/[0.06] my-1 mx-2" />
+                <button type="button" role="menuitem" onClick={() => { setSwitcherOpen(false); setView("projects"); }} className="w-full text-left px-3 py-2 rounded-xl text-[13px] text-pfg hover:bg-psoft">
+                  {es ? "Ver todos mis proyectos" : "See all my projects"}
+                </button>
+                <a role="menuitem" href="/start?new=1" className="w-full text-left px-3 py-2 rounded-xl text-[13px] font-semibold hover:bg-psoft" style={{ color: "#16A34A" }}>
+                  + {es ? "Nuevo proyecto" : "New project"}
+                </a>
+              </div>
+            )}
+            </div>
           )}
 
           <nav className="flex flex-col gap-1">
@@ -662,7 +720,7 @@ export default function DashboardTabs({
         )}
         {view === "payments" && <PaymentsView business={currentBusiness} services={currentServices} />}
         {view === "affiliates" && <AffiliatesView business={currentBusiness} onNavigate={setView} />}
-        {view === "capital" && <ComingSoonView pillar="capital" onBack={() => setView("projects")} onPlans={() => setView("plans")} />}
+        {view === "capital" && <ComingSoonView pillar="capital" onBack={() => setView("projects")} onPlans={() => setView("plans")} payReady={currentBusiness.payReady} onPayments={() => setView("payments")} />}
       </main>
     </div>
   );

@@ -1,5 +1,5 @@
 import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock, TextBlock } from "@anthropic-ai/sdk/resources/messages";
-import { MODEL, getClaude, logAiError } from "./claude";
+import { MODEL, aiErrorReply, getClaude, logAiError } from "./claude";
 import type { Lang } from "./i18n";
 import {
   createMarketingVideo,
@@ -217,7 +217,7 @@ Campaign rules:
 - Google Search only when people actively search for the service and the budget allows (≥ ~$15/day on top of Meta).
 - The sum of dailyBudgetUsd × 30 of all campaigns must be ≤ the monthly budget ("plannedMonthlyUsd" shows the current sum). Under ~$300/month: ONE campaign. Two only if each gets ≥ $5/day (e.g. one per customer language when customers speak both).
 - Ads in the customers' language. Benefit first, ≤125 characters of main text, headline ≤40.
-- Special ad categories (credit, loans, financial products, housing/real estate, employment): set specialCategory; targeting is then limited (15+ mile radius, ages 18-65+). Tell the owner in one line.
+- Special ad categories — Meta's official list only: financial products and credit (loans, credit repair), employment, housing (sale or rent of homes, mortgages, home insurance, and — per Meta — housing repairs), and social issues/elections/politics. Set specialCategory only then; targeting is then limited (15+ mile radius, ages 18-65+). Trades that repair homes (plumbing, electrical, roofing, remodeling) MAY fall under housing: say "puede aplicar; Meta lo confirma al crear el anuncio", never as a certainty. Cleaning, moving, gardening/landscaping, beauty, barbers, furniture assembly, tutoring and similar are NOT special: never mark them. Tell the owner in one line only when it applies.
 - Meta policy: never assert or imply personal attributes ("Are you divorced?", "Do you have debt?"). Target only by location and ad language, never by ethnicity, religion or other personal attributes.
 - NEVER invent facts, prices, discounts, guarantees, licenses, insurance, reviews or results. NEVER promise leads, calls, chats, cost per lead or ROI: results depend on the market and are measured after launch (each campaign has its own link, so Sevrii counts the visits, chats and contacts it brings).
 - Meta charges the owner's card directly and may spend up to 1.75× the daily budget on one day (never more than 7× in a week); taxes may apply.
@@ -428,7 +428,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       const total = others + spec.dailyBudgetUsd * 30;
       if (budget && total > budget + 0.5) extra.push(`warning: campaigns now add up to $${Math.round(total)}/month, over the owner's $${budget} monthly budget — lower the daily budgets so the sum fits`);
       const notes = [
-        `saved (id ${savedId}). daily $${spec.dailyBudgetUsd}, Meta may spend up to $${maxDailySpend(spec.dailyBudgetUsd)} on a single day`,
+        `saved (id ${savedId}). daily $${spec.dailyBudgetUsd.toFixed(2)}, Meta may spend up to $${maxDailySpend(spec.dailyBudgetUsd).toFixed(2)} on a single day (when quoting money always write two decimals, e.g. $2.80)`,
         ...extra,
         spec.specialCategory !== "none" ? `special ad category ${spec.specialCategory}: radius ≥15 mi, ages 18-65+` : "",
         warnings.includes("metaLong") ? "some Meta text is long and will be cut on phones" : "",
@@ -521,9 +521,7 @@ export async function runMarketingChatTurn(opts: {
     }
   } catch (err) {
     logAiError("marketing", err);
-    reply = es
-      ? "Tuve un problema para guardar eso. Inténtalo de nuevo en un momento."
-      : "I had a problem saving that. Please try again in a moment.";
+    reply = aiErrorReply(err, opts.lang === "en" ? "en" : "es");
   }
 
   return { reply: reply || (es ? "Listo." : "Done."), business, campaigns, proposedActionId: turn.proposedActionId };

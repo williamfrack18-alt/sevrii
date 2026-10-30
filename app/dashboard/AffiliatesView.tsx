@@ -35,7 +35,8 @@ const TEXT = {
     payoutOff: "Los pagos de Sevrii todavía no están activos.",
     servicesTitle: "Servicios que puedes promocionar",
     servicesSub: "Comparte tu link. Si el cliente paga por Sevrii en los 30 días siguientes, la comisión es tuya.",
-    none: "Todavía no hay servicios abiertos a afiliados. Cuando un negocio abra el suyo, aparecerá aquí.",
+    none: "Todavía no hay servicios abiertos a afiliados. Cuando un negocio abra el suyo para que otros lo vendan por comisión, aparecerá aquí con tu link. ¿Quieres que otros vendan el tuyo? Ábrelo en la pestaña de al lado.",
+    zeroHint: "Aquí verás lo que ganas: cuando alguien compra con uno de tus links, la comisión aparece primero como pendiente y después como pagada en tu banco.",
     agent: "Agente de IA",
     commission: (p: number) => `${p}% de comisión`,
     from: (p: string) => `Precio: ${p}`,
@@ -96,7 +97,8 @@ const TEXT = {
     payoutOff: "Sevrii payments aren't on yet.",
     servicesTitle: "Services you can promote",
     servicesSub: "Share your link. If the customer pays through Sevrii within 30 days, the commission is yours.",
-    none: "No services are open to affiliates yet. When a business opens theirs, it shows up here.",
+    none: "No services are open to affiliates yet. When a business opens theirs for others to sell on commission, it shows up here with your link. Want others to sell yours? Open it in the next tab.",
+    zeroHint: "This is where you'll see what you earn: when someone buys with one of your links, the commission shows as pending first and then as paid to your bank.",
     agent: "AI agent",
     commission: (p: number) => `${p}% commission`,
     from: (p: string) => `Price: ${p}`,
@@ -245,6 +247,8 @@ function Promote({ state, t }: { state: AffiliatesState; t: T }) {
           </div>
         ))}
       </div>
+
+      {!e.pendingCents && !e.heldCents && !e.paidCents && <p className="text-[13.5px] text-psub leading-relaxed max-w-[760px] -mt-2">{t.zeroHint}</p>}
 
       {state.paymentsOn ? (
         e.payout !== "ready" && (

@@ -26,7 +26,10 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   const initial = isStartPath(remembered) ? remembered : null;
   if (user.business && !isNew) redirect("/dashboard");
   if (isNew && (await countProjects(user.id)) >= limitsFor(user).projects) redirect("/dashboard?view=plans&need=projects");
-  const t = getDict(await getLang());
+  const lang = await getLang();
+  const t = getDict(lang);
+  // Where they are in the whole road, said in words (not only bars).
+  const STEPS = lang === "es" ? ["Tu cuenta", "Qué vas a crear", "El Cerebro te entrevista", "Tu página y tus anuncios"] : ["Your account", "What you'll create", "The Brain interviews you", "Your page and your ads"];
 
   return (
     <div className="theme-dark bg-cream flex flex-col items-center py-14 px-6">
@@ -52,11 +55,16 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5 mb-10">
-        <div className="w-[34px] h-[6px] rounded-full bg-ink" />
-        <div className="w-[34px] h-[6px] rounded-full bg-ink" />
-        <div className="w-[34px] h-[6px] rounded-full bg-borderStrong" />
-        <div className="w-[34px] h-[6px] rounded-full bg-borderStrong" />
+      <div className="flex flex-col items-center gap-3 mb-10">
+        <div className="flex items-center gap-2.5" aria-hidden="true">
+          {STEPS.map((_, i) => (
+            <div key={i} className={`w-[34px] h-[6px] rounded-full ${i <= 1 ? "bg-ink" : "bg-borderStrong"}`} />
+          ))}
+        </div>
+        <p className="text-[13px] text-muted text-center">
+          <span className="text-ink font-medium">{lang === "es" ? "Paso 2 de 4" : "Step 2 of 4"}</span> · {STEPS[1]}
+          <span className="block text-mutedLight mt-0.5">{lang === "es" ? `Después: ${STEPS[2]} → ${STEPS[3]}` : `Next: ${STEPS[2]} → ${STEPS[3]}`}</span>
+        </p>
       </div>
 
       <div className="max-w-[700px] flex flex-col items-center gap-3 text-center mb-11">

@@ -15,14 +15,17 @@ export const STAGES: PlanStage[] = ["interview", "ideas_research", "choose", "re
 
 export type Profile = {
   businessName: string;
+  ownerName: string; // the person's first name, when they said it ("me llamo Carlos")
   city: string;
+  zip: string; // 5-digit US ZIP, for local services
   state: string; // 2-letter US state
   radiusMiles: number | null;
   // In person in an area (cleaning, moving) or remote/online (video editing, design).
   serviceMode: "local" | "remote" | "";
   remoteScope: "us" | "state" | "world" | ""; // remote only: the whole US, only their own state, or other countries too
   languages: "es" | "en" | "both" | "";
-  yearsExperience: number | null;
+  yearsExperience: number | null; // in the trade (may include years working for others)
+  yearsOwnBusiness: number | null; // running their own business: what the page may call "years in business"
   // A
   mainService: string;
   exampleJob: string;
@@ -156,13 +159,16 @@ export type BusinessPlan = {
 
 export const EMPTY_PROFILE: Profile = {
   businessName: "",
+  ownerName: "",
   city: "",
+  zip: "",
   state: "",
   radiusMiles: null,
   serviceMode: "",
   remoteScope: "",
   languages: "",
   yearsExperience: null,
+  yearsOwnBusiness: null,
   mainService: "",
   exampleJob: "",
   typicalCustomer: "",
@@ -297,37 +303,40 @@ export function parseProfile(raw: unknown): Profile {
   const state = str(p.state, 2).toUpperCase();
   return {
     businessName: str(p.businessName, 80),
+    ownerName: str(p.ownerName, 60),
     city: str(p.city, 80),
+    zip: /^\d{5}$/.test(String(p.zip ?? "").trim()) ? String(p.zip).trim() : "",
     state: US_STATES.has(state) ? state : "",
     radiusMiles: num(p.radiusMiles, 1, 150),
     serviceMode: oneOf(p.serviceMode, ["local", "remote"] as const),
     remoteScope: oneOf(p.remoteScope, ["us", "state", "world"] as const),
     languages: oneOf(p.languages, ["es", "en", "both"] as const),
     yearsExperience: num(p.yearsExperience, 0, 70),
-    mainService: str(p.mainService, 120),
-    exampleJob: str(p.exampleJob, 300),
-    typicalCustomer: str(p.typicalCustomer, 240),
-    howGetsClients: str(p.howGetsClients, 240),
-    currentPrice: str(p.currentPrice, 200),
-    costs: str(p.costs, 240),
-    differentiators: str(p.differentiators, 400),
+    yearsOwnBusiness: num(p.yearsOwnBusiness, 0, 70),
+    mainService: str(p.mainService, 200),
+    exampleJob: str(p.exampleJob, 600),
+    typicalCustomer: str(p.typicalCustomer, 500),
+    howGetsClients: str(p.howGetsClients, 500),
+    currentPrice: str(p.currentPrice, 500),
+    costs: str(p.costs, 500),
+    differentiators: str(p.differentiators, 800),
     licenseStatus: oneOf(p.licenseStatus, ["has", "no", "not_needed"] as const),
-    licenseNote: str(p.licenseNote, 200),
+    licenseNote: str(p.licenseNote, 400),
     insured: oneOf(p.insured, ["yes", "no"] as const),
-    workHistory: str(p.workHistory, 400),
-    askedFor: str(p.askedFor, 300),
-    tools: str(p.tools, 300),
+    workHistory: str(p.workHistory, 800),
+    askedFor: str(p.askedFor, 600),
+    tools: str(p.tools, 600),
     hasVehicle: oneOf(p.hasVehicle, ["yes", "no"] as const),
     hoursPerWeek: num(p.hoursPerWeek, 1, 100),
     startBudgetUsd: num(p.startBudgetUsd, 0, 1_000_000),
-    notWant: str(p.notWant, 240),
+    notWant: str(p.notWant, 600),
     goal: oneOf(p.goal, ["extra", "fulltime"] as const),
     toolsReady: oneOf(p.toolsReady, ["yes", "no"] as const),
-    agentInterest: str(p.agentInterest, 400),
-    agentTask: str(p.agentTask, 600),
+    agentInterest: str(p.agentInterest, 800),
+    agentTask: str(p.agentTask, 1200),
     agentKnowledge: str(p.agentKnowledge, 1200),
-    agentLimits: str(p.agentLimits, 400),
-    agentEdge: str(p.agentEdge, 600),
+    agentLimits: str(p.agentLimits, 800),
+    agentEdge: str(p.agentEdge, 1000),
   };
 }
 
@@ -335,8 +344,8 @@ export function parseMarket(raw: unknown): Market {
   const m = obj(raw);
   const pr = obj(m.prices);
   const prices =
-    str(pr.low, 40) || str(pr.mid, 40) || str(pr.high, 40)
-      ? { low: clip(pr.low, 40), mid: clip(pr.mid, 40), high: clip(pr.high, 40), includes: clip(pr.includes, 300), note: clip(pr.note, 300) }
+    str(pr.low, 80) || str(pr.mid, 80) || str(pr.high, 80)
+      ? { low: clip(pr.low, 80), mid: clip(pr.mid, 80), high: clip(pr.high, 80), includes: clip(pr.includes, 800), note: clip(pr.note, 1200) }
       : null;
   return {
     prices,
@@ -346,23 +355,23 @@ export function parseMarket(raw: unknown): Market {
         return {
           name: str(c.name, 80),
           url: safeHttpUrl(c.url),
-          offer: str(c.offer, 200),
-          price: str(c.price, 80),
-          guarantee: str(c.guarantee, 120),
-          languages: str(c.languages, 40),
+          offer: str(c.offer, 400),
+          price: str(c.price, 160),
+          guarantee: str(c.guarantee, 240),
+          languages: str(c.languages, 80),
         };
       })
       .filter((c) => c.name)
       .slice(0, 5),
-    gaps: list(m.gaps, 5, 200),
+    gaps: list(m.gaps, 5, 400),
     requirements: (Array.isArray(m.requirements) ? m.requirements : [])
       .map((x) => {
         const r = obj(x);
         return {
-          item: str(r.item, 160),
+          item: str(r.item, 300),
           applies: (oneOf(r.applies, ["yes", "no", "check"] as const) || "check") as Requirement["applies"],
           link: safeHttpUrl(r.link),
-          note: str(r.note, 300),
+          note: str(r.note, 700),
         };
       })
       .filter((r) => r.item)
@@ -378,7 +387,7 @@ function parseFaq(v: unknown): Faq[] {
   return (Array.isArray(v) ? v : [])
     .map((x) => {
       const f = obj(x);
-      return { q: str(f.q, 160), a: str(f.a, 400) };
+      return { q: str(f.q, 240), a: str(f.a, 900) };
     })
     .filter((f) => f.q && f.a)
     .slice(0, 8);
@@ -398,15 +407,15 @@ export function parseIdeas(v: unknown): Idea[] {
     .map((x) => {
       const i = obj(x);
       return {
-        title: str(i.title, 100),
-        why: clip(i.why, 300),
-        typicalPrice: clip(i.typicalPrice, 120),
-        startCost: clip(i.startCost, 120),
-        license: str(i.license, 160),
-        demand: clip(i.demand, 300),
-        how: clip(i.how, 400),
-        pros: str(i.pros, 240),
-        cons: str(i.cons, 240),
+        title: str(i.title, 140),
+        why: clip(i.why, 800),
+        typicalPrice: clip(i.typicalPrice, 160),
+        startCost: clip(i.startCost, 300),
+        license: str(i.license, 400),
+        demand: clip(i.demand, 800),
+        how: clip(i.how, 800),
+        pros: str(i.pros, 600),
+        cons: str(i.cons, 600),
         score: num(i.score, 0, 25) ?? 0,
         sources: sources(i.sources, 4),
       };
@@ -418,24 +427,24 @@ export function parseIdeas(v: unknown): Idea[] {
 export function parsePlanAgent(raw: unknown): PlanAgent | null {
   const a = obj(raw);
   const name = str(a.name, 60);
-  const role = str(a.role, 200);
+  const role = str(a.role, 400);
   if (!name && !role) return null;
   const edge = (Array.isArray(a.edge) ? a.edge : [])
     .map((x) => {
       const e = obj(x);
-      return { title: str(e.title, 60), text: str(e.text, 220) };
+      return { title: str(e.title, 80), text: str(e.text, 400) };
     })
     .filter((e) => e.title || e.text)
     .slice(0, 4);
   return {
     name,
     role,
-    steps: list(a.steps, 8, 200),
-    limits: list(a.limits, 8, 200),
-    greeting: str(a.greeting, 300),
-    creator: str(a.creator, 120),
+    steps: list(a.steps, 8, 400),
+    limits: list(a.limits, 8, 400),
+    greeting: str(a.greeting, 500),
+    creator: str(a.creator, 200),
     edge,
-    freeAlt: str(a.freeAlt, 300),
+    freeAlt: str(a.freeAlt, 600),
     score: num(a.score, 1, 5) ?? 0,
     task: parseTask(a.task),
   };
@@ -444,7 +453,7 @@ export function parsePlanAgent(raw: unknown): PlanAgent | null {
 export function parsePlan(raw: unknown): BusinessPlan {
   const o = obj(raw);
   const offer = obj(o.offer);
-  const offerLabel = str(offer.label, 80);
+  const offerLabel = str(offer.label, 160);
   const legacyReady = o.ready === true;
   const stage = (oneOf(o.stage, STAGES) || (legacyReady ? "approved" : "interview")) as PlanStage;
   const g = obj(o.guard);
@@ -459,43 +468,43 @@ export function parsePlan(raw: unknown): BusinessPlan {
     market: parseMarket(o.market),
     ideas: parseIdeas(o.ideas),
     chosenIdea: chosen,
-    service: str(o.service, 120),
-    serviceIncludes: str(o.serviceIncludes, 400),
-    serviceExcludes: str(o.serviceExcludes, 300),
-    steps: list(o.steps, 5, 320),
-    customer: str(o.customer, 240),
-    problem: str(o.problem, 240),
-    fears: str(o.fears, 240),
-    promise: str(o.promise, 200),
-    differentiators: list(o.differentiators, 5, 320),
+    service: str(o.service, 200),
+    serviceIncludes: str(o.serviceIncludes, 800),
+    serviceExcludes: str(o.serviceExcludes, 600),
+    steps: list(o.steps, 5, 500),
+    customer: str(o.customer, 500),
+    problem: str(o.problem, 500),
+    fears: str(o.fears, 500),
+    promise: str(o.promise, 300),
+    differentiators: list(o.differentiators, 5, 500),
     packages: (Array.isArray(o.packages) ? o.packages : [])
       .map((x) => {
         const p = obj(x);
-        return { name: str(p.name, 80), price: str(p.price, 40), includes: str(p.includes, 240), note: str(p.note, 140) };
+        return { name: str(p.name, 100), price: str(p.price, 80), includes: str(p.includes, 600), note: str(p.note, 400) };
       })
       .filter((p) => p.name)
       .slice(0, 4),
-    pricingNote: str(o.pricingNote, 500),
-    offer: offerLabel ? { label: offerLabel, detail: str(offer.detail, 200), endsAt: isoDate(offer.endsAt), forNewClients: offer.forNewClients === true } : null,
+    pricingNote: str(o.pricingNote, 1500),
+    offer: offerLabel ? { label: offerLabel, detail: str(offer.detail, 500), endsAt: isoDate(offer.endsAt), forNewClients: offer.forNewClients === true } : null,
     noOffer: o.noOffer === true,
-    campaignType: str(o.campaignType, 200),
+    campaignType: str(o.campaignType, 400),
     channels: (Array.isArray(o.channels) ? o.channels : [])
       .map((x) => {
         const c = obj(x);
-        return { channel: str(c.channel, 80), why: str(c.why, 200) };
+        return { channel: str(c.channel, 120), why: str(c.why, 400) };
       })
       .filter((c) => c.channel)
       .slice(0, 4),
     faq: parseFaq(o.faq),
     agent: parsePlanAgent(o.agent),
     approvals,
-    guard: { block: list(g.block, 8, 240), warn: list(g.warn, 8, 240) },
+    guard: { block: list(g.block, 8, 400), warn: list(g.warn, 8, 400) },
     rejectedIdeas: list(o.rejectedIdeas, 20, 120),
     ideaPrefs: typeof o.ideaPrefs === "string" ? o.ideaPrefs.trim().slice(0, 600) : "",
     ownIdea: typeof o.ownIdea === "string" ? o.ownIdea.trim().slice(0, 400) : "",
     ideaRounds: num(o.ideaRounds, 0, 50) ?? 0,
     videoScript: typeof o.videoScript === "string" ? o.videoScript.trim().slice(0, 1200) : "",
-    photoIdeas: list(o.photoIdeas, 6, 240),
+    photoIdeas: list(o.photoIdeas, 6, 400),
     marketResearch: str(o.marketResearch, 600),
     researchSources: sources(o.researchSources, 6),
     researchedAt: isoDate(o.researchedAt),
@@ -524,13 +533,15 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.exampleJob, "exampleJob (a recent real job)");
     need(!p.city || !p.state, "city and state");
     need(!p.serviceMode, "serviceMode (in person in an area = local, or remote/online = remote)");
+    need(p.serviceMode === "local" && !p.zip, "zip (their 5-digit ZIP code, to place them on the map; ask it together with the city or the radius)");
     need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they travel)");
     need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, only customers in their own state = state, other countries too = world)");
     need(!p.typicalCustomer, "typicalCustomer");
     need(!p.howGetsClients, "howGetsClients (how they get customers today)");
     need(!p.currentPrice, "currentPrice (what they charge today)");
     need(!p.costs, "costs (materials and hours per job)");
-    need(p.yearsExperience === null, "yearsExperience");
+    need(p.yearsExperience === null, "yearsExperience (years doing this work in total)");
+    need(p.yearsExperience !== null && p.yearsExperience > 0 && p.yearsOwnBusiness === null, "yearsOwnBusiness (how many of those years on their own, with their own business; 0 if they are just starting on their own)");
     need(!p.languages, "languages (es, en or both)");
     need(!p.differentiators, "differentiators (what makes them different)");
     // Insurance matters for work done at people's homes, not for online services.
@@ -555,6 +566,7 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.businessName, "businessName (last: suggest 2 short brand names for the agent)");
   } else if (plan.stage === "ready_check") {
     need(!p.serviceMode, "serviceMode (the chosen service: in person in an area = local, or remote/online = remote)");
+    need(p.serviceMode === "local" && !p.zip, "zip (their 5-digit ZIP code, to place them on the map)");
     need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they will travel)");
     need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, only customers in their own state = state, other countries too = world)");
     need(!p.insured, "insured (yes / no)");
@@ -612,6 +624,15 @@ export function codeChecks(p: BusinessPlan, today: string, final = true): { bloc
   // Agents guide; they never promise the outcome (passing, approvals, licenses).
   const outcome = [...texts, p.agent?.role ?? "", ...(p.agent?.edge ?? []).map((e) => `${e.title} ${e.text}`), ...p.faq.map((f) => f.a)];
   for (const t of outcome) if (t && PROMISED_RESULT.test(t)) block.push(`promise: "${t.slice(0, 80)}" promises a result; say it guides and accompanies instead`);
+  // Languages: only the ones the owner said. Never "bilingual" by default.
+  const langTexts = [p.promise, ...p.differentiators, ...p.packages.map((x) => `${x.name} ${x.includes} ${x.note}`), ...p.faq.map((f) => `${f.q} ${f.a}`), p.serviceIncludes, ...p.steps];
+  // (Saying competitors only speak English is fine; claiming to serve in it is not.)
+  const BOTH = /\b(biling[uü]e|bilingual)\b|(espa[ñn]ol|spanish)\s+(y|e|o|and|or)\s+(en\s+|in\s+)?(ingl[eé]s|english)|(ingl[eé]s|english)\s+(y|e|o|and|or)\s+(en\s+|in\s+)?(espa[ñn]ol|spanish)/i;
+  const SAYS_EN = new RegExp(`${BOTH.source}|\\b(atiendo|atendemos|hablo|hablamos|te atiendo|te atendemos|we speak|we serve|i speak|in)\\s+(en\\s+)?(ingl[eé]s|english)\\b`, "i");
+  const SAYS_ES = new RegExp(`${BOTH.source}|\\b(we speak|we serve|i speak|se habla|hablamos|in)\\s+(en\\s+)?(espa[ñn]ol|spanish)\\b`, "i");
+  const langs = p.profile.languages;
+  if (langs === "es") for (const t of langTexts) if (t && SAYS_EN.test(t)) { block.push(`lang: "${t.slice(0, 80)}" says it serves in English but the owner serves only in Spanish`); break; }
+  if (langs === "en") for (const t of langTexts) if (t && SAYS_ES.test(t)) { block.push(`lang: "${t.slice(0, 80)}" says Spanish/bilingual but the owner serves only in English`); break; }
   if (final && p.offer && !p.offer.endsAt && !p.offer.forNewClients) block.push("offer: the offer needs a real end date");
   if (final && p.offer && p.offer.endsAt && p.offer.endsAt < today) block.push("offer: the end date already passed");
   if (/\b(credit repair|reparaci[oó]n de cr[eé]dito|notari|immigration|inmigraci[oó]n|migratori|loan|pr[eé]stamo)/i.test(`${p.service} ${p.profile.mainService}`))

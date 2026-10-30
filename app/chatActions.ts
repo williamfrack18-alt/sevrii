@@ -317,6 +317,10 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
   // Sensitive data never stays in an agent's chat (cards, SSN, passwords).
   const safe = agentLive(b) ? redactSensitive(text) : { text, found: false };
   const visitorMsg = await addConvMessage(conv.id, "visitor", safe.text);
+  // The owner trying their own page (signed in, e.g. from "Ver mi página") is
+  // not a customer: it doesn't count as an unread chat nor alert them.
+  const ownerTesting = (await getCurrentUser().catch(() => null))?.id === b.userId;
+  if (ownerTesting) await updateConversation(conv.id, { read: true });
   if (safe.found) {
     await addConvMessage(
       conv.id,
@@ -395,7 +399,9 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
 
   // Notifications say "📷 Photo" instead of the file's link.
   const said = photo ? (b.site.lang === "en" ? "📷 Photo" : "📷 Foto") : text;
-  if (wantsOwner && (await setHandoffOnce(conv.id))) await notifyOwner(b, conv, "handoff", photo && wantsOwner === text ? said : wantsOwner, aiAnswered);
+  if (ownerTesting) {
+    // no alerts for the owner's own test
+  } else if (wantsOwner && (await setHandoffOnce(conv.id))) await notifyOwner(b, conv, "handoff", photo && wantsOwner === text ? said : wantsOwner, aiAnswered);
   else if (!hadContact && (conv.phone || conv.email)) await notifyOwner(b, conv, "contact", said, aiAnswered);
   else await notifyOwner(b, conv, isNew ? "new" : "message", said, aiAnswered);
 

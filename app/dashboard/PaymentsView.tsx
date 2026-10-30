@@ -147,7 +147,14 @@ export default function PaymentsView({ business, services }: { business: ClientB
                       </span>
                       <div>
                         <div className="text-[16px] font-[450] mb-1">{title}</div>
-                        <div className="text-[14px] text-muted">{text}</div>
+                        <div className="text-[14px] text-muted">
+                          {/* The example uses this project's own service and price. */}
+                          {i === 1 && example.title
+                            ? lang === "es"
+                              ? `Por ejemplo: "${example.title} — ${example.amount.replace(/\.00$/, "")}". Cada link se puede compartir y también aparece en tu página.`
+                              : `For example: "${example.title} — ${example.amount.replace(/\.00$/, "")}". Every link can be shared and also shows on your page.`
+                            : text}
+                        </div>
                       </div>
                     </li>
                   ))}

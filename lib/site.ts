@@ -20,6 +20,7 @@ export type SiteData = {
   reachRadius: number; // local: miles around the base
   baseCity: string; // local: "Miami"
   baseState: string; // "FL"
+  baseZip: string; // local: the owner's 5-digit ZIP, when they gave it
   baseLat: number | null;
   baseLon: number | null;
   serviceArea: string;
@@ -29,6 +30,7 @@ export type SiteData = {
   noLicenseNeeded: boolean; // owner says their trade needs no license in their state
   insured: boolean; // declared by the owner
   spanish: boolean; // "Se habla español"
+  langs: "" | "es" | "en" | "both"; // the language(s) the owner serves in, from the Brain (shown on the badge)
   yearsInBusiness: number | null;
   googleReviewsUrl: string;
   highlights: string[];
@@ -80,6 +82,7 @@ export const EMPTY_SITE: SiteData = {
   reachRadius: 25,
   baseCity: "",
   baseState: "",
+  baseZip: "",
   baseLat: null,
   baseLon: null,
   serviceArea: "",
@@ -89,6 +92,7 @@ export const EMPTY_SITE: SiteData = {
   noLicenseNeeded: false,
   insured: false,
   spanish: false,
+  langs: "",
   yearsInBusiness: null,
   googleReviewsUrl: "",
   highlights: [],
@@ -111,8 +115,8 @@ export const EMPTY_SITE: SiteData = {
 };
 
 export const LIMITS = {
-  headline: 140,
-  pitch: 400,
+  headline: 200,
+  pitch: 700,
   serviceArea: 120,
   hours: 160,
   license: 40,
@@ -120,26 +124,26 @@ export const LIMITS = {
   url: 500,
   highlight: 80,
   highlights: 4,
-  pointTitle: 50,
-  pointText: 180,
+  pointTitle: 80,
+  pointText: 360,
   keyPoints: 5,
   steps: 4,
   feature: 40,
   features: 5,
-  offerLabel: 80,
+  offerLabel: 160,
   offerPrice: 30,
-  ctaTitle: 90,
+  ctaTitle: 140,
   ctaText: 180,
   ctaNote: 90,
   disclaimer: 500,
-  faqQ: 140,
-  faqA: 500,
+  faqQ: 240,
+  faqA: 900,
   faq: 8,
   gallery: 8,
   name: 80,
-  serviceName: 80,
-  servicePrice: 40,
-  serviceDescription: 240,
+  serviceName: 100,
+  servicePrice: 80,
+  serviceDescription: 600,
 };
 
 function str(v: unknown, max: number): string {
@@ -198,6 +202,7 @@ export function parseSite(raw: unknown): SiteData {
     reachRadius: typeof obj.reachRadius === "number" && obj.reachRadius >= 1 && obj.reachRadius <= 300 ? Math.round(obj.reachRadius) : 25,
     baseCity: str(obj.baseCity, 60),
     baseState: str(obj.baseState, 2).toUpperCase(),
+    baseZip: /^\d{5}$/.test(String(obj.baseZip ?? "")) ? String(obj.baseZip) : "",
     baseLat: typeof obj.baseLat === "number" && Math.abs(obj.baseLat) <= 90 ? obj.baseLat : null,
     baseLon: typeof obj.baseLon === "number" && Math.abs(obj.baseLon) <= 180 ? obj.baseLon : null,
     serviceArea: str(obj.serviceArea, LIMITS.serviceArea),
@@ -207,6 +212,7 @@ export function parseSite(raw: unknown): SiteData {
     noLicenseNeeded: Boolean(obj.noLicenseNeeded),
     insured: Boolean(obj.insured),
     spanish: Boolean(obj.spanish),
+    langs: obj.langs === "es" || obj.langs === "en" || obj.langs === "both" ? obj.langs : "",
     yearsInBusiness: Number.isFinite(years) && years > 0 && years < 100 ? Math.round(years) : null,
     googleReviewsUrl: safeUrl(obj.googleReviewsUrl),
     highlights: (Array.isArray(obj.highlights) ? obj.highlights : [])

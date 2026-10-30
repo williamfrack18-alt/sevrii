@@ -154,7 +154,7 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
       requirements: req.data?.requirements,
       faq: faq.data?.faq,
       sources: all.flatMap((r) => r.sources),
-      researchedAt: today(),
+      researchedAt: today(plan.profile.state),
       incomplete: (["prices", "competitors", "requirements", "faq"] as const).filter((k) => jobOf(jobs, k)?.status !== "done"),
     });
     plan = { ...plan, market, fears: str(faq.data?.fears) || plan.fears };

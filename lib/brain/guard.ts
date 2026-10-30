@@ -15,9 +15,17 @@ Marca como "block":
 - Promesas de ingresos, resultados o tiempos que nadie puede asegurar.
 - Urgencia falsa ("solo hoy", "últimos cupos" sin prueba).
 - Servicios de alto riesgo: reparación de crédito, asesoría legal o migratoria ("notario"), préstamos, servicios médicos.
+- Idiomas: decir que atiende en un idioma que el dueño no dijo (el perfil dice "languages": es = solo español, en = solo inglés, both = los dos). Nunca "bilingüe" si no es "both".
+- Usar como argumento de venta algo que el dueño dijo que NO quiere hacer o que le cuesta ("notWant" o lo que dijo en la entrevista): un límite del dueño es sagrado.
+- Nombrar a un negocio real con un precio que no está en la investigación (market.competitors con su precio). Si no está ahí, no se cita.
+- Políticas que el dueño no dio: reembolsos, cancelaciones, depósitos, garantías o plazos de pago. En las preguntas frecuentes se responde "escríbenos por el chat y lo vemos contigo", no se inventa una política.
+- Suponer que el dueño ya tiene video, fotos, reseñas, licencia o seguro si el perfil no lo dice.
+- Precios que no cuadran entre sí: un monto en la promesa, la oferta o las notas que no corresponde a ningún paquete, o paquetes con rangos que se pisan.
+- Cuentas de costos que no suman bien.
 
 Marca como "warn":
-- Categorías especiales de anuncios de Meta: SOLO crédito, préstamos o productos financieros; empleo; vivienda (venta o alquiler de casas, hipotecas); temas sociales o política. Los servicios para el hogar (limpieza, lavandería, reparaciones, jardinería, mudanzas) NO son categoría especial.
+- Categorías especiales de anuncios de Meta (lista oficial: productos financieros y crédito; empleo; vivienda; temas sociales, elecciones o política). Meta incluye dentro de vivienda las reparaciones de vivienda ("housing repairs"): plomería, electricidad, techos o remodelación PUEDEN caer ahí; dilo como "puede aplicar, Meta lo confirma al crear el anuncio", nunca como seguro. Limpieza, mudanzas, jardinería, lavandería, belleza, barbería, armado de muebles y clases NO son categoría especial: no los marques.
+- Comparar cosas distintas: un precio por paquete contra un precio por hora (o por pie², por visita). Si comparas, usa la misma unidad (convierte el paquete a precio por hora con las horas que dura).
 - Precios muy por debajo o por encima del rango de la zona.
 - Textos que preguntan por rasgos personales ("¿Estás divorciado?", "¿Tienes deudas?").
 
@@ -41,10 +49,12 @@ const CODE_TEXT: Record<string, { es: string; en: string }> = {
   offer: { es: "La oferta necesita una fecha de fin real y que no haya pasado.", en: "The offer needs a real end date that hasn't passed." },
   license: { es: "Este oficio pide licencia estatal y todavía no la tienes.", en: "This trade needs a state license you don't have yet." },
   restricted: { es: "Este tipo de servicio necesita una revisión de Sevrii antes de publicarse.", en: "This kind of service needs a Sevrii review before publishing." },
+  promise: { es: "Hay una frase que promete un resultado que nadie puede asegurar.", en: "A sentence promises a result nobody can guarantee." },
+  lang: { es: "La propuesta dice que atiendes en un idioma que no me dijiste. Debe usar solo el idioma (o los idiomas) en que atiendes.", en: "The proposal says you serve in a language you didn't tell me. It must use only the language(s) you serve in." },
 };
 
 export function codeGuard(plan: BusinessPlan, lang: Lang, final = true): { block: string[]; warn: string[] } {
-  const raw = codeChecks(plan, today(), final);
+  const raw = codeChecks(plan, today(plan.profile.state), final);
   const keys = [...new Set(raw.block.map((b) => b.split(":")[0]))];
   return { block: keys.map((k) => (CODE_TEXT[k] ? CODE_TEXT[k][lang] : k)), warn: [] };
 }

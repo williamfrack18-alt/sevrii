@@ -62,6 +62,22 @@ const TEXT = {
   },
 };
 
+// A short alert to Sevrii's admins (SEVRII_ADMIN_EMAILS), e.g. the AI credit is
+// about to run out. Best-effort: never throws.
+export async function notifyAdmins(subject: string, text: string): Promise<void> {
+  try {
+    const to = (process.env.SEVRII_ADMIN_EMAILS || "").split(",").map((e) => e.trim()).filter(Boolean);
+    if (!to.length || !emailReady()) {
+      console.warn("[admin-alert]", subject, text);
+      return;
+    }
+    const html = `<p>${text.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] as string).replace(/\n/g, "<br>")}</p>`;
+    for (const addr of to) await sendEmail(addr, subject, html, text);
+  } catch (err) {
+    console.error("[admin-alert] failed", err);
+  }
+}
+
 export async function sendWelcomeEmail(email: string, lang: Lang): Promise<void> {
   if (!emailReady()) return;
   try {

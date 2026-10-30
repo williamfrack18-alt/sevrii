@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { fillStoreFromPlan } from "@/lib/storeFill";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { isAdmin } from "@/lib/billing";
 import { chatGate, gateMessage, researchWouldStart, runForUser } from "@/lib/usage";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
 import type { Lang } from "@/lib/i18n";
@@ -83,9 +82,8 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
     message: text,
     lang,
   }));
-  // Admins (testing) see why the assistant failed, right in the chat.
-  const me = result.debug ? await getCurrentUser() : null;
-  const reply = me && isAdmin(me) ? `${result.reply}\n\n[debug] ${result.debug}` : result.reply;
+  // The real error stays in the server logs; the chat only shows the plain message.
+  const reply = result.reply;
   // The part the chat moved to (or changed) shows its card under the reply.
   const card = cardAfterTurn(business.plan, result.business.plan, lang);
   await addChatMessage(business.id, CHANNEL, "ai", card ? `${reply}\n\n${card}` : reply);

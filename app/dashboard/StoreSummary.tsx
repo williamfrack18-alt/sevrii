@@ -25,9 +25,11 @@ const TEXT = {
     hours: "Horario",
     noHours: "Sin horario",
     missing: "Para que venda más te falta:",
+    mediaHow: "Las páginas con fotos y video reales del trabajo reciben muchos más mensajes. Súbelos con el botón + del chat y yo los acomodo.",
+    addMedia: "Subir fotos o video",
     items: { photos: "fotos de tus trabajos", photo: "tu foto (para que vean quién lo creó)", video: "un video corto tuyo", hours: "tu horario", owner: "tu nombre (sale en «Creado por» y en el chat)" },
     planNew: "Tu estrategia está aprobada y tu página aún no la tiene.",
-    planChanged: "Cambiaste tu estrategia en el Cerebro. Tu página todavía muestra la anterior.",
+    planChanged: "Hay una versión más nueva de tu página con lo que aprobaste en el Cerebro (textos completos, sin cortes). Actualízala para verla.",
     build: "Armar mi página",
     update: "Actualizar mi página",
     building: "Armando…",
@@ -67,9 +69,11 @@ const TEXT = {
     hours: "Hours",
     noHours: "No hours",
     missing: "To sell more it still needs:",
+    mediaHow: "Pages with real photos and video of the work get many more messages. Upload them with the chat's + button and I'll place them.",
+    addMedia: "Upload photos or video",
     items: { photos: "photos of your work", photo: "your photo (so people see who made it)", video: "a short video of you", hours: "your hours", owner: "your name (shown in the chat)" },
     planNew: "Your strategy is approved and your page doesn't have it yet.",
-    planChanged: "You changed your strategy in the Brain. Your page still shows the old one.",
+    planChanged: "There's a newer version of your page with what you approved in the Brain (full texts, nothing cut). Update it to see it.",
     build: "Build my page",
     update: "Update my page",
     building: "Building…",
@@ -111,8 +115,11 @@ export default function StoreSummary({
   onUpdated,
   onPayments,
   onAgent,
+  onAddMedia,
 }: {
   onAgent?: () => void;
+  // Opens the photo/video picker of the Store chat.
+  onAddMedia?: () => void;
   business: ClientBusiness;
   services: ClientService[];
   planPending: boolean;
@@ -137,8 +144,9 @@ export default function StoreSummary({
           ? t.online.state(s.baseState)
           : t.online.us
       : s.reachMode === "local" && s.baseCity
-        ? t.local(s.baseCity, s.baseState, s.reachRadius)
+        ? t.local(s.baseCity, [s.baseState, s.baseZip].filter(Boolean).join(" "), s.reachRadius)
         : "";
+  const mediaMissing = (isAgent ? !s.ownerPhotoUrl && !s.coverUrl : s.gallery.length === 0 && !s.coverUrl) || !s.videoUrl;
   const missing = [
     isAgent ? (!s.ownerPhotoUrl && !s.coverUrl ? t.items.photo : "") : s.gallery.length === 0 && !s.coverUrl ? t.items.photos : "",
     !s.videoUrl ? t.items.video : "",
@@ -228,9 +236,18 @@ export default function StoreSummary({
       )}
 
       {missing.length > 0 && (
-        <p className="text-[12.5px] leading-relaxed text-psub">
-          <span style={{ color: AMBER }}>{t.missing}</span> {missing.join(", ")}.
-        </p>
+        <div className="rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ background: "rgba(245,158,11,0.07)", boxShadow: "inset 0 0 0 1px rgba(245,158,11,0.25)" }}>
+          <p className="text-[13px] leading-relaxed text-pfg min-w-0">
+            <span className="font-semibold" style={{ color: AMBER }}>{`${t.missing} `}</span>
+            {`${missing.join(", ")}.`}
+            {mediaMissing && <span className="block text-[12.5px] text-psub mt-0.5">{t.mediaHow}</span>}
+          </p>
+          {mediaMissing && onAddMedia && (
+            <button type="button" onClick={onAddMedia} className="h-9 px-4 rounded-full text-[13px] font-semibold shrink-0 self-start sm:self-auto" style={BRAND_BTN}>
+              {t.addMedia}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

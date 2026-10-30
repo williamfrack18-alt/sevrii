@@ -43,6 +43,15 @@ type SpeechRec = {
 
 export type ChatToken = { kind: string; arg: string; msgId: string };
 
+// An internal error note an older version saved into the chat: never shown.
+const DEBUG = /\n*\[debug\][\s\S]*$/;
+// The part of a message that is read (without its card token).
+function visibleText(content: string): string {
+  const raw = content.replace(OLD_CARD, "").replace(DEBUG, "");
+  const tk = TOKEN.exec(raw);
+  return (tk ? raw.slice(0, tk.index) : raw).trim();
+}
+
 // Quick actions above the composer: put a starter text in it, or open the
 // photo/video picker.
 // `send`: the chip is the answer itself and goes out right away.
@@ -82,6 +91,7 @@ export default function ChatPanel({
   chips,
   voice,
   context,
+  pickKey,
 }: {
   greeting: string;
   initialMessages: Msg[];
@@ -114,9 +124,58 @@ export default function ChatPanel({
   voice?: boolean;
   // A pill above the composer: what the next message is about (e.g. a video), with ✕ to clear.
   context?: { label: string; onClear: () => void } | null;
+  // A new value opens the photo/video picker (e.g. a "Upload photos" button elsewhere).
+  pickKey?: number;
 }) {
   const lang = useLang();
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
+  // New replies appear little by little, like someone typing, instead of all
+  // at once. Messages already there when the chat opens show whole.
+  const seen = useRef<Set<string>>(new Set(initialMessages.map((m) => m.id)));
+  const [reveal, setReveal] = useState<Record<string, number>>({});
+  const revealOrder = useRef<string[]>([]);
+  const [calm, setCalm] = useState(false);
+  useEffect(() => setCalm(Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)), []);
+  // A reply that just arrived and hasn't started being written yet.
+  const waitingToType = (m: Msg) => !calm && !seen.current.has(m.id) && m.role !== "user" && !m.id.startsWith("local-") && m.id !== "greeting";
+  useEffect(() => {
+    const fresh: string[] = [];
+    for (const m of messages) {
+      if (seen.current.has(m.id)) continue;
+      seen.current.add(m.id);
+      if (m.role === "user" || m.id.startsWith("local-") || m.id === "greeting" || calm) continue;
+      fresh.push(m.id);
+    }
+    if (!fresh.length) return;
+    revealOrder.current.push(...fresh);
+    setReveal((r) => ({ ...r, ...Object.fromEntries(fresh.map((id) => [id, 0])) }));
+  }, [messages, calm]);
+  const revealing = Object.keys(reveal).length > 0;
+  useEffect(() => {
+    if (!revealing) return;
+    const timer = setInterval(() => {
+      setReveal((r) => {
+        const id = revealOrder.current.find((x) => x in r);
+        if (!id) return r;
+        const msg = messages.find((m) => m.id === id);
+        const full = msg ? visibleText(msg.content).length : 0;
+        const shown = r[id] ?? 0;
+        // About 2–4 seconds for any reply, word by word.
+        const step = Math.max(3, Math.ceil(full / 160));
+        let next = Math.min(full, shown + step);
+        const space = msg ? visibleText(msg.content).indexOf(" ", next) : -1;
+        if (space > 0 && space - next < 8) next = space;
+        if (next >= full) {
+          const { [id]: _done, ...rest } = r;
+          void _done;
+          revealOrder.current = revealOrder.current.filter((x) => x !== id);
+          return rest;
+        }
+        return { ...r, [id]: next };
+      });
+    }, 30);
+    return () => clearInterval(timer);
+  }, [revealing, messages]);
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
@@ -169,6 +228,14 @@ export default function ChatPanel({
   }
 
   useEffect(() => {
+    if (pickKey) {
+      setDockOpen(false);
+      openPicker();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickKey]);
+
+  useEffect(() => {
     if (sync) setMessages(sync.messages);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sync?.key]);
@@ -204,6 +271,13 @@ export default function ChatPanel({
       if (late) clearTimeout(late);
     };
   }, [messages, pending, uploading !== null, tailKey]);
+
+  // While a reply is being written, keep it in view (unless they scrolled up to read).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !revealing) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 160) el.scrollTop = el.scrollHeight;
+  }, [reveal, revealing]);
 
   // Grow the composer with the text.
   useEffect(() => {
@@ -556,27 +630,41 @@ export default function ChatPanel({
                 </div>
               );
             }
-            const raw = m.content.replace(OLD_CARD, "");
+            const raw = m.content.replace(OLD_CARD, "").replace(DEBUG, "");
             const tk = TOKEN.exec(raw);
-            const text = (tk ? raw.slice(0, tk.index) : raw).trim();
-            const card = tk && renderToken ? renderToken({ kind: tk[1], arg: tk[2] ?? "", msgId: m.id }) : null;
-            if (!text && !card) return null;
+            const full = (tk ? raw.slice(0, tk.index) : raw).trim();
+            // Being written: the text so far, and its card only once it's done.
+            // Not shown whole for an instant before it starts being written.
+            if (waitingToType(m)) return null;
+            const typing = m.id in reveal;
+            const firstTyping = typing && revealOrder.current.find((x) => x in reveal) === m.id;
+            if (typing && !firstTyping) return null;
+            const text = typing ? full.slice(0, reveal[m.id]) : full;
+            const card = !typing && tk && renderToken ? renderToken({ kind: tk[1], arg: tk[2] ?? "", msgId: m.id }) : null;
+            if (!text && !card && !typing) return null;
             return (
               <div key={m.id} className="min-w-0 flex flex-col gap-3.5">
-                {text && (
-                  <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: "#0A0A0A" }}>
+                {(text || typing) && (
+                  <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: "#0A0A0A" }} aria-busy={typing || undefined}>
                     <Rich text={text} />
+                    {typing && <span className="inline-block w-[7px] h-[1.05em] ml-0.5 align-[-0.15em] rounded-sm animate-pulse" style={{ background: ACCENT }} aria-hidden="true" />}
                   </div>
                 )}
-                {card}
+                {card && <div style={{ animation: "dash-fade .35s ease both" }}>{card}</div>}
               </div>
             );
           })}
-          {tail}
+          {/* What follows a reply (e.g. the part to review) shows once the reply is written. */}
+          {!revealing && tail}
           {uploadRow}
           {pending && (
-            <div className="flex items-center gap-1.5 h-6" aria-label={texts.thinking}>
-              <span className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: ACCENT }} />
+            <div className="flex items-center gap-2.5 h-6 text-[14px] text-psub" role="status" aria-live="polite">
+              <span className="flex items-center gap-1" aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <span key={i} className="h-2 w-2 rounded-full animate-bounce" style={{ background: ACCENT, animationDelay: `${i * 140}ms`, animationDuration: "1s" }} />
+                ))}
+              </span>
+              {texts.thinking}
             </div>
           )}
         </div>

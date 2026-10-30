@@ -1,5 +1,5 @@
 import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from "@anthropic-ai/sdk/resources/messages";
-import { MODELS, getClaude, logAiError } from "../claude";
+import { MODELS, aiErrorReply, getClaude, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import { slugify } from "../ai";
 import { addChatMessage, getBusinessById, isSlugTaken, listChatMessages, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
@@ -28,7 +28,10 @@ import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
 const INTERVIEWER = `Eres el Entrevistador de Sevrii. Ayudas a dueños de pequeños negocios de servicios en EE. UU. a definir su servicio. En esta etapa solo entiendes; no propones.
 
 Cómo conversas:
-- Pocas preguntas: en cada mensaje pregunta juntos 2 o 3 datos de "missing" que vayan de la mano, en una sola frase natural. Por ejemplo: ciudad, estado y hasta dónde viaja; a quién le vende y cómo consigue clientes hoy; cuánto cobra y cuánto le cuesta cada trabajo; años de experiencia e idiomas; qué lo hace distinto y si tiene seguro. Así la entrevista dura unos 5 o 6 mensajes.
+- Pocas preguntas: en cada mensaje pregunta juntos 2 o 3 datos de "missing" que vayan de la mano, en una sola frase natural. Por ejemplo: ciudad, estado, código postal (ZIP) y hasta dónde viaja; a quién le vende y cómo consigue clientes hoy; cuánto cobra y cuánto le cuesta cada trabajo; años de experiencia (y cuántos de esos por su cuenta) e idiomas; qué lo hace distinto y si tiene seguro. Así la entrevista dura unos 5 o 6 mensajes.
+- Si dice su nombre ("me llamo Carlos"), guárdalo en ownerName en ese mismo turno. No se lo vuelvas a pedir.
+- Años: yearsExperience son los años en el oficio (aunque fuera trabajando para otros); yearsOwnBusiness son solo los años por su cuenta. Si dice "4 años limpiando, 2 por mi cuenta", guarda 4 y 2.
+- Preguntas directas primero: si la persona pregunta algo ("¿necesito seguro?", "¿cuánto les digo que cobro?", "¿se va a ver así en mi página?"), respóndelo de verdad en una o dos frases ANTES de seguir con lo que falta: sí o no, por qué y qué hacer. Si la respuesta depende de la investigación, di lo que ya sabes y que en la investigación lo confirmas. Nunca saltes una pregunta suya.
 - Corto y amable. Responde en el idioma en que te escribe el usuario (en español, tutea).
 - Sigue la lista "missing" del estado, en orden. Nunca preguntes algo que ya está en el expediente.
 - Si responde solo una parte, guarda eso y en el siguiente mensaje pregunta lo que faltó junto con lo que sigue.
@@ -66,10 +69,15 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 - Si aprueba esa parte de forma explícita ("apruebo", "así está bien", o un "sí"/"dale" respondiendo a si la aprueba), llama a approve_blocks con currentPart y no digas nada de la siguiente: el sistema la muestra sola. Responde solo algo corto como "Perfecto, aprobado."
 - "Continúa", "sigue", "lo demás" o "el resto" NO son aprobación: no llames a approve_blocks. Dile en una línea que para seguir apruebe esta parte con el botón Aprobar de la tarjeta (o te diga que la aprueba), o qué quiere cambiar.
 - Si pide un cambio, hazlo con update_proposal (solo los campos que cambian) y confírmalo en una línea; la tarjeta actualizada aparece sola debajo. Cambiar una parte ya aprobada le quita la aprobación y vuelve a mostrarse.
-- Si pregunta algo, responde corto con los datos del expediente y termina preguntando si la deja así o qué le cambias.
+- Si pregunta algo, responde PRIMERO su pregunta de forma directa (sí o no, por qué y qué hacer), con los datos del expediente, y después pregunta si la deja así o qué le cambias. Nunca contestes una pregunta con una acción (no regeneres ni cambies nada si solo preguntó). Ejemplo: "¿Los textos cortados se verían así en mi página?" → di si sí o no y qué vas a hacer.
+- Cambia solo lo que pidió, y envía solo los campos de la parte que cambia. Cuestionar o preguntar por una parte no cambia las otras.
+- Precios: nunca subas ni bajes un precio que el dueño cobra hoy sin decírselo y sin su OK. Si propones otro, explica el porqué y espera que diga que sí.
+- Avisos "Ten en cuenta" ("warnings" en el estado): si la conversación ya resolvió uno (por ejemplo, aclaró cómo llega el pedido sin vehículo), quítalo con update_proposal.resolvedWarnings (el texto exacto del aviso) y dilo en una línea.
 - Si quiere aprobar todo de una vez, llama a approve_blocks con todas las partes que faltan.
 - Si mode es C (agente), la parte "service" incluye el agente (nombre, qué hace paso a paso, límites y saludo): sus cambios van en el campo agent. El agente siempre dice que es una IA; los precios de acceso son de $15 o más.
 - Usa solo hechos que él da o que están en el expediente. Nada de reseñas, "el mejor", "garantizado" ni cifras inventadas.
+- Idiomas: solo los del perfil (languages). Nunca digas que atiende en inglés o que es bilingüe si no lo dijo. Lo que el dueño dijo que no quiere hacer nunca es argumento de venta.
+- Un solo juego de números: usa exactamente los nombres y precios de los paquetes. Si cambias un precio, cámbialo en todos lados (paquetes, nota de precios, oferta, preguntas frecuentes).
 - Precios: si los cambia, explica en una línea cómo queda el margen frente a sus costos y al rango de la zona.
 - Oferta: solo si él la quiere. Una oferta de bienvenida para clientes nuevos (solo su primer servicio) no necesita fecha: guárdala con forNewClients=true. Cualquier otra promoción necesita una fecha de fin real (YYYY-MM-DD, hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true y apruébala.
 - Si la propuesta ya está aprobada ("stage": "approved"), ayuda con cambios igual que antes.
@@ -94,7 +102,9 @@ Nunca repitas una pregunta con las mismas palabras: si no la contestó, propón 
 
 const PROFILE_PROPS: Record<string, unknown> = {
   businessName: { type: "string" },
+  ownerName: { type: "string", description: "The person's first name, only if they said it" },
   city: { type: "string" },
+  zip: { type: "string", description: "5-digit US ZIP code where they are based (local services)" },
   state: { type: "string", description: "2-letter US state code, e.g. FL" },
   radiusMiles: { type: "number", description: "Local services: how many miles they travel from their city" },
   serviceMode: {
@@ -108,7 +118,8 @@ const PROFILE_PROPS: Record<string, unknown> = {
     description: "Remote only: customers anywhere in the US (us), only in their own state (state: e.g. helping people get a Texas license, state-specific taxes or paperwork; save their state too) or also in other countries (world)",
   },
   languages: { type: "string", enum: ["es", "en", "both"] },
-  yearsExperience: { type: "number" },
+  yearsExperience: { type: "number", description: "Years doing this work in total (may include working for others)" },
+  yearsOwnBusiness: { type: "number", description: "Of those, years running their own business (0 if just starting on their own)" },
   mainService: { type: "string" },
   exampleJob: { type: "string" },
   typicalCustomer: { type: "string" },
@@ -200,6 +211,7 @@ const UPDATE_PROPOSAL: Tool = {
         required: ["label"],
       },
       noOffer: { type: "boolean", description: "true if the owner doesn't want an offer" },
+      resolvedWarnings: { type: "array", items: { type: "string" }, description: "Exact text of 'keep in mind' warnings the conversation already resolved: they are removed" },
       faq: { type: "array", items: { type: "object", properties: { q: { type: "string" }, a: { type: "string" } }, required: ["q", "a"] } },
       agent: {
         type: "object",
@@ -251,7 +263,7 @@ function stageOf(plan: BusinessPlan): { system: string; tools: Tool[] } {
   if (plan.stage === "interview" || plan.stage === "ready_check") return { system: INTERVIEWER + GUIDE, tools: [SAVE_PROFILE] };
   if (LOCKED_STAGES.includes(plan.stage)) return { system: INTERVIEWER + GUIDE, tools: [SAVE_PROFILE] };
   if (plan.stage === "choose") return { system: CHOOSER + GUIDE, tools: [CHOOSE_IDEA, MORE_IDEAS, OWN_IDEA] };
-  return { system: EDITOR.replace("{TODAY}", today()) + GUIDE, tools: [UPDATE_PROPOSAL, APPROVE_BLOCKS] };
+  return { system: EDITOR.replace("{TODAY}", today(plan.profile.state)) + GUIDE, tools: [UPDATE_PROPOSAL, APPROVE_BLOCKS] };
 }
 
 function state(b: BusinessRow) {
@@ -259,7 +271,7 @@ function state(b: BusinessRow) {
   const base = {
     stage: p.stage,
     mode: p.mode === "new" ? "B: starting a new service" : p.mode === "agent" ? "C: an AI agent that delivers the service by itself" : "A: already offers a service",
-    today: today(),
+    today: today(p.profile.state),
   };
   if (p.stage === "interview" || p.stage === "ready_check") {
     const idea = p.chosenIdea !== null ? p.ideas[p.chosenIdea] : null;
@@ -285,6 +297,7 @@ function state(b: BusinessRow) {
       faq: p.faq,
       ...(p.mode === "agent" ? { agent: p.agent } : {}),
     },
+    warnings: p.guard.warn,
     approvals: p.approvals,
     notApprovedYet: APPROVAL_BLOCKS.filter((x) => !p.approvals[x]),
     currentPart: p.stage === "proposal" ? (APPROVAL_BLOCKS.find((x) => !p.approvals[x]) ?? "all approved") : "none (approved)",
@@ -313,7 +326,7 @@ export function applyApprovals(plan: BusinessPlan, blocks: ApprovalBlock[], lang
       refused.push(...g.block);
       next = { ...next, guard: { ...next.guard, block: g.block } };
     } else {
-      next = { ...next, stage: "approved", ready: true, approvedAt: today(), guard: { block: [], warn: next.guard.warn } };
+      next = { ...next, stage: "approved", ready: true, approvedAt: today(next.profile.state), guard: { block: [], warn: next.guard.warn } };
     }
   }
   return { plan: parsePlan(next), refused };
@@ -410,17 +423,17 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     }
     case "own_idea": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
-      const title = str(input.title, 90);
+      const title = str(input.title, 140);
       if (!title) return { out: "error: no title" };
       // C: their idea goes through the same research and scoring before going on.
       if (plan.mode === "agent") {
         if (!(await researchWouldStart(b.userId, { budgetOnly: true })))
           return { out: `error: their idea can't be researched now. Facts to tell them (don't suggest upgrading unless this text does): "${researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es")}". Meanwhile help them pick one of the current ideas.` };
-        const what = str(input.what, 300);
+        const what = str(input.what, 800);
         await updateBusinessPlan(b.id, parsePlan({ ...requestMoreIdeas(plan, ""), ownIdea: `${title}${what ? `: ${what}` : ""}` }));
         return { out: "evaluating their idea with the same research (1-2 minutes). Tell them in one line you'll check their idea against what people pay and need, and show it here next to 2 alternatives.", startPipeline: true };
       }
-      const own = { title, why: str(input.what, 300), typicalPrice: "", startCost: "", license: "", demand: "", how: "", pros: "", cons: "", score: 0, sources: [] };
+      const own = { title, why: str(input.what, 800), typicalPrice: "", startCost: "", license: "", demand: "", how: "", pros: "", cons: "", score: 0, sources: [] };
       const ideas = [...plan.ideas.slice(0, 4), own];
       await updateBusinessPlan(b.id, parsePlan(chooseIdea({ ...plan, ideas }, ideas.length - 1)));
       return { out: `chosen their own idea: ${title}. Now ask the remaining readiness questions (see missing).` };
@@ -435,27 +448,40 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     }
     case "update_proposal": {
       if (plan.stage !== "proposal" && plan.stage !== "approved") return { out: "error: no proposal yet" };
-      const touched = new Set<ApprovalBlock>();
-      for (const k of Object.keys(input)) if (FIELD_BLOCK[k]) touched.add(FIELD_BLOCK[k]);
-      const approvals = { ...plan.approvals };
-      for (const t of touched) delete approvals[t];
       const patch: Record<string, unknown> = { ...input };
+      // Warnings the conversation resolved go away (they never reopen a part).
+      const resolved = Array.isArray(input.resolvedWarnings) ? input.resolvedWarnings.map((x) => String(x).trim().toLowerCase()).filter((x) => x.length >= 12) : [];
+      delete patch.resolvedWarnings;
+      const warnLeft = plan.guard.warn.filter((w) => !resolved.some((r) => w.trim().toLowerCase() === r || w.toLowerCase().includes(r) || r.includes(w.toLowerCase())));
       // "Make it 20%" sends only the changed offer field: keep the rest
       // (who it's for, the detail, the end date) instead of losing it.
       if (input.offer && typeof input.offer === "object" && plan.offer) patch.offer = { ...plan.offer, ...(input.offer as Record<string, unknown>) };
       if (input.offer) patch.noOffer = false;
       if (input.agent && typeof input.agent === "object" && plan.agent) patch.agent = { ...plan.agent, ...(input.agent as Record<string, unknown>) };
       if (input.noOffer === true) patch.offer = null;
+      // Only a field that really changes takes its part's approval away: asking
+      // about one part (or resending a field as it was) never resets another.
+      const touched = new Set<ApprovalBlock>();
+      const before = plan as unknown as Record<string, unknown>;
+      for (const k of Object.keys(patch)) {
+        if (!FIELD_BLOCK[k]) continue;
+        const now = (parsePlan({ ...plan, [k]: patch[k] }) as unknown as Record<string, unknown>)[k];
+        if (JSON.stringify(now) !== JSON.stringify(before[k])) touched.add(FIELD_BLOCK[k]);
+        else delete patch[k];
+      }
+      const approvals = { ...plan.approvals };
+      for (const t of touched) delete approvals[t];
       // Only an edit to an approval block reopens the proposal; anything else
       // (video script, photo ideas…) keeps the stage as it was.
       const reopen = touched.size > 0;
       let next = parsePlan({ ...plan, ...patch, approvals, ...(reopen ? { stage: "proposal", ready: false } : {}) });
       const g = codeGuard(next, lang, false);
-      next = { ...next, guard: { block: g.block, warn: plan.guard.warn } };
+      next = { ...next, guard: { block: g.block, warn: warnLeft } };
       // Everything still approved (nothing to re-approve): finish it again.
       if (next.stage === "proposal" && allApproved(next)) next = applyApprovals(next, [], lang).plan;
       await updateBusinessPlan(b.id, next);
-      return { out: `saved. blocks that need approval again: ${[...touched].join(", ") || "none"}${g.block.length ? `; problems: ${g.block.join(" ")}` : ""}` };
+      const gone = plan.guard.warn.length - warnLeft.length;
+      return { out: `saved. blocks that need approval again: ${[...touched].join(", ") || "none"}${gone ? `; ${gone} warning(s) removed` : ""}${g.block.length ? `; problems: ${g.block.join(" ")}` : ""}` };
     }
     case "approve_blocks": {
       if (plan.stage !== "proposal") return { out: "error: nothing to approve" };
@@ -575,7 +601,7 @@ export async function runPlanChatTurn(opts: {
   } catch (err) {
     logAiError("brain", err);
     debug = String((err as Error)?.message || err).slice(0, 400);
-    reply = es ? "Tuve un problema para guardar eso. Inténtalo de nuevo en un momento." : "I had a problem saving that. Please try again in a moment.";
+    reply = aiErrorReply(err, opts.lang === "en" ? "en" : "es");
   }
   if (!reply && startPipeline) {
     reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.";

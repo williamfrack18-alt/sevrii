@@ -2,8 +2,24 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { ContentBlock, MessageCreateParamsNonStreaming, MessageParam, ToolUnion } from "@anthropic-ai/sdk/resources/messages";
 import type { PlanSource } from "../plan";
 
-export function today(): string {
-  return new Date().toISOString().slice(0, 10);
+// The owner's date, not UTC: at 9 p.m. in Miami it's still "today" there.
+const CENTRAL = new Set("AL AR IL IA KS LA MN MS MO NE ND OK SD TN TX WI".split(" "));
+const MOUNTAIN = new Set("AZ CO ID MT NM UT WY".split(" "));
+const PACIFIC = new Set("CA NV OR WA".split(" "));
+export function zoneOf(state = ""): string {
+  const st = state.toUpperCase();
+  if (st === "AZ") return "America/Phoenix";
+  if (st === "HI") return "Pacific/Honolulu";
+  if (st === "AK") return "America/Anchorage";
+  if (st === "PR") return "America/Puerto_Rico";
+  if (CENTRAL.has(st)) return "America/Chicago";
+  if (MOUNTAIN.has(st)) return "America/Denver";
+  if (PACIFIC.has(st)) return "America/Los_Angeles";
+  return "America/New_York";
+}
+export function today(state = ""): string {
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: zoneOf(state), year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
 export function textOf(content: ContentBlock[]): string {

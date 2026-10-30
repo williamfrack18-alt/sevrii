@@ -1,6 +1,6 @@
 // Writes an approved Brain expediente into the store page (see planToStore.ts).
 import { addChatMessage, addService, deleteService, getBusinessById, listServices, mergeBusinessSite, setServiceAgent, updateBusinessDetails, type BusinessRow } from "./db";
-import { EMPTY_AGENT, parseServiceAgent, periodHours, type AgentOffer, type ServiceAgent } from "./serviceAgentConfig";
+import { EMPTY_AGENT, offerTarget, parseServiceAgent, periodHours, type AgentOffer, type ServiceAgent } from "./serviceAgentConfig";
 import type { BusinessPlan } from "./plan";
 import { normalizePhone, type SiteData } from "./site";
 import { planFingerprint, planReadyForStore, storeFromPlan } from "./planToStore";
@@ -33,7 +33,10 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
     noLicenseNeeded: d.noLicenseNeeded || cur.noLicenseNeeded,
     insured: d.insured || cur.insured,
     spanish: d.spanish || cur.spanish,
-    yearsInBusiness: d.yearsInBusiness ?? cur.yearsInBusiness,
+    langs: d.langs || cur.langs,
+    // The name they gave the Brain: Store doesn't ask it again.
+    ownerName: cur.ownerName || d.ownerName,
+    yearsInBusiness: d.yearsInBusiness ?? (b.plan.profile.yearsOwnBusiness === 0 ? null : cur.yearsInBusiness),
     keyPoints: d.keyPoints.length ? d.keyPoints : cur.keyPoints,
     steps: d.steps.length ? d.steps : cur.steps,
     faq: d.faq.length ? d.faq : cur.faq,
@@ -51,11 +54,17 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
       const st = stateCode(p.state || "");
       Object.assign(site, { reachMode: "remote", reachScope: p.remoteScope === "world" ? "world" : p.remoteScope === "state" && st ? "state" : "us", ...(st ? { baseState: st } : {}) });
     }
-    else if (p.city) {
+    else if (p.city || p.zip) {
       const { lookupPlace } = await import("./geo");
-      const where = lookupPlace(`${p.city}${p.state ? `, ${p.state}` : ""}`);
-      if (where) Object.assign(site, { reachMode: "local", reachRadius: p.radiusMiles || 25, baseCity: where.city, baseState: where.state, baseLat: where.lat, baseLon: where.lon });
+      // The ZIP places them precisely; the city is the fallback.
+      const where = (p.zip ? lookupPlace(p.zip) : null) ?? lookupPlace(`${p.city}${p.state ? `, ${p.state}` : ""}`);
+      if (where) Object.assign(site, { reachMode: "local", reachRadius: p.radiusMiles || 25, baseCity: where.city, baseState: where.state, baseLat: where.lat, baseLon: where.lon, baseZip: p.zip || "" });
     }
+  }
+  else if (cur.reachMode === "local" && b.plan.profile.zip && !cur.baseZip) {
+    const { lookupPlace } = await import("./geo");
+    const where = lookupPlace(b.plan.profile.zip);
+    if (where) Object.assign(site, { baseZip: b.plan.profile.zip, baseCity: where.city, baseState: where.state, baseLat: where.lat, baseLon: where.lon });
   }
   // Never write the photo/video fields: an upload may be happening right now.
   const { coverUrl: _c, logoUrl: _l, gallery: _g, videoUrl: _v, ...text } = site;
@@ -131,14 +140,15 @@ function offerFromPackage(p: BusinessPlan["packages"][number], i: number): Agent
   }).offers[0] ?? null;
 }
 
-function welcomeFromPlan(plan: BusinessPlan): { welcomePercent: number; welcomeOn: "all" | "once" | "monthly" } | Record<string, never> {
+function welcomeFromPlan(plan: BusinessPlan): { welcomePercent: number; welcomeOn: "all" | "once" | "monthly"; welcomeOffer: string } | Record<string, never> {
   const o = plan.offer;
   if (!o || plan.noOffer) return {};
   const m = /(\d{1,2})\s*%/.exec(`${o.label} ${o.detail}`);
   if (!m) return {};
   const text = `${o.label} ${o.detail}`;
   const on = /\b(mes|mensual|month|monthly)\b/i.test(text) ? "monthly" : "all";
-  return { welcomePercent: Number(m[1]), welcomeOn: on };
+  const welcomeOffer = offerTarget(text, plan.packages.map((p, i) => ({ id: `o${i + 1}`, name: p.name })));
+  return { welcomePercent: Number(m[1]), welcomeOn: on, welcomeOffer };
 }
 
 // What the research verified (official steps with their links, customers'

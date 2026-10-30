@@ -56,4 +56,33 @@ export const CHAT_SETTINGS = {
 export function logAiError(where: string, err: unknown): void {
   const e = err as { status?: number; message?: string; error?: unknown };
   console.error(`[ai:${where}]`, e?.status ?? "", e?.message ?? String(err));
+  // Out of credit: the admins hear about it right away.
+  void import("./usage").then((m) => m.noteAiFailure(err)).catch(() => {});
+}
+
+export type AiFailure = "credits" | "busy" | "other";
+export function aiFailure(err: unknown): AiFailure {
+  const e = err as { status?: number; message?: string };
+  const m = String(e?.message ?? err);
+  if (/credit balance|usage limits|spend limit|billing/i.test(m)) return "credits";
+  if (e?.status === 429 || e?.status === 529 || e?.status === 503 || /overloaded|rate limit|timed? ?out|timeout/i.test(m)) return "busy";
+  return "other";
+}
+
+// What the owner reads when the AI fails: what happened and what to do, in
+// plain words. Never the provider's error, JSON or request ids.
+export function aiErrorReply(err: unknown, lang: "es" | "en"): string {
+  const kind = aiFailure(err);
+  const es = lang !== "en";
+  if (kind === "credits")
+    return es
+      ? "El Cerebro está en pausa por un problema de nuestro lado (no es nada que hayas hecho). Todo lo que llevas quedó guardado. Ya avisamos al equipo; vuelve a escribirme en un rato y seguimos justo donde quedamos."
+      : "The Brain is paused because of a problem on our side (nothing you did). Everything so far is saved. We've already told the team; write to me again in a while and we'll pick up right where we left off.";
+  if (kind === "busy")
+    return es
+      ? "Hay mucha demanda en este momento y no alcancé a responderte. Lo que me dijiste quedó guardado: envíame el mismo mensaje otra vez en un minuto."
+      : "It's very busy right now and I couldn't answer in time. What you told me is saved: send me the same message again in a minute.";
+  return es
+    ? "No pude terminar eso por un error de mi lado. Lo que ya me habías dicho sigue guardado. Envíame el mismo mensaje otra vez; si vuelve a pasar, escríbenos a soporte y lo revisamos."
+    : "I couldn't finish that because of an error on my side. What you'd told me is still saved. Send me the same message again; if it happens again, contact support and we'll look into it.";
 }

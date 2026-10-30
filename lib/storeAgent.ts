@@ -1,5 +1,5 @@
 import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock, TextBlock } from "@anthropic-ai/sdk/resources/messages";
-import { MODEL, getClaude, logAiError } from "./claude";
+import { MODEL, aiErrorReply, getClaude, logAiError } from "./claude";
 import type { Lang } from "./i18n";
 import {
   addService,
@@ -18,7 +18,7 @@ import {
 import { LIMITS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
 import { planFingerprint } from "./planToStore";
-import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
+import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, offerTarget, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
 
 // The Store tab is one chat. This agent interviews the owner for exactly the
 // data the conversion template needs (services and prices, offer, photos,
@@ -137,6 +137,7 @@ const TOOLS: Tool[] = [
         edge: { type: "array", items: pointSchema, description: "Shown on the page: 3-4 true reasons to pay for this agent instead of a free AI chat (replaces the list)" },
         welcomePercent: { type: "number", description: "Welcome offer: % off a new customer's first purchase (0 = none, max 50)" },
         welcomeOn: { type: "string", enum: ["all", "once", "monthly"], description: "Which offers the welcome % applies to (monthly = the first month)" },
+        welcomeOffer: { type: "string", description: "Id of the ONE offer the welcome % applies to, when the approved offer names a single package (e.g. 'o2'); empty string = by welcomeOn" },
         enabled: { type: "boolean" },
       },
     },
@@ -203,7 +204,7 @@ How to work:
 - Offer: ask if they have a current promotion. Only use a real one. A welcome offer for new customers (only their first service, e.g. "10% off your first cleaning") needs NO end date — never ask for one. Any other time-limited promotion needs its real end date. Never create fake urgency, fake discounts or "ends today" offers.
 - Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to send the photos right here in the chat with the + button next to the message box ("Súbeme aquí con el botón + …"), then place each one yourself with set_photo. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover, and also set_photo role=owner (customers see it next to their name when they answer chats) if "page.ownerPhotoUrl" is empty; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
 - Video: if "page.videoUrl" is empty, recommend a short video of the owner talking about the service (30-60 s, phone, looking at the camera) — it builds the most trust and shows first in the gallery. They send it right here with the + button (it goes on the page automatically, first in the gallery). If "brainPlan.videoScript" exists, give them the script in a few short lines. To remove the video use remove_video. Don't push the video more than once per conversation.
-- Contact: customers talk to the business through the chat on the page (it sits next to the price; an AI answers instantly with the page info, collects their name and phone, and alerts the owner, who can answer in "Conversaciones"/"Conversations"). The page has no call or text buttons, so don't ask for a phone or WhatsApp for the page. Ask the owner's first name once (if "page.ownerName" is empty) and save it as ownerName: when they answer a chat personally, customers see their name and photo, so they know they're talking with the real person. Remind them once to turn on alerts ("Avisos" in Conversaciones) so they never miss a customer.
+- Contact: customers talk to the business through the chat on the page (it sits next to the price; an AI answers instantly with the page info, collects their name and phone, and alerts the owner, who can answer in "Conversaciones"/"Conversations"). The page has no call or text buttons, so don't ask for a phone or WhatsApp for the page. Never ask what the Brain interview already has ("brainPlan.profile": name, city, ZIP, radius, languages, years): use it. If "page.ownerName" is empty and "brainPlan.profile.ownerName" exists, save it as ownerName with update_page right away without asking; only if neither has it, ask the owner's first name once and save it as ownerName: when they answer a chat personally, customers see their name and photo, so they know they're talking with the real person. Remind them once to turn on alerts ("Avisos" in Conversaciones) so they never miss a customer.
 - Service area: work it out yourself from what they say and save it with update_page — never show forms. If "page.reachMode" is empty: a service done at the customer's place (cleaning, moving, repairs, beauty at home…) is local → if you know their city (page, brainPlan or the chat), save reachMode=local with reachCity and ask only how many miles they travel (default 25 if they don't care); work that can be delivered online (video editing, design, bookkeeping, classes by video…) is remote → ask in one short question if they take customers in the whole US, only in their state (e.g. a state license or state paperwork) or other countries too, and save reachMode=remote with reachScope (and reachState for one state). If unsure, ask one plain question ("¿Lo haces en persona en tu zona o en línea?"). The marketplace only shows them to customers they can really serve.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
@@ -222,7 +223,7 @@ function pageState(b: BusinessRow, services: ServiceRow[]) {
   const priced = services.filter((s) => (s.price ?? "").trim()).length;
   return {
     business: { name: b.name, category: b.category, city: b.city, pitch: b.pitch, whatsapp: b.whatsapp, accentColor: b.accentColor, published: Boolean(b.published) },
-    brainPlan: b.plan.service ? { service: b.plan.service, customer: b.plan.customer, problem: b.plan.problem, promise: b.plan.promise, differentiators: b.plan.differentiators, packages: b.plan.packages, offer: b.plan.offer, photoIdeas: b.plan.photoIdeas, videoScript: b.plan.videoScript ? "ready" : "" } : null,
+    brainPlan: b.plan.service ? { profile: { ownerName: b.plan.profile.ownerName, city: b.plan.profile.city, state: b.plan.profile.state, zip: b.plan.profile.zip, radiusMiles: b.plan.profile.radiusMiles, languages: b.plan.profile.languages, yearsExperience: b.plan.profile.yearsExperience, yearsOwnBusiness: b.plan.profile.yearsOwnBusiness }, service: b.plan.service, customer: b.plan.customer, problem: b.plan.problem, promise: b.plan.promise, differentiators: b.plan.differentiators, packages: b.plan.packages, offer: b.plan.offer, photoIdeas: b.plan.photoIdeas, videoScript: b.plan.videoScript ? "ready" : "" } : null,
     page: b.site,
     services: services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description, featured: Boolean(s.featured), tag: s.tag ?? null })),
     missing: missingForSales({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length, pricedServices: priced }),
@@ -287,6 +288,9 @@ async function runTool(
         if (typeof input.reachCity === "string" && input.reachCity.trim() && !where) notes.push("reachCity: city not found, ask for their 5-digit ZIP code");
         else {
           if (where) Object.assign(patch, { baseCity: where.city, baseState: where.state, baseLat: where.lat, baseLon: where.lon });
+          // A ZIP is kept, so the page and the panel show exactly where they are.
+          const zip = /\b(\d{5})\b/.exec(String(input.reachCity ?? ""))?.[1];
+          if (where && zip) patch.baseZip = zip;
           if (input.reachMode === "local" || where) patch.reachMode = "local";
           if (typeof input.reachRadiusMiles === "number") patch.reachRadius = Math.max(1, Math.min(300, Math.round(input.reachRadiusMiles)));
         }
@@ -306,7 +310,13 @@ async function runTool(
         if (input.clearOffer || pct) {
           await setServiceAgent(
             b.id,
-            parseServiceAgent({ ...b.serviceAgent, welcomePercent: pct, welcomeOn: /\b(mes|mensual|month|monthly)\b/i.test(text) ? "monthly" : "all" })
+            parseServiceAgent({
+              ...b.serviceAgent,
+              welcomePercent: pct,
+              welcomeOn: /\b(mes|mensual|month|monthly)\b/i.test(text) ? "monthly" : "all",
+              // Only the package the offer names, if it names one.
+              welcomeOffer: offerTarget(text, b.serviceAgent.offers.map((x) => ({ id: x.id, name: x.title }))),
+            })
           );
           notes.push(pct ? `the agent's checkout now takes ${pct}% off a new customer's first purchase` : "the agent's welcome discount was removed");
         }
@@ -383,6 +393,7 @@ async function runTool(
       if (typeof input.creator === "string") next.creator = input.creator;
       if (Array.isArray(input.edge)) next.edge = input.edge as { title: string; text: string }[];
       if (input.welcomeOn === "all" || input.welcomeOn === "once" || input.welcomeOn === "monthly") next.welcomeOn = input.welcomeOn;
+      if (typeof input.welcomeOffer === "string") next.welcomeOffer = input.welcomeOffer;
       const notes: string[] = [];
       if (next.knowledge.length > AGENT_LIMITS.knowledge) notes.push(`knowledge was cut to ${AGENT_LIMITS.knowledge} characters`);
       if (typeof input.enabled === "boolean") {
@@ -534,9 +545,7 @@ export async function runStoreChatTurn(opts: {
     }
   } catch (err) {
     logAiError("store", err);
-    reply = es
-      ? "Tuve un problema para guardar eso. Inténtalo de nuevo en un momento."
-      : "I had a problem saving that. Please try again in a moment.";
+    reply = aiErrorReply(err, opts.lang === "en" ? "en" : "es");
   }
 
   return { reply: reply || (es ? "Listo." : "Done."), business, services };

@@ -273,7 +273,7 @@ export default function ProjectsView({
           {confirmId && (
             <div className="p-card p-5 flex flex-col gap-3" role="alertdialog">
               <span className="text-[17px] font-medium text-pfg break-words">{pt.deleteAsk(projects.find((p) => p.id === confirmId)?.name ?? "")}</span>
-              <span className="text-[14px] text-pmuted leading-relaxed">{pt.deleteWarn}</span>
+              <span className="text-[14px] text-pmuted leading-relaxed break-words whitespace-normal">{pt.deleteWarn}</span>
               {deleteError && <span className="text-[13px] text-red-600">{deleteError}</span>}
               <div className="flex gap-2">
                 <button
@@ -331,7 +331,8 @@ export default function ProjectsView({
                       </span>
                     </span>
                   </button>
-                  {editing && !isOpen && (
+                  {/* Every project can be deleted, the open one too (with the same confirmation). */}
+                  {editing && (
                     <button
                       type="button"
                       aria-label={pt.delete}

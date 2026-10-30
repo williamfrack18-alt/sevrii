@@ -571,11 +571,17 @@ export async function getSessionUserId(tokenHash: string): Promise<string | null
 // The signed-in owner's saved language, straight from the session (one query).
 export async function getSessionLang(tokenHash: string): Promise<string | null> {
   await ensureSchema();
+  // No language saved yet: the one their projects are in (not the browser's),
+  // so a Spanish-speaking owner never lands on an English panel.
   const rows = (await sql`
-    SELECT u.lang FROM sessions s JOIN users u ON u.id = s."userId"
+    SELECT u.lang,
+      (SELECT b.site->>'lang' FROM businesses b WHERE b."userId" = u.id ORDER BY b."createdAt" ASC LIMIT 1) AS "projectLang"
+    FROM sessions s JOIN users u ON u.id = s."userId"
     WHERE s."tokenHash" = ${tokenHash} AND s."expiresAt" > now()
-  `) as { lang: string | null }[];
-  return rows[0]?.lang ?? null;
+  `) as { lang: string | null; projectLang: string | null }[];
+  const r = rows[0];
+  if (!r) return null;
+  return r.lang || (r.projectLang === "es" || r.projectLang === "en" ? r.projectLang : null);
 }
 
 export async function setUserLang(userId: string, lang: "es" | "en"): Promise<void> {
@@ -1655,6 +1661,8 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM agent_reviews WHERE "businessId" = ${id}`;
   await sql`DELETE FROM affiliate_visits WHERE "businessId" = ${id}`;
   await sql`DELETE FROM marketing_posts WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM marketing_videos WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM marketing_actions WHERE "businessId" = ${id}`;
   await sql`DELETE FROM meta_connections WHERE "businessId" = ${id}`;
   await sql`DELETE FROM chat_messages WHERE "businessId" = ${id}`;
   await sql`DELETE FROM page_reports WHERE "businessId" = ${id}`;

@@ -47,6 +47,9 @@ export type ServiceAgent = {
   // offers or only the one-time / monthly ones (monthly: the first month).
   welcomePercent: number;
   welcomeOn: "all" | "once" | "monthly";
+  // Only this offer (its id), when the approved welcome offer names one ("20% on
+  // your first Complete plan"). Empty = by welcomeOn.
+  welcomeOffer: string;
   // Shown on its page: who made it, and why it's worth paying for.
   creator: string; // "Ana · 6 años en recursos humanos"
   edge: { title: string; text: string }[];
@@ -69,6 +72,7 @@ export const EMPTY_AGENT: ServiceAgent = {
   offers: [],
   welcomePercent: 0,
   welcomeOn: "all",
+  welcomeOffer: "",
   creator: "",
   edge: [],
 };
@@ -191,6 +195,7 @@ export function parseServiceAgent(raw: unknown): ServiceAgent {
     offers,
     welcomePercent: n(o.welcomePercent, 0, 50, 0),
     welcomeOn: o.welcomeOn === "once" || o.welcomeOn === "monthly" ? o.welcomeOn : "all",
+    welcomeOffer: typeof o.welcomeOffer === "string" && offers.some((x) => x.id === o.welcomeOffer) ? o.welcomeOffer : "",
     creator: s(o.creator, 120),
     edge: (Array.isArray(o.edge) ? o.edge : [])
       .map((x) => {
@@ -206,9 +211,20 @@ export function parseServiceAgent(raw: unknown): ServiceAgent {
 // never takes the price under the $15 minimum (5% all included).
 export function welcomeFor(a: ServiceAgent, o: AgentOffer): number {
   if (!a.welcomePercent || (a.welcomeOn !== "all" && a.welcomeOn !== o.billing)) return 0;
+  if (a.welcomeOffer && a.welcomeOffer !== o.id) return 0;
   // Only where the whole % fits: a smaller, odd % ("11% off") reads as a mistake.
   return discounted(o.priceCents, a.welcomePercent) >= AGENT_MIN_CENTS ? a.welcomePercent : 0;
 }
+// Which package the approved offer names ("20% en tu primer Plan completo"):
+// the discount applies to that one only, exactly as approved.
+const fold = (x: string) => x.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+export function offerTarget(text: string, names: { id: string; name: string }[]): string {
+  const t = fold(text);
+  const hits = names.filter((n) => n.name && fold(n.name).length >= 4 && t.includes(fold(n.name)));
+  // The longest name wins ("Plan completo" over "Plan").
+  return hits.sort((a, b) => b.name.length - a.name.length)[0]?.id ?? "";
+}
+
 export const discounted = (cents: number, pct: number) => Math.round(cents * (1 - pct / 100));
 
 // Is there enough to switch it on?

@@ -178,12 +178,23 @@ export default async function PublicBusinessPage({
   // Payment links that don't belong to a listed service get their own section.
   const extraPayLinks = payLinks.filter((l) => !ordered.some((sv) => payFor(sv.name)?.id === l.id));
 
+  // The language badge says what the owner told the Brain: Spanish only, or both.
+  const profile = business.plan?.profile;
+  const langsSaid = site.langs || profile?.languages || "";
+  const langBadge = langsSaid === "both" ? t.bilingual : t.spanish;
+  // "Years in business" are the years on their own (an older page may hold their
+  // whole experience there: the Brain's own-business years win).
+  const yearsInBusiness =
+    profile && profile.yearsOwnBusiness !== null && profile.yearsOwnBusiness !== undefined && site.yearsInBusiness === profile.yearsExperience
+      ? profile.yearsOwnBusiness || null
+      : site.yearsInBusiness;
+
   // Trust bar: only things the owner declared.
   const trust: { icon: string; text: string }[] = [];
   if (site.licenseNumber) trust.push({ icon: "✓", text: `${t.license} #${site.licenseNumber}${site.licenseState ? ` (${site.licenseState})` : ""}` });
   if (site.insured) trust.push({ icon: "◇", text: t.insured });
-  if (site.yearsInBusiness) trust.push({ icon: "★", text: t.years(site.yearsInBusiness) });
-  if (site.spanish) trust.push({ icon: "ñ", text: t.spanish });
+  if (yearsInBusiness) trust.push({ icon: "★", text: t.years(yearsInBusiness) });
+  if (site.spanish) trust.push({ icon: "ñ", text: langBadge });
   if (reach.mode === "remote") trust.push({ icon: "🌎", text: reachLabel(reach, site.lang) });
   for (const f of site.features) if (trust.length < 5) trust.push({ icon: "✓", text: f });
 
@@ -324,7 +335,7 @@ export default async function PublicBusinessPage({
               <div className="badge-row">
                 {site.licenseNumber && <span className="badge">✓ {t.license} #{site.licenseNumber}</span>}
                 {site.insured && <span className="badge soft">{t.insured}</span>}
-                {site.spanish && <span className="badge soft">{t.spanish}</span>}
+                {site.spanish && <span className="badge soft">{langBadge}</span>}
               </div>
             )}
 
@@ -332,7 +343,9 @@ export default async function PublicBusinessPage({
               <UntilOfferEnds endsAt={offer.endsAt}>
               <div className="deal">
                 <span className="deal-dot" />
-                <strong>{t.offer}</strong> · {offer.label}
+                <span>
+                  <strong>{t.offer}</strong> · {offer.label}
+                </span>
                 {offer.oldPrice && (
                   <span>
                     {" "}
@@ -417,7 +430,8 @@ export default async function PublicBusinessPage({
                   </div>
                 )}
               </div>
-              {chatLink("btn light", `${t.offerCta} →`)}
+              {/* Opens the chat already asking about the offer, so the assistant applies it. */}
+              {chatLink("btn light", `${t.offerCta} →`, offer.label)}
             </div>
           </section>
           </UntilOfferEnds>
@@ -542,7 +556,8 @@ export default async function PublicBusinessPage({
                 <span className="final-offer">🎁 {offer.label}</span>
               </UntilOfferEnds>
             )}
-            <h2>{site.ctaTitle || t.ctaDefaultTitle}</h2>
+            {/* A title an older version cut ("…?") is replaced by the plain one. */}
+            <h2>{site.ctaTitle && !/…\??$/.test(site.ctaTitle.trim()) ? site.ctaTitle : t.ctaDefaultTitle}</h2>
             <p>{site.ctaText || t.ctaDefaultText}</p>
             <div className="btns">
               {chatLink("btn light", <><ChatIcon /> {chatLong}</>)}

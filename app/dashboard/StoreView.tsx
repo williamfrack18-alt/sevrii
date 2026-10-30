@@ -49,6 +49,8 @@ export default function StoreView({
   const st = STORE_TEXT[lang].editor;
   const lk = PLANS_TEXT[lang].lock;
   const [previewKey, setPreviewKey] = useState(0);
+  // A new value opens the chat's photo/video picker (from "Subir fotos o video").
+  const [pickKey, setPickKey] = useState(0);
   // The page opens from the chat (full screen) and closes back to it.
   const [pageOpen, setPageOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -240,6 +242,7 @@ export default function StoreView({
           sync={sync}
           greeting={greeting}
           chips={chips}
+          pickKey={pickKey}
           dockLabel={lang === "es" ? "Tu página: resumen" : "Your page: summary"}
           dock={
             hasPage ? (
@@ -253,6 +256,7 @@ export default function StoreView({
                 onOpenPage={() => setPageOpen(true)}
                 onPayments={onPayments}
                 onAgent={onAgent}
+                onAddMedia={() => setPickKey(Date.now())}
                 onUpdated={(b) => {
                   onUpdated(b, services);
                   setPreviewKey((k) => k + 1);

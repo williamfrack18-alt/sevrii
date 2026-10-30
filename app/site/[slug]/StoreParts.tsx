@@ -17,9 +17,17 @@ export type MediaItem =
 
 // Compact price for chips and thumbnails: the dollar amount when there is one
 // ("$1,200", "$1.5k"), the owner's text when it's short, else "Ask".
-function shortPrice(p: string, lang: Lang): string {
+// "desde $850" stays "desde $850" (the selector and the price card must say the
+// same); compact (the small squares) shows it as "$850+".
+const FROM = /^\s*(desde|a partir de|from|starting at)\b/i;
+function shortPrice(p: string, lang: Lang, compact = false): string {
   const m = /\$\s?\d[\d,]*(?:\.\d+)?(?:\s?[kK]\b)?/.exec(p);
-  if (m) return m[0].replace(/\s/g, "");
+  if (m) {
+    const amt = m[0].replace(/\s/g, "");
+    const from = FROM.exec(p.slice(0, m.index));
+    if (!from) return amt;
+    return compact ? `${amt}+` : `${from[1].toLowerCase()} ${amt}`;
+  }
   const s = p.trim();
   if (!s) return "";
   return s.length <= 14 ? s : UI[lang].ask;
@@ -72,7 +80,7 @@ export function Gallery({ items, alt, empty, lang }: { items: MediaItem[]; alt: 
               style={m.kind === "photo" ? { backgroundImage: `url("${m.src}")` } : m.kind === "video" && m.poster ? { backgroundImage: `url("${m.poster}")` } : undefined}
               onClick={() => setI(n)}
             >
-              {m.kind === "video" ? <span className="thumb-play" aria-hidden>▶</span> : m.kind === "slide" ? <span className="thumb-price" aria-hidden>{m.tone === "offer" ? "%" : shortPrice(m.price, lang) || "•"}</span> : null}
+              {m.kind === "video" ? <span className="thumb-play" aria-hidden>▶</span> : m.kind === "slide" ? <span className="thumb-price" aria-hidden>{m.tone === "offer" ? "%" : shortPrice(m.price, lang, true) || "•"}</span> : null}
             </button>
           ))}
         </div>

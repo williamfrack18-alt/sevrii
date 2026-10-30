@@ -464,6 +464,8 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
               <span className="text-pfg2 font-medium">{t.pricingNote}:</span> {plan.pricingNote}
             </p>
           )}
+          {/* What to keep in mind comes after the packages, not before. */}
+          {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
         </div>
       );
     case "offer":
@@ -471,9 +473,12 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
         <div className="flex flex-col gap-1.5 min-w-0">
           <span className="text-[16px] font-semibold text-pfg">{plan.offer.label}</span>
           {plan.offer.detail && <span className="text-[13.5px] text-psub leading-relaxed">{plan.offer.detail}</span>}
-          <span className="text-[12.5px] leading-relaxed" style={{ color: plan.offer.endsAt || plan.offer.forNewClients ? GREEN : AMBER }}>
-            {plan.offer.endsAt ? t.endsOn(plan.offer.endsAt) : plan.offer.forNewClients ? t.forNewClients : `${t.offerSuggested} ${t.offerNeedsDate}`}
-          </span>
+          {/* The condition once: the detail already says it's for new customers, or this line does. */}
+          {!(plan.offer.forNewClients && !plan.offer.endsAt && NEW_CLIENTS.test(plan.offer.detail)) && (
+            <span className="text-[12.5px] leading-relaxed" style={{ color: plan.offer.endsAt || plan.offer.forNewClients ? GREEN : AMBER }}>
+              {plan.offer.endsAt ? t.endsOn(plan.offer.endsAt) : plan.offer.forNewClients ? t.forNewClients : `${t.offerSuggested} ${t.offerNeedsDate}`}
+            </span>
+          )}
         </div>
       ) : (
         <span className="text-[14px] text-psub">{t.offerNone}</span>
@@ -898,9 +903,7 @@ function strategyNodes({ plan, t, onChange }: { plan: BusinessPlan; t: T; onChan
   // Tu zona (market research)
   const m = plan.market;
   if (m.researchedAt) {
-    const lo = m.prices?.low || m.prices?.mid || "";
-    const hi = m.prices?.high || m.prices?.mid || "";
-    const range = lo && hi && lo !== hi ? t.priceRange(lo, hi) : lo || hi;
+    const range = priceSpan(m.prices, t);
     const counts = [m.competitors.length ? t.competitorsCount(m.competitors.length) : "", m.gaps.length ? t.gapsCount(m.gaps.length) : ""].filter(Boolean).join(" · ");
     nodes.push({
       id: "zone",
@@ -1164,13 +1167,10 @@ function MarketInChat({ plan }: { plan: BusinessPlan }) {
   const [open, setOpen] = useState(false);
   const m = plan.market;
   if (!m.researchedAt) return null;
-  const lo = m.prices?.low || m.prices?.mid || "";
-  const hi = m.prices?.high || m.prices?.mid || "";
-  const range = lo && hi && lo !== hi ? t.priceRange(lo, hi) : lo || hi;
+  const range = priceSpan(m.prices, t);
   const counts = [m.competitors.length ? t.competitorsCount(m.competitors.length) : "", m.gaps.length ? t.gapsCount(m.gaps.length) : ""].filter(Boolean).join(" · ");
   return (
     <div className="flex flex-col gap-3 min-w-0">
-      {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
       <div className="rounded-[24px] min-w-0" style={CARD}>
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-3 px-4 md:px-5 py-4 text-left">
           <Globe />
@@ -1183,7 +1183,7 @@ function MarketInChat({ plan }: { plan: BusinessPlan }) {
         {open && (
           <div className="px-4 md:px-5 pb-5 flex flex-col gap-5 min-w-0">
             <MarketDetail plan={plan} />
-            {m.requirements.length > 0 && (
+            {m.requirements.length > 0 && plan.stage !== "approved" && (
               <div className="flex flex-col gap-3 pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
                 <Label>{t.requirements}</Label>
                 <RequirementsList plan={plan} />
@@ -1309,7 +1309,6 @@ function RequirementsList({ plan }: { plan: BusinessPlan }) {
   const t = PLAN_TEXT[useLang()];
   return (
     <div className="flex flex-col gap-3 min-w-0">
-      <span className="text-[13px] text-psub">{t.requirements}</span>
       {plan.market.requirements.map((r, i) => (
         <div key={i} className="flex flex-col gap-1.5 text-[13.5px] min-w-0">
           <span
@@ -1349,6 +1348,29 @@ function Facts({ rows }: { rows: [string, string][] }) {
     </div>
   );
 }
+
+// "$95–$155 por visita" … "$280–$525+ por visita" → "de $95 a $525+ por visita"
+// (one range from the lowest to the highest, never a range of ranges).
+function priceSpan(p: BusinessPlan["market"]["prices"], t: T): string {
+  if (!p) return "";
+  const lo = p.low || p.mid || "";
+  const hi = p.high || p.mid || "";
+  if (!lo || !hi || lo === hi) return lo || hi;
+  const AMT = /\$\s?[\d,.]+\+?/g;
+  const first = lo.match(AMT)?.[0];
+  const all = hi.match(AMT);
+  const last = all?.[all.length - 1];
+  if (!first || !last) return t.priceRange(lo, hi);
+  const unitOf = (x: string, amt: string) => x.slice(x.lastIndexOf(amt) + amt.length).replace(/^[\s+]+/, "").trim();
+  const unit = unitOf(hi, last);
+  const loAll = lo.match(AMT) ?? [];
+  const loUnit = unitOf(lo, loAll[loAll.length - 1] ?? first);
+  // Different units ("por pieza" … "por trabajo grande"): each keeps its own.
+  if (loUnit && unit && loUnit !== unit) return t.priceRange(`${first} ${loUnit}`, `${last} ${unit}`);
+  return `${t.priceRange(first, last)}${unit ? ` ${unit}` : ""}`;
+}
+
+const NEW_CLIENTS = /(nuev[oa]s?|new (clients?|customers?)|primer[ao]? (servicio|visita|compra|limpieza|trabajo)|first (service|visit|purchase|time))/i;
 
 function Notes({ title, items, color }: { title: string; items: string[]; color: string }) {
   return (

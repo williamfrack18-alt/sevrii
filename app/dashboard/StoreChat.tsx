@@ -21,7 +21,9 @@ export default function StoreChat({
   dockLabel,
   chips,
   area = "store",
+  pickKey,
 }: {
+  pickKey?: number;
   area?: "store" | "agent"; // Store (the sales page) or Agente (the agent itself)
   head?: React.ReactNode;
   dock?: React.ReactNode;
@@ -46,6 +48,7 @@ export default function StoreChat({
       dock={dock}
       dockLabel={dockLabel}
       chips={chips}
+      pickKey={pickKey}
       texts={{
         placeholder: t.chatPlaceholder,
         emptyTitle: t.emptyTitle,
