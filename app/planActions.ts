@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { fillStoreFromPlan } from "@/lib/storeFill";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { chatGate, gateMessage, researchWouldStart, runForUser } from "@/lib/usage";
+import { chatGate, countAiUnit, gateMessage, researchWouldStart, runForUser } from "@/lib/usage";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
 import type { Lang } from "@/lib/i18n";
 import { allow, LIMITS } from "@/lib/guard";
@@ -73,6 +73,7 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
     revalidatePath("/dashboard");
     return respond(resumed, { startPipeline: true });
   }
+  await countAiUnit("brain_chat");
   const result = await runForUser(business.userId, () => runPlanChatTurn({
     business,
     history: history.slice(-16).map((m) => ({
@@ -81,7 +82,7 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
     })),
     message: text,
     lang,
-  }));
+  }), "brain_chat");
   // The real error stays in the server logs; the chat only shows the plain message.
   const reply = result.reply;
   // The part the chat moved to (or changed) shows its card under the reply.

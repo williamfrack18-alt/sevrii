@@ -11,7 +11,7 @@ import {
   type ResearchJobRow,
 } from "../db";
 import type { Lang } from "../i18n";
-import { researchGate } from "../usage";
+import { countAiUnit, researchGate, runForUser } from "../usage";
 import { IDEAS_TOKEN, MARKET_TOKEN, nextPartMessage } from "./walk";
 import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanStage } from "../plan";
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
@@ -47,6 +47,12 @@ async function savePlan(businessId: string, plan: BusinessPlan) {
 export async function advancePipeline(businessId: string, userId: string, lang: Lang, retry = false): Promise<AdvanceResult> {
   const b = await getBusinessById(businessId);
   if (!b) return { more: false };
+  if (b.plan.stage !== "ideas_research" && b.plan.stage !== "research") return { more: false };
+  // Every AI call of this step is measured as research (see lib/usage.ts).
+  return runForUser(userId, () => advanceStep(b, businessId, userId, lang, retry), b.plan.stage === "ideas_research" ? "brain_ideas" : "brain_research");
+}
+
+async function advanceStep(b: NonNullable<Awaited<ReturnType<typeof getBusinessById>>>, businessId: string, userId: string, lang: Lang, retry: boolean): Promise<AdvanceResult> {
   let plan = b.plan;
   if (plan.stage !== "ideas_research" && plan.stage !== "research") return { more: false };
   const spec = STEPS[plan.stage];
@@ -57,6 +63,7 @@ export async function advancePipeline(businessId: string, userId: string, lang: 
     // Each new run counts against the plan's monthly runs and AI budget.
     if (await researchGate(userId, undefined, { budgetOnly: ideaRefresh })) return { more: false, error: "limit" };
     const runId = await createResearchRun(businessId, [...spec.parallel, ...spec.then]);
+    await countAiUnit(plan.stage === "ideas_research" ? "brain_ideas" : "brain_research");
     plan = { ...plan, runId };
     await savePlan(businessId, plan);
     jobs = await latestResearchRun(businessId);

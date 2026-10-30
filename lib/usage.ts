@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { addAiUsage, getAiSpendMicros, peekRateCounter } from "./db";
+import { addAiFeatureUnit, addAiFeatureUsage, addAiUsage, getAiSpendMicros, peekRateCounter } from "./db";
 import { allow } from "./guard";
 import { limitsForUserId } from "./billing";
 import { PLANS, PLAN_ORDER, type PlanLimits } from "./plans";
@@ -38,11 +38,33 @@ export function costUsd(model: string, u: Usage | undefined | null): number {
 
 // The account the current request is working for, so every AI call made while
 // handling it is charged to that account (set once at each entry point).
-const store = new AsyncLocalStorage<{ userId: string }>();
+const store = new AsyncLocalStorage<{ userId: string; feature?: AiFeature }>();
 
-export function runForUser<T>(userId: string, fn: () => Promise<T>): Promise<T> {
-  return store.run({ userId }, fn);
+// What part of Sevrii an AI call belongs to, to know what each one costs
+// (the plans' limits are priced with these numbers: see /admin/costos).
+export type AiFeature =
+  | "brain_chat" // a message in the Brain chat
+  | "brain_research" // a research run → proposal (web research, Strategist, Guardian)
+  | "brain_ideas" // an ideas run (people starting something new, or agents)
+  | "store_chat" // a message in Store (or the Agent area)
+  | "marketing_chat" // a message in Marketing
+  | "marketing_agent" // the agent writing ads/posts, launching, checking results
+  | "video" // making one AI video in the cloud browser
+  | "visitor_chat" // a customer's message on an owner's page
+  | "service_agent" // a customer's message to an owner's AI agent (and its cases)
+  | "publish" // publishing a page (marketplace category)
+  | "other";
+
+export function runForUser<T>(userId: string, fn: () => Promise<T>, feature?: AiFeature): Promise<T> {
+  return store.run({ userId, feature: feature ?? store.getStore()?.feature }, fn);
 }
+
+// One unit of a function (a chat message, a research run, a video), so the
+// cost per unit can be computed. Never breaks the request.
+export async function countAiUnit(feature: AiFeature): Promise<void> {
+  await addAiFeatureUnit(day(), feature).catch((err) => console.error("[usage] unit", err));
+}
+const day = (d = new Date()) => d.toISOString().slice(0, 10);
 
 export function month(d = new Date()): string {
   return d.toISOString().slice(0, 7); // YYYY-MM (UTC)
@@ -91,6 +113,16 @@ export async function noteAiFailure(err: unknown): Promise<void> {
 export async function recordAiUsage(model: string, usage: Usage | undefined | null): Promise<void> {
   const userId = store.getStore()?.userId;
   const usd = costUsd(model, usage);
+  if (usage) {
+    await addAiFeatureUsage(day(), store.getStore()?.feature ?? "other", model.slice(0, 60), {
+      input: usage.input_tokens ?? 0,
+      output: usage.output_tokens ?? 0,
+      cacheWrite: usage.cache_creation_input_tokens ?? 0,
+      cacheRead: usage.cache_read_input_tokens ?? 0,
+      searches: usage.server_tool_use?.web_search_requests ?? 0,
+      micros: Math.round(usd * 1_000_000),
+    }).catch((err) => console.error("[usage] feature", err));
+  }
   await trackClaudeTotal(model, usd);
   if (!userId) {
     if (usd > 0) console.warn("[usage] AI call without an account", model, usd.toFixed(4));

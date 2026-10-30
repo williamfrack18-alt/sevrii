@@ -25,7 +25,7 @@ import { addChatMessage, listChatMessages } from "@/lib/db";
 import { agentAreaGreeting, runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
 import { limitsFor, limitsForUserId } from "@/lib/billing";
 import { publishBusiness } from "@/lib/marketplace";
-import { chatGate, gateMessage, runForUser } from "@/lib/usage";
+import { chatGate, countAiUnit, gateMessage, runForUser } from "@/lib/usage";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { fillStoreFromPlan } from "@/lib/storeFill";
@@ -169,7 +169,7 @@ export async function setPublishedAction(
     serviceCount: services.length,
   });
   if (publish && gaps.length > 0) return { ok: false, gaps, business };
-  const fresh = await runForUser(business.userId, () => publishBusiness(business.id, publish));
+  const fresh = await runForUser(business.userId, () => publishBusiness(business.id, publish), "publish");
   refresh(fresh.slug);
   return { ok: true, gaps: [], business: fresh };
 }
@@ -304,6 +304,7 @@ export async function sendStoreChatAction(message: string, area: "store" | "agen
 
   await addChatMessage(business.id, channel, "user", text);
   const canPublish = (await limitsForUserId(business.userId)).canPublish;
+  await countAiUnit("store_chat");
   const result = await runForUser(business.userId, () => runStoreChatTurn({
     business,
     canPublish,
@@ -321,7 +322,7 @@ export async function sendStoreChatAction(message: string, area: "store" | "agen
         : text,
     lang,
     area: channel,
-  }));
+  }), "store_chat");
   await addChatMessage(business.id, channel, "ai", result.reply);
   refresh(result.business.slug);
   return respond(result.business);
@@ -389,4 +390,13 @@ export async function agentSalesAction(): Promise<AgentSales> {
     active: rows.filter((r) => r.status === "active" && new Date(r.endsAt).getTime() > now).length,
     recent: rows.slice(0, 5).map((r) => ({ title: r.title, amountCents: r.amountCents, email: r.email, createdAt: r.createdAt, billing: r.billing })),
   };
+}
+
+// The link to show the draft page to someone before publishing (it only
+// opens this page; chat, orders and payments switch on when it's published).
+export async function previewLinkAction(): Promise<string> {
+  const business = await requireBusiness();
+  const { previewKey } = await import("@/lib/preview");
+  const base = (process.env.SEVRII_SITE_URL || "https://www.sevrii.com").replace(/\/+$/, "");
+  return `${base}/site/${business.slug}?vista=${previewKey(business.id)}`;
 }

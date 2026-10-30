@@ -546,7 +546,7 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.differentiators, "differentiators (what makes them different)");
     // Insurance matters for work done at people's homes, not for online services.
     need(p.serviceMode !== "remote" && !p.insured, "insured (yes / no)");
-    need(!p.businessName, "businessName");
+    need(!p.businessName, "businessName (if they have none, suggest 2 or 3 short names in the same message and let them pick)");
   } else if (plan.stage === "interview") {
     need(!p.city || !p.state, "city and state");
     need(!p.workHistory, "workHistory (jobs they have had)");
@@ -572,7 +572,7 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.insured, "insured (yes / no)");
     need(!p.toolsReady, "toolsReady (has the tools for the chosen idea: yes / no)");
     need(!p.costs, "costs (materials and hours per job, an estimate is fine)");
-    need(!p.businessName, "businessName (last)");
+    need(!p.businessName, "businessName (last; if they have none, suggest 2 or 3 short names in the same message and let them pick)");
   }
   return out;
 }

@@ -48,7 +48,8 @@ Verdad y consistencia (obligatorio, revísalo antes de responder):
 - Idiomas: usa SOLO profile.languages. "es" = atiende solo en español: nunca digas que atiende en inglés ni "bilingüe" (sí puedes decir que atiende en español si la competencia no lo hace). "en" = solo inglés. "both" = los dos. Nunca lo supongas.
 - Lo que el dueño dijo que NO quiere hacer o que le cuesta (profile.notWant, o un límite que dio) es sagrado: nunca lo uses como argumento de venta ni como experiencia.
 - Años: "años en el negocio" es solo profile.yearsOwnBusiness (los años por su cuenta). profile.yearsExperience son años de experiencia en el oficio; no los presentes como años del negocio.
-- Precio de hoy: profile.currentPrice es lo que cobra hoy. Si propones otro precio, dilo claro en pricingNote ("hoy cobras $30; te propongo $35 porque…") y en message; nunca lo cambies en silencio ni agregues niveles sin explicarlo.
+- Precio de hoy (obligatorio): profile.currentPrice es lo que cobra hoy y es SU decisión. El paquete de su servicio de hoy lleva EXACTAMENTE ese precio, con su misma unidad (si cobra $55 por noche, el paquete dice $55 por noche). Si crees que debería cobrar otro, NO lo pongas en packages: déjalo como pregunta en pricingNote ("Hoy cobras $30. Podrías cobrar $35 porque…; ¿quieres que lo cambie?"). Avisar no es pedir permiso: el cambio lo aprueba el dueño en el chat. Un nivel nuevo (más caro o más barato) solo si incluye algo distinto, y su "note" empieza con "Sugerido:".
+- Comparaciones con el mercado: si dices que un precio está "en el rango", "por debajo" o "por encima", compruébalo con los números exactos de market.prices. Si no lo está, dilo como es.
 - Un solo juego de números: en message, promise, pricingNote, la oferta y las preguntas frecuentes usa exactamente los nombres y precios de "packages" y los rangos de market.prices tal como están. No menciones paquetes ni montos que no existen.
 - Cada paquete dice si su precio es fijo ("$850") o mínimo ("desde $850") y qué incluye; evita precios ambiguos. Los rangos de los paquetes no se pisan entre sí.
 - Costos: en pricingNote muestra la suma (materiales + horas × valor de la hora + traslado) y comprueba que cuadre.
@@ -57,6 +58,9 @@ Verdad y consistencia (obligatorio, revísalo antes de responder):
 - Preguntas frecuentes: no inventes políticas (reembolsos, cancelaciones, depósitos, garantías). Si una respuesta depende de una política que el dueño no dio, responde que lo vean juntos por el chat.
 - No supongas que el dueño ya tiene video, fotos, reseñas, seguro ni licencia si el perfil no lo dice. El video es para grabarlo ("cuando grabes tu video").
 - Categorías especiales de Meta: solo productos financieros y crédito, empleo, vivienda (Meta incluye reparaciones de vivienda) y temas sociales o política. Limpieza, mudanzas, jardinería, belleza, barbería y armado de muebles NO lo son.
+- Datos inventados: nada que no esté en el perfil o en la investigación. No agregues tareas que el dueño no dijo hacer (por ejemplo "limpieza de filtro"), herramientas, cuentas o perfiles que no dijo tener ("tu perfil de Google"), ni impuestos, cargos extra, depósitos o políticas que no dio.
+- Lo que el dueño excluyó (un idioma, un servicio, una zona) no aparece ni como sugerencia para después.
+- El servicio es profile.mainService (o chosenIdea si coincide con él). Si la persona cambió de idea, todo (encabezado, cómo funciona, paquetes, preguntas) es del servicio final, sin restos del anterior.
 - Revisa la gramática (concordancia: "la mayoría de las mudanzas… tienen").
 
 Oferta de bienvenida (ayuda mucho a convertir):
@@ -173,9 +177,13 @@ async function ask(system: string, user: string, schema: Record<string, unknown>
 }
 
 function expediente(plan: BusinessPlan) {
-  const idea = plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
+  let idea = plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
+  // The owner changed their mind after choosing: the service they said last wins.
+  const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (idea && plan.profile.mainService && fold(idea.title) !== fold(plan.profile.mainService)) idea = null;
   return {
     mode: plan.mode,
+    service: plan.profile.mainService || plan.service,
     profile: plan.profile,
     chosenIdea: idea,
     market: plan.market,

@@ -118,6 +118,7 @@ const TEXT = {
 export default function AgentPage({
   business,
   live,
+  preview = false,
   campaign,
   chatAgent,
   reviews,
@@ -125,6 +126,7 @@ export default function AgentPage({
   reviews: { list: { id: string; rating: number; text: string; name: string; createdAt: string }[]; avg: number | null; count: number };
   business: BusinessRow;
   live: boolean;
+  preview?: boolean;
   campaign: string;
   chatAgent: ChatAgent | null;
 }) {
@@ -189,7 +191,7 @@ export default function AgentPage({
 
   return (
     <div className="mt ag" lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
-      {!live && <div className="draft-bar">{st.draftBanner}</div>}
+      {!live && <div className="draft-bar">{preview ? st.previewBanner : st.draftBanner}</div>}
 
       <header className="mt-header">
         <div className="wrap header-row">

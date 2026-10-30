@@ -18,6 +18,7 @@ import {
   type PlanStage,
 } from "../plan";
 import { codeGuard } from "./guard";
+import { priceMoves, swapAmounts } from "../reprice";
 import { fillStoreFromPlan } from "../storeFill";
 import { textOf, today } from "./common";
 import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
@@ -30,6 +31,11 @@ const INTERVIEWER = `Eres el Entrevistador de Sevrii. Ayudas a dueños de peque�
 Cómo conversas:
 - Pocas preguntas: en cada mensaje pregunta juntos 2 o 3 datos de "missing" que vayan de la mano, en una sola frase natural. Por ejemplo: ciudad, estado, código postal (ZIP) y hasta dónde viaja; a quién le vende y cómo consigue clientes hoy; cuánto cobra y cuánto le cuesta cada trabajo; años de experiencia (y cuántos de esos por su cuenta) e idiomas; qué lo hace distinto y si tiene seguro. Así la entrevista dura unos 5 o 6 mensajes.
 - Si dice su nombre ("me llamo Carlos"), guárdalo en ownerName en ese mismo turno. No se lo vuelvas a pedir.
+- Nombre del negocio: si no tiene ("no tengo", "todavía no"), NO lo dejes para después: en ese mismo mensaje propónle 2 o 3 nombres cortos según su servicio y su ciudad, y pregúntale cuál le gusta (o si prefiere otro). Nunca guardes "sin nombre", "no tengo" ni algo parecido como nombre.
+- Lo que prometes, lo cumples: si dices que harás algo ("te sugiero nombres", "eso lo ajustamos"), hazlo en ese mismo mensaje o en el siguiente. Mejor no prometas para después: hazlo ya.
+- Cambio de idea: si cambia de servicio ("mejor clases de cocina en vez de meal prep"), guarda el nuevo en mainService en ese mismo turno. Desde ese momento solo existe el servicio nuevo: no vuelvas a hablar del anterior.
+- Si dice cuánto cobra hoy o cuánto quiere cobrar, guárdalo en currentPrice tal cual lo dijo (con su unidad: por visita, por hora, por noche…).
+- Lo que excluye se respeta: si dijo que no quiere algo ("nada de inglés", "no hago techos"), nunca se lo ofrezcas ni le sugieras agregarlo después.
 - Años: yearsExperience son los años en el oficio (aunque fuera trabajando para otros); yearsOwnBusiness son solo los años por su cuenta. Si dice "4 años limpiando, 2 por mi cuenta", guarda 4 y 2.
 - Preguntas directas primero: si la persona pregunta algo ("¿necesito seguro?", "¿cuánto les digo que cobro?", "¿se va a ver así en mi página?"), respóndelo de verdad en una o dos frases ANTES de seguir con lo que falta: sí o no, por qué y qué hacer. Si la respuesta depende de la investigación, di lo que ya sabes y que en la investigación lo confirmas. Nunca saltes una pregunta suya.
 - Corto y amable. Responde en el idioma en que te escribe el usuario (en español, tutea).
@@ -55,7 +61,7 @@ Qué no haces:
 - No prometes ingresos ni clientes.
 - No pides contraseñas, número de Seguro Social, datos bancarios ni de tarjetas.
 
-Cuando save_profile responda que el perfil está completo, dile en una o dos líneas que ahora vas a investigar su zona (1 a 2 minutos) y que aquí mismo verá el avance y después la propuesta.`;
+Cuando save_profile responda que el perfil está completo, dile en una o dos líneas que ahora vas a investigar su zona (1 a 2 minutos) y que aquí mismo verá el avance y después la propuesta. En ese mensaje NO hagas ninguna pregunta: mientras investigas el chat queda bloqueado y no te puede contestar.`;
 
 const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las 3 ideas que aparecen en el estado ("ideas"; si mode es C son ideas de agentes de IA); las ve en una tarjeta en este mismo chat, con un botón para escoger cada una. Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
 - Si dice cuál quiere, llama a choose_idea con su número (1, 2 o 3).
@@ -76,6 +82,10 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 - Si quiere aprobar todo de una vez, llama a approve_blocks con todas las partes que faltan.
 - Si mode es C (agente), la parte "service" incluye el agente (nombre, qué hace paso a paso, límites y saludo): sus cambios van en el campo agent. El agente siempre dice que es una IA; los precios de acceso son de $15 o más.
 - Usa solo hechos que él da o que están en el expediente. Nada de reseñas, "el mejor", "garantizado" ni cifras inventadas.
+- Datos: solo lo que dijo en la entrevista ("profile") y lo que trae la investigación ("market"). Nunca agregues tareas, herramientas o cuentas que no mencionó (por ejemplo "limpieza de filtro" o "tu perfil de Google"), ni impuestos, depósitos, cargos o políticas que no dio. Si dices que un precio está "en el rango", compruébalo con los números de market.prices; si no lo está, dilo como es.
+- Lo que prometes, lo cumples: nunca dejes un cambio "para cuando lleguemos a esa parte". Si pide ajustar algo de otra parte (un precio, una pregunta), hazlo ya con update_proposal y dilo en una línea.
+- Cambio de servicio: si el dueño cambia de idea o de servicio, actualiza con update_proposal TODAS las partes que lo nombran o dependen de él (service, serviceIncludes, steps, customer, problem, promise, differentiators, packages, pricingNote, offer y faq), sin restos del servicio anterior.
+- Lo que el dueño excluyó (un idioma, un servicio, una zona) nunca se ofrece ni se sugiere agregar después.
 - Idiomas: solo los del perfil (languages). Nunca digas que atiende en inglés o que es bilingüe si no lo dijo. Lo que el dueño dijo que no quiere hacer nunca es argumento de venta.
 - Un solo juego de números: usa exactamente los nombres y precios de los paquetes. Si cambias un precio, cámbialo en todos lados (paquetes, nota de precios, oferta, preguntas frecuentes).
 - Precios: si los cambia, explica en una línea cómo queda el margen frente a sus costos y al rango de la zona.
@@ -345,6 +355,10 @@ async function renameProject(b: BusinessRow, name: string) {
   }
 }
 
+// Placeholders the model sometimes saves as a business name.
+const NO_NAME = /^(sin nombre|no tengo|todav[ií]a no|a[uú]n no|ninguno|ninguna|n\/?a|none|no name|not yet|no tiene|sin nombre todav[ií]a|por definir|tbd|-+)\b/i;
+const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
 // Did the owner actually talk about languages? (the model sometimes guesses
 // them from the language they write in, or from "Hispanic customers").
 const SAID_LANGUAGES = /\b(espa[ñn]ol|ingl[eé]s|spanish|english|idiomas?|languages?|biling[uü]e|bilingual|ambos|los dos|both)\b/i;
@@ -394,8 +408,20 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         delete input.languages;
         note = " (languages NOT saved: the owner never said which languages they serve in; ask them: español, inglés o los dos)";
       }
+      // "No tengo nombre" is not a name: the Brain suggests some instead.
+      if (typeof input.businessName === "string" && NO_NAME.test(input.businessName.trim())) {
+        delete input.businessName;
+        note += " (businessName NOT saved: they have no name yet. In THIS message suggest 2 or 3 short names that fit their service and city and ask which one they like)";
+      }
       const profile = parseProfile({ ...plan.profile, ...input });
       let next: BusinessPlan = { ...plan, profile };
+      // A change of mind: the new service replaces the chosen idea everywhere
+      // (research, proposal and page), so nothing of the old one is left.
+      const chosen = plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
+      if (typeof input.mainService === "string" && profile.mainService && (plan.service || chosen) && fold(profile.mainService) !== fold(plan.service || chosen?.title || "")) {
+        next = { ...next, service: profile.mainService, chosenIdea: null };
+        note += ` (the service is now "${profile.mainService}": from now on talk only about it; the previous idea is gone)`;
+      }
       if (typeof input.businessName === "string" && profile.businessName) await renameProject(b, profile.businessName);
       const left = missingProfile(next);
       if (left.length) {
@@ -407,11 +433,11 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (!(await researchWouldStart(b.userId))) {
         await updateBusinessPlan(b.id, parsePlan(next));
         const msg = researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es");
-        return { out: `saved. profile complete, BUT the research can't start now. Tell the owner kindly, with these exact facts and nothing else about plans (don't suggest upgrading unless this text does): "${msg}"` };
+        return { out: `saved${note}. profile complete, BUT the research can't start now. Tell the owner kindly, with these exact facts and nothing else about plans (don't suggest upgrading unless this text does): "${msg}"` };
       }
       next = { ...next, stage, runId: "" };
       await updateBusinessPlan(b.id, parsePlan(next));
-      return { out: `saved. profile complete: stage moved to ${stage}. Tell the owner you will now research their area (1-2 minutes) and they will see the progress here in the chat.`, startPipeline: true };
+      return { out: `saved${note}. profile complete: stage moved to ${stage}. Tell the owner you will now research their area (1-2 minutes) and they will see the progress here in the chat. Do NOT ask any question now: the chat is locked during the research.`, startPipeline: true };
     }
     case "choose_idea": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
@@ -469,6 +495,10 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         if (JSON.stringify(now) !== JSON.stringify(before[k])) touched.add(FIELD_BLOCK[k]);
         else delete patch[k];
       }
+      // A price that changes, changes everywhere: the old amount is replaced in
+      // the texts this edit didn't send (video script, notes, offer, FAQ), so
+      // nothing made later (Store, Marketing) reads the old price.
+      if (Array.isArray(patch.packages)) Object.assign(patch, repriced(plan, patch));
       const approvals = { ...plan.approvals };
       for (const t of touched) delete approvals[t];
       // Only an edit to an approval block reopens the proposal; anything else
@@ -496,6 +526,22 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     default:
       return { out: "error: unknown tool" };
   }
+}
+
+function repriced(plan: BusinessPlan, patch: Record<string, unknown>): Record<string, unknown> {
+  const after = (patch.packages as { name?: unknown; price?: unknown }[]).map((x) => ({ name: String(x?.name ?? ""), price: String(x?.price ?? "") }));
+  const moves = priceMoves(plan.packages, after);
+  if (!moves.size) return {};
+  const out: Record<string, unknown> = {};
+  const sw = (t: string) => swapAmounts(t, moves);
+  if (patch.videoScript === undefined) out.videoScript = sw(plan.videoScript);
+  if (patch.pricingNote === undefined) out.pricingNote = sw(plan.pricingNote);
+  if (patch.promise === undefined) out.promise = sw(plan.promise);
+  if (patch.faq === undefined) out.faq = plan.faq.map((f) => ({ q: sw(f.q), a: sw(f.a) }));
+  if (patch.offer === undefined && plan.offer) out.offer = { ...plan.offer, label: sw(plan.offer.label), detail: sw(plan.offer.detail) };
+  // Only what really changed is kept (an unchanged FAQ must not reopen its part).
+  for (const k of Object.keys(out)) if (JSON.stringify(out[k]) === JSON.stringify((plan as unknown as Record<string, unknown>)[k])) delete out[k];
+  return out;
 }
 
 export function chooseIdea(plan: BusinessPlan, i: number): BusinessPlan {
@@ -605,6 +651,14 @@ export async function runPlanChatTurn(opts: {
   }
   if (!reply && startPipeline) {
     reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.";
+  }
+  // The chat is locked while the research runs: a question there can't be
+  // answered, so it's taken out of the message.
+  if (startPipeline && /[?¿]/.test(reply)) {
+    const kept = reply.split(/(?<=[.!?])\s+/).filter((x) => !/[?¿]/.test(x)).join(" ").trim();
+    reply =
+      kept ||
+      (es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.");
   }
   // Never show the owner our internal notes (they sometimes get echoed).
   reply = reply

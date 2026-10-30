@@ -63,7 +63,7 @@ export async function GET(req: Request) {
     const answers = `${c.data.__answers ? `${c.data.__answers}\n` : ""}(Revisión diaria: vuelve a comprobar en la página oficial si ya quedó hecho.)`.slice(-2000);
     const working = await updateAgentCase(c.id, { status: "working", waiting: null, data: { ...c.data, __answers: answers } });
     if (!working) continue;
-    const r = await runForUser(serviceAgentAccount(b.userId), () => advanceCase(b, working, "https://www.sevrii.com")).catch(() => null);
+    const r = await runForUser(serviceAgentAccount(b.userId), () => advanceCase(b, working, "https://www.sevrii.com"), "service_agent").catch(() => null);
     // Still not confirmed: back to pending for tomorrow.
     if (r && r.case.status === "working") await updateAgentCase(c.id, { status: "pending", waiting: c.waiting });
     rechecked++;

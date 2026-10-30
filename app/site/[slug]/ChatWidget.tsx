@@ -213,7 +213,9 @@ export default function ChatWidget({
   campaign,
   agent,
   room = false,
+  hello,
 }: {
+  hello?: string; // the greeting with the approved name, service and area
   room?: boolean; // the agent's own full-screen room (/site/<slug>/agente)
   agent?: ChatAgent | null;
   pick?: string; // a service the visitor just picked above the chat
@@ -510,7 +512,7 @@ export default function ChatWidget({
           <div className="cw-list" ref={listRef} aria-live="polite">
             <div className="cw-row cw-hello">
               <Avatar src={logoUrl} name={businessName} className="cw-mini" />
-              <div className="cw-msg ai">{agent ? agent.greeting || t.agentHello : t.hello(businessName)}</div>
+              <div className="cw-msg ai">{agent ? agent.greeting || t.agentHello : hello || t.hello(businessName)}</div>
             </div>
             {msgs.map((m, i) => {
               const prev = msgs[i - 1];

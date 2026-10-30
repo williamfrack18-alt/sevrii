@@ -39,6 +39,11 @@ export function isAdmin(user: Who): boolean {
   return Boolean(user.googleSub || user.emailVerifiedAt) && ADMIN_EMAILS.includes(email);
 }
 
+// Sevrii's own admins only (not testers): internal numbers like AI costs.
+export function isStaffAdmin(user: Who): boolean {
+  return Boolean(user.googleSub || user.emailVerifiedAt) && ADMIN_EMAILS.includes(user.email.toLowerCase());
+}
+
 export function billingReady(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.STRIPE_PRICE_STARTER_MONTHLY);
 }

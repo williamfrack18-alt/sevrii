@@ -12,6 +12,7 @@ import { AGENT_MODEL, MODELS, getAgentModel, getClaude, logAiError } from "./cla
 import { addChatMessage, getMarketingVideo, updateMarketingVideo, type BusinessRow, type MarketingVideoRow, type VideoJob } from "./db";
 import { browserAlive, browserDownloads, browserMode, getHands, releaseBrowser, SENSITIVE_FIELD, type BrowserState, type Hands, type PageView } from "./agentOps/browser";
 import { videoToken, videoToolOf } from "./marketingVideos";
+import { countAiUnit } from "./usage";
 
 const CHANNEL = "brain";
 const ROUNDS_PER_CALL = 8;
@@ -468,6 +469,8 @@ export async function advanceVideoJob(b: BusinessRow, id: string): Promise<{ vid
   v = (await updateMarketingVideo(b.id, id, { job, ...(s?.status ? { status: s.status } : {}), ...(s?.videoUrl ? { videoUrl: s.videoUrl } : {}) })) ?? v;
   if (s) {
     if (s.status === "ready" || s.status === "failed") await releaseBrowser(state);
+    // One finished video = one unit of the "video" cost (see lib/usage.ts).
+    if (s.status === "ready") await countAiUnit("video");
     const fallback =
       s.status === "ready"
         ? es ? `Listo: el video ${v.title} quedó guardado en Mis videos. ¿Lo publico en Facebook e Instagram? Te digo el presupuesto antes.` : `Done: the video ${v.title} is saved in My videos. Shall I publish it on Facebook and Instagram? I'll tell you the budget first.`

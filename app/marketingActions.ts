@@ -11,7 +11,7 @@ import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { marketingGreeting, runMarketingChatTurn } from "@/lib/marketingBrain";
-import { chatGate, gateMessage, runForUser } from "@/lib/usage";
+import { chatGate, countAiUnit, gateMessage, runForUser } from "@/lib/usage";
 
 const CHANNEL = "brain";
 
@@ -77,6 +77,7 @@ export async function sendMarketingChatAction(message: string, focusVideoId?: st
       return respond((await getBusinessById(business.id)) ?? business);
     }
   }
+  await countAiUnit("marketing_chat");
   const result = await runForUser(business.userId, () => runMarketingChatTurn({
     business,
     reload: async () => (await getBusinessById(business.id))!,
@@ -87,7 +88,7 @@ export async function sendMarketingChatAction(message: string, focusVideoId?: st
     message: text,
     lang,
     focusVideoId: focusVideoId ? String(focusVideoId).slice(0, 64) : undefined,
-  }));
+  }), "marketing_chat");
   // A proposal made in this turn gets its OK button under the reply.
   const proposed = result.proposedActionId ? await getMarketingAction(business.id, result.proposedActionId) : null;
   await addChatMessage(business.id, CHANNEL, "ai", proposed?.status === "pending" ? `${result.reply}\n\n${actionToken(proposed.id)}` : result.reply);
@@ -153,7 +154,7 @@ export async function listMarketingVideosAction(refresh = false): Promise<Market
 export async function advanceMarketingVideoAction(id: string): Promise<MarketingVideosResponse & { more: boolean }> {
   const { business, allowed } = await marketingOwner();
   if (!allowed || !(await allow(`mk-video:${business.id}`, 30, 600))) return { ...(await videosResponse(business)), more: false };
-  const r = await runForUser(business.userId, () => advanceVideoJob(business, String(id || "")));
+  const r = await runForUser(business.userId, () => advanceVideoJob(business, String(id || "")), "video");
   return { ...(await videosResponse(business)), more: r.more };
 }
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { scriptWithPagePrices } from "./reprice";
 import { MODELS, getClaude, logAiError } from "./claude";
 import { textOf } from "./brain/common";
 import type { Lang } from "./i18n";
@@ -181,7 +182,8 @@ export async function businessFacts(b: BusinessRow) {
           campaignType: p.campaignType,
           channels: p.channels,
           photoIdeas: p.photoIdeas,
-          videoScript: p.videoScript,
+          // Written with the Brain's prices: shown with the page's prices of today.
+          videoScript: scriptWithPagePrices(p.videoScript, p.packages, services),
           // What to keep in mind for ads (e.g. Meta's special ad categories).
           notes: p.guard.warn,
         }
@@ -382,7 +384,7 @@ export async function executeStrategy(business: BusinessRow, lang: Lang, opts: {
     });
     await markAgentRan(b.id);
     return { ok: true as const, campaigns: made, posts };
-  });
+  }, "marketing_agent");
 }
 
 // ---------- launching on Meta (after the owner's OK) ----------
@@ -697,7 +699,7 @@ export async function runDaily(businessId: string): Promise<string> {
 
     await markAgentRan(b.id);
     return done.length ? done.join(", ") : "nothing to do";
-  });
+  }, "marketing_agent");
 }
 
 // ---------- what the dashboard shows ----------

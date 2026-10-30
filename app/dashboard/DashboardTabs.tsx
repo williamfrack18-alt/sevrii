@@ -706,6 +706,7 @@ export default function DashboardTabs({
         {view === "marketing" && (
           <MarketingView
             business={currentBusiness}
+            services={currentServices}
             campaigns={currentCampaigns}
             initialMessages={brainMessages}
             greeting={marketingGreeting}

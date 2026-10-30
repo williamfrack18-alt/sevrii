@@ -45,6 +45,17 @@ export type ChatToken = { kind: string; arg: string; msgId: string };
 
 // An internal error note an older version saved into the chat: never shown.
 const DEBUG = /\n*\[debug\][\s\S]*$/;
+// Error messages saved by older versions (raw API errors, "Tuve un problema
+// para guardar eso…"): taken out of the history the owner sees.
+const OLD_ERROR = /(credit balance|request_id|invalid_request_error|overloaded_error|rate_limit_error|authentication_error|"type"\s*:\s*"error"|^\s*\d{3}\s*[{[]|Tuve un problema para guardar eso|I had (a )?(problem|trouble) saving that|No pude guardar eso|I couldn't save that)/i;
+// Today's error messages (lib/claude.ts aiErrorReply): only the latest one
+// stays, while it's still the last thing in the chat; older ones go away.
+const PAST_ERROR = /^(El Cerebro está en pausa por un problema de nuestro lado|The Brain is paused because of a problem on our side|Hay mucha demanda en este momento y no alcancé|It's very busy right now and I couldn't answer|No pude terminar eso por un error de mi lado|I couldn't finish that because of an error on my side|El asistente no está disponible en este momento|The assistant isn't available right now)/;
+export function hiddenError(content: string, isLast: boolean): boolean {
+  const t = content.replace(DEBUG, "").trim();
+  if (OLD_ERROR.test(t)) return true;
+  return !isLast && PAST_ERROR.test(t);
+}
 // The part of a message that is read (without its card token).
 function visibleText(content: string): string {
   const raw = content.replace(OLD_CARD, "").replace(DEBUG, "");
@@ -611,7 +622,8 @@ export default function ChatPanel({
               {greeting}
             </div>
           )}
-          {messages.map((m) => {
+          {messages.map((m, mi) => {
+            if (m.role !== "user" && hiddenError(m.content, mi === messages.length - 1)) return null;
             const photo = PHOTO.exec(m.content);
             const video = VIDEO.exec(m.content);
             if (m.role === "user") {

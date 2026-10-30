@@ -174,7 +174,7 @@ export function BuyActions({
 }: {
   services: ChoiceService[];
   labels: { chooseLabel: string; selected: string; priceOnRequest: string; payNow: string };
-  chat: { slug: string; businessName: string; logoUrl: string; ownerName: string; ownerPhoto: string; lang: Lang; campaign?: string; agent?: ChatAgent | null } | null;
+  chat: { slug: string; businessName: string; logoUrl: string; ownerName: string; ownerPhoto: string; lang: Lang; campaign?: string; agent?: ChatAgent | null; hello?: string } | null;
   ctaNote: string;
   lang: Lang;
 }) {

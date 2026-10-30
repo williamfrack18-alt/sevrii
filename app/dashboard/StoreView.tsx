@@ -9,7 +9,7 @@ import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
-import { fillStoreFromPlanAction, loadStoreAction, setPublishedAction } from "@/app/storeActions";
+import { fillStoreFromPlanAction, loadStoreAction, previewLinkAction, setPublishedAction } from "@/app/storeActions";
 import { planFingerprint, planReadyForStore } from "@/lib/planToStore";
 import type { PublishGap } from "@/lib/site";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
@@ -184,6 +184,7 @@ export default function StoreView({
                 <a href="#" onClick={(e) => { e.preventDefault(); setPageOpen(true); }} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}>
                   {st.draft}
                 </a>
+                <PreviewLinkButton lang={lang} />
                 <button
                   type="button"
                   disabled={busy}
@@ -199,6 +200,7 @@ export default function StoreView({
                 <a href="#" onClick={(e) => { e.preventDefault(); setPageOpen(true); }} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}>
                   {st.draft}
                 </a>
+                <PreviewLinkButton lang={lang} />
                 <button type="button" onClick={onPlans} className="tap text-[12px] px-3 py-1 rounded-full font-semibold" style={{ background: TINT, color: ACCENT }}>
                   {lk.publishChip} →
                 </button>
@@ -302,5 +304,32 @@ export default function StoreView({
         </div>
       </Sheet>
     </div>
+  );
+}
+
+// Draft pages: a link to show the page to someone before publishing.
+function PreviewLinkButton({ lang }: { lang: "es" | "en" }) {
+  const [state, setState] = useState<"idle" | "copied" | "error">("idle");
+  const es = lang === "es";
+  async function copy() {
+    try {
+      const url = await previewLinkAction();
+      await navigator.clipboard.writeText(url);
+      setState("copied");
+    } catch {
+      setState("error");
+    }
+    setTimeout(() => setState("idle"), 2600);
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={es ? "Cualquiera con este enlace ve tu borrador. El chat y los pagos se activan al publicar." : "Anyone with this link sees your draft. Chat and payments switch on when you publish."}
+      className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium"
+      style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}
+    >
+      {state === "copied" ? (es ? "Enlace copiado" : "Link copied") : state === "error" ? (es ? "No se pudo copiar, inténtalo otra vez" : "Couldn't copy, try again") : es ? "Copiar enlace de vista previa" : "Copy preview link"}
+    </button>
   );
 }

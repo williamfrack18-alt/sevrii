@@ -208,6 +208,7 @@ How to work:
 - Service area: work it out yourself from what they say and save it with update_page — never show forms. If "page.reachMode" is empty: a service done at the customer's place (cleaning, moving, repairs, beauty at home…) is local → if you know their city (page, brainPlan or the chat), save reachMode=local with reachCity and ask only how many miles they travel (default 25 if they don't care); work that can be delivered online (video editing, design, bookkeeping, classes by video…) is remote → ask in one short question if they take customers in the whole US, only in their state (e.g. a state license or state paperwork) or other countries too, and save reachMode=remote with reachScope (and reachState for one state). If unsure, ask one plain question ("¿Lo haces en persona en tu zona o en línea?"). The marketplace only shows them to customers they can really serve.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
+- The page and its FAQ use ONLY what the owner approved in the Brain plan (brainPlan) and what they tell you in this chat. Never add taxes, fees, surcharges, deposits, refund or cancellation policies, guarantees or anything the owner didn't approve. Never offer or suggest what the owner excluded (a language, a service, an area).
 - Conversion coach: you are also their sales-page expert. Once the essentials are saved, give ONE concrete improvement per reply, the one with the biggest impact first, say in a few words why it brings more customers, and offer to do it: a clear photo of the owner as the main photo; a 30-60 s video of them; a welcome offer for first-time customers; a price on every package; their Google reviews link; FAQ answers to the top fears; notifications on so they answer chats fast. Never invent results or numbers.
 - One service only: if they sell a single service, don't push them to invent more packages; the page focuses on that one service automatically (one price, no options to choose). If they have options (sizes, extras), suggest 2-3 packages.
 - When the essentials are done (services with prices, the owner's name, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
@@ -216,6 +217,10 @@ How to work:
 - Service agent ("agent" in the state, when the owner is creating one): the page chat becomes their AI agent that delivers the service by itself and charges for access. An agent is a digital product that doesn't depend on what the owner knows: its knowledge base already comes from the Brain's official research. Help them finish it before publishing: its name and one-line role; its method step by step (instructions); if they WANT to add their own material, rules or answers, save it with knowledgeAdd in their own words (optional, never a requirement, never invent facts); its limits (always: it says it's an AI, never promises results, the owner handles refunds and cases outside the service); its greeting; how many free replies (3 is a good start); and what customers buy (set_agent_offers: one-time access for N days and/or monthly, each $15 or more). A welcome offer for new customers is set with update_agent welcomePercent (and welcomeOn): it applies only to a customer's first purchase and never takes a price under $15. If "agent.paymentsReady" is false, tell them once that to charge they must connect Payments (left menu) — until then the agent only gives the free replies and then passes the chat to them. Then ask if they want to switch it on (update_agent enabled=true) and suggest testing it themselves on "Ver borrador" (as the owner they can chat for free). The page itself still needs a headline, a photo of the owner and publishing like any page. An agent's page is different from a normal service page: it shows "AI agent · 24/7", the free trial, the chat first, who created it (creator + the owner's photo), why it's worth paying for instead of a free AI chat (edge), its access prices and its limits. So for an agent don't ask for hours, service area, license or years in business; don't ask for photos of their work; their photo is optional (it shows next to "created by", with their name only), and make sure edge is true and concrete. 
 - The agent DOES the task, it doesn't just guide (the new Sevrii model). Before switching it on, define with the owner, in plain words and one question at a time, the complete task with set_agent_task: (1) what it finishes end to end (the result the customer gets, e.g. "deja la LLC creada", "deja la cita hecha"); (2) which official pages or software it operates (https links, official sources first); (3) which ordinary data it asks in the chat; (4) which sensitive data the customer types themselves on the official page and at what moment (passwords, card when paying a fee) — never in the chat, never stored; (5) which steps need the customer's OK (signing, submitting, paying); (6) how it proves it's done (confirmation number, document, official record) — if it can't be verified it stays pending; (7) what the customer receives in the chat; (8) reminders afterwards, if any. If "agent.taskMissing" isn't empty, it can't be switched on: say what's missing. It never replaces a licensed professional when the law requires one, never signs or pays without the customer's explicit OK, and never promises an outcome that depends on the office.
 - Keep every reply under 70 words. No markdown headings, no bullet lists longer than 4 items.`;
+
+// Policy words a page answer can't state unless the owner gave them.
+const POLICY = /\b(impuestos?|tax(es)?|iva|deposito|deposit|reembolsos?|refunds?|cancelacion(es)?|cancellations?|cargos? extra|recargos?|surcharges?|garantia|guarantee[sd]?|propinas?)\b/g;
+const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export type StoreChatResult = { reply: string; business: BusinessRow; services: ServiceRow[] };
 
@@ -252,11 +257,24 @@ function clip(v: unknown, max: number): string {
 async function runTool(
   name: string,
   input: Record<string, unknown>,
-  ctx: { business: BusinessRow; services: ServiceRow[]; canPublish: boolean }
+  ctx: { business: BusinessRow; services: ServiceRow[]; canPublish: boolean; ownerSaid?: string }
 ): Promise<string> {
   const b = ctx.business;
   switch (name) {
     case "update_page": {
+      // An FAQ answer that states a policy (tax, deposit, refund…) nobody
+      // approved doesn't go on the page.
+      const dropped: string[] = [];
+      if (Array.isArray(input.faq)) {
+        const approved = fold(`${JSON.stringify(b.plan.faq)} ${JSON.stringify(b.site.faq)} ${b.plan.pricingNote} ${b.plan.offer?.detail ?? ""} ${ctx.ownerSaid ?? ""}`);
+        input.faq = (input.faq as { q?: unknown; a?: unknown }[]).filter((f) => {
+          const text = `${f?.q ?? ""} ${f?.a ?? ""}`;
+          const terms = [...fold(text).matchAll(POLICY)].map((m) => m[0]);
+          const unapproved = terms.filter((t) => !approved.includes(t));
+          if (unapproved.length) dropped.push(String(f?.q ?? "").slice(0, 80));
+          return unapproved.length === 0;
+        });
+      }
       const details: Partial<{ name: string; category: string; pitch: string; city: string | null }> = {};
       if (typeof input.name === "string" && input.name.trim()) details.name = clip(input.name, LIMITS.name);
       if (typeof input.category === "string" && input.category.trim()) details.category = clip(input.category, 60);
@@ -321,6 +339,7 @@ async function runTool(
           notes.push(pct ? `the agent's checkout now takes ${pct}% off a new customer's first purchase` : "the agent's welcome discount was removed");
         }
       }
+      if (dropped.length) notes.push(`FAQ not saved: ${dropped.map((q) => `"${q}"`).join(", ")} — it states a tax, fee, deposit, refund or other policy the owner never gave. Ask the owner first; only add it with their own words`);
       const problems = notes.filter((n) => !n.startsWith("the agent's"));
       const info = notes.filter((n) => n.startsWith("the agent's"));
       return `${problems.length ? `saved, with problems: ${problems.join("; ")}` : "saved"}${info.length ? `; ${info.join("; ")}` : ""}`;
@@ -474,6 +493,8 @@ export async function runStoreChatTurn(opts: {
   // Photos the owner uploaded (our own Blob storage only), newest first: the
   // one in this message plus the latest ones from the chat, so the model can
   // still see them when the owner asks about them a message later.
+  // What the owner wrote in this chat (a policy on the page must come from them).
+  const ownerSaid = [...opts.history.filter((h) => h.role === "user").map((h) => h.content), opts.message].join("\n");
   const BLOB = /https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[^\s"')]+/gi;
   const recent = [opts.message, ...opts.history.filter((h) => h.role === "user").map((h) => h.content).reverse()]
     .flatMap((t) => t.match(BLOB) ?? [])
@@ -528,7 +549,7 @@ export async function runStoreChatTurn(opts: {
       for (const u of uses) {
         let out: string;
         try {
-          out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, { business, services, canPublish: opts.canPublish });
+          out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, { business, services, canPublish: opts.canPublish, ownerSaid });
         } catch (err) {
           console.error("[ai:store] tool failed", u.name, err);
           out = "error: could not save";

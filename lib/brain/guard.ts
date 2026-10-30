@@ -22,6 +22,10 @@ Marca como "block":
 - Suponer que el dueño ya tiene video, fotos, reseñas, licencia o seguro si el perfil no lo dice.
 - Precios que no cuadran entre sí: un monto en la promesa, la oferta o las notas que no corresponde a ningún paquete, o paquetes con rangos que se pisan.
 - Cuentas de costos que no suman bien.
+- Cambiar el precio que el dueño cobra hoy (profile.currentPrice) sin su OK: si el paquete de su servicio de hoy cobra otro precio, o hay un nivel nuevo que no está marcado como "Sugerido:".
+- Decir que un precio está "en el rango", "por debajo" o "por encima" del mercado cuando los números de market.prices dicen otra cosa.
+- Datos que nadie dio: tareas que el dueño no mencionó, herramientas, cuentas o perfiles que no dijo tener ("tu perfil de Google"), impuestos, cargos extra o depósitos.
+- Ofrecer o sugerir algo que el dueño excluyó (por ejemplo, agregar inglés cuando dijo solo español).
 
 Marca como "warn":
 - Categorías especiales de anuncios de Meta (lista oficial: productos financieros y crédito; empleo; vivienda; temas sociales, elecciones o política). Meta incluye dentro de vivienda las reparaciones de vivienda ("housing repairs"): plomería, electricidad, techos o remodelación PUEDEN caer ahí; dilo como "puede aplicar, Meta lo confirma al crear el anuncio", nunca como seguro. Limpieza, mudanzas, jardinería, lavandería, belleza, barbería, armado de muebles y clases NO son categoría especial: no los marques.
@@ -59,8 +63,29 @@ export function codeGuard(plan: BusinessPlan, lang: Lang, final = true): { block
   return { block: keys.map((k) => (CODE_TEXT[k] ? CODE_TEXT[k][lang] : k)), warn: [] };
 }
 
+// The price the owner charges today stays in the proposal as they said it: a
+// different one is only a suggestion they approve in the chat. Checked by code
+// on the first proposal only (once they agree to a change in the chat, the new
+// price is theirs). Hourly or per-unit prices aren't compared with packages.
+const money = (t: string) => [...t.matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/g)].map((m) => Number(m[1].replace(/,/g, "")));
+export function keptPriceIssue(plan: BusinessPlan, lang: Lang): string | null {
+  const cp = plan.profile.currentPrice || "";
+  if (!cp || !plan.packages.length || /(hora|hour|\/\s?h(r|ra)?\b|pie|sq\.?\s?ft|milla|mile)/i.test(cp)) return null;
+  const now = [...new Set(money(cp).filter((n) => n >= 5))];
+  if (!now.length || now.length > 4) return null;
+  const offered = new Set(plan.packages.flatMap((k) => money(k.price)));
+  const lost = now.filter((n) => !offered.has(n));
+  if (!lost.length) return null;
+  const list = lost.map((n) => `$${n}`).join(", ");
+  return lang === "es"
+    ? `Hoy cobras ${list} y ningún paquete mantiene ese precio. Tu precio se queda como lo dijiste; si te propongo otro, te pido el OK primero.`
+    : `Today you charge ${list} and no package keeps that price. Your price stays as you said it; if I suggest another one, I ask for your OK first.`;
+}
+
 export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block: string[]; warn: string[] }> {
-  const fromCode = codeGuard(plan, lang, false);
+  const code = codeGuard(plan, lang, false);
+  const kept = keptPriceIssue(plan, lang);
+  const fromCode = { ...code, block: kept ? [...code.block, kept] : code.block };
   const client = getClaude(40_000);
   if (!client) return fromCode;
   try {
@@ -82,9 +107,12 @@ export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block
             },
           })}\n\nPropuesta (JSON):\n${JSON.stringify({
             service: plan.service,
+            serviceIncludes: plan.serviceIncludes,
+            steps: plan.steps,
             promise: plan.promise,
             differentiators: plan.differentiators,
             packages: plan.packages,
+            pricingNote: plan.pricingNote,
             offer: plan.offer,
             campaignType: plan.campaignType,
             faq: plan.faq,

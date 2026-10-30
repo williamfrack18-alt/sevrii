@@ -201,7 +201,7 @@ async function agentTurn(b: BusinessRow, conv: ConversationRow, history: ConvMes
   if (!(await serviceAgentGate(b.userId))) return null;
   // Doing the task (operating the official pages) is for paid access and the owner's own test.
   const canOperate = hasTask(a) && (mode.kind === "paid" || mode.kind === "owner_test");
-  const turn = await runForUser(serviceAgentAccount(b.userId), () => runServiceAgent(b, conv, history, mode, { canOperate, openCase })).catch(() => null);
+  const turn = await runForUser(serviceAgentAccount(b.userId), () => runServiceAgent(b, conv, history, mode, { canOperate, openCase }), "service_agent").catch(() => null);
   if (!turn) return null;
   if (turn.startCase && canOperate && !openCase) {
     const c = await createAgentCase({ businessId: b.id, conversationId: conv.id, mode: browserMode(), title: turn.startCase.title, data: turn.startCase.facts });
@@ -353,7 +353,7 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
     if (canAi) {
       const services = await listServices(b.id);
       const c = conv;
-      ai = await runForUser(visitorAiAccount(b.userId), () => runVisitorAi(b, services, c, history)).catch(() => null);
+      ai = await runForUser(visitorAiAccount(b.userId), () => runVisitorAi(b, services, c, history), "visitor_chat").catch(() => null);
     }
   }
 
@@ -786,7 +786,7 @@ export async function advanceCaseAction(input: { slug: string; token: string; id
   const host = h.get("x-forwarded-host") || h.get("host") || "www.sevrii.com";
   const baseUrl = `${h.get("x-forwarded-proto") || "https"}://${host}`;
   try {
-    const r = await runForUser(serviceAgentAccount(b.userId), () => advanceCase(b, locked ?? c, baseUrl));
+    const r = await runForUser(serviceAgentAccount(b.userId), () => advanceCase(b, locked ?? c, baseUrl), "service_agent");
     const fresh = (await updateAgentCase(c.id, { data: Object.fromEntries(Object.entries(r.case.data).filter(([k]) => k !== "__runAt")) })) ?? r.case;
     return { case: publicCase(fresh), more: r.more };
   } catch {

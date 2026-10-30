@@ -211,6 +211,25 @@ async function migrate(): Promise<void> {
           PRIMARY KEY ("userId", month)
         )
       `;
+      // What each Sevrii function spends on AI, per day (to price the plans):
+      // calls and tokens per model, and "units" (a chat message, a research
+      // run, a video) under model '' so the cost per unit can be computed.
+      await sql`
+        CREATE TABLE IF NOT EXISTS ai_feature_usage (
+          day TEXT NOT NULL,
+          feature TEXT NOT NULL,
+          model TEXT NOT NULL,
+          calls INTEGER NOT NULL DEFAULT 0,
+          units INTEGER NOT NULL DEFAULT 0,
+          "inputTokens" BIGINT NOT NULL DEFAULT 0,
+          "outputTokens" BIGINT NOT NULL DEFAULT 0,
+          "cacheWriteTokens" BIGINT NOT NULL DEFAULT 0,
+          "cacheReadTokens" BIGINT NOT NULL DEFAULT 0,
+          searches INTEGER NOT NULL DEFAULT 0,
+          "costMicros" BIGINT NOT NULL DEFAULT 0,
+          PRIMARY KEY (day, feature, model)
+        )
+      `;
       // Marketplace category, set automatically when the page is published.
       await sql`ALTER TABLE businesses ADD COLUMN IF NOT EXISTS "marketCategory" TEXT`;
       // Brain research runs: one row per task, so the screen can show progress.
@@ -1032,6 +1051,43 @@ export async function addAiUsage(userId: string, month: string, micros: number):
     INSERT INTO ai_usage ("userId", month, "costMicros", calls) VALUES (${userId}, ${month}, ${micros}, 1)
     ON CONFLICT ("userId", month) DO UPDATE SET "costMicros" = ai_usage."costMicros" + ${micros}, calls = ai_usage.calls + 1
   `;
+}
+
+export type AiFeatureTokens = { input: number; output: number; cacheWrite: number; cacheRead: number; searches: number; micros: number };
+export async function addAiFeatureUsage(day: string, feature: string, model: string, t: AiFeatureTokens): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO ai_feature_usage (day, feature, model, calls, "inputTokens", "outputTokens", "cacheWriteTokens", "cacheReadTokens", searches, "costMicros")
+    VALUES (${day}, ${feature}, ${model}, 1, ${t.input}, ${t.output}, ${t.cacheWrite}, ${t.cacheRead}, ${t.searches}, ${t.micros})
+    ON CONFLICT (day, feature, model) DO UPDATE SET
+      calls = ai_feature_usage.calls + 1,
+      "inputTokens" = ai_feature_usage."inputTokens" + ${t.input},
+      "outputTokens" = ai_feature_usage."outputTokens" + ${t.output},
+      "cacheWriteTokens" = ai_feature_usage."cacheWriteTokens" + ${t.cacheWrite},
+      "cacheReadTokens" = ai_feature_usage."cacheReadTokens" + ${t.cacheRead},
+      searches = ai_feature_usage.searches + ${t.searches},
+      "costMicros" = ai_feature_usage."costMicros" + ${t.micros}
+  `;
+}
+export async function addAiFeatureUnit(day: string, feature: string): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO ai_feature_usage (day, feature, model, units) VALUES (${day}, ${feature}, '', 1)
+    ON CONFLICT (day, feature, model) DO UPDATE SET units = ai_feature_usage.units + 1
+  `;
+}
+export type AiFeatureRow = { feature: string; model: string; calls: number; units: number; input: number; output: number; cacheWrite: number; cacheRead: number; searches: number; micros: number };
+export async function aiFeatureReport(sinceDay: string): Promise<AiFeatureRow[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT feature, model, SUM(calls) AS calls, SUM(units) AS units, SUM("inputTokens") AS input, SUM("outputTokens") AS output,
+      SUM("cacheWriteTokens") AS cw, SUM("cacheReadTokens") AS cr, SUM(searches) AS searches, SUM("costMicros") AS micros
+    FROM ai_feature_usage WHERE day >= ${sinceDay} GROUP BY feature, model ORDER BY feature, model
+  `) as Record<string, string | number>[];
+  return rows.map((r) => ({
+    feature: String(r.feature), model: String(r.model), calls: Number(r.calls), units: Number(r.units), input: Number(r.input), output: Number(r.output),
+    cacheWrite: Number(r.cw), cacheRead: Number(r.cr), searches: Number(r.searches), micros: Number(r.micros),
+  }));
 }
 
 export async function getAiSpendMicros(userId: string, month: string): Promise<number> {

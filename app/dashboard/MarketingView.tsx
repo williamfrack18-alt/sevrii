@@ -20,7 +20,8 @@ import { ActionCard, VideoGallery, VideoJobCard } from "./MarketingVideos";
 import ChatPanel, { type Msg } from "./ChatPanel";
 import ProjectDock, { Sheet, StepList, type StepItem } from "./ProjectDock";
 import AgentPanel from "./AgentPanel";
-import { toClientBusiness, type ClientBusiness, type ClientCampaign } from "./types";
+import { toClientBusiness, type ClientBusiness, type ClientCampaign, type ClientService } from "./types";
+import { scriptWithPagePrices } from "@/lib/reprice";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 
 type Lang = "es" | "en";
@@ -45,7 +46,9 @@ export default function MarketingView({
   onMessages,
   locked = false,
   onPlans,
+  services = [],
 }: {
+  services?: ClientService[];
   locked?: boolean;
   onPlans?: () => void;
   business: ClientBusiness;
@@ -269,6 +272,8 @@ export default function MarketingView({
   // Everything stays in the chat: the strategy is the last card of the
   // conversation, each part opens in place, and what's running opens from it.
   const plan = business.plan;
+  // The script was written with the Brain's prices: it shows the page's prices of today.
+  const script = scriptWithPagePrices(plan.videoScript, plan.packages, services);
   const media: StepItem[] =
     plan.videoScript || plan.photoIdeas.length
       ? [
@@ -279,7 +284,7 @@ export default function MarketingView({
             summary: es ? "Para tus anuncios y tu página. Pídeme cambios aquí." : "For your ads and your page. Ask me for changes here.",
             detail: (
               <div className="flex flex-col gap-4 min-w-0">
-                {plan.videoScript && <p className="text-[14px] text-pfg leading-relaxed whitespace-pre-line rounded-xl p-4 break-words" style={{ background: "rgba(10,10,10,0.034)" }}>{plan.videoScript}</p>}
+                {script && <p className="text-[14px] text-pfg leading-relaxed whitespace-pre-line rounded-xl p-4 break-words" style={{ background: "rgba(10,10,10,0.034)" }}>{script}</p>}
                 {plan.photoIdeas.length > 0 && (
                   <ul className="flex flex-col gap-2">
                     {plan.photoIdeas.map((p, i) => (

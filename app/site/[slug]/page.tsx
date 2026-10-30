@@ -8,6 +8,7 @@ import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, increme
 import { cleanCampaignId } from "@/lib/campaignLink";
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
+import { previewOk } from "@/lib/preview";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { reachLabel, resolveReach } from "@/lib/reach";
@@ -83,13 +84,16 @@ export default async function PublicBusinessPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
-  const rawC = (await searchParams).c;
+  const sp = await searchParams;
+  const rawC = sp.c;
   const business = await businessBySlug(slug);
   if (!business) notFound();
 
   const [viewer, live] = await Promise.all([getCurrentUser().catch(() => null), isLive(business)]);
   const isOwner = viewer?.id === business.userId;
-  if (!live && !isOwner) notFound();
+  // A draft can be shown with the owner's signed preview link (?vista=…).
+  const preview = !live && !isOwner && previewOk(business.id, typeof sp.vista === "string" ? sp.vista : null);
+  if (!live && !isOwner && !preview) notFound();
 
   const site = business.site;
   const t = STORE_TEXT[site.lang].site;
@@ -98,7 +102,7 @@ export default async function PublicBusinessPage({
     listServices(business.id),
     business.payStatus === "ready" ? listPaymentLinks(business.id) : Promise.resolve([]),
   ]);
-  const payLinks = allPayLinks.filter((l) => l.active).slice(0, 6);
+  const payLinks = preview ? [] : allPayLinks.filter((l) => l.active).slice(0, 6);
   const payText =
     site.lang === "en"
       ? { eyebrow: "Pay online", title: "Book and pay here", button: "Pay" }
@@ -141,7 +145,7 @@ export default async function PublicBusinessPage({
     return (
       <>
         {affRef}
-        <AgentPage business={business} live={live} campaign={campaign} chatAgent={chatAgent} reviews={await listAgentReviews(business.id, 9).catch(() => ({ list: [], avg: null, count: 0 }))} />
+        <AgentPage business={business} live={live} preview={preview} campaign={campaign} chatAgent={chatAgent} reviews={await listAgentReviews(business.id, 9).catch(() => ({ list: [], avg: null, count: 0 }))} />
       </>
     );
 
@@ -157,7 +161,8 @@ export default async function PublicBusinessPage({
   const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   const payFor = (name: string) => {
     const n = norm(name);
-    return n ? payLinks.find((l) => norm(l.title) === n || norm(l.title).includes(n)) : undefined;
+    // The exact name first, so a package never picks up its discounted welcome-offer link.
+    return n ? payLinks.find((l) => norm(l.title) === n) ?? payLinks.find((l) => norm(l.title).includes(n)) : undefined;
   };
 
   // Gallery: the owner's video first, then their photos, then a card per
@@ -201,7 +206,20 @@ export default async function PublicBusinessPage({
   const keyPoints = site.keyPoints.length > 0 ? site.keyPoints : site.highlights.map((h) => ({ title: "", text: h }));
 
   // Customers talk to the business only through the page chat.
-  const hasChat = site.chat;
+  const hasChat = site.chat && !preview;
+  // The chat greets with what the owner approved: the business, its service
+  // and where it works (never a generic line when those are known).
+  const helloService = [business.plan.profile.mainService, business.category]
+    .map((x) => (x || "").trim().replace(/[.?!]+$/, ""))
+    .filter((x) => x && x.length <= 60)
+    .sort((a, b) => a.length - b.length)[0] || "";
+  const helloCity = site.baseCity || business.plan.profile.city || business.city || "";
+  const lowerFirst = (x: string) => (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(x) ? `${x.charAt(0).toLowerCase()}${x.slice(1)}` : x);
+  const hello = helloService
+    ? site.lang === "en"
+      ? `Hi! 👋 Thanks for writing to ${business.name}: ${lowerFirst(helloService)}${helloCity && !helloService.toLowerCase().includes(helloCity.toLowerCase()) ? ` in ${helloCity}` : ""}. What do you need? We'll answer right here.`
+      : `¡Hola! 👋 Gracias por escribir a ${business.name}: ${lowerFirst(helloService)}${helloCity && !helloService.toLowerCase().includes(helloCity.toLowerCase()) ? ` en ${helloCity}` : ""}. ¿Qué necesitas? Te respondemos aquí.`
+    : undefined;
   const es = site.lang !== "en";
   const chatLong = es ? "Escríbenos ahora" : "Message us now";
   const chatShort = es ? "Pedir este servicio" : "Ask about this";
@@ -236,7 +254,7 @@ export default async function PublicBusinessPage({
     <div className="mt" lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
       {live && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson }} />}
       {affRef}
-      {!live && <div className="draft-bar">{t.draftBanner}</div>}
+      {!live && <div className="draft-bar">{preview ? t.previewBanner : t.draftBanner}</div>}
 
       <header className="mt-header">
         <div className="wrap header-row">
@@ -391,7 +409,7 @@ export default async function PublicBusinessPage({
                 const link = payFor(s.name);
                 return { id: s.id, name: s.name, price: s.price ?? "", payHref: link ? `/pay/${link.id}` : undefined };
               })}
-              chat={site.chat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang, campaign: campaign || undefined, agent: chatAgent } : null}
+              chat={hasChat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang, campaign: campaign || undefined, agent: chatAgent, hello } : null}
               ctaNote={site.ctaNote}
               lang={site.lang}
               labels={{ chooseLabel: t.chooseLabel, selected: t.selected, priceOnRequest: t.priceOnRequest, payNow: t.payNow }}
@@ -579,7 +597,7 @@ export default async function PublicBusinessPage({
         </div>
       </footer>
 
-      {site.chat && <ChatJump lang={site.lang} />}
+      {hasChat && <ChatJump lang={site.lang} />}
 
       {hasChat && (
         <div className="sticky-cta">

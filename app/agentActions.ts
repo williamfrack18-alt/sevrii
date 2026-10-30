@@ -215,7 +215,7 @@ export async function approveAgentItemAction(id: string): Promise<AgentResult> {
     }
 
     if (conn) {
-      const r = await runForUser(user.id, () => launchOnMeta(business, c, conn, lang));
+      const r = await runForUser(user.id, () => launchOnMeta(business, c, conn, lang), "marketing_agent");
       if (r.ok) {
         const d = launchedText(c, lang);
         await setAgentItemStatus(business.id, item.id, "done", `${d.title}. ${d.detail}`);

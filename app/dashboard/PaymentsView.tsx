@@ -13,6 +13,8 @@ import {
   type PaymentsState,
 } from "@/app/paymentsActions";
 import type { ClientBusiness, ClientService } from "./types";
+import { offerTarget } from "@/lib/serviceAgentConfig";
+import { activeOffer } from "@/lib/site";
 
 // Same minimum as the server (MIN_AMOUNT_CENTS in lib/payments.ts).
 const MIN_CENTS = 1500;
@@ -109,7 +111,7 @@ export default function PaymentsView({ business, services }: { business: ClientB
       {state.error && <p className="mb-6 text-[14px] text-red-600">{t.errLoad}</p>}
 
       {ready ? (
-        <ReadyView state={state} setState={setState} services={services} />
+        <ReadyView state={state} setState={setState} services={services} business={business} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center">
           <div className="min-w-0">
@@ -200,14 +202,39 @@ export default function PaymentsView({ business, services }: { business: ClientB
   );
 }
 
+type Suggestion = { key: string; title: string; amount: string; desc: string; offer?: boolean };
+
+// The links the owner will want: one per approved package (the page's
+// services with a price) and the welcome offer on the package it names (or
+// on each package when it names none), with the discount already applied.
+function suggestedLinks(business: ClientBusiness, services: ClientService[], es: boolean): Suggestion[] {
+  const priced = services.filter((s) => priceFromService(s.price)).slice(0, 6);
+  const out: Suggestion[] = priced.map((s) => ({ key: s.id, title: s.name.slice(0, 80), amount: priceFromService(s.price), desc: (s.description || "").slice(0, 240) }));
+  const offer = activeOffer(business.site);
+  const planOffer = business.plan.offer && !business.plan.noOffer ? business.plan.offer : null;
+  const text = `${offer?.label ?? ""} ${planOffer?.label ?? ""} ${planOffer?.detail ?? ""}`;
+  const pct = Number(/(\d{1,2})\s*%/.exec(text)?.[1] ?? 0);
+  if (offer && pct > 0 && pct < 100) {
+    const target = offerTarget(text, priced.map((s) => ({ id: s.id, name: s.name })));
+    for (const s of priced.filter((x) => !target || x.id === target).slice(0, 3)) {
+      const amount = (Math.round(Number(priceFromService(s.price)) * (100 - pct)) / 100).toFixed(2).replace(/\.00$/, "");
+      const name = `${s.name} · ${es ? `${pct}% primera vez` : `${pct}% first time`}`.slice(0, 80);
+      out.push({ key: `offer-${s.id}`, title: name, amount, desc: offer.label.slice(0, 240), offer: true });
+    }
+  }
+  return out;
+}
+
 function ReadyView({
   state,
   setState,
   services,
+  business,
 }: {
   state: PaymentsState;
   setState: (s: PaymentsState) => void;
   services: ClientService[];
+  business: ClientBusiness;
 }) {
   const lang = useLang();
   const t = PAYMENTS_TEXT[lang];
@@ -220,7 +247,42 @@ function ReadyView({
 
   const cents = toCents(amount);
   const total = useMemo(() => state.payments.reduce((s, p) => s + p.amountCents, 0), [state.payments]);
-  const quick = services.filter((s) => priceFromService(s.price)).slice(0, 6);
+  const quick = useMemo(() => suggestedLinks(business, services, lang === "es"), [business, services, lang]);
+  const have = new Set(state.links.map((l) => l.title.trim().toLowerCase()));
+  const toMake = quick.filter((q) => !have.has(q.title.trim().toLowerCase()));
+  const [makingAll, setMakingAll] = useState(false);
+
+  // With no links yet, the form starts with the first approved package
+  // (not an empty example): the owner only checks it and creates it.
+  useEffect(() => {
+    if (state.links.length === 0 && quick[0] && !title && !amount) {
+      setTitle(quick[0].title);
+      setAmount(quick[0].amount);
+      setDesc(quick[0].desc);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quick]);
+
+  async function createAll() {
+    setMakingAll(true);
+    setErr(null);
+    let links = state.links;
+    for (const q of toMake) {
+      try {
+        const res = await createPayLinkAction({ title: q.title, amount: q.amount, description: q.desc });
+        if (res.ok) links = res.links;
+        else {
+          setErr(res.error === "amount" ? t.errAmount : res.error === "limit" ? t.errLimit : t.errGeneric);
+          break;
+        }
+      } catch {
+        setErr(t.errGeneric);
+        break;
+      }
+    }
+    setState({ ...state, links });
+    setMakingAll(false);
+  }
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -276,19 +338,29 @@ function ReadyView({
               <div className="flex flex-wrap gap-2">
                 {quick.map((s) => (
                   <button
-                    key={s.id}
+                    key={s.key}
                     type="button"
                     onClick={() => {
-                      setTitle(s.name.slice(0, 80));
-                      setAmount(priceFromService(s.price));
-                      setDesc((s.description || "").slice(0, 240));
+                      setTitle(s.title);
+                      setAmount(s.amount);
+                      setDesc(s.desc);
                     }}
                     className="text-[12.5px] px-3 py-1.5 max-md:min-h-[40px] max-md:max-w-full max-md:truncate rounded-full border border-border hover:border-borderStrong"
+                    style={s.offer ? { borderColor: ACCENT, color: ACCENT } : undefined}
                   >
-                    {s.name} · ${priceFromService(s.price)}
+                    {s.title} · ${s.amount}
                   </button>
                 ))}
               </div>
+              {toMake.length > 1 && (
+                <button type="button" disabled={makingAll} onClick={createAll} className="mt-3 text-[13px] font-semibold underline underline-offset-2 disabled:opacity-60" style={{ color: ACCENT }}>
+                  {makingAll
+                    ? t.creating
+                    : lang === "es"
+                      ? `Crear los ${toMake.length} links de tus paquetes${quick.some((q) => q.offer) ? " y tu oferta" : ""}`
+                      : `Create the ${toMake.length} links for your packages${quick.some((q) => q.offer) ? " and your offer" : ""}`}
+                </button>
+              )}
             </div>
           )}
           <label className="block text-[13px] text-muted mb-1.5">{t.concept}</label>
