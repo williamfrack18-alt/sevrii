@@ -25,7 +25,8 @@ import { addChatMessage, listChatMessages } from "@/lib/db";
 import { agentAreaGreeting, runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
 import { limitsFor, limitsForUserId } from "@/lib/billing";
 import { publishBusiness } from "@/lib/marketplace";
-import { chatGate, gateMessage, runForUser } from "@/lib/usage";
+import { chatGate, gateLimit, gateMessage, runForUser } from "@/lib/usage";
+import type { LimitInfo } from "@/lib/upgrade";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { fillStoreFromPlan } from "@/lib/storeFill";
@@ -266,6 +267,8 @@ export type StoreChatResponse = {
   messages: { id: string; role: string; content: string }[];
   business: BusinessRow;
   services: ServiceRow[];
+  limit?: LimitInfo | null;
+  notice?: string;
 };
 
 // area "agent" = the Agente section of the panel: the same builder, its own
@@ -285,21 +288,22 @@ export async function sendStoreChatAction(message: string, area: "store" | "agen
   });
 
   if (!text) return respond(business);
+  // The store opens only after the Brain's strategy is approved (checked here too).
+  if (!business.published && business.plan.stage !== "approved")
+    return { ...(await respond(business)), notice: lang === "es" ? "Tu tienda se abre cuando apruebes tu estrategia en el Cerebro." : "Your store opens once you approve your strategy in the Brain." };
 
   if (history.length === 0) {
     await addChatMessage(business.id, channel, "ai", channel === "agent" ? agentAreaGreeting(lang, business) : storeGreeting(lang, business, (await listServices(business.id)).length));
     history = await listChatMessages(business.id, channel);
   }
 
-  let blocked: string | null = null;
-  if (text.length > RATE.aiMaxChars) blocked = t.aiTooLong;
-  else {
-    const reason = await chatGate(business.userId);
-    if (reason) blocked = gateMessage(reason, t);
-  }
-  if (blocked) {
-    await addChatMessage(business.id, channel, "ai", blocked);
-    return respond(business);
+  // Over a limit: nothing is saved in the chat (so it never repeats); the
+  // owner gets the upgrade window and their text stays in the box.
+  if (text.length > RATE.aiMaxChars) return { ...(await respond(business)), notice: t.aiTooLong };
+  const reason = await chatGate(business.userId);
+  if (reason) {
+    const limit = await gateLimit(business.userId, reason);
+    return { ...(await respond(business)), ...(limit ? { limit } : { notice: gateMessage(reason, t) }) };
   }
 
   await addChatMessage(business.id, channel, "user", text);

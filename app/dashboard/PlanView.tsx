@@ -5,7 +5,7 @@ import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
 import { approveBlockAction, chooseIdeaAction, finishPlanAction, noOfferAction, resumePlanAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
-import { MAX_IDEA_ROUNDS, missingProfile } from "@/lib/plan";
+import { MAX_IDEA_ROUNDS, missingProfile, shownRequirements } from "@/lib/plan";
 import type { ChatChip } from "./ChatPanel";
 
 // Quick answers for what the Brain is asking right now (one tap sends it).
@@ -198,7 +198,10 @@ export default function PlanView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inPipeline, business.id, retryKey]);
 
-  const stages = isB ? t.stagesB : plan.mode === "agent" ? t.stagesC : t.stagesA;
+  const baseStages = isB ? t.stagesB : plan.mode === "agent" ? t.stagesC : t.stagesA;
+  // The last step says "Aprobado" only once the owner approved everything;
+  // before that it reads as a step still to do ("Aprobación").
+  const stages = plan.stage === "approved" ? baseStages : [...baseStages.slice(0, -1), lang === "es" ? "Aprobación" : "Approval"];
   const order: PlanStage[] = ideasFlow
     ? ["interview", "ideas_research", "choose", "ready_check", "research", "proposal", "approved"]
     : ["interview", "research", "proposal", "approved"];
@@ -375,8 +378,9 @@ export default function PlanView({
             msgCount.current = res.messages.length;
             setMsgs(res.messages);
             onMessages?.(res.messages);
-            return res.messages;
+            return { messages: res.messages, limit: res.limit, notice: res.notice };
           }}
+          onPlans={() => onNavigate("plans")}
         />
       </section>
 
@@ -595,7 +599,8 @@ function AgentBlock({ agent }: { agent: NonNullable<BusinessPlan["agent"]> }) {
 }
 
 const offerReady = (p: BusinessPlan) => !p.offer || Boolean(p.offer.endsAt) || p.offer.forNewClients;
-const notesFor = (p: BusinessPlan, b: ApprovalBlock) => (p.stage === "proposal" ? p.guard.block.filter((n) => GUARD_HINTS[b].test(n)) : []);
+// Review notes are internal: they never show on the owner's cards.
+const notesFor = (_p: BusinessPlan, _b: ApprovalBlock): string[] => [];
 
 // The part being reviewed, inside the chat: what it says and what to do.
 function PartCard({
@@ -917,14 +922,14 @@ function strategyNodes({ plan, t, onChange }: { plan: BusinessPlan; t: T; onChan
   }
 
   // Antes de anunciar (requirements)
-  if (m.requirements.length > 0) {
-    const open = m.requirements.filter((r) => r.applies !== "no");
+  if (shownRequirements(plan).length > 0) {
+    const open = shownRequirements(plan).filter((r) => r.applies !== "no");
     nodes.push({
       id: "requirements",
       label: t.reqLabel,
       title: open.length ? t.reqCount(open.length) : t.reqClear,
-      summary: (open[0] ?? m.requirements[0])?.item,
-      tone: m.requirements.some((r) => r.applies === "yes") ? "warn" : "idle",
+      summary: (open[0] ?? shownRequirements(plan)[0])?.item,
+      tone: shownRequirements(plan).some((r) => r.applies === "yes") ? "warn" : "idle",
       detail: <RequirementsList plan={plan} />,
     });
   }
@@ -1183,7 +1188,7 @@ function MarketInChat({ plan }: { plan: BusinessPlan }) {
         {open && (
           <div className="px-4 md:px-5 pb-5 flex flex-col gap-5 min-w-0">
             <MarketDetail plan={plan} />
-            {m.requirements.length > 0 && plan.stage !== "approved" && (
+            {shownRequirements(plan).length > 0 && plan.stage !== "approved" && (
               <div className="flex flex-col gap-3 pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
                 <Label>{t.requirements}</Label>
                 <RequirementsList plan={plan} />

@@ -232,6 +232,14 @@ export function researchLimitText(u: ResearchUsage, lang: "es" | "en"): string {
     : `${what}. Everything is saved: your plan renews on ${day} and you continue right where you left off.`;
 }
 
+// The upgrade window for a gate (the "slow" one is just a short pause).
+export async function gateLimit(userId: string, reason: GateReason): Promise<import("./upgrade").LimitInfo | null> {
+  if (reason === "slow") return null;
+  const [{ getUserById }, { effectivePlan }, { limitInfo }] = await Promise.all([import("./db"), import("./billing"), import("./upgrade")]);
+  const u = await getUserById(userId);
+  return limitInfo(reason === "day" ? "day" : reason === "month" ? "month" : "budget", u ? effectivePlan(u) : "free");
+}
+
 export function gateMessage(reason: GateReason, t: { aiSlowDown: string; aiDailyLimit: string; aiMonthlyLimit: string }): string {
   return reason === "slow" ? t.aiSlowDown : reason === "day" ? t.aiDailyLimit : t.aiMonthlyLimit;
 }

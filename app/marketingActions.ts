@@ -11,7 +11,8 @@ import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { marketingGreeting, runMarketingChatTurn } from "@/lib/marketingBrain";
-import { chatGate, gateMessage, runForUser } from "@/lib/usage";
+import { chatGate, gateLimit, gateMessage, runForUser } from "@/lib/usage";
+import type { LimitInfo } from "@/lib/upgrade";
 
 const CHANNEL = "brain";
 
@@ -19,6 +20,8 @@ export type MarketingChatResponse = {
   messages: { id: string; role: string; content: string }[];
   business: BusinessRow;
   campaigns: CampaignRow[];
+  limit?: LimitInfo | null;
+  notice?: string;
 };
 
 // A plain yes to the proposal on screen ("dale", "sí, hazlo", "ok"): only yes
@@ -55,15 +58,13 @@ export async function sendMarketingChatAction(message: string, focusVideoId?: st
     // Free plan: Marketing is part of Starter. Nothing is sent to the AI.
     return respond(business);
   }
-  let blocked: string | null = null;
-  if (text.length > LIMITS.aiMaxChars) blocked = t.aiTooLong;
-  else {
-    const reason = await chatGate(business.userId, limits);
-    if (reason) blocked = gateMessage(reason, t);
-  }
-  if (blocked) {
-    await addChatMessage(business.id, CHANNEL, "ai", blocked);
-    return respond(business);
+  // Over a limit: nothing is saved in the chat (so it never repeats); the
+  // owner gets the upgrade window and their text stays in the box.
+  if (text.length > LIMITS.aiMaxChars) return { ...(await respond(business)), notice: t.aiTooLong };
+  const reason = await chatGate(business.userId, limits);
+  if (reason) {
+    const limit = await gateLimit(business.userId, reason);
+    return { ...(await respond(business)), ...(limit ? { limit } : { notice: gateMessage(reason, t) }) };
   }
 
   await addChatMessage(business.id, CHANNEL, "user", text);

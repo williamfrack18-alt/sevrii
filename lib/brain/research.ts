@@ -64,7 +64,7 @@ Un agente de IA va a guiar a sus clientes con esto, así que debe ser exacto: lo
 Forma: {"requirements":[{"item":"paso, documento o tarifa, corto","applies":"yes|check","link":"…","note":"en una línea, qué hay que hacer exactamente"}],"sources":[{"title":"…","url":"…"}]}
 ${out}`;
       return `Tarea: REQUISITOS para ofrecer "${service}" ${reqWhere}.
-Revisa lo básico para operar: registro del negocio (ciudad, condado o estado), seguro que se acostumbra y permisos del trabajo. Muchos servicios NO necesitan licencia: menciona una licencia solo si una fuente oficial dice que ese servicio la exige en ese estado; si no, no la incluyas.
+Revisa SOLO lo indispensable para operar: registro del negocio (ciudad, condado o estado) y permisos que la ley exige para ese trabajo. Un seguro va solo si la ley lo exige o si el trabajo se hace en casa o local del cliente; para servicios 100 % en línea no incluyas seguros. Nada que sea una recomendación opcional. Muchos servicios NO necesitan licencia: menciona una licencia solo si una fuente oficial dice que ese servicio la exige en ese estado; si no, no la incluyas.
 "applies": "yes" solo si una fuente oficial lo dice; "no" si una fuente oficial dice que no aplica; si no estás seguro, "check".
 "link": la página oficial que lo dice (o la más confiable que encontraste).
 Forma: {"requirements":[{"item":"…","applies":"yes|no|check","link":"…","note":"en una línea, qué hay que hacer"}],"sources":[{"title":"…","url":"…"}]}

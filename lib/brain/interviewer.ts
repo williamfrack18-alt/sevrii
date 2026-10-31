@@ -19,6 +19,7 @@ import {
 } from "../plan";
 import { codeGuard } from "./guard";
 import { priceMoves, swapAmounts } from "../reprice";
+import { OWNER_NUMBERS, dropApprovalScript, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
 import { textOf, today } from "./common";
 import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
@@ -29,7 +30,10 @@ import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
 const INTERVIEWER = `Eres el Entrevistador de Sevrii. Ayudas a dueños de pequeños negocios de servicios en EE. UU. a definir su servicio. En esta etapa solo entiendes; no propones.
 
 Cómo conversas:
-- Pocas preguntas: en cada mensaje pregunta juntos 2 o 3 datos de "missing" que vayan de la mano, en una sola frase natural. Por ejemplo: ciudad, estado, código postal (ZIP) y hasta dónde viaja; a quién le vende y cómo consigue clientes hoy; cuánto cobra y cuánto le cuesta cada trabajo; años de experiencia (y cuántos de esos por su cuenta) e idiomas; qué lo hace distinto y si tiene seguro. Así la entrevista dura unos 5 o 6 mensajes.
+- Una pregunta a la vez: pregunta SOLO el dato de "missing" (el sistema te da solo el siguiente). Nunca juntes dos preguntas en un mensaje.
+- Números: guarda un número solo si la persona lo dijo. Si dice algo vago ("medio tiempo", "poco", "unas cuantas"), pregúntale el número; nunca lo conviertas tú ("medio tiempo" NO es 20 horas).
+- No pidas seguros, permisos, licencias ni accesos que no sean indispensables por ley para ese servicio. Nunca los conviertas en interrogatorio ni en requisito para seguir.
+- Nunca digas "te repito" ni "vuelvo a preguntarte" de algo que no preguntaste antes.
 - Si dice su nombre ("me llamo Carlos"), guárdalo en ownerName en ese mismo turno. No se lo vuelvas a pedir.
 - Nombre del negocio: si no tiene ("no tengo", "todavía no"), NO lo dejes para después: en ese mismo mensaje propónle 2 o 3 nombres cortos según su servicio y su ciudad, y pregúntale cuál le gusta (o si prefiere otro). Nunca guardes "sin nombre", "no tengo" ni algo parecido como nombre.
 - Lo que prometes, lo cumples: si dices que harás algo ("te sugiero nombres", "eso lo ajustamos"), hazlo en ese mismo mensaje o en el siguiente. Mejor no prometas para después: hazlo ya.
@@ -40,7 +44,7 @@ Cómo conversas:
 - Preguntas directas primero: si la persona pregunta algo ("¿necesito seguro?", "¿cuánto les digo que cobro?", "¿se va a ver así en mi página?"), respóndelo de verdad en una o dos frases ANTES de seguir con lo que falta: sí o no, por qué y qué hacer. Si la respuesta depende de la investigación, di lo que ya sabes y que en la investigación lo confirmas. Nunca saltes una pregunta suya.
 - Corto y amable. Responde en el idioma en que te escribe el usuario (en español, tutea).
 - Sigue la lista "missing" del estado, en orden. Nunca preguntes algo que ya está en el expediente.
-- Si responde solo una parte, guarda eso y en el siguiente mensaje pregunta lo que faltó junto con lo que sigue.
+- Si responde solo una parte, guarda eso y vuelve a preguntar SOLO lo que faltó, con otras palabras y un ejemplo. Nunca la des por respondida ni sigas a otro tema si no la contestó.
 - serviceMode: si el servicio es claramente en persona (limpieza, mudanzas, reparaciones, jardinería, belleza a domicilio…), guárdalo como local sin preguntarlo; pregúntalo solo si puede hacerse a distancia.
 - Si una respuesta trae datos, guárdalos todos con save_profile en ese mismo turno y no los vuelvas a preguntar.
 - Nunca adivines ni supongas datos: guarda solo lo que la persona dijo de forma explícita (por ejemplo, no supongas sus idiomas por el idioma en que escribe; pregúntalo). La única excepción es serviceMode, como se explica abajo.
@@ -75,7 +79,8 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 - Si aprueba esa parte de forma explícita ("apruebo", "así está bien", o un "sí"/"dale" respondiendo a si la aprueba), llama a approve_blocks con currentPart y no digas nada de la siguiente: el sistema la muestra sola. Responde solo algo corto como "Perfecto, aprobado."
 - "Continúa", "sigue", "lo demás" o "el resto" NO son aprobación: no llames a approve_blocks. Dile en una línea que para seguir apruebe esta parte con el botón Aprobar de la tarjeta (o te diga que la aprueba), o qué quiere cambiar.
 - Si pide un cambio, hazlo con update_proposal (solo los campos que cambian) y confírmalo en una línea; la tarjeta actualizada aparece sola debajo. Cambiar una parte ya aprobada le quita la aprobación y vuelve a mostrarse.
-- Si pregunta algo, responde PRIMERO su pregunta de forma directa (sí o no, por qué y qué hacer), con los datos del expediente, y después pregunta si la deja así o qué le cambias. Nunca contestes una pregunta con una acción (no regeneres ni cambies nada si solo preguntó). Ejemplo: "¿Los textos cortados se verían así en mi página?" → di si sí o no y qué vas a hacer.
+- Si pregunta algo o dice que no entendió, responde SOLO eso, de forma directa y con otras palabras (más simple, con un ejemplo). En ese mensaje no pidas aprobar nada. Todo lo que aparece en las tarjetas lo escribió Sevrii, no el dueño: nunca digas "lo que me enviaste" de algo que mostró el sistema.
+- El mercado se cita SOLO con el texto exacto de "marketRange" del estado; no inventes otros rangos. Nunca contestes una pregunta con una acción (no regeneres ni cambies nada si solo preguntó). Ejemplo: "¿Los textos cortados se verían así en mi página?" → di si sí o no y qué vas a hacer.
 - Cambia solo lo que pidió, y envía solo los campos de la parte que cambia. Cuestionar o preguntar por una parte no cambia las otras.
 - Precios: nunca subas ni bajes un precio que el dueño cobra hoy sin decírselo y sin su OK. Si propones otro, explica el porqué y espera que diga que sí.
 - Avisos "Ten en cuenta" ("warnings" en el estado): si la conversación ya resolvió uno (por ejemplo, aclaró cómo llega el pedido sin vehículo), quítalo con update_proposal.resolvedWarnings (el texto exacto del aviso) y dilo en una línea.
@@ -144,7 +149,9 @@ const PROFILE_PROPS: Record<string, unknown> = {
   askedFor: { type: "string" },
   tools: { type: "string" },
   hasVehicle: { type: "string", enum: ["yes", "no"] },
-  hoursPerWeek: { type: "number" },
+  hoursPerWeek: { type: "number", description: "Only a number the person said. 'Medio tiempo' / 'part time' is not a number: ask how many hours" },
+  costHoursPerJob: { type: "number", description: "Hours one job takes them (or one client a month for a monthly service), exactly as they said it" },
+  costMaterialsUsd: { type: "number", description: "Dollars of materials or tools per job (or per client a month); 0 if they said free / nothing" },
   startBudgetUsd: { type: "number" },
   notWant: { type: "string" },
   goal: { type: "string", enum: ["extra", "fulltime"] },
@@ -285,7 +292,9 @@ function state(b: BusinessRow) {
   };
   if (p.stage === "interview" || p.stage === "ready_check") {
     const idea = p.chosenIdea !== null ? p.ideas[p.chosenIdea] : null;
-    return { ...base, missing: missingProfile(p), profile: p.profile, ...(idea ? { chosenIdea: idea } : {}) };
+    const missing = missingProfile(p);
+    // One question at a time: the model only gets the next thing to ask.
+    return { ...base, missing: missing.slice(0, 1), stillToAskAfterThis: Math.max(0, missing.length - 1), profile: p.profile, ...(idea ? { chosenIdea: idea } : {}) };
   }
   if (p.stage === "choose")
     return { ...base, ideas: p.ideas.map((i, n) => ({ number: n + 1, ...i })), rejectedBefore: p.rejectedIdeas, roundsLeft: Math.max(0, MAX_IDEA_ROUNDS - p.ideaRounds) };
@@ -293,6 +302,9 @@ function state(b: BusinessRow) {
     ...base,
     profile: p.profile,
     market: { prices: p.market.prices, requirements: p.market.requirements },
+    // The one way to cite the market (the same text the owner sees in the card).
+    marketRange: marketRangeText(p.market.prices, "es"),
+    note: "Everything in the cards and in the proposal was written by Sevrii, not by the owner.",
     proposal: {
       service: p.service,
       serviceIncludes: p.serviceIncludes,
@@ -398,7 +410,11 @@ export function saidApproval(lastMessage: string): boolean {
   return BARE_YES.test(m) && !NOT_APPROVAL.test(m);
 }
 
-async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = ""): Promise<{ out: string; startPipeline?: boolean }> {
+// Rules that must hold on every turn, re-sent with each message so a long
+// chat never loses them (the code checks them too).
+const HARD_RULES = `(Reglas de siempre: una sola pregunta por mensaje; guarda números solo si la persona los dijo, nunca conviertas "medio tiempo" u otra respuesta vaga en un número; no cambies precios sin su OK explícito; responde primero lo que pregunta, con otras palabras si no entendió; nada de notas internas, nombres de campos ni "expediente"; no pidas seguros ni permisos que no sean indispensables.)`;
+
+async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = "", lastAssistant = ""): Promise<{ out: string; startPipeline?: boolean }> {
   const plan = b.plan;
   switch (name) {
     case "save_profile": {
@@ -407,6 +423,15 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (input.languages !== undefined && !SAID_LANGUAGES.test(ownerSaid)) {
         delete input.languages;
         note = " (languages NOT saved: the owner never said which languages they serve in; ask them: español, inglés o los dos)";
+      }
+      // A number is saved only if the owner said it ("medio tiempo" is not 20 hours).
+      for (const [k, rule] of Object.entries(OWNER_NUMBERS)) {
+        if (input[k] === undefined || input[k] === null) continue;
+        const n = Number(input[k]);
+        if (!Number.isFinite(n) || !ownerStated(n, ownerSaid, rule.zeroOk)) {
+          delete input[k];
+          note += ` (${k} NOT saved: the owner never said that number. Ask them ${rule.ask}; never assume it)`;
+        }
       }
       // "No tengo nombre" is not a name: the Brain suggests some instead.
       if (typeof input.businessName === "string" && NO_NAME.test(input.businessName.trim())) {
@@ -475,6 +500,13 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     case "update_proposal": {
       if (plan.stage !== "proposal" && plan.stage !== "approved") return { out: "error: no proposal yet" };
       const patch: Record<string, unknown> = { ...input };
+      // Prices are locked: a new amount needs the owner's explicit OK.
+      if (Array.isArray(input.packages)) {
+        const after = parsePlan({ ...plan, packages: input.packages }).packages;
+        const lock = priceChangeAllowed(plan.packages, after, lastSaid, lastAssistant, saidApproval(lastSaid));
+        if (!lock.ok)
+          return { out: `error: prices are locked. Nothing changed. The owner never agreed to $${lock.changed.join(", $")}. If you think a price should change, ask them first in one line (say the exact new amount and why) and change it only after they say yes.` };
+      }
       // Warnings the conversation resolved go away (they never reopen a part).
       const resolved = Array.isArray(input.resolvedWarnings) ? input.resolvedWarnings.map((x) => String(x).trim().toLowerCase()).filter((x) => x.length >= 12) : [];
       delete patch.resolvedWarnings;
@@ -505,6 +537,9 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       // (video script, photo ideas…) keeps the stage as it was.
       const reopen = touched.size > 0;
       let next = parsePlan({ ...plan, ...patch, approvals, ...(reopen ? { stage: "proposal", ready: false } : {}) });
+      // Invented amounts or hours, or internal words, never reach the owner.
+      const silent = silentProposalIssues(next);
+      if (silent.length) return { out: `error: not saved, fix it and send it again: ${silent.join(" ")}` };
       const g = codeGuard(next, lang, false);
       next = { ...next, guard: { block: g.block, warn: warnLeft } };
       // Everything still approved (nothing to re-approve): finish it again.
@@ -584,9 +619,11 @@ export async function runPlanChatTurn(opts: {
 
   // What the owner wrote in this chat (to check facts the model saves).
   const ownerSaid = [...opts.history.filter((h) => h.role === "user").map((h) => h.content), opts.message].join("\n");
+  const lastAssistant = [...opts.history].reverse().find((h) => h.role === "assistant")?.content ?? "";
+  const askedSomething = isQuestionTurn(opts.message);
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
-    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}` },
+    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}${askedSomething ? "\n\n(Internal note: the owner asked something or didn't understand. Answer exactly that, in simpler words, and don't ask them to approve anything in this message.)" : ""}\n\n${HARD_RULES}` },
   ];
   let reply = "";
   let startPipeline = false;
@@ -594,7 +631,10 @@ export async function runPlanChatTurn(opts: {
   let debug = "";
   try {
     for (let step = 0; step < 7; step++) {
-      const { system, tools } = stageOf(business.plan);
+      const st = stageOf(business.plan);
+      const system = st.system;
+      // A question or "no entendí" is answered, never turned into an approval.
+      const tools = askedSomething ? st.tools.filter((t) => t.name !== "approve_blocks") : st.tools;
       const res = await client.messages.create({
         model: MODELS.chat,
         max_tokens: 6000,
@@ -631,7 +671,7 @@ export async function runPlanChatTurn(opts: {
       for (const u of uses) {
         let out: string;
         try {
-          const r = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, opts.lang, ownerSaid, opts.message);
+          const r = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, opts.lang, ownerSaid, opts.message, lastAssistant);
           out = r.out;
           if (r.startPipeline) startPipeline = true;
         } catch (err) {
@@ -660,6 +700,12 @@ export async function runPlanChatTurn(opts: {
       kept ||
       (es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.");
   }
+  // Checked in code on every reply: no repeat claims, one question, no
+  // approval script after a question, and no sentence with internal words.
+  reply = noRepeatClaims(reply);
+  reply = oneQuestion(reply);
+  if (askedSomething) reply = dropApprovalScript(reply) || reply;
+  if (hasJargon(reply)) reply = reply.split(/(?<=[.!?])\s+/).filter((x) => !hasJargon(x)).join(" ").trim();
   // Never show the owner our internal notes (they sometimes get echoed).
   reply = reply
     .replace(/^\s*\((Tarjeta mostrada|Card shown)[^)\n]*\)\s*$/gim, "")

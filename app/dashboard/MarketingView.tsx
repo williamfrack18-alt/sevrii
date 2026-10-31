@@ -383,8 +383,9 @@ export default function MarketingView({
             applyUpdate(res);
             // The chat may have changed campaigns the agent was proposing.
             if (showAgent) loadAgent();
-            return withLiveButtons(res.messages, Boolean(res.business.marketing.approvedAt), lang === "es");
+            return { messages: withLiveButtons(res.messages, Boolean(res.business.marketing.approvedAt), lang === "es"), limit: res.limit, notice: res.notice };
           }}
+          onPlans={onPlans}
         />
       </section>
 

@@ -45,6 +45,10 @@ export type Profile = {
   hasVehicle: "yes" | "no" | "";
   hoursPerWeek: number | null;
   startBudgetUsd: number | null;
+  // What one job (or one client a month) takes, exactly as the owner said it:
+  // the prices are built on these, so they are never guessed.
+  costHoursPerJob: number | null;
+  costMaterialsUsd: number | null;
   notWant: string;
   goal: "extra" | "fulltime" | "";
   toolsReady: "yes" | "no" | "";
@@ -185,6 +189,8 @@ export const EMPTY_PROFILE: Profile = {
   hasVehicle: "",
   hoursPerWeek: null,
   startBudgetUsd: null,
+  costHoursPerJob: null,
+  costMaterialsUsd: null,
   notWant: "",
   goal: "",
   toolsReady: "",
@@ -261,6 +267,11 @@ function num(v: unknown, min: number, max: number): number | null {
   const n = typeof v === "string" ? Number(v.replace(/[^0-9.]/g, "")) : Number(v);
   return Number.isFinite(n) && n >= min && n <= max ? Math.round(n) : null;
 }
+function dec(v: unknown, min: number, max: number): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "string" ? Number(v.replace(/[^0-9.]/g, "")) : Number(v);
+  return Number.isFinite(n) && n >= min && n <= max ? Math.round(n * 100) / 100 : null;
+}
 function list(v: unknown, max: number, len: number): string[] {
   return (Array.isArray(v) ? v : []).map((x) => str(x, len)).filter(Boolean).slice(0, max);
 }
@@ -329,6 +340,8 @@ export function parseProfile(raw: unknown): Profile {
     hasVehicle: oneOf(p.hasVehicle, ["yes", "no"] as const),
     hoursPerWeek: num(p.hoursPerWeek, 1, 100),
     startBudgetUsd: num(p.startBudgetUsd, 0, 1_000_000),
+    costHoursPerJob: dec(p.costHoursPerJob, 0.25, 500),
+    costMaterialsUsd: num(p.costMaterialsUsd, 0, 1_000_000),
     notWant: str(p.notWant, 600),
     goal: oneOf(p.goal, ["extra", "fulltime"] as const),
     toolsReady: oneOf(p.toolsReady, ["yes", "no"] as const),
@@ -539,7 +552,8 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.typicalCustomer, "typicalCustomer");
     need(!p.howGetsClients, "howGetsClients (how they get customers today)");
     need(!p.currentPrice, "currentPrice (what they charge today)");
-    need(!p.costs, "costs (materials and hours per job)");
+    need(p.costHoursPerJob === null, "costHoursPerJob (hours one job takes them — or one client a month for a monthly service; ask for the number, never assume it)");
+    need(p.costMaterialsUsd === null, "costMaterialsUsd (dollars of materials or tools per job or per client a month; 0 is fine if they said free)");
     need(p.yearsExperience === null, "yearsExperience (years doing this work in total)");
     need(p.yearsExperience !== null && p.yearsExperience > 0 && p.yearsOwnBusiness === null, "yearsOwnBusiness (how many of those years on their own, with their own business; 0 if they are just starting on their own)");
     need(!p.languages, "languages (es, en or both)");
@@ -553,7 +567,7 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.askedFor, "askedFor (what people ask them to help with)");
     need(!p.tools, "tools (tools and equipment they already have)");
     need(!p.hasVehicle, "hasVehicle (yes / no)");
-    need(p.hoursPerWeek === null, "hoursPerWeek");
+    need(p.hoursPerWeek === null, "hoursPerWeek (a number of hours; if they say \"medio tiempo\" or \"part time\", ask how many hours)");
     need(p.startBudgetUsd === null, "startBudgetUsd (money available to start)");
     need(!p.languages, "languages (es, en or both)");
     need(!p.notWant, "notWant (work they don't want to do)");
@@ -569,9 +583,11 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(p.serviceMode === "local" && !p.zip, "zip (their 5-digit ZIP code, to place them on the map)");
     need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they will travel)");
     need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, only customers in their own state = state, other countries too = world)");
-    need(!p.insured, "insured (yes / no)");
+    // Insurance matters for work done at people's places, not for online services.
+    need(p.serviceMode === "local" && !p.insured, "insured (yes / no)");
     need(!p.toolsReady, "toolsReady (has the tools for the chosen idea: yes / no)");
-    need(!p.costs, "costs (materials and hours per job, an estimate is fine)");
+    need(p.costHoursPerJob === null, "costHoursPerJob (hours one job takes them — or one client a month for a monthly service; ask for the number, never assume it)");
+    need(p.costMaterialsUsd === null, "costMaterialsUsd (dollars of materials or tools per job or per client a month; 0 is fine if they said free)");
     need(!p.businessName, "businessName (last; if they have none, suggest 2 or 3 short names in the same message and let them pick)");
   }
   return out;
@@ -659,4 +675,11 @@ export function requestMoreIdeas(plan: BusinessPlan, feedback: string): Business
     stage: "ideas_research",
     runId: "",
   });
+}
+
+// Requirements shown to the owner: only what's indispensable. For online
+// services an insurance that no law requires is never a requirement.
+export function shownRequirements(p: BusinessPlan): Requirement[] {
+  const remote = p.profile.serviceMode === "remote";
+  return p.market.requirements.filter((r) => !(remote && r.applies !== "yes" && /(seguro|insurance|liability|responsabilidad civil)/i.test(`${r.item} ${r.note}`)));
 }

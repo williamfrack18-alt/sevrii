@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
 import { BRAND_BTN, DEEP, GREEN as ACCENT } from "@/lib/panel";
+import { upgradeText, type LimitInfo } from "@/lib/upgrade";
 export type Msg = { id: string; role: string; content: string };
 
 export type ChatTexts = {
@@ -42,12 +43,13 @@ type SpeechRec = {
 };
 
 export type ChatToken = { kind: string; arg: string; msgId: string };
+export type SendResult = { messages: Msg[]; limit?: LimitInfo | null; notice?: string };
 
 // An internal error note an older version saved into the chat: never shown.
 const DEBUG = /\n*\[debug\][\s\S]*$/;
 // Error messages saved by older versions (raw API errors, "Tuve un problema
 // para guardar eso…"): taken out of the history the owner sees.
-const OLD_ERROR = /(credit balance|request_id|invalid_request_error|overloaded_error|rate_limit_error|authentication_error|"type"\s*:\s*"error"|^\s*\d{3}\s*[{[]|Tuve un problema para guardar eso|I had (a )?(problem|trouble) saving that|No pude guardar eso|I couldn't save that)/i;
+const OLD_ERROR = /(credit balance|request_id|invalid_request_error|overloaded_error|rate_limit_error|authentication_error|"type"\s*:\s*"error"|^\s*\d{3}\s*[{[]|Tuve un problema para guardar eso|Llegaste al l[ií]mite de mensajes a la IA por hoy|Llegaste al l[ií]mite de IA de tu plan|You've reached today's limit of AI messages|You've reached your plan's AI limit|I had (a )?(problem|trouble) saving that|No pude guardar eso|I couldn't save that)/i;
 // Today's error messages (lib/claude.ts aiErrorReply): only the latest one
 // stays, while it's still the last thing in the chat; older ones go away.
 const PAST_ERROR = /^(El Cerebro está en pausa por un problema de nuestro lado|The Brain is paused because of a problem on our side|Hay mucha demanda en este momento y no alcancé|It's very busy right now and I couldn't answer|No pude terminar eso por un error de mi lado|I couldn't finish that because of an error on my side|El asistente no está disponible en este momento|The assistant isn't available right now)/;
@@ -89,6 +91,7 @@ export default function ChatPanel({
   initialMessages,
   texts,
   onSend,
+  onPlans,
   onUpload,
   locked,
   sync,
@@ -107,7 +110,10 @@ export default function ChatPanel({
   greeting: string;
   initialMessages: Msg[];
   texts: ChatTexts;
-  onSend: (text: string) => Promise<Msg[]>;
+  // A plain list of messages, or the messages plus a capacity limit (the
+  // upgrade window) or a short notice; in both cases the text stays in the box.
+  onSend: (text: string) => Promise<Msg[] | SendResult>;
+  onPlans?: () => void;
   // Uploads a photo or video and returns the text to send for it, or an error
   // message. Videos report progress (0–100) while they upload.
   onUpload?: (file: File, onProgress: (percentage: number) => void) => Promise<{ send: string } | { error: string }>;
@@ -190,6 +196,7 @@ export default function ChatPanel({
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
+  const [limit, setLimit] = useState<LimitInfo | null>(null);
   // A photo or video on its way to storage (percentage only for videos).
   const [uploading, setUploading] = useState<{ video: boolean; pct: number } | null>(null);
   const busy = pending || uploading !== null;
@@ -314,7 +321,17 @@ export default function ChatPanel({
     ]);
     start(async () => {
       try {
-        setMessages(await onSend(value));
+        const res = await onSend(value);
+        if (Array.isArray(res)) {
+          setMessages(res);
+          setLimit(null);
+        } else {
+          setMessages(res.messages);
+          setLimit(res.limit ?? null);
+          if (res.notice) setError(res.notice);
+          // Not sent: the text goes back to the box so nothing is lost.
+          if (res.limit || res.notice) setInput(value);
+        }
       } catch {
         setError(texts.failed);
       }
@@ -456,6 +473,7 @@ export default function ChatPanel({
     </div>
   ) : (
     <div className="w-full">
+      {limit && <UpgradeCard limit={limit} lang={lang} onPlans={onPlans} onLater={() => setLimit(null)} />}
       {error && <p className="text-[13px] text-red-600 mb-2 px-4">{error}</p>}
       {context && (
         <div className="flex mb-2">
@@ -724,6 +742,45 @@ export default function ChatPanel({
         </div>
       </div>
     )}
+    </div>
+  );
+}
+
+// The capacity window: which limit, what the next plan adds, its price, and
+// "Mejorar plan" first; continuing later is only the second option.
+function UpgradeCard({ limit, lang, onPlans, onLater }: { limit: LimitInfo; lang: "es" | "en"; onPlans?: () => void; onLater: () => void }) {
+  const t = upgradeText(limit, lang);
+  return (
+    <div role="alert" className="mb-3 rounded-[24px] p-4 md:p-5 flex flex-col gap-3 bg-white" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.08), 0 10px 30px -14px rgba(10,10,10,.16)", animation: "dash-fade .35s ease both" }}>
+      <div className="flex flex-col gap-1">
+        <span className="text-[15.5px] font-semibold text-pfg leading-snug">{t.title}</span>
+        <span className="text-[13.5px] text-psub leading-relaxed">{t.body}</span>
+      </div>
+      {t.gains.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-medium text-pfg">{t.gainsTitle}</span>
+          <ul className="flex flex-col gap-1">
+            {t.gains.map((g) => (
+              <li key={g} className="text-[13.5px] text-pfg2 leading-relaxed flex gap-2">
+                <span className="h-1.5 w-1.5 rounded-full shrink-0 mt-[8px]" style={{ background: ACCENT }} />
+                <span className="min-w-0">{g}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {t.soon && <span className="text-[13px] text-psub">{t.soon}</span>}
+      <div className="flex items-center gap-3 flex-wrap">
+        {limit.canUpgrade && onPlans && (
+          <button type="button" onClick={onPlans} className="h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
+            {t.cta}
+            {t.price ? ` · ${t.price}` : ""}
+          </button>
+        )}
+        <button type="button" onClick={onLater} className="text-[13px] text-psub underline underline-offset-2">
+          {t.later}
+        </button>
+      </div>
     </div>
   );
 }

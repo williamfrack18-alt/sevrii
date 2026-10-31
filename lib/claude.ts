@@ -12,7 +12,9 @@ export const MODELS = {
   chat: process.env.SEVRII_MODEL_CHAT || MODEL, // Interviewer: fast, natural Spanish
   research: process.env.SEVRII_MODEL_RESEARCH || MODEL, // Researcher: web search + read
   strategy: process.env.SEVRII_MODEL_STRATEGY || "claude-opus-5-5", // Strategist: prices and ideas
-  guard: process.env.SEVRII_MODEL_GUARD || "claude-haiku-4-5", // Guardian: rule checks
+  // Guardian: its review decides what the owner sees, so it uses the same
+  // model as the chat (Haiku made wrong calls, e.g. "$150 is below $95–$165").
+  guard: process.env.SEVRII_MODEL_GUARD || MODEL,
 };
 
 export function getClaude(timeoutMs = 45_000): Anthropic | null {

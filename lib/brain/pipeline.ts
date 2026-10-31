@@ -16,7 +16,8 @@ import { IDEAS_TOKEN, MARKET_TOKEN, nextPartMessage } from "./walk";
 import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanStage } from "../plan";
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
-import { guardPlan } from "./guard";
+import { guardPlan, keptPriceIssue } from "./guard";
+import { hasJargon, knownAmounts, marketRangeText, silentProposalIssues } from "./checks";
 import { today } from "./common";
 
 // The research pipeline, driven by the client one step per request so no
@@ -178,15 +179,24 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
   }
 
   if (step === "guard") {
+    // The review is silent: the Guardian's notes and the code checks go back
+    // to the Strategist, never to the owner. Up to 2 correction rounds; the
+    // owner only ever sees the corrected proposal.
     let guard = await guardPlan(plan, lang);
-    if (guard.block.length) {
-      // One correction round, then show whatever remains to the owner.
-      const fixed = await proposePlan(plan, lang, guard.block);
+    for (let round = 0; round < 2; round++) {
+      const issues = [...guard.block, ...silentProposalIssues(plan)];
+      const kept = keptPriceIssue(plan, lang);
+      if (kept && !issues.includes(kept)) issues.push(kept);
+      if (!issues.length) break;
+      const fixed = await proposePlan(plan, lang, issues);
       const { message: _m, ...fields } = fixed;
       plan = { ...plan, ...fields };
       guard = await guardPlan(plan, lang);
     }
-    plan = { ...plan, guard, stage: "proposal", approvals: {} };
+    const left = [...guard.block, ...silentProposalIssues(plan)];
+    if (left.length) console.warn("[brain] proposal shown with open review notes (kept internal)", businessId, left.slice(0, 6));
+    // Only plain "keep in mind" notes reach the owner; review notes never do.
+    plan = { ...plan, guard: { block: [], warn: guard.warn.filter((w) => !hasJargon(w, true)) }, stage: "proposal", approvals: {} };
     await savePlan(businessId, plan);
     // A business type the owner already has stays (the proposal's service title
     // is long); new projects take the short service name.
@@ -194,20 +204,24 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
       category: b.category?.trim() ? b.category : (plan.profile.mainService || plan.service).slice(0, 60),
       city: b.city || plan.profile.city || null,
     });
-    const strategyMsg = ((jobOf(jobs, "strategy")?.result ?? {}) as { message?: string }).message;
+    // The summary is written from the FINAL proposal: the Strategist's first
+    // message is used only if every amount in it is still true.
+    const strategyMsg = ((jobOf(jobs, "strategy")?.result ?? {}) as { message?: string }).message || "";
+    const known = knownAmounts(plan);
+    const stale = [...strategyMsg.matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)/g)].some((m) => !known.has(Number(m[1].replace(/,/g, ""))));
+    const range = marketRangeText(plan.market.prices, lang);
+    const list = plan.packages.filter((k) => k.name && k.price).map((k) => `${k.name} (${k.price})`).join(", ");
     const base =
-      strategyMsg ||
-      (es ? "Listo: investigué tu zona y armé tu propuesta." : "Done: I researched your area and built your proposal.");
+      strategyMsg && !stale && !hasJargon(strategyMsg, true) && !/\$\s?\d[\d,]*\s*[–-]\s*\$/.test(strategyMsg)
+        ? strategyMsg
+        : es
+          ? `Listo: investigué tu zona y armé tu propuesta. ${range ? `En el mercado se cobra ${range}. ` : ""}${list ? `Te propongo estos paquetes: ${list}.` : ""}`.trim()
+          : `Done: I researched your area and built your proposal. ${range ? `The market charges ${range}. ` : ""}${list ? `I propose these packages: ${list}.` : ""}`.trim();
     const walk = es
       ? "\n\nTe la muestro aquí mismo, parte por parte. En cada una me dices si va así o qué cambio."
       : "\n\nI'll show it to you right here, part by part. For each one, tell me if it's right or what to change.";
-    const note = guard.block.length
-      ? es
-        ? `\n\nAntes de aprobar, revisa esto: ${guard.block.join(" ")}`
-        : `\n\nBefore approving, check this: ${guard.block.join(" ")}`
-      : "";
     // The research shows right here in the chat, as a card that opens in place.
-    await addChatMessage(businessId, "plan", "ai", `${base}${note}${walk}${plan.market.researchedAt ? `\n\n${MARKET_TOKEN}` : ""}`);
+    await addChatMessage(businessId, "plan", "ai", `${base}${walk}${plan.market.researchedAt ? `\n\n${MARKET_TOKEN}` : ""}`);
     const first = nextPartMessage(plan, lang);
     if (first) await addChatMessage(businessId, "plan", "ai", first);
     return;

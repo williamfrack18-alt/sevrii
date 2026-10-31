@@ -22,7 +22,9 @@ export default function StoreChat({
   chips,
   area = "store",
   pickKey,
+  onPlans,
 }: {
+  onPlans?: () => void;
   pickKey?: number;
   area?: "store" | "agent"; // Store (the sales page) or Agente (the agent itself)
   head?: React.ReactNode;
@@ -70,8 +72,9 @@ export default function StoreChat({
           toClientBusiness(res.business),
           res.services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description }))
         );
-        return res.messages;
+        return { messages: res.messages, limit: res.limit, notice: res.notice };
       }}
+      onPlans={onPlans}
       onUpload={async (picked, onProgress) => {
         // A video goes straight to storage (it can be big), then onto the page.
         if (picked.type.startsWith("video/") || /\.(mov|mp4|webm)$/i.test(picked.name)) {

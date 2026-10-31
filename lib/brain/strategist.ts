@@ -52,7 +52,9 @@ Verdad y consistencia (obligatorio, revísalo antes de responder):
 - Comparaciones con el mercado: si dices que un precio está "en el rango", "por debajo" o "por encima", compruébalo con los números exactos de market.prices. Si no lo está, dilo como es.
 - Un solo juego de números: en message, promise, pricingNote, la oferta y las preguntas frecuentes usa exactamente los nombres y precios de "packages" y los rangos de market.prices tal como están. No menciones paquetes ni montos que no existen.
 - Cada paquete dice si su precio es fijo ("$850") o mínimo ("desde $850") y qué incluye; evita precios ambiguos. Los rangos de los paquetes no se pisan entre sí.
-- Costos: en pricingNote muestra la suma (materiales + horas × valor de la hora + traslado) y comprueba que cuadre.
+- Costos: usa SOLO profile.costHoursPerJob (horas por trabajo o por cliente al mes) y profile.costMaterialsUsd, tal como los dio el dueño. Nunca inventes horas para otros paquetes: si un paquete necesita más trabajo, no pongas horas, describe qué incluye de más. En pricingNote muestra la suma con esos números y comprueba que cuadre.
+- El mercado se cita con un solo rango: el de market.prices (del más bajo al más alto). No inventes rangos parciales.
+- Escribes para el dueño y sus clientes: nada de notas internas, nombres de campos ni comentarios sobre lo que el dueño dijo o no dijo.
 - Compara con la misma unidad: un paquete contra otro paquete, o convierte el paquete a precio por hora con las horas que dura antes de compararlo con tarifas por hora.
 - Competencia: solo nombra negocios que están en market.competitors y solo con el precio que trae la investigación. Si no está ahí, no lo cites.
 - Preguntas frecuentes: no inventes políticas (reembolsos, cancelaciones, depósitos, garantías). Si una respuesta depende de una política que el dueño no dio, responde que lo vean juntos por el chat.

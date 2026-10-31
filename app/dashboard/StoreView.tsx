@@ -137,6 +137,10 @@ export default function StoreView({
     }
   }
 
+  // The store opens only once the Brain's strategy is approved (a page that is
+  // already published stays editable). Until then: what's left, and a way back.
+  if (storeLocked(business)) return <StoreLocked business={business} lang={lang} onBrain={onBrain} />;
+
   return (
     <div style={{ background: "#F5F5F3" }}>
       {/* Chat: fills the screen, composer pinned at the bottom */}
@@ -236,6 +240,7 @@ export default function StoreView({
           </div>
         )}
         <StoreChat
+          onPlans={onPlans}
           business={business}
           onBusiness={(b) => {
             onUpdated(b, services);
@@ -331,5 +336,46 @@ function PreviewLinkButton({ lang }: { lang: "es" | "en" }) {
     >
       {state === "copied" ? (es ? "Enlace copiado" : "Link copied") : state === "error" ? (es ? "No se pudo copiar, inténtalo otra vez" : "Couldn't copy, try again") : es ? "Copiar enlace de vista previa" : "Copy preview link"}
     </button>
+  );
+}
+
+export function storeLocked(b: ClientBusiness): boolean {
+  return !b.published && b.plan.stage !== "approved";
+}
+
+// What's still missing in the Brain, said plainly, with one button back to it.
+function StoreLocked({ business, lang, onBrain }: { business: ClientBusiness; lang: "es" | "en"; onBrain?: () => void }) {
+  const es = lang === "es";
+  const p = business.plan;
+  const parts = es
+    ? { service: "tu servicio", pitch: "cómo te presentas", packages: "tus paquetes y precios", offer: "tu oferta de bienvenida", faq: "tus preguntas frecuentes" }
+    : { service: "your service", pitch: "how you present yourself", packages: "your packages and prices", offer: "your welcome offer", faq: "your FAQ" };
+  const pending = (Object.keys(parts) as (keyof typeof parts)[]).filter((k) => !p.approvals[k]);
+  const where =
+    p.stage === "interview" || p.stage === "ready_check"
+      ? es ? "Todavía estás en la entrevista con el Cerebro: contesta sus preguntas para que investigue tu zona." : "You're still in the interview with the Brain: answer its questions so it can research your area."
+      : p.stage === "ideas_research" || p.stage === "research"
+        ? es ? "El Cerebro está investigando tu zona. En 1 o 2 minutos te muestra tu propuesta." : "The Brain is researching your area. In 1-2 minutes it shows you your proposal."
+        : p.stage === "choose"
+          ? es ? "Escoge una de las 3 ideas que te propuso el Cerebro." : "Pick one of the 3 ideas the Brain proposed."
+          : es ? `Te falta aprobar en el Cerebro: ${pending.map((k) => parts[k]).join(", ")}.` : `Still to approve in the Brain: ${pending.map((k) => parts[k]).join(", ")}.`;
+  return (
+    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen flex items-center justify-center px-4" style={{ background: "#F5F5F3" }}>
+      <div className="max-w-[520px] w-full rounded-[24px] bg-white p-6 md:p-8 flex flex-col gap-4" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06), 0 10px 30px -14px rgba(10,10,10,.16)" }}>
+        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: ACCENT }}>{es ? "Store · se abre al aprobar tu estrategia" : "Store · opens when your strategy is approved"}</span>
+        <h1 className="text-[22px] font-semibold text-pfg leading-tight">{es ? "Primero terminemos tu estrategia" : "Let's finish your strategy first"}</h1>
+        <p className="text-[14.5px] text-psub leading-relaxed">
+          {es
+            ? "Tu tienda se arma sola con lo que apruebes en el Cerebro: tu servicio, tus precios, tu oferta y tus preguntas frecuentes. Por eso se abre cuando tu estrategia esté aprobada."
+            : "Your store builds itself from what you approve in the Brain: your service, prices, offer and FAQ. That's why it opens once your strategy is approved."}
+        </p>
+        <p className="text-[14.5px] text-pfg leading-relaxed">{where}</p>
+        {onBrain && (
+          <button type="button" onClick={onBrain} className="self-start h-11 px-6 rounded-full text-[14.5px] font-semibold" style={BRAND_BTN}>
+            {es ? "Ir al Cerebro a terminarla" : "Go to the Brain to finish it"}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

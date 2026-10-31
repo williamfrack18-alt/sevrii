@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { fillStoreFromPlan } from "@/lib/storeFill";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { chatGate, gateMessage, researchWouldStart, runForUser } from "@/lib/usage";
+import { chatGate, gateLimit, gateMessage, researchWouldStart, runForUser } from "@/lib/usage";
+import type { LimitInfo } from "@/lib/upgrade";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
 import type { Lang } from "@/lib/i18n";
 import { allow, LIMITS } from "@/lib/guard";
@@ -24,6 +25,7 @@ export type PlanChatResponse = {
   services: ServiceRow[];
   startPipeline?: boolean;
   notice?: string;
+  limit?: LimitInfo | null;
 };
 
 async function requireBusiness(): Promise<BusinessRow> {
@@ -55,15 +57,13 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
     history = await listChatMessages(business.id, CHANNEL);
   }
 
-  let blocked: string | null = null;
-  if (text.length > LIMITS.aiMaxChars) blocked = t.aiTooLong;
-  else {
-    const reason = await chatGate(business.userId);
-    if (reason) blocked = gateMessage(reason, t);
-  }
-  if (blocked) {
-    await addChatMessage(business.id, CHANNEL, "ai", blocked);
-    return respond(business);
+  // Over a limit: nothing is saved in the chat (so it never repeats); the
+  // owner gets the upgrade window and their text stays in the box.
+  if (text.length > LIMITS.aiMaxChars) return respond(business, { notice: t.aiTooLong });
+  const reason = await chatGate(business.userId);
+  if (reason) {
+    const limit = await gateLimit(business.userId, reason);
+    return respond(business, limit ? { limit } : { notice: gateMessage(reason, t) });
   }
 
   await addChatMessage(business.id, CHANNEL, "user", text);
@@ -86,7 +86,11 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
   const reply = result.reply;
   // The part the chat moved to (or changed) shows its card under the reply.
   const card = cardAfterTurn(business.plan, result.business.plan, lang);
-  await addChatMessage(business.id, CHANNEL, "ai", card ? `${reply}\n\n${card}` : reply);
+  if (card === DONE_TOKEN) {
+    // Approved from the chat: the reply, then the same step-by-step "what's next".
+    await addChatMessage(business.id, CHANNEL, "ai", reply);
+    await afterApproved(result.business, lang);
+  } else await addChatMessage(business.id, CHANNEL, "ai", card ? `${reply}\n\n${card}` : reply);
   revalidatePath("/dashboard");
   return respond(result.business, { startPipeline: result.startPipeline });
 }
@@ -173,20 +177,15 @@ async function walkOn(business: BusinessRow, next: BusinessPlan, refused: string
 // and tell the owner, always the same way.
 async function afterApproved(business: BusinessRow, lang: Lang) {
   const { filled } = await fillStoreFromPlan(business.id, lang, { onlyIfEmpty: true });
-  await addChatMessage(
-    business.id,
-    CHANNEL,
-    "ai",
-    `${
-      filled
-        ? lang === "es"
-          ? "¡Listo, tu estrategia está aprobada! Ya armé tu página en Store con todo lo que aprobamos. Si quieres cambiar algo después, escríbeme aquí."
-          : "Done, your strategy is approved! I already built your page in Store with everything we approved. If you want to change something later, write to me here."
-        : lang === "es"
-          ? "¡Listo, tu estrategia está aprobada! En Store puedes actualizar tu página con todo lo que aprobamos. Si quieres cambiar algo después, escríbeme aquí."
-          : "Done, your strategy is approved! In Store you can update your page with everything we approved. If you want to change something later, write to me here."
-    }\n\n${DONE_TOKEN}`
-  );
+  await addChatMessage(business.id, CHANNEL, "ai", `${nextSteps(lang, filled)}\n\n${DONE_TOKEN}`);
+}
+
+// What comes after the Brain, said every time the strategy is approved: the
+// owner never has to guess the next step.
+function nextSteps(lang: Lang, filled: boolean): string {
+  return lang === "es"
+    ? `¡Listo, tu estrategia está aprobada! Esto es lo que sigue, paso a paso:\n1. Store (ya abierto): ${filled ? "ya armé tu página con lo que aprobamos" : "ahí se arma tu página con lo que aprobamos"}: tu servicio, tus precios, tu oferta y tus preguntas. Revísala, agrega fotos tuyas y de tu trabajo, y cambia lo que quieras.\n2. Publicar: cuando te guste, la publicas en sevrii.com y tus clientes te escriben por su chat.\n3. Marketing: después armamos tus anuncios y videos para que te encuentren.\nToca «Armar mi página en Store» para empezar.`
+    : `Done, your strategy is approved! Here's what comes next, step by step:\n1. Store (now open): ${filled ? "I already built your page from what we approved" : "your page is built there from what we approved"}: your service, prices, offer and FAQ. Review it, add photos of you and your work, and change anything you like.\n2. Publish: when you like it, publish it on sevrii.com and customers message you through its chat.\n3. Marketing: then we build your ads and videos so people find you.\nTap "Build my page in Store" to start.`;
 }
 
 // Every block is approved but the plan is still open (a final check stopped
