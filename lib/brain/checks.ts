@@ -128,7 +128,9 @@ export function oneQuestion(reply: string): string {
   const parts = reply.split(/(?<=[.!?])\s+/);
   const firstQ = parts.findIndex((x) => /\?\s*$/.test(x.trim()));
   if (firstQ < 0) return reply;
-  const later = parts.slice(firstQ + 1).filter((x) => !/\?\s*$/.test(x.trim()));
+  // A second request in disguise ("Y cuando puedas, dime también…") goes too.
+  const ASK_MORE = /^(y\s+)?(cuando puedas,?\s+)?(dime|cu[eé]ntame|av[ií]same|tell me|let me know)\b/i;
+  const later = parts.slice(firstQ + 1).filter((x) => !/\?\s*$/.test(x.trim()) && !ASK_MORE.test(x.trim()));
   return [...parts.slice(0, firstQ + 1), ...later].join(" ").trim();
 }
 

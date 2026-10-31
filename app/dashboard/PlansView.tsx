@@ -9,6 +9,8 @@ import { ACCENT, BRAND_BTN, RING } from "@/lib/panel";
 
 const GREEN = ACCENT;
 const AMBER = "#ffc400";
+const HERO_VIDEO = "EsrX_WSx2UM"; // same background video as /ofrecerservicios
+const FADE = { WebkitMaskImage: "linear-gradient(#000 70%, transparent)", maskImage: "linear-gradient(#000 70%, transparent)" } as const;
 
 // Plans: start free, then pick the plan that includes the next step.
 export default function PlansView({
@@ -61,37 +63,60 @@ export default function PlansView({
             : null;
 
   return (
-    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen" style={{ background: "#F5F5F3" }}>
-      <div className="h-14 px-4 md:px-6 flex items-center">
-        <span className="text-[17px] font-semibold text-pfg">
-          Sevrii <span className="text-pmuted font-normal">· {t.nav}</span>
-        </span>
+    <div
+      className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen"
+      style={{ background: "radial-gradient(ellipse 50% 30% at 80% 62%, rgba(61,220,132,.13), transparent 70%), radial-gradient(ellipse 45% 40% at 15% 85%, rgba(61,220,132,.10), transparent 70%), #000" }}
+    >
+      {/* Hero: the same background video as /ofrecerservicios, tinted dark green; the cards sit on top of its lower half. */}
+      <div className="relative overflow-hidden pb-[240px] md:pb-[300px]">
+        <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none" style={{ ...FADE, background: `#020a06 url("https://i.ytimg.com/vi/${HERO_VIDEO}/maxresdefault.jpg") center/cover no-repeat` }}>
+          <iframe
+            src={`https://www.youtube.com/embed/${HERO_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${HERO_VIDEO}&controls=0&modestbranding=1&rel=0&disablekb=1&playsinline=1`}
+            title=""
+            tabIndex={-1}
+            allow="autoplay; encrypted-media"
+            className="absolute top-1/2 left-1/2 border-0"
+            style={{ width: "100%", height: "56.25vw", minHeight: "100%", minWidth: "177.78vh", transform: "translate(-50%,-50%)" }}
+          />
+        </div>
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{ ...FADE, background: "radial-gradient(ellipse 70% 80% at 30% 40%, rgba(28,90,61,.55), transparent 70%), linear-gradient(to bottom, rgba(2,10,6,.70) 0%, rgba(2,10,6,.55) 45%, rgba(0,0,0,.94) 88%, #000 100%)" }}
+        />
+        <div className="relative h-14 px-4 md:px-6 flex items-center">
+          <span className="text-[17px] font-semibold text-white">
+            Sevrii <span className="font-normal" style={{ color: "rgba(255,255,255,.55)" }}>· {t.nav}</span>
+          </span>
+        </div>
+        <div className="relative max-w-[1180px] mx-auto px-4 md:px-8 pt-6 md:pt-14">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+            <div>
+              <div className="text-[15px] mb-3" style={{ color: "#3ddc84" }}>{t.nav}</div>
+              <h1 className="text-[36px] md:text-[56px] leading-[1.08] font-light text-white" style={{ letterSpacing: "-1.5px" }}>{t.title}</h1>
+              <p className="text-[15px] md:text-[16px] mt-3 max-w-[620px] leading-relaxed" style={{ color: "rgba(255,255,255,.72)" }}>{t.sub}</p>
+            </div>
+            {(plan.yearlyReady || !plan.billingReady) && (
+            <div className="flex items-center gap-1 rounded-full p-1 self-start md:self-auto backdrop-blur" style={{ background: "rgba(255,255,255,.1)", boxShadow: "0 0 0 1px rgba(255,255,255,.18)" }}>
+              {[false, true].map((y) => (
+                <button
+                  key={String(y)}
+                  type="button"
+                  onClick={() => setYearly(y)}
+                  className="h-10 md:h-9 px-4 rounded-full text-[13.5px] font-medium whitespace-nowrap"
+                  style={yearly === y ? { background: "#fff", color: "#0A0A0A" } : { color: "#fff" }}
+                >
+                  {y ? t.yearly : t.monthly}
+                  {y && <span className="ml-1.5 text-[11.5px]" style={{ color: yearly ? GREEN : "#3ddc84" }}>{t.yearlySave}</span>}
+                </button>
+              ))}
+            </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="max-w-[1180px] mx-auto px-4 md:px-8 pt-4 md:pt-10 pb-10 md:pb-16 flex flex-col gap-6 md:gap-8">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
-          <div>
-            <h1 className="text-[26px] md:text-[34px] leading-tight font-semibold text-pfg tracking-tight">{t.title}</h1>
-            <p className="text-[15px] text-pmuted mt-2 max-w-[620px] leading-relaxed">{t.sub}</p>
-          </div>
-          {(plan.yearlyReady || !plan.billingReady) && (
-          <div className="flex items-center gap-1 rounded-full p-1 self-start md:self-auto" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
-            {[false, true].map((y) => (
-              <button
-                key={String(y)}
-                type="button"
-                onClick={() => setYearly(y)}
-                className="h-10 md:h-9 px-4 rounded-full text-[13.5px] font-medium whitespace-nowrap"
-                style={yearly === y ? { background: "#0A0A0A", color: "#fff" } : { color: "#27272A" }}
-              >
-                {y ? t.yearly : t.monthly}
-                {y && <span className="ml-1.5 text-[11.5px]" style={{ color: yearly ? "#0f6e56" : GREEN }}>{t.yearlySave}</span>}
-              </button>
-            ))}
-          </div>
-          )}
-        </div>
-
+      <div className="relative max-w-[1180px] mx-auto px-4 md:px-8 -mt-[208px] md:-mt-[268px] pb-10 md:pb-16 flex flex-col gap-6 md:gap-8">
         {plan.admin && <Banner text={t.admin} color={GREEN} />}
         {banner && <Banner text={banner.text} color={banner.color} />}
         {plan.status === "past_due" && <Banner text={t.pastDue} color={AMBER} />}
@@ -110,7 +135,7 @@ export default function PlansView({
                 className="rounded-[24px] p-5 flex flex-col gap-4"
                 style={{
                   background: "#FFFFFF",
-                  boxShadow: isCurrent ? `0 0 0 1.5px ${RING}` : recommended ? "0 0 0 1px rgba(10,10,10,0.297)" : "0 0 0 1px rgba(10,10,10,0.068)",
+                  boxShadow: isCurrent ? `0 0 0 2px ${RING}, 0 30px 60px -30px rgba(0,0,0,.8)` : recommended ? "0 0 0 2px #3ddc84, 0 30px 70px -25px rgba(61,220,132,.45)" : "0 0 0 1px rgba(255,255,255,.06), 0 30px 60px -30px rgba(0,0,0,.8)",
                 }}
               >
                 <div className="flex items-center justify-between gap-2 min-h-[24px]">
@@ -186,13 +211,13 @@ export default function PlansView({
           })}
         </div>
 
-        <div className="flex flex-col gap-1.5 text-[13px] text-pmuted">
+        <div className="flex flex-col gap-1.5 text-[13px]" style={{ color: "rgba(255,255,255,.6)" }}>
           <span>• {t.adsNote}</span>
           <span>• {t.capitalNote}</span>
         </div>
 
         <div className="flex flex-col gap-3">
-          <h2 className="text-[20px] font-semibold text-pfg">{t.compareTitle}</h2>
+          <h2 className="text-[20px] font-semibold text-white">{t.compareTitle}</h2>
           <div className="rounded-[24px] overflow-x-auto" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
             <table className="w-full min-w-[640px] text-[13.5px]">
               <thead>
