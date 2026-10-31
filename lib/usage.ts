@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { addAiFeatureUnit, addAiFeatureUsage, addAiUsage, getAiSpendMicros, peekRateCounter } from "./db";
+import { addAiFeatureUnit, addAiFeatureUsage, addAiUsage, getAiSpendMicros, peekRateCounter, peekRateWindow } from "./db";
 import { allow } from "./guard";
 import { limitsForUserId } from "./billing";
 import { PLANS, PLAN_ORDER, type PlanLimits } from "./plans";
@@ -253,4 +253,28 @@ export function serviceAgentAccount(ownerId: string): string {
 export async function serviceAgentGate(ownerId: string): Promise<boolean> {
   const l = await limitsForUserId(ownerId);
   return (await monthSpendUsd(serviceAgentAccount(ownerId))) < Math.max(2, l.aiBudgetUsd);
+}
+
+// What the owner has left right now (the counter in the panel): messages
+// today and this month, research runs this month, and the AI budget used.
+export type UsageSummary = {
+  day: { used: number; limit: number; resetsAt: string | null };
+  month: { used: number; limit: number };
+  research: { used: number; limit: number };
+  budgetPct: number;
+};
+export async function usageSummary(userId: string): Promise<UsageSummary> {
+  const l = await limitsForUserId(userId);
+  const [day, monthUsed, research, spent] = await Promise.all([
+    peekRateWindow(`ai:day:u:${userId}`).catch(() => ({ count: 0, endsAt: null })),
+    peekRateCounter(`ai:month:u:${userId}:${month()}`).catch(() => 0),
+    peekRateCounter(`brain:run:u:${userId}:${month()}`).catch(() => 0),
+    monthSpendUsd(userId),
+  ]);
+  return {
+    day: { used: Math.min(day.count, l.aiPerDay), limit: l.aiPerDay, resetsAt: day.endsAt },
+    month: { used: Math.min(monthUsed, l.aiPerMonth), limit: l.aiPerMonth },
+    research: { used: Math.min(research, l.researchPerMonth), limit: l.researchPerMonth },
+    budgetPct: l.aiBudgetUsd > 0 ? Math.min(100, Math.round((spent / l.aiBudgetUsd) * 100)) : 0,
+  };
 }

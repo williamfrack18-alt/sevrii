@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLang } from "@/components/LangProvider";
+import Dictate from "./Dictate";
 import {
   listInboxAction,
   openInboxConversationAction,
@@ -464,6 +465,8 @@ export default function ChatsView({ businessId, published, onStore }: { business
                         maxLength={2000}
                         className="flex-1 min-w-0 h-10 md:h-9 bg-transparent text-[16px] md:text-[14px] text-pfg outline-none placeholder:text-pfaint"
                       />
+                      {/* Dictate the reply: it goes in the box to read before sending. */}
+                      <Dictate lang={lang} base={draft} onText={(x) => setDraft(x.slice(0, 2000))} disabled={busy} />
                       <button
                         type="submit"
                         disabled={busy || !draft.trim()}

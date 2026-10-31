@@ -103,7 +103,8 @@ export default function ChatPanel({
   dock,
   dockLabel,
   chips,
-  voice,
+  // The microphone is in every chat (Brain, Store, Agent, Marketing).
+  voice = true,
   context,
   pickKey,
 }: {
@@ -322,6 +323,7 @@ export default function ChatPanel({
     start(async () => {
       try {
         const res = await onSend(value);
+        window.dispatchEvent(new Event("sevrii:usage"));
         if (Array.isArray(res)) {
           setMessages(res);
           setLimit(null);

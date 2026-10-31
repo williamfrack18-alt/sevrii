@@ -21,6 +21,7 @@ import type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, ClientPr
 export type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, DashboardView } from "./types";
 import { DASHBOARD_VIEWS } from "./types";
 import ChatsView from "./ChatsView";
+import UsageMeter from "./UsageMeter";
 import { unreadChatsAction } from "@/app/chatActions";
 import { BRAND_BTN } from "@/lib/panel";
 
@@ -578,6 +579,7 @@ export default function DashboardTabs({
         </div>
 
         <div className={`flex flex-col gap-2.5 pt-4 ${railOpen ? "" : "items-center"}`}>
+          {railOpen && <UsageMeter lang={lang} onPlans={() => setView("plans")} />}
           {railOpen ? (
             <button
               type="button"

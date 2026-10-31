@@ -150,3 +150,12 @@ export async function deleteAccountAction(_prev: DeleteState, formData: FormData
   jar.delete(PROJECT_COOKIE);
   redirect("/goodbye");
 }
+
+// The counter in the panel: what the owner has left of their plan right now.
+export async function myUsageAction(): Promise<import("@/lib/usage").UsageSummary | null> {
+  const { getCurrentUser } = await import("@/lib/session");
+  const user = await getCurrentUser().catch(() => null);
+  if (!user) return null;
+  const { usageSummary } = await import("@/lib/usage");
+  return usageSummary(user.id);
+}
