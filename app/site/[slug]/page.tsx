@@ -12,7 +12,7 @@ import { previewOk } from "@/lib/preview";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { reachLabel, resolveReach } from "@/lib/reach";
-import { activeOffer, storeTheme } from "@/lib/site";
+import { activeOffer, storeTheme, type PageSection } from "@/lib/site";
 import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, type MediaItem } from "./StoreParts";
 import { ChatJump } from "./ChatWidget";
 import AgentPage from "./AgentPage";
@@ -170,10 +170,15 @@ export default async function PublicBusinessPage({
   const media: MediaItem[] = [];
   if (site.videoUrl) media.push({ kind: "video", src: site.videoUrl, poster: site.coverUrl, label: t.videoLabel(business.name) });
   for (const src of images) media.push({ kind: "photo", src });
-  if (offer) media.push({ kind: "slide", tone: "offer", kicker: t.offerKicker, title: offer.label, price: offer.newPrice, text: business.name });
-  for (const sv of ordered.slice(0, 4)) {
+  // Price/offer cards fill the gallery only while there are no real photos or
+  // video (or when the owner asks for them); the owner can turn them off.
+  const cards = site.galleryCards === "on" || (site.galleryCards === "auto" && media.length === 0);
+  if (cards && offer) media.push({ kind: "slide", tone: "offer", kicker: t.offerKicker, title: offer.label, price: offer.newPrice, text: business.name });
+  if (cards) for (const sv of ordered.slice(0, 4)) {
     media.push({ kind: "slide", tone: "service", kicker: sv.featured ? sv.tag || t.featured : t.packageKicker, title: sv.name, price: sv.price || t.priceOnRequest, text: sv.description || "" });
   }
+  // Sections the owner chose to hide.
+  const show = (k: PageSection) => !site.hidden.includes(k);
 
   // Lowest price shown as "From $X": only with several services and only when
   // every dollar price is a plain amount (else it could be wrong).
@@ -417,7 +422,7 @@ export default async function PublicBusinessPage({
           </div>
         </section>
 
-        {trust.length > 0 && (
+        {show("trust") && trust.length > 0 && (
           <section className="trust">
             <div className="wrap">
               <div className="trust-grid">
@@ -433,7 +438,7 @@ export default async function PublicBusinessPage({
         )}
 
 
-        {offer && hasChat && (
+        {show("offerBand") && offer && hasChat && (
           <UntilOfferEnds endsAt={offer.endsAt}>
           <section className="offer-band">
             <div className="wrap offer-row">
@@ -455,7 +460,7 @@ export default async function PublicBusinessPage({
           </UntilOfferEnds>
         )}
 
-        {ordered.length > 0 && (
+        {show("services") && ordered.length > 0 && (
           <section className="block services-block" id="servicios">
             <div className="wrap">
               <div className="section-head">
@@ -492,7 +497,7 @@ export default async function PublicBusinessPage({
           </section>
         )}
 
-        {images.length >= 2 && (
+        {show("photos") && images.length >= 2 && (
           <section className="block wrap">
             <div className="section-head">
               <span className="eyebrow grad-text">{t.workEyebrow}</span>
@@ -507,7 +512,7 @@ export default async function PublicBusinessPage({
           </section>
         )}
 
-        {site.steps.length > 0 && (
+        {show("steps") && site.steps.length > 0 && (
           <section className="block steps-block">
             <div className="wrap">
               <div className="section-head">
@@ -546,7 +551,7 @@ export default async function PublicBusinessPage({
           </section>
         )}
 
-        {site.faq.length > 0 && (
+        {show("faq") && site.faq.length > 0 && (
           <section className="block wrap">
             <div className="section-head">
               <span className="eyebrow grad-text">{t.faqEyebrow}</span>
@@ -566,7 +571,7 @@ export default async function PublicBusinessPage({
         )}
       </main>
 
-      {hasChat && (
+      {hasChat && show("cta") && (
         <section className="final-cta" style={site.coverUrl ? { ["--cta-img" as string]: `url("${site.coverUrl}")` } : undefined}>
           <div className="wrap">
             {offer && (

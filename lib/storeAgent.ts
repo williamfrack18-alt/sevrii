@@ -6,6 +6,7 @@ import {
   deleteService,
   getBusinessById,
   listServices,
+  listPushSubs,
   mergeBusinessSite,
   updateBusinessAccent,
   updateBusinessDetails,
@@ -15,7 +16,7 @@ import {
   type BusinessRow,
   type ServiceRow,
 } from "./db";
-import { LIMITS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, type SiteData } from "./site";
+import { LIMITS, PAGE_SECTIONS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, type PageSection, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
 import { planFingerprint } from "./planToStore";
 import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, offerTarget, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
@@ -109,8 +110,16 @@ const TOOLS: Tool[] = [
     description: "Use an uploaded photo: as the logo, the main/cover photo, in the gallery, as the owner's own photo (shown next to their name when they answer chats; it stays where it is on the page), or remove it.",
     input_schema: {
       type: "object",
-      properties: { url: { type: "string" }, role: { type: "string", enum: ["cover", "logo", "gallery", "owner", "remove"] } },
-      required: ["url", "role"],
+      properties: {
+        url: { type: "string" },
+        role: { type: "string", enum: ["cover", "logo", "gallery", "owner", "remove"] },
+        whatItIs: {
+          type: "string",
+          enum: ["work_photo", "owner_photo", "logo", "screenshot", "other"],
+          description: "What the image really is. A screenshot of a screen (a web page, this panel, an app, a chat, text) is 'screenshot': it never goes on the page.",
+        },
+      },
+      required: ["url", "role", "whatItIs"],
     },
   },
   {
@@ -188,6 +197,21 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    name: "set_layout",
+    description:
+      "Change how the page looks, beyond its texts: the price/offer cards inside the photo gallery, which sections show, which photo goes first, and what the owner said no to (so you never push it again). Use it whenever the owner wants something on the page shown, hidden, moved or removed.",
+    input_schema: {
+      type: "object",
+      properties: {
+        galleryCards: { type: "string", enum: ["auto", "on", "off"], description: "Price and offer cards inside the photo gallery: off = never, on = always, auto = only while there are no real photos" },
+        hide: { type: "array", items: { type: "string", enum: [...PAGE_SECTIONS] }, description: "Sections to hide: trust (facts bar), offerBand (offer banner), services (packages list), photos (photo grid), steps (how it works), faq, cta (closing section)" },
+        show: { type: "array", items: { type: "string", enum: [...PAGE_SECTIONS] }, description: "Sections to show again" },
+        firstPhoto: { type: "string", description: "URL of a gallery photo to put first" },
+        declined: { type: "array", items: { type: "string", enum: ["video", "publish", "alerts", "reviews", "photos", "offer", "hours"] }, description: "Things the owner said no to (never suggest them again)" },
+      },
+    },
+  },
+  {
     name: "publish_page",
     description: "Publish (or unpublish) the page. Only after the owner clearly says yes.",
     input_schema: { type: "object", properties: { publish: { type: "boolean" } }, required: ["publish"] },
@@ -204,19 +228,48 @@ How to work:
 - Offer: ask if they have a current promotion. Only use a real one. A welcome offer for new customers (only their first service, e.g. "10% off your first cleaning") needs NO end date — never ask for one. Any other time-limited promotion needs its real end date. Never create fake urgency, fake discounts or "ends today" offers.
 - Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to send the photos right here in the chat with the + button next to the message box ("Súbeme aquí con el botón + …"), then place each one yourself with set_photo. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover, and also set_photo role=owner (customers see it next to their name when they answer chats) if "page.ownerPhotoUrl" is empty; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
 - Video: if "page.videoUrl" is empty, recommend a short video of the owner talking about the service (30-60 s, phone, looking at the camera) — it builds the most trust and shows first in the gallery. They send it right here with the + button (it goes on the page automatically, first in the gallery). If "brainPlan.videoScript" exists, give them the script in a few short lines. To remove the video use remove_video. Don't push the video more than once per conversation.
-- Contact: customers talk to the business through the chat on the page (it sits next to the price; an AI answers instantly with the page info, collects their name and phone, and alerts the owner, who can answer in "Conversaciones"/"Conversations"). The page has no call or text buttons, so don't ask for a phone or WhatsApp for the page. Never ask what the Brain interview already has ("brainPlan.profile": name, city, ZIP, radius, languages, years): use it. If "page.ownerName" is empty and "brainPlan.profile.ownerName" exists, save it as ownerName with update_page right away without asking; only if neither has it, ask the owner's first name once and save it as ownerName: when they answer a chat personally, customers see their name and photo, so they know they're talking with the real person. Remind them once to turn on alerts ("Avisos" in Conversaciones) so they never miss a customer.
+- Contact: customers talk to the business through the chat on the page (it sits next to the price; an AI answers instantly with the page info, collects their name and phone, and alerts the owner, who can answer in "Conversaciones"/"Conversations"). The page has no call or text buttons, so don't ask for a phone or WhatsApp for the page. Never ask what the Brain interview already has ("brainPlan.profile": name, city, ZIP, radius, languages, years): use it. If "page.ownerName" is empty and "brainPlan.profile.ownerName" exists, save it as ownerName with update_page right away without asking; only if neither has it, ask the owner's first name once and save it as ownerName: when they answer a chat personally, customers see their name and photo, so they know they're talking with the real person. If "alertsOn" is false, remind them once to turn on alerts ("Avisos" in Conversaciones); never again after that.
 - Service area: work it out yourself from what they say and save it with update_page — never show forms. If "page.reachMode" is empty: a service done at the customer's place (cleaning, moving, repairs, beauty at home…) is local → if you know their city (page, brainPlan or the chat), save reachMode=local with reachCity and ask only how many miles they travel (default 25 if they don't care); work that can be delivered online (video editing, design, bookkeeping, classes by video…) is remote → ask in one short question if they take customers in the whole US, only in their state (e.g. a state license or state paperwork) or other countries too, and save reachMode=remote with reachScope (and reachState for one state). If unsure, ask one plain question ("¿Lo haces en persona en tu zona o en línea?"). The marketplace only shows them to customers they can really serve.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
 - The page and its FAQ use ONLY what the owner approved in the Brain plan (brainPlan) and what they tell you in this chat. Never add taxes, fees, surcharges, deposits, refund or cancellation policies, guarantees or anything the owner didn't approve. Never offer or suggest what the owner excluded (a language, a service, an area).
-- Conversion coach: you are also their sales-page expert. Once the essentials are saved, give ONE concrete improvement per reply, the one with the biggest impact first, say in a few words why it brings more customers, and offer to do it: a clear photo of the owner as the main photo; a 30-60 s video of them; a welcome offer for first-time customers; a price on every package; their Google reviews link; FAQ answers to the top fears; notifications on so they answer chats fast. Never invent results or numbers.
+- Conversion coach: you are also their sales-page expert. Once the essentials are saved, and only when the owner asks what's next or after you finish something they asked, give ONE concrete improvement (never one they declined or already did), the one with the biggest impact first, say in a few words why it brings more customers, and offer to do it: a clear photo of the owner as the main photo; a 30-60 s video of them; a welcome offer for first-time customers; a price on every package; their Google reviews link; FAQ answers to the top fears; notifications on so they answer chats fast. Never invent results or numbers.
 - One service only: if they sell a single service, don't push them to invent more packages; the page focuses on that one service automatically (one price, no options to choose). If they have options (sizes, extras), suggest 2-3 packages.
-- When the essentials are done (services with prices, the owner's name, photos or not, key points), tell them the page is ready, give a one-line summary, and ask if they want to publish. Call publish_page only after a clear yes. If publishing fails, tell them what's missing.
+- When the essentials are done (services with prices, the owner's name, photos or not, key points), tell them the page is ready, give a one-line summary, and ask ONCE if they want to publish. Call publish_page only when they explicitly ask for it. If publishing fails, tell them what's missing.
 - If the owner asks for something the page can't do, say so briefly.
 - "brainPlan" is the strategy the owner already made with Sevrii's Brain (service, customer, promise, differentiators, packages with prices, offer). Use it: propose the headline from the promise, key points from the differentiators and services from the packages, and confirm with the owner instead of asking from scratch. If the plan offer has forNewClients=true, use it without a date. Otherwise, if it has no endsAt, ask for a real end date before adding it to the page; if it has one, use that date.
 - Service agent ("agent" in the state, when the owner is creating one): the page chat becomes their AI agent that delivers the service by itself and charges for access. An agent is a digital product that doesn't depend on what the owner knows: its knowledge base already comes from the Brain's official research. Help them finish it before publishing: its name and one-line role; its method step by step (instructions); if they WANT to add their own material, rules or answers, save it with knowledgeAdd in their own words (optional, never a requirement, never invent facts); its limits (always: it says it's an AI, never promises results, the owner handles refunds and cases outside the service); its greeting; how many free replies (3 is a good start); and what customers buy (set_agent_offers: one-time access for N days and/or monthly, each $15 or more). A welcome offer for new customers is set with update_agent welcomePercent (and welcomeOn): it applies only to a customer's first purchase and never takes a price under $15. If "agent.paymentsReady" is false, tell them once that to charge they must connect Payments (left menu) — until then the agent only gives the free replies and then passes the chat to them. Then ask if they want to switch it on (update_agent enabled=true) and suggest testing it themselves on "Ver borrador" (as the owner they can chat for free). The page itself still needs a headline, a photo of the owner and publishing like any page. An agent's page is different from a normal service page: it shows "AI agent · 24/7", the free trial, the chat first, who created it (creator + the owner's photo), why it's worth paying for instead of a free AI chat (edge), its access prices and its limits. So for an agent don't ask for hours, service area, license or years in business; don't ask for photos of their work; their photo is optional (it shows next to "created by", with their name only), and make sure edge is true and concrete. 
 - The agent DOES the task, it doesn't just guide (the new Sevrii model). Before switching it on, define with the owner, in plain words and one question at a time, the complete task with set_agent_task: (1) what it finishes end to end (the result the customer gets, e.g. "deja la LLC creada", "deja la cita hecha"); (2) which official pages or software it operates (https links, official sources first); (3) which ordinary data it asks in the chat; (4) which sensitive data the customer types themselves on the official page and at what moment (passwords, card when paying a fee) — never in the chat, never stored; (5) which steps need the customer's OK (signing, submitting, paying); (6) how it proves it's done (confirmation number, document, official record) — if it can't be verified it stays pending; (7) what the customer receives in the chat; (8) reminders afterwards, if any. If "agent.taskMissing" isn't empty, it can't be switched on: say what's missing. It never replaces a licensed professional when the law requires one, never signs or pays without the customer's explicit OK, and never promises an outcome that depends on the office.
-- Keep every reply under 70 words. No markdown headings, no bullet lists longer than 4 items.`;
+- Keep every reply under 70 words. No markdown headings, no bullet lists longer than 4 items.
+
+How to think (always):
+- Read what the owner REALLY asks in this message and do exactly that first, with your tools, in this same turn. Then stop. Don't add a new suggestion unless they ask what's next.
+- You have full freedom over the page: texts and sections (update_page), services and prices (save_service, delete_service), photos (set_photo), and the layout (set_layout: price/offer cards in the gallery on/off, hide or show any section, which photo goes first). Never say "no tengo herramienta" or "no puedo" for something these tools do. If something truly can't be done, say so in one line and do the closest thing you can.
+- Images: describe a NEW upload once, then classify it with set_photo (whatItIs). A screenshot of a screen (this panel, the page, an app, a chat, text) is never a work photo: don't put it on the page; look at what the owner points at in it and fix that. Never describe old photos again.
+- Facts in the state are the truth: "published", "alertsOn", "ownerDeclined", "realPhotos", "hasVideo", "languages". Never ask for what's already done (alertsOn true = alerts are on) or what they declined. When they say no to something (video, publishing, reviews…), save it with set_layout.declined and never suggest it again.
+- Publish (or unpublish) ONLY when the owner asks for it in their message ("publícala"). Don't keep asking "¿la publico?".
+- Languages: only "languages" in the state. Never say they serve in English (or Spanish) if it isn't there.
+- Button names on screen: the page opens with «Ver mi página» (top of this screen and in the page summary under the chat).
+- Sevrii, so you can guide them (a button to each section appears under your reply when it applies): Cerebro = their strategy; Store = this page; Conversaciones = customer chats and «Avisos» (notifications); Payments = card payment links for their services (Stripe; 5% per payment, everything included; they connect Stripe there once); Marketing = their strategy and ads on Facebook and Instagram with their own account, and AI videos; Planes = plans. After the page is ready and published, the next step is Marketing, and Payments to charge by card.
+- If the owner is upset or insults you: one short, calm line that answers or does what they asked. No apology lists, no repeating the page status, no new suggestions.`;
+
+// Publishing needs the owner's own words: "publícala / publish it", or a
+// plain yes right after the Brain asked about publishing. "No", "todavía no",
+// insults or "ok, inútil" never count.
+const YES = /^\s*(s[ií]+|ok(ay)?|dale|claro|hazlo|adelante|de acuerdo|yes|yep|sure|go ahead|do it)[\s.!,]*(por favor|please|ya|ahora|now)?[\s.!]*$/i;
+export function publishConsent(publish: boolean, ownerLast: string, lastAssistant: string): boolean {
+  const t = ownerLast.trim();
+  if (/\b(no|todav[ií]a no|a[uú]n no|not yet|don'?t)\b/i.test(t) && !/\b(no\s+(se|s[eé])\b)/i.test(t)) {
+    if (!/^(s[ií]|yes)/i.test(t)) return false;
+  }
+  const word = publish ? /(publ[ií]ca|publicar|publish|ponla en l[ií]nea|s[uú]bela|go live)/i : /(despubl|quita(la)? de (internet|l[ií]nea)|borrador|unpublish|take (it )?down|oc[uú]ltala)/i;
+  if (word.test(t)) return true;
+  const asked = publish ? /(publ[ií]c|publish)/i.test(lastAssistant) : /(borrador|despubl|unpublish|draft)/i.test(lastAssistant);
+  return asked && YES.test(t);
+}
+
+// The owner is upset: the reply gets short and only does what they asked.
+const UPSET = /(in[uú]til|imb[eé]cil|idiota|est[uú]pid|mierda|maldit|co[nñ]o|carajo|odio|horrible|useless|stupid|idiot|damn|shit|wtf)/i;
 
 // Policy words a page answer can't state unless the owner gave them.
 const POLICY = /\b(impuestos?|tax(es)?|iva|deposito|deposit|reembolsos?|refunds?|cancelacion(es)?|cancellations?|cargos? extra|recargos?|surcharges?|garantia|guarantee[sd]?|propinas?)\b/g;
@@ -224,14 +277,22 @@ const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").t
 
 export type StoreChatResult = { reply: string; business: BusinessRow; services: ServiceRow[] };
 
-function pageState(b: BusinessRow, services: ServiceRow[]) {
+function pageState(b: BusinessRow, services: ServiceRow[], extra: { alertsOn?: boolean } = {}) {
   const priced = services.filter((s) => (s.price ?? "").trim()).length;
   return {
     business: { name: b.name, category: b.category, city: b.city, pitch: b.pitch, whatsapp: b.whatsapp, accentColor: b.accentColor, published: Boolean(b.published) },
     brainPlan: b.plan.service ? { profile: { ownerName: b.plan.profile.ownerName, city: b.plan.profile.city, state: b.plan.profile.state, zip: b.plan.profile.zip, radiusMiles: b.plan.profile.radiusMiles, languages: b.plan.profile.languages, yearsExperience: b.plan.profile.yearsExperience, yearsOwnBusiness: b.plan.profile.yearsOwnBusiness }, service: b.plan.service, customer: b.plan.customer, problem: b.plan.problem, promise: b.plan.promise, differentiators: b.plan.differentiators, packages: b.plan.packages, offer: b.plan.offer, photoIdeas: b.plan.photoIdeas, videoScript: b.plan.videoScript ? "ready" : "" } : null,
     page: b.site,
     services: services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description, featured: Boolean(s.featured), tag: s.tag ?? null })),
-    missing: missingForSales({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length, pricedServices: priced }),
+    missing: missingForSales({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length, pricedServices: priced }).filter((m) => !b.site.declined.some((d) => m.toLowerCase().includes(d))),
+    // Facts to never get wrong: what's on, what's done, what they said no to.
+    published: Boolean(b.published),
+    alertsOn: Boolean(extra.alertsOn),
+    ownerDeclined: b.site.declined,
+    layout: { galleryCards: b.site.galleryCards, hiddenSections: b.site.hidden },
+    realPhotos: [b.site.coverUrl, ...b.site.gallery].filter(Boolean).length,
+    hasVideo: Boolean(b.site.videoUrl),
+    languages: b.plan.profile.languages || (b.site.spanish ? "es" : ""),
     publishBlockers: publishGaps({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length }),
     ...(b.plan.mode === "agent" || b.serviceAgent.name
       ? {
@@ -257,7 +318,7 @@ function clip(v: unknown, max: number): string {
 async function runTool(
   name: string,
   input: Record<string, unknown>,
-  ctx: { business: BusinessRow; services: ServiceRow[]; canPublish: boolean; ownerSaid?: string }
+  ctx: { business: BusinessRow; services: ServiceRow[]; canPublish: boolean; ownerSaid?: string; ownerLast?: string; lastAssistant?: string }
 ): Promise<string> {
   const b = ctx.business;
   switch (name) {
@@ -375,6 +436,16 @@ async function runTool(
       // Only photos that belong to this store (uploaded through Sevrii) can be placed.
       const known = new Set([cur.coverUrl, cur.logoUrl, cur.ownerPhotoUrl, ...cur.gallery].filter(Boolean));
       if (!url || !known.has(url)) return "error: unknown photo url";
+      // A screenshot (or anything that isn't a photo for the page) never stays on it.
+      if (input.whatItIs === "screenshot" || input.whatItIs === "other") {
+        await mergeBusinessSite(b.id, cur, {
+          gallery: cur.gallery.filter((g) => g !== url),
+          coverUrl: cur.coverUrl === url ? "" : cur.coverUrl,
+          logoUrl: cur.logoUrl === url ? "" : cur.logoUrl,
+          ownerPhotoUrl: cur.ownerPhotoUrl === url ? "" : cur.ownerPhotoUrl,
+        });
+        return "it's not a photo for the page, so it's not on it (removed if it was). Answer the owner about what the image shows; if it's a screenshot of their page, talk about what they point at and fix it with your tools.";
+      }
       if (input.role === "owner") {
         await mergeBusinessSite(b.id, cur, { ownerPhotoUrl: url });
         return "saved as the owner's photo";
@@ -389,7 +460,8 @@ async function runTool(
       else if (input.role === "gallery") site.gallery = [...site.gallery, url];
       const ownerPhotoUrl = input.role === "remove" && cur.ownerPhotoUrl === url ? "" : cur.ownerPhotoUrl;
       await mergeBusinessSite(b.id, cur, { coverUrl: site.coverUrl, logoUrl: site.logoUrl, gallery: site.gallery, ownerPhotoUrl });
-      return "saved";
+      // Say exactly where it is now, so the reply never invents rules about photos.
+      return `saved. Now: main photo = ${site.coverUrl === url ? "this one" : site.coverUrl ? "another photo" : "none"}; gallery = ${site.gallery.length} photo(s)${site.gallery.includes(url) ? " including this one" : ""}; owner's chat photo = ${ownerPhotoUrl === url ? "this one" : ownerPhotoUrl ? "another photo" : "none"}. The main photo also shows first in the gallery on the page.`;
     }
     case "remove_video": {
       const cur = (await getBusinessById(b.id))?.site ?? b.site;
@@ -447,7 +519,38 @@ async function runTool(
       await setServiceAgent(b.id, saved);
       return `saved ${saved.offers.length} offer(s)${notes.length ? `; ${notes.join("; ")}` : ""}${b.payStatus === "ready" ? "" : "; Payments isn't connected yet, so customers can't pay until the owner connects it"}`;
     }
+    case "set_layout": {
+      const cur = (await getBusinessById(b.id))?.site ?? b.site;
+      const patch: Partial<SiteData> = {};
+      const done: string[] = [];
+      if (input.galleryCards === "auto" || input.galleryCards === "on" || input.galleryCards === "off") {
+        patch.galleryCards = input.galleryCards;
+        done.push(`price/offer cards in the gallery: ${input.galleryCards}`);
+      }
+      const valid = (v: unknown) => (Array.isArray(v) ? v : []).filter((x): x is PageSection => (PAGE_SECTIONS as readonly string[]).includes(String(x)));
+      const hide = valid(input.hide);
+      const show = valid(input.show);
+      if (hide.length || show.length) {
+        patch.hidden = [...new Set([...cur.hidden, ...hide])].filter((x) => !show.includes(x));
+        done.push(`hidden sections: ${patch.hidden.join(", ") || "none"}`);
+      }
+      if (typeof input.firstPhoto === "string" && cur.gallery.includes(input.firstPhoto)) {
+        patch.gallery = [input.firstPhoto, ...cur.gallery.filter((g) => g !== input.firstPhoto)];
+        done.push("that photo is first in the gallery now");
+      }
+      if (Array.isArray(input.declined) && input.declined.length) {
+        patch.declined = [...new Set([...cur.declined, ...input.declined.map(String)])].slice(0, 20);
+        done.push(`won't suggest again: ${patch.declined.join(", ")}`);
+      }
+      if (!done.length) return "nothing to change";
+      await mergeBusinessSite(b.id, cur, patch);
+      return `saved: ${done.join("; ")}`;
+    }
     case "publish_page": {
+      // Publishing (or taking the page down) needs the owner's explicit OK in
+      // this very message: "publícala", or a yes right after you asked.
+      if (!publishConsent(Boolean(input.publish), ctx.ownerLast ?? "", ctx.lastAssistant ?? ""))
+        return "not done: the owner didn't explicitly ask for this in their last message. Nothing changed. Don't ask again unless they bring it up.";
       if (input.publish && !ctx.canPublish) {
         return "not published: the owner is on the Free plan. Publishing needs the Starter plan ($29/month). Tell them their page is ready as a draft and that they can choose Starter in Plans (left menu) to publish it.";
       }
@@ -500,8 +603,15 @@ export async function runStoreChatTurn(opts: {
     .flatMap((t) => t.match(BLOB) ?? [])
     // Only photos go to the model as images (a video link would make it fail).
     .filter((u) => !/\/video-|\.(mp4|mov|m4v|webm|qt)(\?|$)/i.test(u));
-  const photos = [...new Set(recent)].slice(0, 2);
-  const justUploaded = (opts.message.match(BLOB) ?? []).some((u) => photos[0] === u);
+  const newUploads = opts.message.match(BLOB) ?? [];
+  const justUploaded = newUploads.length > 0;
+  // Images go to the model only when they matter: a new upload, or the owner
+  // talking about a photo or a screenshot. Old photos aren't re-described.
+  const aboutPhotos = /(foto|imagen|captura|pantallazo|screenshot|picture|photo|image)/i.test(opts.message);
+  const photos = justUploaded ? [...new Set(recent)].slice(0, 1) : aboutPhotos ? [...new Set(recent)].slice(0, 2) : [];
+  const alertsOn = await listPushSubs(business.userId).then((x) => x.length > 0).catch(() => false);
+  const lastAssistant = [...opts.history].reverse().find((h) => h.role === "assistant")?.content ?? "";
+  const upset = UPSET.test(opts.message);
   const isAgentProject = business.plan.mode === "agent" || Boolean(business.serviceAgent.name);
   const areaNote =
     opts.area === "agent"
@@ -518,20 +628,23 @@ export async function runStoreChatTurn(opts: {
         ...photos.map((url) => ({ type: "image" as const, source: { type: "url" as const, url } })),
         {
           type: "text" as const,
-          text: `${photos.length ? `Attached: the owner's latest uploaded photo${photos.length > 1 ? "s, newest first" : ""} (${photos.join(" , ")}).${justUploaded ? " The first one was JUST uploaded: describe it in a few words and decide where it goes." : ""}\n\n` : ""}Page state (JSON):\n${JSON.stringify(pageState(business, services))}\n\nOwner: ${opts.message}`,
+          text: `${photos.length ? `Attached: the owner's latest uploaded photo${photos.length > 1 ? "s, newest first" : ""} (${photos.join(" , ")}).${justUploaded ? " The first one was JUST uploaded: describe it in a few words and decide where it goes." : ""}\n\n` : ""}Page state (JSON):\n${JSON.stringify(pageState(business, services, { alertsOn }))}\n\nOwner: ${opts.message}${upset ? "\n\n(Internal note: the owner is upset. Reply in 1-3 short sentences: do or answer exactly what they asked, with your tools if needed. No apologies list, no repeating the page status, no suggestions.)" : ""}`,
         },
       ],
     },
   ];
 
   let reply = "";
+  const classified = new Set<string>();
+  const wasPublished = Boolean(business.published);
   try {
-    for (let step = 0; step < 6; step++) {
+    for (let step = 0; step < 7; step++) {
       const res = await client.messages.create({
         model: MODEL,
-        max_tokens: 3000,
+        max_tokens: 6000,
         thinking: { type: "between_tools" },
-        output_config: { effort: "low" },
+        // Medium: it thinks about what the owner really asked and does it.
+        output_config: { effort: "medium" },
         system,
         tools: TOOLS,
         messages,
@@ -543,13 +656,24 @@ export async function runStoreChatTurn(opts: {
         .trim();
       if (text) reply = text;
       const uses = res.content.filter((c): c is ToolUseBlock => c.type === "tool_use");
-      if (res.stop_reason !== "tool_use" || uses.length === 0) break;
+      if (res.stop_reason !== "tool_use" || uses.length === 0) {
+        // A new upload must be classified (a screenshot never stays on the page).
+        const pending = newUploads.filter((u) => !classified.has(u) && !/\/video-|\.(mp4|mov|m4v|webm|qt)(\?|$)/i.test(u));
+        if (pending.length && step < 5) {
+          if (res.content.length) messages.push({ role: "assistant", content: res.content.filter((c) => c.type !== "tool_use") });
+          messages.push({ role: "user", content: `(System: classify the image just uploaded with set_photo — whatItIs and role — before replying: ${pending.join(" , ")}. A screenshot never goes on the page.)` });
+          classified.add(pending[0]);
+          continue;
+        }
+        break;
+      }
 
       const results: ToolResultBlockParam[] = [];
       for (const u of uses) {
         let out: string;
         try {
-          out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, { business, services, canPublish: opts.canPublish, ownerSaid });
+          out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, { business, services, canPublish: opts.canPublish, ownerSaid, ownerLast: opts.message, lastAssistant });
+          if (u.name === "set_photo") classified.add(String((u.input as Record<string, unknown>)?.url ?? ""));
         } catch (err) {
           console.error("[ai:store] tool failed", u.name, err);
           out = "error: could not save";
@@ -561,7 +685,7 @@ export async function runStoreChatTurn(opts: {
       messages.push({ role: "assistant", content: res.content });
       messages.push({
         role: "user",
-        content: [...results, { type: "text", text: `Updated page state (JSON):\n${JSON.stringify(pageState(business, services))}` }],
+        content: [...results, { type: "text", text: `Updated page state (JSON):\n${JSON.stringify(pageState(business, services, { alertsOn }))}` }],
       });
     }
   } catch (err) {
@@ -569,7 +693,44 @@ export async function runStoreChatTurn(opts: {
     reply = aiErrorReply(err, opts.lang === "en" ? "en" : "es");
   }
 
+  reply = cleanStoreReply(reply, business, { alertsOn, upset, message: opts.message });
+  // The next step is a button, not "búscalo en el menú": after publishing, or
+  // when the owner asks about Marketing, Payments or their chats.
+  const go: string[] = [];
+  if (!wasPublished && business.published) go.push("next");
+  else if (/(marketing|anuncio|publicidad|campa[nñ]a|\bads?\b)/i.test(opts.message)) go.push("marketing");
+  else if (/(pago|payments?|cobrar|stripe|link de pago)/i.test(opts.message)) go.push("payments");
+  else if (/(conversaci|mensajes de clientes|chats?\b)/i.test(opts.message)) go.push("chats");
+  if (go.length && !/\[\[[a-z]+(:[a-z]+)?\]\]\s*$/.test(reply)) reply = `${reply}\n\n[[go:${go[0]}]]`;
   return { reply: reply || (es ? "Listo." : "Done."), business, services };
+}
+
+// Checked in code on every Store reply: no pushing what the owner declined or
+// already did, no languages they didn't give, and short when they're upset.
+function cleanStoreReply(reply: string, b: BusinessRow, o: { alertsOn: boolean; upset: boolean; message: string }): string {
+  if (!reply) return reply;
+  const declined = new Set(b.site.declined);
+  const asked = (r: RegExp) => r.test(o.message);
+  const drop: RegExp[] = [];
+  // Only when the owner didn't bring the topic up themselves in this message.
+  const VIDEO = /\bv[ií]deo\b/i;
+  const ALERTS = /\b(avisos|alertas|notificaci|alerts|notifications)/i;
+  const PUBLISH = /\bpublic|\bpublish/i;
+  const REVIEWS = /(rese[nñ]as|reviews)/i;
+  if ((declined.has("video") || b.site.videoUrl) && !asked(VIDEO)) drop.push(VIDEO);
+  if ((o.alertsOn || declined.has("alerts")) && !asked(ALERTS)) drop.push(ALERTS);
+  if ((b.published || declined.has("publish")) && !asked(PUBLISH)) drop.push(/(¿[^?]*publi[cq]|publicar(la)? ahora|shall i publish|publish it now)/i);
+  if (declined.has("reviews") && !asked(REVIEWS)) drop.push(REVIEWS);
+  // Never claim a language the owner didn't give.
+  const langs = b.plan.profile.languages || (b.site.spanish ? "es" : "");
+  if (langs === "es") drop.push(/(atiend|habl|serv|attend|speak)\w*[^.?!]{0,40}(ingl[eé]s|english)|biling[uü]e|bilingual/i);
+  if (langs === "en") drop.push(/(atiend|habl|serv|attend|speak)\w*[^.?!]{0,40}(espa[nñ]ol|spanish)|biling[uü]e|bilingual/i);
+  let parts = reply.split(/(?<=[.!?])\s+|\n+/).filter((x) => x.trim());
+  const kept = parts.filter((x) => !drop.some((r) => r.test(x)));
+  if (kept.length) parts = kept;
+  // Upset owner: at most 3 sentences, no closing sales question.
+  if (o.upset) parts = parts.slice(0, 3);
+  return parts.join(" ").replace(/\s{2,}/g, " ").trim();
 }
 
 // First message of the Agente area (no AI call needed).

@@ -30,7 +30,9 @@ export default function StoreView({
   onPayments,
   onBrain,
   onAgent,
+  onMarketing,
 }: {
+  onMarketing?: () => void;
   onAgent?: () => void;
   onBrain?: () => void;
   onChats?: () => void;
@@ -241,6 +243,7 @@ export default function StoreView({
         )}
         <StoreChat
           onPlans={onPlans}
+          onGo={(to) => (to === "marketing" ? onMarketing?.() : to === "payments" ? onPayments?.() : onChats?.())}
           business={business}
           onBusiness={(b) => {
             onUpdated(b, services);

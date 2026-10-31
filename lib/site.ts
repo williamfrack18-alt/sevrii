@@ -50,7 +50,16 @@ export type SiteData = {
   videoUrl: string; // the owner's own video (Sevrii storage only)
   lang: "es" | "en";
   fromPlan: string; // fingerprint of the Brain plan the page was last built from ("" = never)
+  // The owner decides how the page looks: price/offer cards in the photos
+  // ("auto" = only while there are no real photos), and sections they hide.
+  galleryCards: "auto" | "on" | "off";
+  hidden: PageSection[];
+  // What the owner already said no to, so it's never pushed again.
+  declined: string[];
 };
+
+export const PAGE_SECTIONS = ["trust", "offerBand", "services", "photos", "steps", "faq", "cta"] as const;
+export type PageSection = (typeof PAGE_SECTIONS)[number];
 
 export type ContactPref = "" | "call" | "text" | "whatsapp" | "chat";
 export type Channel = "call" | "text" | "whatsapp" | "chat";
@@ -112,6 +121,9 @@ export const EMPTY_SITE: SiteData = {
   videoUrl: "",
   lang: "en",
   fromPlan: "",
+  galleryCards: "auto",
+  hidden: [],
+  declined: [],
 };
 
 export const LIMITS = {
@@ -247,6 +259,9 @@ export function parseSite(raw: unknown): SiteData {
     videoUrl: isOurBlob(safeUrl(obj.videoUrl)) ? safeUrl(obj.videoUrl) : "",
     lang: obj.lang === "en" ? "en" : "es",
     fromPlan: str(obj.fromPlan, 20),
+    galleryCards: obj.galleryCards === "on" || obj.galleryCards === "off" ? obj.galleryCards : "auto",
+    hidden: (Array.isArray(obj.hidden) ? obj.hidden : []).filter((x): x is PageSection => (PAGE_SECTIONS as readonly string[]).includes(String(x))),
+    declined: (Array.isArray(obj.declined) ? obj.declined : []).map((x) => str(x, 30)).filter(Boolean).slice(0, 20),
   };
 }
 

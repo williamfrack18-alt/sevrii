@@ -677,6 +677,7 @@ export default function DashboardTabs({
             onPayments={() => setView("payments")}
             onBrain={() => setView("plan")}
             onAgent={() => setView("agent")}
+            onMarketing={() => setView("marketing")}
             business={currentBusiness}
             services={currentServices}
             initialMessages={storeMessages}

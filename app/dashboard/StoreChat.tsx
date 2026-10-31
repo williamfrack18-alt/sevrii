@@ -1,5 +1,7 @@
 "use client";
 
+import { BRAND_BTN } from "@/lib/panel";
+
 import { useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { sendStoreChatAction, setStoreVideoAction, uploadStoreImageAction } from "@/app/storeActions";
@@ -23,7 +25,10 @@ export default function StoreChat({
   area = "store",
   pickKey,
   onPlans,
+  onGo,
 }: {
+  // The next sections, as buttons under a reply ([[go:marketing]]…).
+  onGo?: (to: "marketing" | "payments" | "chats") => void;
   onPlans?: () => void;
   pickKey?: number;
   area?: "store" | "agent"; // Store (the sales page) or Agente (the agent itself)
@@ -75,6 +80,7 @@ export default function StoreChat({
         return { messages: res.messages, limit: res.limit, notice: res.notice };
       }}
       onPlans={onPlans}
+      renderToken={(tk) => (tk.kind === "go" && onGo ? <GoButtons to={tk.arg} lang={lang} onGo={onGo} /> : null)}
       onUpload={async (picked, onProgress) => {
         // A video goes straight to storage (it can be big), then onto the page.
         if (picked.type.startsWith("video/") || /\.(mov|mp4|webm)$/i.test(picked.name)) {
@@ -111,5 +117,28 @@ export default function StoreChat({
         }
       }}
     />
+  );
+}
+
+// "What's next" as real buttons, never "búscalo en el menú".
+function GoButtons({ to, lang, onGo }: { to: string; lang: "es" | "en"; onGo: (to: "marketing" | "payments" | "chats") => void }) {
+  const es = lang === "es";
+  const label = { marketing: es ? "Ir a Marketing" : "Go to Marketing", payments: es ? "Ir a Payments" : "Go to Payments", chats: es ? "Ir a Conversaciones" : "Go to Conversations" } as const;
+  const list: ("marketing" | "payments" | "chats")[] = to === "next" ? ["marketing", "payments"] : to === "marketing" || to === "payments" || to === "chats" ? [to] : [];
+  if (!list.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2.5">
+      {list.map((x, i) => (
+        <button
+          key={x}
+          type="button"
+          onClick={() => onGo(x)}
+          className="h-10 px-5 rounded-full text-[14px] font-semibold"
+          style={i === 0 ? BRAND_BTN : { background: "rgba(10,10,10,0.068)", color: "#27272A" }}
+        >
+          {label[x]} →
+        </button>
+      ))}
+    </div>
   );
 }
