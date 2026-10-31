@@ -14,7 +14,8 @@ import { MK_TEXT } from "@/lib/marketingI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { maxDailySpend, type CampaignSpec } from "@/lib/marketing";
 import { activeOffer } from "@/lib/site";
-import { advanceMarketingVideoAction, approveMarketingActionAction, listMarketingVideosAction, sendMarketingChatAction, videoReplyAction, type MarketingVideosResponse } from "@/app/marketingActions";
+import { addOwnVideoAction, advanceMarketingVideoAction, approveMarketingActionAction, listMarketingVideosAction, sendMarketingChatAction, videoReplyAction, type MarketingVideosResponse } from "@/app/marketingActions";
+import { upload as blobUpload } from "@vercel/blob/client";
 import type { PublicVideo } from "@/lib/marketingVideos";
 import { ActionCard, VideoGallery, VideoJobCard } from "./MarketingVideos";
 import ChatPanel, { type Msg } from "./ChatPanel";
@@ -47,7 +48,12 @@ export default function MarketingView({
   locked = false,
   onPlans,
   services = [],
+  section = "brain",
+  onSection,
 }: {
+  // Marketing has 3 tabs: the strategist (brain), the videos, and the agent.
+  section?: "brain" | "videos" | "agent";
+  onSection?: (s: "brain" | "videos" | "agent") => void;
   services?: ClientService[];
   locked?: boolean;
   onPlans?: () => void;
@@ -81,6 +87,17 @@ export default function MarketingView({
   const [chatSync, setChatSync] = useState<{ key: number; messages: Msg[] } | undefined>(undefined);
   const [chatMsgs, setChatMsgs] = useState<Msg[]>(initialMessages);
   const [prefill, setPrefill] = useState<{ key: number; text: string } | undefined>(undefined);
+  // A question started in the Videos tab arrives here already written.
+  useEffect(() => {
+    if (section !== "brain") return;
+    try {
+      const t = sessionStorage.getItem("sevrii:mkPrefill");
+      if (t) {
+        sessionStorage.removeItem("sevrii:mkPrefill");
+        setPrefill({ key: Date.now(), text: t });
+      }
+    } catch {}
+  }, [section]);
   const chatRef = useRef<HTMLElement>(null);
   const sigOf = (ms: Msg[]) => `${ms.length}:${ms[ms.length - 1]?.id ?? ""}:${ms[ms.length - 1]?.content.length ?? 0}`;
   const sig = useRef(sigOf(initialMessages));
@@ -333,6 +350,72 @@ export default function MarketingView({
     </ProjectDock>
   ) : undefined;
 
+  // Asking the strategist about a video from another tab: go to the chat with it written.
+  const askBrain = (text: string, v?: PublicVideo) => {
+    if (v) setFocus(v);
+    if (section !== "brain" && onSection) {
+      try {
+        sessionStorage.setItem("sevrii:mkPrefill", text);
+      } catch {}
+      onSection("brain");
+      return;
+    }
+    setPrefill({ key: Date.now(), text });
+    chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  if (section === "videos")
+    return (
+      <VideosTab
+        vids={vids}
+        es={es}
+        focusId={focus?.id ?? null}
+        business={business}
+        onVideos={applyVideos}
+        onPick={(v) => askBrain(es ? `Sobre «${v.title}»: ` : `About “${v.title}”: `, v)}
+        onAsk={(text) => askBrain(text)}
+        onBrain={() => onSection?.("brain")}
+      />
+    );
+
+  if (section === "agent")
+    return (
+      <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen px-4 md:px-8 py-6 md:py-10" style={{ background: "#F5F5F3" }}>
+        <div className="max-w-[880px] mx-auto flex flex-col gap-5">
+          <div>
+            <h1 className="text-[22px] md:text-[26px] font-semibold text-pfg">{es ? "Agente de marketing" : "Marketing agent"}</h1>
+            <p className="text-[14.5px] text-psub mt-1 leading-relaxed max-w-[640px]">
+              {es
+                ? "Ejecuta lo que aprobaste: arma tus campañas en Meta con tus videos, te pide el OK antes de lanzar o gastar, y revisa los resultados cada día. Si algo necesita que inicies sesión o pagues, te lo muestra en vivo."
+                : "Runs what you approved: builds your campaigns on Meta with your videos, asks your OK before launching or spending, and checks results every day. If something needs you to sign in or pay, it shows you live."}
+            </p>
+          </div>
+          {vids.some((v) => v.status === "making") && (
+            <div className="flex flex-col gap-3">
+              {vids.filter((v) => v.status === "making").map((v) => (
+                <VideoJobCard key={v.id} v={v} es={es} live onReply={async (r) => applyVideos(await videoReplyAction(v.id, r))} />
+              ))}
+            </div>
+          )}
+          {showAgent && agent ? (
+            <div className="rounded-[24px] bg-white p-4 md:p-6" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06)" }}>
+              <AgentPanel business={business} lang={lang} state={agent} setState={setAgent} onChanged={refresh} launched={liveCount > 0} />
+            </div>
+          ) : (
+            <div className="rounded-[24px] bg-white p-5 md:p-6 flex flex-col gap-3" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06)" }}>
+              <span className="text-[15px] font-semibold text-pfg">{es ? "El agente empieza cuando apruebes tu estrategia" : "The agent starts when you approve your strategy"}</span>
+              <span className="text-[14px] text-psub leading-relaxed">
+                {es ? "Primero arma tu estrategia con el Cerebro de marketing: dónde están tus clientes, la campaña y los videos. Cuando la apruebes, el agente la pone en marcha aquí." : "First build your strategy with the marketing Brain: where your customers are, the campaign and the videos. Once you approve it, the agent puts it to work here."}
+              </span>
+              <button type="button" onClick={() => onSection?.("brain")} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
+                {es ? "Ir a la estrategia" : "Go to the strategy"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+
   return (
     <div style={{ background: "#F5F5F3" }} className="overflow-x-clip">
       {/* 1. The strategist: the chat comes first, full height */}
@@ -389,21 +472,16 @@ export default function MarketingView({
         />
       </section>
 
-      {/* 2. «Mis videos»: the results, without searching the conversation */}
-      <VideoGallery
-        videos={vids}
-        es={es}
-        focusId={focus?.id ?? null}
-        onPick={(v) => {
-          setFocus(v);
-          setPrefill({ key: Date.now(), text: es ? `Sobre «${v.title}»: ` : `About “${v.title}”: ` });
-          chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }}
-        onAsk={(text) => {
-          setPrefill({ key: Date.now(), text });
-          chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }}
-      />
+      {/* The videos live in their own tab («Videos»), under Marketing. */}
+      {!onSection && (
+        <VideoGallery
+          videos={vids}
+          es={es}
+          focusId={focus?.id ?? null}
+          onPick={(v) => askBrain(es ? `Sobre «${v.title}»: ` : `About “${v.title}”: `, v)}
+          onAsk={(text) => askBrain(text)}
+        />
+      )}
 
       {showAgent && agent && (
         <Sheet open={runningOpen} title={es ? "Lo que está en marcha" : "What's running"} onClose={() => setRunningOpen(false)} wide>
@@ -996,6 +1074,99 @@ function ListBlock({ title, items }: { title: string; items: string[] }) {
             {x}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// «Videos»: the videos the strategy calls for, made with AI or recorded by
+// the owner and uploaded here. Each one shows its state; tapping it asks the
+// strategist about it.
+function VideosTab({
+  vids,
+  es,
+  focusId,
+  business,
+  onVideos,
+  onPick,
+  onAsk,
+  onBrain,
+}: {
+  vids: PublicVideo[];
+  es: boolean;
+  focusId: string | null;
+  business: ClientBusiness;
+  onVideos: (r: MarketingVideosResponse) => void;
+  onPick: (v: PublicVideo) => void;
+  onAsk: (text: string) => void;
+  onBrain: () => void;
+}) {
+  const [busy, setBusy] = useState<number | null>(null);
+  const [err, setErr] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+  const planned = vids.filter((v) => v.status === "planned").length;
+  async function pick(file: File | undefined) {
+    if (!file) return;
+    setErr("");
+    if (file.size > 200 * 1024 * 1024) return setErr(es ? "El video pesa más de 200 MB. Prueba con uno más corto." : "The video is over 200 MB. Try a shorter one.");
+    const ext = /\.mov$/i.test(file.name) || file.type === "video/quicktime" ? "mov" : file.type === "video/webm" ? "webm" : "mp4";
+    try {
+      setBusy(0);
+      const blob = await blobUpload(`stores/${business.id}/video-${Date.now()}.${ext}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+        multipart: file.size > 30 * 1024 * 1024,
+        onUploadProgress: ({ percentage }) => setBusy(Math.round(percentage)),
+      });
+      const res = await addOwnVideoAction(blob.url, file.name.replace(/\.[a-z0-9]+$/i, ""));
+      if (!res.ok) throw new Error("save");
+      onVideos(res);
+    } catch {
+      setErr(es ? "No se pudo subir el video. Inténtalo otra vez." : "The video couldn't be uploaded. Try again.");
+    } finally {
+      setBusy(null);
+      if (input.current) input.current.value = "";
+    }
+  }
+  return (
+    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen px-4 md:px-8 py-6 md:py-10" style={{ background: "#F5F5F3" }}>
+      <div className="max-w-[1080px] mx-auto flex flex-col gap-5">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[22px] md:text-[26px] font-semibold text-pfg">{es ? "Tus videos" : "Your videos"}</h1>
+            <p className="text-[14.5px] text-psub mt-1 leading-relaxed max-w-[620px]">
+              {es
+                ? "Los videos que pide tu estrategia. Créalos con IA o grábalos con tu celular y súbelos aquí. Ninguno se publica sin tu OK."
+                : "The videos your strategy calls for. Make them with AI or record them with your phone and upload them here. None is published without your OK."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button type="button" onClick={() => onAsk(es ? "¿Qué videos debo hacer para mi campaña?" : "Which videos should I make for my campaign?")} className="h-10 px-4 rounded-full text-[14px] font-medium" style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}>
+              {es ? "Planear videos con el Cerebro" : "Plan videos with the Brain"}
+            </button>
+            <button type="button" disabled={busy !== null} onClick={() => input.current?.click()} className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
+              {busy !== null ? (es ? `Subiendo ${busy}%` : `Uploading ${busy}%`) : es ? "Subir mi video" : "Upload my video"}
+            </button>
+            <input ref={input} type="file" accept="video/mp4,video/quicktime,video/webm" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+          </div>
+        </div>
+        {err && <p className="text-[13.5px] text-red-600">{err}</p>}
+        {planned > 0 && (
+          <p className="text-[13.5px] text-pfg2 rounded-xl px-4 py-3 bg-white" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06)" }}>
+            {es ? `Tu estrategia tiene ${planned} ${planned === 1 ? "video por hacer" : "videos por hacer"}. Toca uno para crearlo con IA o pedir cambios, o sube el tuyo.` : `Your strategy has ${planned} ${planned === 1 ? "video to make" : "videos to make"}. Tap one to make it with AI or ask for changes, or upload yours.`}
+          </p>
+        )}
+        {vids.length === 0 ? (
+          <div className="rounded-[24px] bg-white p-6 flex flex-col gap-3" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06)" }}>
+            <span className="text-[15px] font-semibold text-pfg">{es ? "Todavía no hay videos" : "No videos yet"}</span>
+            <span className="text-[14px] text-psub leading-relaxed">{es ? "El Cerebro de marketing decide qué videos necesitas según tu público. Empieza por ahí." : "The marketing Brain decides which videos you need for your audience. Start there."}</span>
+            <button type="button" onClick={onBrain} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
+              {es ? "Ir a la estrategia" : "Go to the strategy"}
+            </button>
+          </div>
+        ) : (
+          <VideoGallery videos={vids} es={es} focusId={focusId} onPick={onPick} onAsk={onAsk} />
+        )}
       </div>
     </div>
   );

@@ -164,3 +164,38 @@ export async function videoReplyAction(id: string, reply: "done" | "stop"): Prom
   if (allowed) await resumeVideoJob(business, String(id || ""), reply === "stop");
   return videosResponse(business);
 }
+
+// «Videos»: the owner uploads a video they recorded themselves. It goes to
+// the gallery as ready to publish (with its OK, like any other video).
+export async function addOwnVideoAction(url: string, title: string): Promise<MarketingVideosResponse & { ok: boolean }> {
+  const { business, allowed } = await marketingOwner();
+  if (!allowed) return { ...(await videosResponse(business)), ok: false };
+  let path = "";
+  try {
+    path = new URL(String(url || "")).pathname;
+  } catch {
+    return { ...(await videosResponse(business)), ok: false };
+  }
+  const { isOurBlob } = await import("@/lib/site");
+  if (!isOurBlob(url) || !path.startsWith(`/stores/${business.id}/video-`)) return { ...(await videosResponse(business)), ok: false };
+  const { head } = await import("@vercel/blob");
+  try {
+    const info = await head(url);
+    if (!info.contentType.startsWith("video/")) return { ...(await videosResponse(business)), ok: false };
+  } catch {
+    return { ...(await videosResponse(business)), ok: false };
+  }
+  const { createMarketingVideo, updateMarketingVideo } = await import("@/lib/db");
+  const lang = await getLang();
+  const v = await createMarketingVideo({
+    businessId: business.id,
+    title: String(title || "").trim().slice(0, 80) || (lang === "es" ? "Mi video" : "My video"),
+    angle: lang === "es" ? "Grabado por ti" : "Recorded by you",
+    prompt: "",
+    tool: "own",
+    ad: { primaryText: "", headline: "", language: lang, specialCategory: "" },
+  });
+  await updateMarketingVideo(business.id, v.id, { status: "ready", videoUrl: url });
+  revalidatePath("/dashboard");
+  return { ...(await videosResponse(business)), ok: true };
+}

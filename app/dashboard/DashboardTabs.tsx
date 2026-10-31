@@ -72,6 +72,18 @@ const ICONS: Record<DashboardView, React.JSX.Element> = {
       <path d="M8.5 12h.01M12 12h.01M15.5 12h.01" />
     </>
   ),
+  mkvideos: (
+    <>
+      <rect x="3" y="5" width="14" height="14" rx="2.5" />
+      <path d="M17 10l4-2.5v9L17 14" />
+    </>
+  ),
+  mkagent: (
+    <>
+      <rect x="4" y="7" width="16" height="12" rx="3" />
+      <path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5" />
+    </>
+  ),
   marketing: (
     <>
       <path d="M3 17l6-6 4 4 8-8" />
@@ -557,6 +569,25 @@ export default function DashboardTabs({
                   {railOpen && it.soon && <span className="dash-soon">{t.dashboard.soon}</span>}
                   {!railOpen && it.soon && <span className="absolute top-2 right-3 h-1.5 w-1.5 rounded-full bg-pfaint" />}
                 </button>
+                {it.id === "marketing" && (view === "marketing" || view === "mkvideos" || view === "mkagent" || !railOpen) &&
+                  ([
+                    ["mkvideos", lang === "es" ? "Videos" : "Videos"],
+                    ["mkagent", lang === "es" ? "Agente" : "Agent"],
+                  ] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setView(id)}
+                      title={railOpen ? undefined : label}
+                      aria-label={label}
+                      aria-current={view === id ? "page" : undefined}
+                      className={`dash-nav w-full mt-1 ${railOpen ? "dash-sub" : "!justify-center !px-0 relative h-11"} ${view === id ? "on" : ""}`}
+                    >
+                      <NavIcon id={id} />
+                      {!railOpen && <span className="rail-tip">{label}</span>}
+                      {railOpen && <span className="grow text-left whitespace-nowrap truncate">{label}</span>}
+                    </button>
+                  ))}
                 {it.id === "store" && (storeOpen || !railOpen) && (
                   <button
                     type="button"
@@ -706,8 +737,11 @@ export default function DashboardTabs({
             }}
           />
         )}
-        {view === "marketing" && (
+        {(view === "marketing" || view === "mkvideos" || view === "mkagent") && (
           <MarketingView
+            key={view}
+            section={view === "mkvideos" ? "videos" : view === "mkagent" ? "agent" : "brain"}
+            onSection={(sct) => setView(sct === "videos" ? "mkvideos" : sct === "agent" ? "mkagent" : "marketing")}
             business={currentBusiness}
             services={currentServices}
             campaigns={currentCampaigns}
