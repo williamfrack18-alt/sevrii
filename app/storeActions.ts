@@ -25,7 +25,7 @@ import { addChatMessage, listChatMessages } from "@/lib/db";
 import { agentAreaGreeting, runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
 import { limitsFor, limitsForUserId } from "@/lib/billing";
 import { publishBusiness } from "@/lib/marketplace";
-import { chatGate, countAiUnit, gateMessage, runForUser } from "@/lib/usage";
+import { chatGate, gateMessage, runForUser } from "@/lib/usage";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { fillStoreFromPlan } from "@/lib/storeFill";
@@ -304,7 +304,6 @@ export async function sendStoreChatAction(message: string, area: "store" | "agen
 
   await addChatMessage(business.id, channel, "user", text);
   const canPublish = (await limitsForUserId(business.userId)).canPublish;
-  await countAiUnit("store_chat");
   const result = await runForUser(business.userId, () => runStoreChatTurn({
     business,
     canPublish,
@@ -322,7 +321,7 @@ export async function sendStoreChatAction(message: string, area: "store" | "agen
         : text,
     lang,
     area: channel,
-  }), "store_chat");
+  }), "store_chat", true);
   await addChatMessage(business.id, channel, "ai", result.reply);
   refresh(result.business.slug);
   return respond(result.business);

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing | Sevrii</title>
+<meta name="description" content="Start free: find your service with the Brain and build your page. Pay when you want to publish it, get paid and get customers.">
+<link rel="alternate" hreflang="es" href="https://www.sevrii.com/precios">
+<link rel="alternate" hreflang="en" href="https://www.sevrii.com/en/precios">
+<link rel="icon" href="/favicon.ico?v=2" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--card:#0c0f0d;--line:rgba(255,255,255,.1);--text:#fff;--muted:#a1a1aa;--green:#3ddc84;--green-soft:rgba(61,220,132,.14);--font:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1160px;margin:0 auto;padding:0 16px}
+header{position:sticky;top:0;z-index:10;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header nav{display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px}
+.logo img{width:28px;height:28px}
+.links{display:flex;gap:22px;font-size:14px;color:var(--muted)}
+.links a:hover{color:var(--text)}
+.acts{display:flex;gap:10px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 18px;border-radius:999px;font-weight:600;font-size:14px;white-space:nowrap}
+.btn-primary{background:var(--green);color:#000}
+.btn-outline{border:1px solid var(--line);color:var(--text)}
+.btn-block{width:100%;height:46px;font-size:15px}
+.hero{padding:72px 0 40px;text-align:center}
+.hero h1{font-size:clamp(34px,6vw,56px);line-height:1.05;letter-spacing:-.02em;font-weight:700}
+.hero p{margin:18px auto 0;max-width:620px;color:var(--muted);font-size:17px;line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;padding:24px 0 8px}
+.card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px 22px;display:flex;flex-direction:column;min-width:0}
+.card.hot{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset}
+.tag{position:absolute;top:-12px;left:22px;background:var(--green);color:#000;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
+.card h2{font-size:18px;font-weight:600}
+.price{margin-top:14px;display:flex;align-items:baseline;gap:4px}
+.price b{font-size:42px;font-weight:700;letter-spacing:-.02em}
+.price span{color:var(--muted);font-size:15px}
+.note{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.5;min-height:42px}
+.card .btn-block{margin-top:20px}
+.soonbtn{background:rgba(255,255,255,.06);color:var(--muted);cursor:default}
+ul.f{list-style:none;margin-top:22px;display:flex;flex-direction:column;gap:11px;font-size:14.5px;line-height:1.45}
+ul.f li{display:flex;gap:10px}
+ul.f li::before{content:"";flex:0 0 16px;height:16px;margin-top:2px;border-radius:50%;background:var(--green-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.2l2.2 2.2 4.8-4.8' fill='none' stroke='%233ddc84' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
+ul.f li.no{color:var(--muted)}
+ul.f li.no::before{background:rgba(255,255,255,.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5.5 5.5l5 5M10.5 5.5l-5 5' stroke='%23a1a1aa' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") center/16px no-repeat}
+.caps{margin-top:auto;padding-top:20px;color:var(--muted);font-size:12.5px;line-height:1.5}
+.band{margin-top:56px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:28px 24px}
+.box h3{font-size:20px;font-weight:600;line-height:1.25}
+.box p{margin-top:10px;color:var(--muted);font-size:15px;line-height:1.6}
+.box .big{margin-top:16px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.box .big b{font-size:34px;color:var(--green);font-weight:700}
+.box small{display:block;margin-top:12px;color:var(--muted);font-size:12.5px;line-height:1.5}
+.soon{margin-top:16px}
+.soon .box{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.pill{font-size:12.5px;font-weight:600;color:var(--green);background:var(--green-soft);padding:5px 11px;border-radius:999px}
+.faq{margin:64px 0 0;max-width:760px}
+.faq h3{font-size:24px;font-weight:600;margin-bottom:12px}
+details{border-bottom:1px solid var(--line);padding:16px 0}
+summary{cursor:pointer;font-size:16px;font-weight:500;list-style:none}
+summary::-webkit-details-marker{display:none}
+details p{margin-top:10px;color:var(--muted);font-size:15px;line-height:1.6}
+footer{margin-top:72px;border-top:1px solid var(--line);padding:28px 0 40px;color:var(--muted);font-size:13px}
+footer .row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{margin-left:16px}
+footer a:hover{color:var(--text)}
+@media (max-width:1000px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:720px){.links{display:none}.band{grid-template-columns:1fr}.hero{padding:48px 0 24px}}
+@media (max-width:560px){.grid{grid-template-columns:1fr}.acts .btn-outline{display:none}footer a{margin:0 16px 0 0}}
+</style>
+</head>
+<body>
+<header><nav class="wrap">
+  <a href="/en" class="logo"><img src="/assets/sevrii-logo.png" alt="Sevrii">Sevrii</a>
+  <div class="links"><a href="/en#explorar">Explore</a><a href="/en/agentes">Agents</a><a href="/en/afiliados">Affiliates</a><a href="/precios" onclick="try{localStorage.setItem('sevrii_lang','es')}catch(e){}">ES</a></div>
+  <div class="acts"><a href="/login" class="btn btn-outline">Log in</a><a href="/signup" class="btn btn-primary">Start free</a></div>
+</nav></header>
+<main class="wrap">
+  <section class="hero"><h1>Simple pricing. Start free.</h1><p>Find your service with the Brain and build your page without paying anything. Pay when you want to publish it, get paid and get customers.</p></section>
+  <section class="grid"><article class="card">
+  <h2>Free</h2><div class="price"><b>$0</b><span>/mo</span></div><p class="note">To find your service and see your page before paying.</p><a class="btn btn-block btn-primary" href="/signup">Start free</a>
+  <ul class="f"><li>Find or improve your service with the Brain: interview and research of your area</li><li>Build your page in Store and see how it looks</li><li class="no">Publishing your page</li><li class="no">Payment links and Chat</li><li class="no">Marketing</li></ul><p class="caps">1 project · 1 research run a month · 40 AI messages a month</p>
+</article><article class="card hot"><span class="tag">Most chosen</span>
+  <h2>Starter</h2><div class="price"><b>$29</b><span>/mo</span></div><p class="note">Publish your page, get paid and get customers.</p><a class="btn btn-block btn-primary" href="/signup?plan=starter">Start with Starter</a>
+  <ul class="f"><li>Everything in Free</li><li>Publish your page on sevrii.com</li><li>Payment links to charge by card (5% per payment)</li><li>Chat (Conversations) to answer your customers from your page</li><li>Marketing: your strategy and your Facebook and Instagram ads, with your own account</li><li>AI-made videos for your ads</li></ul><p class="caps">With limits: 1 project · 3 research runs · 200 messages · 3 videos a month · 1 active campaign</p>
+</article><article class="card">
+  <h2>Pro</h2><div class="price"><b>$79</b><span>/mo</span></div><p class="note">Everything in Starter, without the limit that holds it back.</p><a class="btn btn-block btn-outline" href="/signup?plan=pro">Start with Pro</a>
+  <ul class="f"><li>Everything in Starter</li><li>3 times more usage: projects, research runs, messages and videos</li><li>Several active campaigns at once</li></ul><p class="caps">3 projects · 10 research runs · 600 messages · 10 videos a month · 3 active campaigns</p>
+</article><article class="card">
+  <h2>Team</h2><div class="price"><span class="pill">Coming soon</span></div><p class="note">For businesses with several people.</p><span class="btn btn-block soonbtn" aria-disabled="true">Coming soon</span>
+  
+</article></section>
+  <section class="band">
+    <div class="box"><h3>Payments: 5% per payment, all included</h3><div class="big"><b>5%</b></div><p>You charge by card with your payment links. 5% in total comes off each payment, Stripe's fee included: from $100, you get $95. The money goes straight to your Stripe account.</p><small>International cards, currency conversion or instant payouts may have extra Stripe costs.</small></div>
+    <div class="box"><h3>You pay for your ads, directly to Meta</h3><p>In Marketing you connect your own Facebook account. Each ad launches only with your OK, and Meta charges your card. What you pay for your Sevrii plan is separate from what you spend on ads.</p></div>
+  </section>
+  <section class="soon"><div class="box"><div><h3>Coming soon</h3><p>AI Agents and Robots: not for sale yet.</p></div><span class="pill">Coming soon</span></div></section>
+  <section class="faq"><h3>Frequently asked questions</h3><details><summary>Can I cancel anytime?</summary><p>Yes. You cancel from the Plan section of your account and keep what you paid for until the end of the period.</p></details><details><summary>What happens if I reach a limit?</summary><p>We let you know in your dashboard. You can wait for next month or switch to a plan with more usage.</p></details><details><summary>Do prices include taxes?</summary><p>Prices are in US dollars and applicable taxes may be added.</p></details></section>
+</main>
+<footer><div class="wrap row"><span>© 2026 Sevrii. All rights reserved.</span><span><a href="/en/privacidad">Privacy</a><a href="/en/terminos">Terms and Conditions</a></span></div></footer>
+</body>
+</html>

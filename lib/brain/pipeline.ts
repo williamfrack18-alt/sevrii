@@ -63,7 +63,6 @@ async function advanceStep(b: NonNullable<Awaited<ReturnType<typeof getBusinessB
     // Each new run counts against the plan's monthly runs and AI budget.
     if (await researchGate(userId, undefined, { budgetOnly: ideaRefresh })) return { more: false, error: "limit" };
     const runId = await createResearchRun(businessId, [...spec.parallel, ...spec.then]);
-    await countAiUnit(plan.stage === "ideas_research" ? "brain_ideas" : "brain_research");
     plan = { ...plan, runId };
     await savePlan(businessId, plan);
     jobs = await latestResearchRun(businessId);
@@ -102,6 +101,10 @@ async function advanceStep(b: NonNullable<Awaited<ReturnType<typeof getBusinessB
     try {
       await runStep(step, businessId, jobs, lang);
       await setResearchJob(runId, step, "done");
+      // One unit = one research delivered (its proposal or its 3 ideas). The
+      // cost of a retried step stays in the total, so the average is real.
+      if (step === "guard") await countAiUnit("brain_research");
+      if (step === "ideas_pick") await countAiUnit("brain_ideas");
     } catch (err) {
       researchFailedLog(step, err);
       await setResearchJob(runId, step, "failed", undefined, "error");

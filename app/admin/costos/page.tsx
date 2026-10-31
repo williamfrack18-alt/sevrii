@@ -25,9 +25,12 @@ const NAMES: Record<string, string> = {
 
 // Provisional limits under review (they are NOT the ones in lib/plans.ts).
 const DRAFT_CAPS = [
-  { plan: "Gratis", price: 0, research: 2, messages: 150, videos: 0 },
-  { plan: "Starter", price: 29, research: 10, messages: 500, videos: 4 },
-  { plan: "Pro", price: 79, research: 50, messages: 2000, videos: 15 },
+  { plan: "Gratis (provisional)", price: 0, research: 2, messages: 150, videos: 0 },
+  { plan: "Starter (provisional)", price: 29, research: 10, messages: 500, videos: 4 },
+  { plan: "Pro (provisional)", price: 79, research: 50, messages: 2000, videos: 15 },
+  { plan: "Gratis (propuesto)", price: 0, research: 1, messages: 40, videos: 0 },
+  { plan: "Starter (propuesto)", price: 29, research: 3, messages: 200, videos: 3 },
+  { plan: "Pro (propuesto)", price: 79, research: 10, messages: 600, videos: 10 },
 ];
 
 type Line = { feature: string; units: number; calls: number; input: number; output: number; cacheRead: number; cacheWrite: number; searches: number; usd: number; models: string[] };

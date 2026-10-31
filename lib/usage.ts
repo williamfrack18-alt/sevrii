@@ -9,7 +9,7 @@ import { PLANS, PLAN_ORDER, type PlanLimits } from "./plans";
 // Keep this table in sync when models or prices change.
 const PRICES: { match: RegExp; input: number; output: number; cacheWrite: number; cacheRead: number }[] = [
   { match: /opus/, input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
-  { match: /sonnet/, input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 },
+  { match: /sonnet/, input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.1 },
   { match: /haiku/, input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 },
   // Meta Muse Spark (service agents' chat), dev.meta.ai/models/muse-spark.
   { match: /muse-spark/, input: 1.25, output: 4.25, cacheWrite: 1.25, cacheRead: 0.15 },
@@ -38,7 +38,7 @@ export function costUsd(model: string, u: Usage | undefined | null): number {
 
 // The account the current request is working for, so every AI call made while
 // handling it is charged to that account (set once at each entry point).
-const store = new AsyncLocalStorage<{ userId: string; feature?: AiFeature }>();
+const store = new AsyncLocalStorage<{ userId: string; feature?: AiFeature; unitPending?: boolean }>();
 
 // What part of Sevrii an AI call belongs to, to know what each one costs
 // (the plans' limits are priced with these numbers: see /admin/costos).
@@ -55,8 +55,11 @@ export type AiFeature =
   | "publish" // publishing a page (marketplace category)
   | "other";
 
-export function runForUser<T>(userId: string, fn: () => Promise<T>, feature?: AiFeature): Promise<T> {
-  return store.run({ userId, feature: feature ?? store.getStore()?.feature }, fn);
+// countUnit: this request is one unit of the feature (one chat message). It
+// is counted only once its first AI answer arrives, so a message that failed
+// before reaching the AI never lowers the average cost per message.
+export function runForUser<T>(userId: string, fn: () => Promise<T>, feature?: AiFeature, countUnit = false): Promise<T> {
+  return store.run({ userId, feature: feature ?? store.getStore()?.feature, unitPending: countUnit }, fn);
 }
 
 // One unit of a function (a chat message, a research run, a video), so the
@@ -113,6 +116,11 @@ export async function noteAiFailure(err: unknown): Promise<void> {
 export async function recordAiUsage(model: string, usage: Usage | undefined | null): Promise<void> {
   const userId = store.getStore()?.userId;
   const usd = costUsd(model, usage);
+  const ctx = store.getStore();
+  if (usage && ctx?.unitPending && ctx.feature) {
+    ctx.unitPending = false;
+    await countAiUnit(ctx.feature);
+  }
   if (usage) {
     await addAiFeatureUsage(day(), store.getStore()?.feature ?? "other", model.slice(0, 60), {
       input: usage.input_tokens ?? 0,

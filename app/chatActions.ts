@@ -201,7 +201,7 @@ async function agentTurn(b: BusinessRow, conv: ConversationRow, history: ConvMes
   if (!(await serviceAgentGate(b.userId))) return null;
   // Doing the task (operating the official pages) is for paid access and the owner's own test.
   const canOperate = hasTask(a) && (mode.kind === "paid" || mode.kind === "owner_test");
-  const turn = await runForUser(serviceAgentAccount(b.userId), () => runServiceAgent(b, conv, history, mode, { canOperate, openCase }), "service_agent").catch(() => null);
+  const turn = await runForUser(serviceAgentAccount(b.userId), () => runServiceAgent(b, conv, history, mode, { canOperate, openCase }), "service_agent", true).catch(() => null);
   if (!turn) return null;
   if (turn.startCase && canOperate && !openCase) {
     const c = await createAgentCase({ businessId: b.id, conversationId: conv.id, mode: browserMode(), title: turn.startCase.title, data: turn.startCase.facts });
@@ -353,7 +353,7 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
     if (canAi) {
       const services = await listServices(b.id);
       const c = conv;
-      ai = await runForUser(visitorAiAccount(b.userId), () => runVisitorAi(b, services, c, history), "visitor_chat").catch(() => null);
+      ai = await runForUser(visitorAiAccount(b.userId), () => runVisitorAi(b, services, c, history), "visitor_chat", true).catch(() => null);
     }
   }
 

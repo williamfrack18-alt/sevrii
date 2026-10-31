@@ -11,7 +11,7 @@ import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 import { marketingGreeting, runMarketingChatTurn } from "@/lib/marketingBrain";
-import { chatGate, countAiUnit, gateMessage, runForUser } from "@/lib/usage";
+import { chatGate, gateMessage, runForUser } from "@/lib/usage";
 
 const CHANNEL = "brain";
 
@@ -77,7 +77,6 @@ export async function sendMarketingChatAction(message: string, focusVideoId?: st
       return respond((await getBusinessById(business.id)) ?? business);
     }
   }
-  await countAiUnit("marketing_chat");
   const result = await runForUser(business.userId, () => runMarketingChatTurn({
     business,
     reload: async () => (await getBusinessById(business.id))!,
@@ -88,7 +87,7 @@ export async function sendMarketingChatAction(message: string, focusVideoId?: st
     message: text,
     lang,
     focusVideoId: focusVideoId ? String(focusVideoId).slice(0, 64) : undefined,
-  }), "marketing_chat");
+  }), "marketing_chat", true);
   // A proposal made in this turn gets its OK button under the reply.
   const proposed = result.proposedActionId ? await getMarketingAction(business.id, result.proposedActionId) : null;
   await addChatMessage(business.id, CHANNEL, "ai", proposed?.status === "pending" ? `${result.reply}\n\n${actionToken(proposed.id)}` : result.reply);
