@@ -9,9 +9,21 @@ import { researchLimitText, researchUsage, runForUser } from "@/lib/usage";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
+// The project the screen shows (?b=<id>, if it is this user's), not just the
+// active one: another tab may have switched projects meanwhile.
+async function pick(req: Request, user: { id: string; business: { id: string } | null }): Promise<string | null> {
+  const want = new URL(req.url).searchParams.get("b");
+  if (want && want !== user.business?.id) {
+    const b = await getBusinessById(want);
+    if (b && b.userId === user.id) return b.id;
+  }
+  return user.business?.id ?? null;
+}
+
 async function snapshot(businessId: string) {
   const b = await getBusinessById(businessId);
   return {
+    id: businessId,
     plan: b?.plan ?? null,
     name: b?.name ?? "",
     slug: b?.slug ?? "",
@@ -20,10 +32,11 @@ async function snapshot(businessId: string) {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user?.business) return NextResponse.json({ error: "auth" }, { status: 401 });
-  return NextResponse.json(await snapshot(user.business.id), { headers: { "Cache-Control": "no-store" } });
+  const id = (await pick(req, user))!;
+  return NextResponse.json(await snapshot(id), { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: Request) {
@@ -35,9 +48,10 @@ export async function POST(req: Request) {
   if (!user?.business) return NextResponse.json({ error: "auth" }, { status: 401 });
   const retry = new URL(req.url).searchParams.get("retry") === "1";
   const lang = await getLang();
-  const result = await runForUser(user.id, () => advancePipeline(user.business!.id, user.id, lang, retry));
+  const id = (await pick(req, user))!;
+  const result = await runForUser(user.id, () => advancePipeline(id, user.id, lang, retry));
   // Over the limit: the real numbers, and whether a higher plan can be bought.
   const limit = result.error === "limit" ? await researchUsage(user.id) : null;
   const limitInfo = limit ? { limitText: researchLimitText(limit, lang === "en" ? "en" : "es"), canUpgrade: limit.canUpgrade } : {};
-  return NextResponse.json({ ...result, ...limitInfo, ...(await snapshot(user.business.id)) }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ ...result, ...limitInfo, ...(await snapshot(id)) }, { headers: { "Cache-Control": "no-store" } });
 }

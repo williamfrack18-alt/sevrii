@@ -159,13 +159,18 @@ export default function ChatPanel({
   const [calm, setCalm] = useState(false);
   useEffect(() => setCalm(Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)), []);
   // A reply that just arrived and hasn't started being written yet.
-  const waitingToType = (m: Msg) => !calm && !seen.current.has(m.id) && m.role !== "user" && !m.id.startsWith("local-") && m.id !== "greeting";
+  const waitingToType = (m: Msg) => !calm && !seen.current.has(m.id) && m.role !== "user" && !m.id.startsWith("local-") && m.id !== "greeting" && m.content !== greeting && !(typeof document !== "undefined" && document.hidden);
   useEffect(() => {
     const fresh: string[] = [];
     for (const m of messages) {
       if (seen.current.has(m.id)) continue;
       seen.current.add(m.id);
-      if (m.role === "user" || m.id.startsWith("local-") || m.id === "greeting" || calm) continue;
+      // The greeting, once saved, comes back with a new id: it was already
+      // on screen, so it is never written again.
+      if (m.role === "user" || m.id.startsWith("local-") || m.id === "greeting" || calm || m.content === greeting) continue;
+      // A tab in the background doesn't type (the browser pauses its timers):
+      // the reply is just there when the owner comes back.
+      if (typeof document !== "undefined" && document.hidden) continue;
       fresh.push(m.id);
     }
     if (!fresh.length) return;
@@ -173,6 +178,17 @@ export default function ChatPanel({
     setReveal((r) => ({ ...r, ...Object.fromEntries(fresh.map((id) => [id, 0])) }));
   }, [messages, calm]);
   const revealing = Object.keys(reveal).length > 0;
+  // Leaving the tab while a reply is being written: show it whole.
+  useEffect(() => {
+    if (!revealing) return;
+    const done = () => {
+      if (!document.hidden) return;
+      revealOrder.current = [];
+      setReveal({});
+    };
+    document.addEventListener("visibilitychange", done);
+    return () => document.removeEventListener("visibilitychange", done);
+  }, [revealing]);
   useEffect(() => {
     if (!revealing) return;
     const timer = setInterval(() => {

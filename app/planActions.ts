@@ -28,9 +28,16 @@ export type PlanChatResponse = {
   limit?: LimitInfo | null;
 };
 
-async function requireBusiness(): Promise<BusinessRow> {
+// The project this chat belongs to: the one the screen shows (its id comes
+// with every action), never "whatever project is active right now" — another
+// tab may have switched projects in the meantime.
+async function requireBusiness(businessId?: string): Promise<BusinessRow> {
   const user = await getCurrentUser();
   if (!user || !user.business) redirect("/login");
+  if (businessId && businessId !== user.business.id) {
+    const b = await getBusinessById(businessId);
+    if (b && b.userId === user.id) return b;
+  }
   return user.business;
 }
 
@@ -44,8 +51,8 @@ async function respond(b: BusinessRow, extra: Partial<PlanChatResponse> = {}): P
   };
 }
 
-export async function sendPlanChatAction(message: string): Promise<PlanChatResponse> {
-  const business = await requireBusiness();
+export async function sendPlanChatAction(message: string, businessId?: string): Promise<PlanChatResponse> {
+  const business = await requireBusiness(businessId);
   const lang = await getLang();
   const t = getDict(lang).dashboard;
   const text = String(message || "").trim();
@@ -97,8 +104,8 @@ export async function sendPlanChatAction(message: string): Promise<PlanChatRespo
 
 // Opening the Brain with a finished profile that a research limit left waiting:
 // if research can start now, it continues without the owner having to ask.
-export async function resumePlanAction(): Promise<PlanChatResponse | null> {
-  const business = await requireBusiness();
+export async function resumePlanAction(businessId?: string): Promise<PlanChatResponse | null> {
+  const business = await requireBusiness(businessId);
   const resumed = await resumeStuckResearch(business, await getLang());
   if (!resumed) return null;
   revalidatePath("/dashboard");
@@ -106,8 +113,8 @@ export async function resumePlanAction(): Promise<PlanChatResponse | null> {
 }
 
 // B: the person picks one of the 3 ideas from its card.
-export async function chooseIdeaAction(index: number): Promise<PlanChatResponse> {
-  const business = await requireBusiness();
+export async function chooseIdeaAction(index: number, businessId?: string): Promise<PlanChatResponse> {
+  const business = await requireBusiness(businessId);
   const lang = await getLang();
   const plan = business.plan;
   if (plan.stage !== "choose" || !plan.ideas[index]) return respond(business);
@@ -151,8 +158,8 @@ function readyQuestion(plan: BusinessPlan, lang: Lang): string {
 
 // Approve one part of the proposal from its card in the chat. The chat
 // records it and moves on to the next part.
-export async function approveBlockAction(block: string, approved: boolean): Promise<PlanChatResponse> {
-  const business = await requireBusiness();
+export async function approveBlockAction(block: string, approved: boolean, businessId?: string): Promise<PlanChatResponse> {
+  const business = await requireBusiness(businessId);
   const lang = await getLang();
   const plan = business.plan;
   if (!APPROVAL_BLOCKS.includes(block as ApprovalBlock)) return respond(business);
@@ -195,7 +202,10 @@ async function walkOn(business: BusinessRow, next: BusinessPlan, refused: string
 // and tell the owner, always the same way.
 async function afterApproved(business: BusinessRow, lang: Lang) {
   const { filled } = await fillStoreFromPlan(business.id, lang, { onlyIfEmpty: true });
-  await addChatMessage(business.id, CHANNEL, "ai", `${nextSteps(lang, filled)}\n\n${DONE_TOKEN}`);
+  // "Ya armé tu página" whenever the page has content now (it may have been
+  // built a moment earlier, in the same approval, by the chat).
+  const built = filled || (await listServices(business.id)).length > 0;
+  await addChatMessage(business.id, CHANNEL, "ai", `${nextSteps(lang, built)}\n\n${DONE_TOKEN}`);
 }
 
 // What comes after the Brain, said every time the strategy is approved: the
@@ -208,8 +218,8 @@ function nextSteps(lang: Lang, filled: boolean): string {
 
 // Every block is approved but the plan is still open (a final check stopped
 // it, or an edit reopened it): try to finish it again.
-export async function finishPlanAction(): Promise<PlanChatResponse> {
-  const business = await requireBusiness();
+export async function finishPlanAction(businessId?: string): Promise<PlanChatResponse> {
+  const business = await requireBusiness(businessId);
   const lang = await getLang();
   const plan = business.plan;
   if (plan.stage !== "proposal" || !allApproved(plan)) return respond(business);
@@ -221,8 +231,8 @@ export async function finishPlanAction(): Promise<PlanChatResponse> {
 }
 
 // "No offer" from the offer card: drop the suggestion and approve the part.
-export async function noOfferAction(): Promise<PlanChatResponse> {
-  const business = await requireBusiness();
+export async function noOfferAction(businessId?: string): Promise<PlanChatResponse> {
+  const business = await requireBusiness(businessId);
   const lang = await getLang();
   const plan = business.plan;
   if (plan.stage !== "proposal" || plan.approvals.offer) return respond(business);
@@ -235,8 +245,8 @@ export async function noOfferAction(): Promise<PlanChatResponse> {
 }
 
 // B: none of the 3 ideas convinces the person. Search for different ones.
-export async function moreIdeasAction(feedback: string): Promise<PlanChatResponse> {
-  const business = await requireBusiness();
+export async function moreIdeasAction(feedback: string, businessId?: string): Promise<PlanChatResponse> {
+  const business = await requireBusiness(businessId);
   const lang = await getLang();
   const t = PLAN_TEXT[lang];
   const plan = business.plan;

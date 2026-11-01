@@ -19,7 +19,7 @@ import {
 } from "../plan";
 import { codeGuard } from "./guard";
 import { priceMoves, swapAmounts } from "../reprice";
-import { ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
+import { unknownAmountSentences, ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
 import { alignProposal } from "./align";
 import { textOf, today } from "./common";
@@ -452,6 +452,9 @@ export function saidApproval(lastMessage: string): boolean {
   return BARE_YES.test(m) && !NOT_APPROVAL.test(m);
 }
 
+// "Actualizo / cambié / quité…": a sentence that says an edit was made.
+const CLAIMS_EDIT = /\b(actualiz\w*|cambi[eé]|lo cambio|los cambio|quit[eé]|quito|corrig\w*|ajust[eé]|ajusto|agregu[eé]|agrego|ya qued[oó]|listo, (ya|lo)|updated?|changed|removed|fixed|added)\b/i;
+
 // Rules that must hold on every turn, re-sent with each message so a long
 // chat never loses them (the code checks them too).
 const HARD_RULES = `(Reglas de siempre: lenguaje neutro de género; nunca expliques qué puede o no guardar el sistema (si un dato necesita confirmación, pregunta "¿lo dejo en X?"); ningún descuento que el dueño no pidió; una sola pregunta por mensaje; guarda números solo si la persona los dijo, nunca conviertas "medio tiempo" u otra respuesta vaga en un número; no cambies precios sin su OK explícito; responde primero lo que pregunta, con otras palabras si no entendió; nada de notas internas, nombres de campos ni "expediente"; no pidas seguros ni permisos que no sean indispensables.)`;
@@ -617,9 +620,9 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       let next = parsePlan({ ...plan, ...patch, approvals, ...(reopen ? { stage: "proposal", ready: false } : {}) });
       // Invented amounts or hours, or internal words, never reach the owner.
       // (Only problems this edit brings in: an older proposal is never blocked.)
-      const had = new Set(silentProposalIssues(plan));
-      const silent = silentProposalIssues(next).filter((x) => !had.has(x));
-      if (silent.length) return { out: `error: not saved, fix it and send it again: ${silent.join(" ")}` };
+      const had = new Set(silentProposalIssues(plan, ownerSaid));
+      const silent = silentProposalIssues(next, ownerSaid).filter((x) => !had.has(x));
+      if (silent.length) return { out: `error: NOTHING was saved (don't tell the owner you changed it). Fix it and send it again: ${silent.join(" ")}` };
       const g = codeGuard(next, lang, false);
       next = { ...next, guard: { block: g.block, warn: warnLeft } };
       // Everything still approved (nothing to re-approve): finish it again.
@@ -713,6 +716,9 @@ export async function runPlanChatTurn(opts: {
   // deadline. What the tools saved stays saved; the owner gets an answer.
   const started = Date.now();
   const TURN_DEADLINE_MS = 70_000;
+  // An edit that didn't save can't be announced as done.
+  let editFailed = false;
+  let editSaved = false;
   try {
     for (let step = 0; step < 7; step++) {
       if (step > 0 && Date.now() - started > TURN_DEADLINE_MS) {
@@ -766,6 +772,10 @@ export async function runPlanChatTurn(opts: {
           const r = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, opts.lang, ownerSaid, opts.message, lastAssistant);
           out = r.out;
           if (r.startPipeline) startPipeline = true;
+          if (u.name === "update_proposal") {
+            if (out.startsWith("error")) editFailed = true;
+            else editSaved = true;
+          }
         } catch (err) {
           console.error("[ai:brain] tool failed", u.name, err);
           out = "error: could not save";
@@ -798,6 +808,12 @@ export async function runPlanChatTurn(opts: {
   reply = oneQuestion(reply);
   if (askedSomething) reply = dropApprovalScript(reply) || reply;
   if (hasJargon(reply)) reply = reply.split(/(?<=[.!?])\s+/).filter((x) => !hasJargon(x)).join(" ").trim();
+  if (editFailed && !editSaved && CLAIMS_EDIT.test(reply)) {
+    reply = reply.split(/(?<=[.!?])\s+/).filter((x) => !CLAIMS_EDIT.test(x)).join(" ").trim();
+    if (!reply) reply = es ? "Todavía no lo cambié. ¿Me dices exactamente cómo lo quieres y lo dejo así?" : "I haven't changed it yet. Tell me exactly how you want it and I'll set it.";
+  }
+  // In the proposal: no amount that isn't a package, the research or the owner's.
+  if (business.plan.stage === "proposal" || business.plan.stage === "approved") reply = unknownAmountSentences(reply, business.plan, ownerSaid) || reply;
   // No discount the owner never asked for, not even as a suggestion.
   if (!business.plan.profile.offerWanted && !ASKS_OFFER.test(ownerSaid) && mentionsDiscount(reply))
     reply = reply.split(/(?<=[.!?])\s+/).filter((x) => !mentionsDiscount(x)).join(" ").trim();

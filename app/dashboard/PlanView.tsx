@@ -55,7 +55,7 @@ const PIPELINE: PlanStage[] = ["ideas_research", "research"];
 
 type T = (typeof PLAN_TEXT)[keyof typeof PLAN_TEXT];
 type Job = { kind: string; status: "queued" | "running" | "done" | "failed" };
-type Snapshot = { plan: BusinessPlan | null; name: string; slug: string; jobs: Job[]; messages: Msg[]; more?: boolean; error?: string; limitText?: string; canUpgrade?: boolean };
+type Snapshot = { id?: string; plan: BusinessPlan | null; name: string; slug: string; jobs: Job[]; messages: Msg[]; more?: boolean; error?: string; limitText?: string; canUpgrade?: boolean };
 
 // Which approval block a guard note is about (the notes are free text).
 const GUARD_HINTS: Record<ApprovalBlock, RegExp> = {
@@ -118,6 +118,8 @@ export default function PlanView({
   const msgCount = useRef(initialMessages.length);
 
   function apply(s: Snapshot) {
+    // A snapshot of another project (another tab switched) never lands here.
+    if (s.id && s.id !== bizRef.current.id) return;
     if (s.plan) onUpdated({ ...bizRef.current, plan: s.plan, name: s.name || bizRef.current.name, slug: s.slug || bizRef.current.slug });
     if (s.jobs) setJobs(s.jobs);
     if (s.messages && s.messages.length !== msgCount.current) {
@@ -142,7 +144,7 @@ export default function PlanView({
   useEffect(() => {
     if (!waiting) return;
     let off = false;
-    resumePlanAction()
+    resumePlanAction(bizRef.current.id)
       .then((res) => {
         if (res && !off) applyAction(res);
       })
@@ -160,7 +162,7 @@ export default function PlanView({
     setPipeErr("");
     const poll = async () => {
       try {
-        const r = await fetch("/api/brain", { cache: "no-store" });
+        const r = await fetch(`/api/brain?b=${bizRef.current.id}`, { cache: "no-store" });
         if (r.ok && !stop) apply((await r.json()) as Snapshot);
       } catch {}
     };
@@ -168,7 +170,7 @@ export default function PlanView({
       for (let i = 0; i < 20 && !stop; i++) {
         let s: Snapshot;
         try {
-          const r = await fetch(`/api/brain${i === 0 && retryKey ? "?retry=1" : ""}`, { method: "POST" });
+          const r = await fetch(`/api/brain?b=${bizRef.current.id}${i === 0 && retryKey ? "&retry=1" : ""}`, { method: "POST" });
           if (!r.ok) throw new Error(String(r.status));
           s = (await r.json()) as Snapshot;
         } catch {
@@ -217,8 +219,8 @@ export default function PlanView({
   const approve = (block: ApprovalBlock) =>
     act(async () => {
       const before = msgCount.current;
-      const r = await approveBlockAction(block, true);
-      if (!r.business.plan.approvals[block] && r.business.plan.stage === "proposal" && r.messages.length <= before) return approveBlockAction(block, true);
+      const r = await approveBlockAction(block, true, bizRef.current.id);
+      if (!r.business.plan.approvals[block] && r.business.plan.stage === "proposal" && r.messages.length <= before) return approveBlockAction(block, true, bizRef.current.id);
       return r;
     });
 
@@ -240,7 +242,7 @@ export default function PlanView({
       busy={busy}
       onApprove={approve}
       onChange={change}
-      onNoOffer={() => act(() => noOfferAction())}
+      onNoOffer={() => act(() => noOfferAction(bizRef.current.id))}
       onComplete={(block) =>
         setPrefill({
           key: Date.now(),
@@ -256,7 +258,7 @@ export default function PlanView({
   const lastIdeasId = [...msgs].reverse().find((m) => m.role !== "user" && m.content.includes("[[ideas]]"))?.id ?? null;
   const renderToken = ({ kind, arg, msgId }: ChatToken) => {
     if (kind === "part" && isBlock(arg)) return msgId === liveId ? partCard(arg) : <PartRow id={arg} plan={plan} stale={arg === reviewing} />;
-    if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} passed={msgId !== lastIdeasId} onChoose={(i) => act(() => chooseIdeaAction(i))} /> : null;
+    if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} passed={msgId !== lastIdeasId} onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} /> : null;
     if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} />;
     if (kind === "market") return <MarketInChat plan={plan} />;
     return null;
@@ -268,9 +270,9 @@ export default function PlanView({
     : reviewing
       ? partCard(reviewing)
       : plan.stage === "proposal"
-        ? <FinishCard plan={plan} busy={busy} onFinish={() => act(() => finishPlanAction())} />
+        ? <FinishCard plan={plan} busy={busy} onFinish={() => act(() => finishPlanAction(bizRef.current.id))} />
         : plan.stage === "choose" && plan.ideas.length
-          ? <IdeasCard plan={plan} busy={busy} live onChoose={(i) => act(() => chooseIdeaAction(i))} />
+          ? <IdeasCard plan={plan} busy={busy} live onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} />
           : null;
   const tailKey = `${plan.stage}:${reviewing}:${liveId}:${busy}`;
 
@@ -384,7 +386,7 @@ export default function PlanView({
           dock={dock}
           dockLabel={plan.stage === "approved" || plan.stage === "proposal" ? (lang === "es" ? "Tu estrategia" : "Your strategy") : lang === "es" ? "Lo que ya sé de ti" : "What I know about you"}
           onSend={async (text) => {
-            const res = await sendPlanChatAction(text);
+            const res = await sendPlanChatAction(text, bizRef.current.id);
             onUpdated(toClientBusiness(res.business), res.services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description })));
             msgCount.current = res.messages.length;
             setMsgs(res.messages);
@@ -393,7 +395,7 @@ export default function PlanView({
           }}
           onPlans={() => onNavigate("plans")}
           recover={async () => {
-            const r = await fetch("/api/brain", { cache: "no-store" });
+            const r = await fetch(`/api/brain?b=${bizRef.current.id}`, { cache: "no-store" });
             if (!r.ok) return null;
             const s = (await r.json()) as Snapshot;
             apply(s);

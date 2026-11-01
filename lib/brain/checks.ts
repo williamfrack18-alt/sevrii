@@ -108,6 +108,17 @@ export function knownAmounts(plan: BusinessPlan, packages: Package[] = plan.pack
   return base;
 }
 
+// A chat reply quotes only amounts that exist: the packages, the research,
+// the owner's own numbers. A sentence with any other amount is left out.
+export function unknownAmountSentences(reply: string, plan: BusinessPlan, ownerSaid: string): string {
+  const known = knownAmounts(plan);
+  for (const n of dollars(ownerSaid)) known.add(n);
+  for (const n of numbersIn(ownerSaid)) known.add(n);
+  const parts = reply.split(/(?<=[.!?])\s+/);
+  const kept = parts.filter((x) => dollars(x).every((n) => known.has(n)));
+  return kept.length === parts.length ? reply : kept.join(" ").trim();
+}
+
 // Hours the proposal may state: only the owner's.
 function hourMentions(text: string): number[] {
   return [...fold(text || "").matchAll(/(\d+(?:[.,]\d+)?)\s*(h\b|hrs?\b|horas?\b|hours?\b)/g)].map((m) => Number(m[1].replace(",", ".")));
@@ -115,10 +126,11 @@ function hourMentions(text: string): number[] {
 
 // What's wrong with a proposal before the owner sees it, checked by code. The
 // lines go to the Strategist (to fix it in silence), never to the owner.
-export function silentProposalIssues(plan: BusinessPlan): string[] {
+export function silentProposalIssues(plan: BusinessPlan, ownerSaid = ""): string[] {
   const out: string[] = [];
   const known = knownAmounts(plan);
-  const ownerHours = [plan.profile.costHoursPerJob, plan.profile.hoursPerWeek].filter((x): x is number => x !== null);
+  // Hours the owner gave: in the profile, or said in the chat ("dura 1 hora").
+  const ownerHours = [plan.profile.costHoursPerJob, plan.profile.hoursPerWeek, ...hourMentions(ownerSaid), ...numbersIn(ownerSaid)].filter((x): x is number => x !== null);
   const texts: [string, string][] = [
     ["promise", plan.promise],
     ["pricingNote", plan.pricingNote],
