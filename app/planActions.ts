@@ -11,7 +11,7 @@ import type { Lang } from "@/lib/i18n";
 import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
-import { APPROVAL_BLOCKS, MAX_IDEA_ROUNDS, allApproved, requestMoreIdeas, type ApprovalBlock } from "@/lib/plan";
+import { APPROVAL_BLOCKS, MAX_IDEA_ROUNDS, allApproved, missingProfile, requestMoreIdeas, type ApprovalBlock } from "@/lib/plan";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { applyApprovals, chooseIdea, planGreeting, resumeStuckResearch, runPlanChatTurn } from "@/lib/brain/interviewer";
 import { DONE_TOKEN, cardAfterTurn, forModel, nextPartMessage } from "@/lib/brain/walk";
@@ -123,12 +123,30 @@ export async function chooseIdeaAction(index: number): Promise<PlanChatResponse>
       ? lang === "es"
         ? `¡Buena elección! Antes de investigar el mercado, definamos tu agente en dos o tres mensajes. ¿Atenderá a clientes de todo EE. UU., de un solo estado o también de otros países?`
         : `Great choice! Before I research the market, let's define your agent in two or three messages. Will it serve customers in the whole US, in one state only, or in other countries too?`
-      : lang === "es"
-        ? `¡Buena elección! Antes de investigar tu zona, veamos si estás listo para arrancar. ¿Tienes seguro de responsabilidad civil (general liability) o todavía no?`
-        : `Great choice! Before I research your area, let's check you're ready to start. Do you have general liability insurance yet?`
+      : readyQuestion(next, lang)
   );
   revalidatePath("/dashboard");
   return respond(business);
+}
+
+// After picking an idea: the first thing still needed to price it, asked in
+// plain words (never an insurance or permit interrogation, never gendered).
+function readyQuestion(plan: BusinessPlan, lang: Lang): string {
+  const es = lang === "es";
+  const key = (missingProfile(plan)[0] || "").split(" ")[0];
+  const intro = es ? "¡Buena elección! Antes de investigar el mercado, unas preguntas cortas para ponerle precio." : "Great choice! Before I research the market, a few short questions to price it.";
+  const q: Record<string, [string, string]> = {
+    serviceMode: ["¿Lo harías en persona en tu zona o en línea?", "Would you do it in person in your area, or online?"],
+    zip: ["¿Cuál es tu código postal (ZIP)?", "What's your ZIP code?"],
+    radiusMiles: ["¿Hasta cuántas millas te moverías para atender a un cliente?", "How many miles would you travel to serve a customer?"],
+    remoteScope: ["¿Atenderías clientes de todo EE. UU. (te lo recomiendo), solo de tu estado o también de otros países?", "Would you serve customers in the whole US (my recommendation), only your state, or other countries too?"],
+    toolsReady: ["¿Ya tienes lo que necesitas para hacerlo, o te falta algo?", "Do you already have what you need to do it, or is something missing?"],
+    costHoursPerJob: ["¿Cuántas horas crees que te tomaría cada trabajo? Si nunca lo has hecho, te doy un número típico.", "How many hours would each job take you? If you've never done it, I'll give you a typical number."],
+    costMaterialsUsd: ["¿Cuánto gastarías en materiales o herramientas por trabajo? Puede ser $0.", "How much would you spend on materials or tools per job? It can be $0."],
+    businessName: ["¿Cómo se llamará tu negocio? Si no tienes nombre, te propongo algunos.", "What will your business be called? If you have no name yet, I'll suggest some."],
+  };
+  const ask = q[key];
+  return ask ? `${intro} ${es ? ask[0] : ask[1]}` : intro;
 }
 
 // Approve one part of the proposal from its card in the chat. The chat

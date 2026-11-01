@@ -107,6 +107,7 @@ export default function ChatPanel({
   voice = true,
   context,
   pickKey,
+  recover,
 }: {
   greeting: string;
   initialMessages: Msg[];
@@ -122,6 +123,9 @@ export default function ChatPanel({
   locked?: React.ReactNode;
   // Replace the messages from outside (new key = new messages).
   sync?: { key: number; messages: Msg[] };
+  // Reads the saved conversation again: used when a reply takes too long, so
+  // an answer that was saved but didn't come back still shows up by itself.
+  recover?: () => Promise<Msg[] | null>;
   // Put text in the composer from outside (e.g. a "Change" button).
   prefill?: { key: number; text: string };
   // Draws the card a message's token asks for.
@@ -200,7 +204,46 @@ export default function ChatPanel({
   const [limit, setLimit] = useState<LimitInfo | null>(null);
   // A photo or video on its way to storage (percentage only for videos).
   const [uploading, setUploading] = useState<{ video: boolean; pct: number } | null>(null);
-  const busy = pending || uploading !== null;
+  // A reply that takes long: a visible "still working" after 15 s, and the
+  // saved chat is read again every few seconds so it shows up on its own
+  // (never minutes of silence that only a "¿hola?" unlocks).
+  const [slow, setSlow] = useState(false);
+  const [recovered, setRecovered] = useState(false);
+  const waiting = pending && !recovered;
+  useEffect(() => {
+    if (!pending) {
+      setSlow(false);
+      setRecovered(false);
+      return;
+    }
+    const sentAt = Date.now();
+    let stop = false;
+    const t1 = setTimeout(() => !stop && setSlow(true), 15_000);
+    const iv = setInterval(async () => {
+      if (stop || !recover || Date.now() - sentAt < 20_000) return;
+      const saved = await recover().catch(() => null);
+      if (stop || !saved || !saved.length) return;
+      const last = saved[saved.length - 1];
+      if (last.role !== "user") {
+        setMessages(saved);
+        setRecovered(true);
+      }
+    }, 6_000);
+    // Nothing after 100 s: say so plainly and give the text back to resend.
+    const t2 = setTimeout(() => {
+      if (stop) return;
+      setRecovered(true);
+      setError(texts.failed);
+    }, 100_000);
+    return () => {
+      stop = true;
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
+  const busy = waiting || uploading !== null;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -690,14 +733,14 @@ export default function ChatPanel({
           {/* What follows a reply (e.g. the part to review) shows once the reply is written. */}
           {!revealing && tail}
           {uploadRow}
-          {pending && (
-            <div className="flex items-center gap-2.5 h-6 text-[14px] text-psub" role="status" aria-live="polite">
+          {waiting && (
+            <div className="flex items-center gap-2.5 min-h-6 text-[14px] text-psub" role="status" aria-live="polite">
               <span className="flex items-center gap-1" aria-hidden="true">
                 {[0, 1, 2].map((i) => (
                   <span key={i} className="h-2 w-2 rounded-full animate-bounce" style={{ background: ACCENT, animationDelay: `${i * 140}ms`, animationDuration: "1s" }} />
                 ))}
               </span>
-              {texts.thinking}
+              {slow ? (lang === "es" ? "Está tardando un poco más de lo normal; sigo trabajando y te respondo aquí." : "This is taking a bit longer than usual; I'm still working and will answer here.") : texts.thinking}
             </div>
           )}
         </div>

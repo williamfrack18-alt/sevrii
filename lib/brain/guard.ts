@@ -26,6 +26,9 @@ Marca como "block":
 - Decir que un precio está "en el rango", "por debajo" o "por encima" del mercado cuando los números de market.prices dicen otra cosa.
 - Datos que nadie dio: tareas que el dueño no mencionó, herramientas, cuentas o perfiles que no dijo tener ("tu perfil de Google"), impuestos, cargos extra o depósitos.
 - Ofrecer o sugerir algo que el dueño excluyó (por ejemplo, agregar inglés cuando dijo solo español).
+- Un descuento, oferta o promoción cuando el dueño no pidió ninguno (profile.offerWanted vacío), en cualquier parte.
+- Cambiar el modelo del servicio que escogió el dueño: dónde y cómo se hace el trabajo (profile.workLocation y chosenIdea: en su local o cocina y entrega, en casa del cliente, o en línea). Si cualquier parte (servicio, cómo funciona, paquetes, preguntas, guion) dice otra cosa, es block. Un permiso que complica el modelo se pregunta al dueño, nunca se resuelve cambiando el modelo.
+- Partes que se contradicen entre sí (por ejemplo, el resumen dice una cosa y un paso de "cómo funciona" dice otra).
 
 Marca como "warn":
 - Categorías especiales de anuncios de Meta (lista oficial: productos financieros y crédito; empleo; vivienda; temas sociales, elecciones o política). Meta incluye dentro de vivienda las reparaciones de vivienda ("housing repairs"): plomería, electricidad, techos o remodelación PUEDEN caer ahí; dilo como "puede aplicar, Meta lo confirma al crear el anuncio", nunca como seguro. Limpieza, mudanzas, jardinería, lavandería, belleza, barbería, armado de muebles y clases NO son categoría especial: no los marques.
@@ -99,6 +102,7 @@ export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block
           role: "user",
           content: `Expediente (JSON):\n${JSON.stringify({
             profile: plan.profile,
+            chosenIdea: plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] ?? null : null,
             market: {
               prices: plan.market.prices,
               requirements: plan.market.requirements,
@@ -116,6 +120,7 @@ export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block
             offer: plan.offer,
             campaignType: plan.campaignType,
             faq: plan.faq,
+            videoScript: plan.videoScript,
           })}`,
         },
       ],

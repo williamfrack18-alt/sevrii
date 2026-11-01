@@ -19,8 +19,9 @@ import {
 } from "../plan";
 import { codeGuard } from "./guard";
 import { priceMoves, swapAmounts } from "../reprice";
-import { OWNER_NUMBERS, dropApprovalScript, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
+import { ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
+import { alignProposal } from "./align";
 import { textOf, today } from "./common";
 import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
 
@@ -46,6 +47,9 @@ Cómo conversas:
 - Sigue la lista "missing" del estado, en orden. Nunca preguntes algo que ya está en el expediente.
 - Si responde solo una parte, guarda eso y vuelve a preguntar SOLO lo que faltó, con otras palabras y un ejemplo. Nunca la des por respondida ni sigas a otro tema si no la contestó.
 - Horas y costos de un trabajo (costHoursPerJob, costMaterialsUsd): si nunca ha hecho ese servicio, no le preguntes en blanco. Dale el rango típico y tu número recomendado en la misma pregunta ("Un video corto suele tomar de 1 a 3 horas al principio. ¿Lo dejo en 2?"); si dice que sí, guárdalo.
+- Dónde se hace el trabajo (workLocation): si la persona o la idea escogida ya lo dicen ("cocino en mi cocina y entrego", "voy a casa del cliente", "en línea"), guárdalo sin preguntar. Es su decisión: nunca la cambies.
+- Ofertas: no propongas descuentos ni promociones. Si la persona pide una, guárdala en offerWanted con sus palabras.
+- Lenguaje neutro: no supongas si es hombre o mujer ("¿ya tienes todo para arrancar?", no "¿estás listo?").
 - serviceMode: si el servicio es claramente en persona (limpieza, mudanzas, reparaciones, jardinería, belleza a domicilio…), guárdalo como local sin preguntarlo; pregúntalo solo si puede hacerse a distancia.
 - Si una respuesta trae datos, guárdalos todos con save_profile en ese mismo turno y no los vuelvas a preguntar.
 - Nunca adivines ni supongas datos: guarda solo lo que la persona dijo de forma explícita (por ejemplo, no supongas sus idiomas por el idioma en que escribe; pregúntalo). La única excepción es serviceMode, como se explica abajo.
@@ -102,7 +106,9 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 - Idiomas: solo los del perfil (languages). Nunca digas que atiende en inglés o que es bilingüe si no lo dijo. Lo que el dueño dijo que no quiere hacer nunca es argumento de venta.
 - Un solo juego de números: usa exactamente los nombres y precios de los paquetes. Si cambias un precio, cámbialo en todos lados (paquetes, nota de precios, oferta, preguntas frecuentes).
 - Precios: si los cambia, explica en una línea cómo queda el margen frente a sus costos y al rango de la zona.
-- Oferta: solo si él la quiere. Una oferta de bienvenida para clientes nuevos (solo su primer servicio) no necesita fecha: guárdala con forNewClients=true. Cualquier otra promoción necesita una fecha de fin real (YYYY-MM-DD, hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true y apruébala.
+- Modelo del servicio: dónde y cómo se hace el trabajo es decisión del dueño (profile.workLocation, la idea que escogió). Nunca lo cambies tú. Si un permiso lo complica, pregúntale en una línea; no reescribas el modelo.
+- Cuando corrijas algo, corrígelo en TODAS las partes que lo dicen (servicio, cómo funciona, paquetes, preguntas, guion), en el mismo update_proposal.
+- Oferta: solo si él la pide (con su porcentaje y su alcance). Nunca la sugieras tú. Una oferta de bienvenida para clientes nuevos (solo su primer servicio) no necesita fecha: guárdala con forNewClients=true. Cualquier otra promoción necesita una fecha de fin real (YYYY-MM-DD, hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true y apruébala.
 - Si la propuesta ya está aprobada ("stage": "approved"), ayuda con cambios igual que antes.
 - Máximo 60 palabras. Sin títulos ni listas.
 - Nunca menciones el estado, el JSON, nombres de campos, herramientas ni notas como "(Tarjeta mostrada…)".`;
@@ -153,6 +159,12 @@ const PROFILE_PROPS: Record<string, unknown> = {
   licenseStatus: { type: "string", enum: ["has", "no", "not_needed"] },
   licenseNote: { type: "string", description: "Which license / certification, if any" },
   insured: { type: "string", enum: ["yes", "no"] },
+  workLocation: {
+    type: "string",
+    enum: ["own_place", "client_place", "online", "both"],
+    description: "Where the work happens, as the owner chose it: own_place = at their own place/kitchen/shop (and they deliver or the client comes); client_place = at the client's home or business; online; both",
+  },
+  offerWanted: { type: "string", description: "Only if the owner asked for a discount or offer: what they want, in their words (e.g. '10% off the first class for new students')" },
   direction: {
     type: "string",
     enum: ["known", "new", "open"],
@@ -275,6 +287,9 @@ const APPROVE_BLOCKS: Tool = {
     required: ["blocks"],
   },
 };
+
+// Texts that can contradict a correction (checked after every edit).
+const ALIGN_KEYS = ["service", "serviceIncludes", "serviceExcludes", "steps", "customer", "problem", "promise", "differentiators", "packages", "pricingNote", "faq", "videoScript"];
 
 const FIELD_BLOCK: Record<string, ApprovalBlock> = {
   service: "service",
@@ -439,7 +454,7 @@ export function saidApproval(lastMessage: string): boolean {
 
 // Rules that must hold on every turn, re-sent with each message so a long
 // chat never loses them (the code checks them too).
-const HARD_RULES = `(Reglas de siempre: una sola pregunta por mensaje; guarda números solo si la persona los dijo, nunca conviertas "medio tiempo" u otra respuesta vaga en un número; no cambies precios sin su OK explícito; responde primero lo que pregunta, con otras palabras si no entendió; nada de notas internas, nombres de campos ni "expediente"; no pidas seguros ni permisos que no sean indispensables.)`;
+const HARD_RULES = `(Reglas de siempre: lenguaje neutro de género; nunca expliques qué puede o no guardar el sistema (si un dato necesita confirmación, pregunta "¿lo dejo en X?"); ningún descuento que el dueño no pidió; una sola pregunta por mensaje; guarda números solo si la persona los dijo, nunca conviertas "medio tiempo" u otra respuesta vaga en un número; no cambies precios sin su OK explícito; responde primero lo que pregunta, con otras palabras si no entendió; nada de notas internas, nombres de campos ni "expediente"; no pidas seguros ni permisos que no sean indispensables.)`;
 
 async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = "", lastAssistant = ""): Promise<{ out: string; startPipeline?: boolean }> {
   const plan = b.plan;
@@ -462,6 +477,11 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
           delete input[k];
           note += ` (${k} NOT saved: the owner never said or agreed to that number. Ask them ${rule.ask}, with a typical number they can accept; never assume it, and never mention a system or a rule to them)`;
         }
+      }
+      // An offer exists only if the owner asked for one.
+      if (typeof input.offerWanted === "string" && input.offerWanted.trim() && !ASKS_OFFER.test(ownerSaid)) {
+        delete input.offerWanted;
+        note += " (offerWanted NOT saved: the owner never asked for a discount or offer; don't suggest one)";
       }
       // "Give me ideas" is the owner's call, not the model's guess.
       if (input.ideasNow === true && (plan.mode !== "new" || !ASKS_IDEAS.test(fold(ownerSaid)))) {
@@ -552,6 +572,17 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (input.offer) patch.noOffer = false;
       if (input.agent && typeof input.agent === "object" && plan.agent) patch.agent = { ...plan.agent, ...(input.agent as Record<string, unknown>) };
       if (input.noOffer === true) patch.offer = null;
+      // Offers are the owner's call: one is added only when they ask for it
+      // (their words become the offer they want). Removing one is always fine.
+      let offerNote = "";
+      if (input.offer && typeof input.offer === "object" && input.noOffer !== true) {
+        if (ASKS_OFFER.test(lastSaid)) patch.profile = { ...plan.profile, offerWanted: str(lastSaid, 300) };
+        else if (!plan.profile.offerWanted) {
+          delete patch.offer;
+          delete patch.noOffer;
+          offerNote = "; offer NOT added: the owner never asked for a discount or offer (never suggest one)";
+        }
+      }
       // Only a field that really changes takes its part's approval away: asking
       // about one part (or resending a field as it was) never resets another.
       const touched = new Set<ApprovalBlock>();
@@ -566,6 +597,18 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       // the texts this edit didn't send (video script, notes, offer, FAQ), so
       // nothing made later (Store, Marketing) reads the old price.
       if (Array.isArray(patch.packages)) Object.assign(patch, repriced(plan, patch));
+      // One correction, every part: the texts that still say the old thing
+      // are rewritten too, so the owner never repeats a correction.
+      if (Object.keys(patch).some((k) => ALIGN_KEYS.includes(k)) && !isQuestionTurn(lastSaid)) {
+        const draft = parsePlan({ ...plan, ...patch }) as unknown as Record<string, unknown>;
+        const extra = await alignProposal(draft as unknown as BusinessPlan, lastSaid, lang);
+        for (const [k, v] of Object.entries(extra)) {
+          const now = (parsePlan({ ...draft, [k]: v }) as unknown as Record<string, unknown>)[k];
+          if (JSON.stringify(now) === JSON.stringify(draft[k])) continue;
+          patch[k] = v;
+          if (FIELD_BLOCK[k]) touched.add(FIELD_BLOCK[k]);
+        }
+      }
       const approvals = { ...plan.approvals };
       for (const t of touched) delete approvals[t];
       // Only an edit to an approval block reopens the proposal; anything else
@@ -573,7 +616,9 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       const reopen = touched.size > 0;
       let next = parsePlan({ ...plan, ...patch, approvals, ...(reopen ? { stage: "proposal", ready: false } : {}) });
       // Invented amounts or hours, or internal words, never reach the owner.
-      const silent = silentProposalIssues(next);
+      // (Only problems this edit brings in: an older proposal is never blocked.)
+      const had = new Set(silentProposalIssues(plan));
+      const silent = silentProposalIssues(next).filter((x) => !had.has(x));
       if (silent.length) return { out: `error: not saved, fix it and send it again: ${silent.join(" ")}` };
       const g = codeGuard(next, lang, false);
       next = { ...next, guard: { block: g.block, warn: warnLeft } };
@@ -581,7 +626,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (next.stage === "proposal" && allApproved(next)) next = applyApprovals(next, [], lang).plan;
       await updateBusinessPlan(b.id, next);
       const gone = plan.guard.warn.length - warnLeft.length;
-      return { out: `saved. blocks that need approval again: ${[...touched].join(", ") || "none"}${gone ? `; ${gone} warning(s) removed` : ""}${g.block.length ? `; problems: ${g.block.join(" ")}` : ""}` };
+      return { out: `saved. blocks that need approval again: ${[...touched].join(", ") || "none"}${gone ? `; ${gone} warning(s) removed` : ""}${g.block.length ? `; problems: ${g.block.join(" ")}` : ""}${offerNote}` };
     }
     case "approve_blocks": {
       if (plan.stage !== "proposal") return { out: "error: nothing to approve" };
@@ -664,22 +709,34 @@ export async function runPlanChatTurn(opts: {
   let startPipeline = false;
   let nudged = false;
   let debug = "";
+  // A reply never hangs: each call has a short timeout, and the whole turn a
+  // deadline. What the tools saved stays saved; the owner gets an answer.
+  const started = Date.now();
+  const TURN_DEADLINE_MS = 70_000;
   try {
     for (let step = 0; step < 7; step++) {
+      if (step > 0 && Date.now() - started > TURN_DEADLINE_MS) {
+        console.warn("[ai:brain] turn deadline reached", business.id, step);
+        break;
+      }
       const st = stageOf(business.plan);
       const system = st.system;
       // A question or "no entendí" is answered, never turned into an approval.
       const tools = askedSomething ? st.tools.filter((t) => t.name !== "approve_blocks") : st.tools;
-      const res = await client.messages.create({
-        model: MODELS.chat,
-        max_tokens: 6000,
-        thinking: { type: "between_tools" },
-        // Medium: it thinks about where the owner is and what comes next.
-        output_config: { effort: "medium" },
-        system: [{ type: "text", text: `${system}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`, cache_control: { type: "ephemeral" } }],
-        ...(tools.length ? { tools } : {}),
-        messages,
-      });
+      const res = await client.messages.create(
+        {
+          model: MODELS.chat,
+          max_tokens: 6000,
+          thinking: { type: "between_tools" },
+          // Medium: it thinks about where the owner is and what comes next.
+          output_config: { effort: "medium" },
+          system: [{ type: "text", text: `${system}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`, cache_control: { type: "ephemeral" } }],
+          ...(tools.length ? { tools } : {}),
+          messages,
+        },
+        // One quick retry at most: never minutes of "Pensando…".
+        { timeout: 40_000, maxRetries: 1 }
+      );
       const text = textOf(res.content);
       if (text) reply = text;
       const uses = res.content.filter((c): c is ToolUseBlock => c.type === "tool_use");
@@ -741,12 +798,16 @@ export async function runPlanChatTurn(opts: {
   reply = oneQuestion(reply);
   if (askedSomething) reply = dropApprovalScript(reply) || reply;
   if (hasJargon(reply)) reply = reply.split(/(?<=[.!?])\s+/).filter((x) => !hasJargon(x)).join(" ").trim();
+  // No discount the owner never asked for, not even as a suggestion.
+  if (!business.plan.profile.offerWanted && !ASKS_OFFER.test(ownerSaid) && mentionsDiscount(reply))
+    reply = reply.split(/(?<=[.!?])\s+/).filter((x) => !mentionsDiscount(x)).join(" ").trim();
   // Never show the owner our internal notes (they sometimes get echoed).
   reply = reply
     .replace(/^\s*\((Tarjeta mostrada|Card shown)[^)\n]*\)\s*$/gim, "")
+    .replace(/\$\s*\$(?=\s?\d)/g, "$")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  return { reply: reply || (es ? "Listo." : "Done."), business, startPipeline, debug };
+  return { reply: reply || (es ? "Listo, guardé lo que me dijiste. Escríbeme «sigue» y continúo." : "Done, I saved what you told me. Write \"go on\" and I'll continue."), business, startPipeline, debug };
 }
 
 export function planGreeting(lang: Lang, b: BusinessRow): string {

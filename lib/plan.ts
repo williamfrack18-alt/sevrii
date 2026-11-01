@@ -38,6 +38,11 @@ export type Profile = {
   licenseStatus: "has" | "no" | "not_needed" | "";
   licenseNote: string;
   insured: "yes" | "no" | "";
+  // Where the work happens (the service model the owner chose). Never changed
+  // without their OK: a permit question is asked, not solved by rewriting it.
+  workLocation: "own_place" | "client_place" | "online" | "both" | "";
+  // A discount or offer only exists if the owner asked for one, in their words.
+  offerWanted: string;
   // B
   // What they want: something tied to what they already know ("known"),
   // something new they can learn ("new"), or either ("open").
@@ -190,6 +195,8 @@ export const EMPTY_PROFILE: Profile = {
   licenseStatus: "",
   licenseNote: "",
   insured: "",
+  workLocation: "",
+  offerWanted: "",
   direction: "",
   workPlace: "",
   ideasNow: false,
@@ -259,7 +266,8 @@ export const EMPTY_PLAN: BusinessPlan = {
 export function str(v: unknown, max: number): string {
   if (typeof v === "number") return String(v).slice(0, max);
   if (typeof v !== "string") return "";
-  const s = v.trim().replace(/\s+/g, " ");
+  // "$$8" (a "$" added twice) is always "$8".
+  const s = v.trim().replace(/\s+/g, " ").replace(/\$\s*\$(?=\s?\d)/g, "$");
   // Prose too long for its field is cut at a word, with "…", never mid-word.
   // (A sentence stored by the old hard cut — exactly max long, ending in a
   // letter — gets the same treatment.) Text without spaces (ids, links) is
@@ -344,6 +352,8 @@ export function parseProfile(raw: unknown): Profile {
     licenseStatus: oneOf(p.licenseStatus, ["has", "no", "not_needed"] as const),
     licenseNote: str(p.licenseNote, 400),
     insured: oneOf(p.insured, ["yes", "no"] as const),
+    workLocation: oneOf(p.workLocation, ["own_place", "client_place", "online", "both"] as const),
+    offerWanted: str(p.offerWanted, 300),
     direction: oneOf(p.direction, ["known", "new", "open"] as const),
     workPlace: oneOf(p.workPlace, ["home", "out", "any"] as const),
     ideasNow: p.ideasNow === true,
@@ -571,8 +581,6 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(p.yearsExperience !== null && p.yearsExperience > 0 && p.yearsOwnBusiness === null, "yearsOwnBusiness (how many of those years on their own, with their own business; 0 if they are just starting on their own)");
     need(!p.languages, "languages (es, en or both)");
     need(!p.differentiators, "differentiators (what makes them different)");
-    // Insurance matters for work done at people's homes, not for online services.
-    need(p.serviceMode !== "remote" && !p.insured, "insured (yes / no)");
     need(!p.businessName, "businessName (if they have none, suggest 2 or 3 short names in the same message and let them pick)");
   } else if (plan.stage === "interview") {
     // B: someone who wants a new service. Short and fluid: they may have no
@@ -600,8 +608,6 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(p.serviceMode === "local" && !p.zip, "zip (their 5-digit ZIP code, to place them on the map)");
     need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they will travel)");
     need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, only customers in their own state = state, other countries too = world)");
-    // Insurance matters for work done at people's places, not for online services.
-    need(p.serviceMode === "local" && !p.insured, "insured (yes / no)");
     need(!p.toolsReady, "toolsReady (has the tools for the chosen idea: yes / no)");
     need(p.costHoursPerJob === null, "costHoursPerJob (hours one job takes them — or one client a month for a monthly service; ask for the number, never assume it)");
     need(p.costMaterialsUsd === null, "costMaterialsUsd (dollars of materials or tools per job or per client a month; 0 is fine if they said free)");

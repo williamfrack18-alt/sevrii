@@ -17,7 +17,7 @@ import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanStage }
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
 import { guardPlan, keptPriceIssue } from "./guard";
-import { hasJargon, knownAmounts, marketRangeText, silentProposalIssues } from "./checks";
+import { hasJargon, knownAmounts, marketRangeText, mentionsDiscount, silentProposalIssues, withoutDiscounts } from "./checks";
 import { today } from "./common";
 
 // The research pipeline, driven by the client one step per request so no
@@ -193,6 +193,8 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
       plan = { ...plan, ...fields };
       guard = await guardPlan(plan, lang);
     }
+    // Last resort, by code: a discount nobody asked for never reaches the owner.
+    if (!plan.profile.offerWanted) plan = withoutDiscounts(plan);
     const left = [...guard.block, ...silentProposalIssues(plan)];
     if (left.length) console.warn("[brain] proposal shown with open review notes (kept internal)", businessId, left.slice(0, 6));
     // Only plain "keep in mind" notes reach the owner; review notes never do.
@@ -212,7 +214,7 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     const range = marketRangeText(plan.market.prices, lang);
     const list = plan.packages.filter((k) => k.name && k.price).map((k) => `${k.name} (${k.price})`).join(", ");
     const base =
-      strategyMsg && !stale && !hasJargon(strategyMsg, true) && !/\$\s?\d[\d,]*\s*[–-]\s*\$/.test(strategyMsg)
+      strategyMsg && !stale && !hasJargon(strategyMsg, true) && !/\$\s?\d[\d,]*\s*[–-]\s*\$/.test(strategyMsg) && (plan.profile.offerWanted || !mentionsDiscount(strategyMsg))
         ? strategyMsg
         : es
           ? `Listo: investigué tu zona y armé tu propuesta. ${range ? `En el mercado se cobra ${range}. ` : ""}${list ? `Te propongo estos paquetes: ${list}.` : ""}`.trim()

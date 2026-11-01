@@ -212,7 +212,15 @@ export default function PlanView({
   const change = (block: ApprovalBlock) => {
     setPrefill({ key: Date.now(), text: t.changePrefix(t.blocks[block]) });
   };
-  const approve = (block: ApprovalBlock) => act(() => approveBlockAction(block, true));
+  // One click approves: if the first request comes back without the approval
+  // (and without a message saying why), it is sent once more by itself.
+  const approve = (block: ApprovalBlock) =>
+    act(async () => {
+      const before = msgCount.current;
+      const r = await approveBlockAction(block, true);
+      if (!r.business.plan.approvals[block] && r.business.plan.stage === "proposal" && r.messages.length <= before) return approveBlockAction(block, true);
+      return r;
+    });
 
   // The review happens in the chat: the part being reviewed is the first one
   // not approved yet, and only the latest card for it has buttons.
@@ -384,6 +392,13 @@ export default function PlanView({
             return { messages: res.messages, limit: res.limit, notice: res.notice };
           }}
           onPlans={() => onNavigate("plans")}
+          recover={async () => {
+            const r = await fetch("/api/brain", { cache: "no-store" });
+            if (!r.ok) return null;
+            const s = (await r.json()) as Snapshot;
+            apply(s);
+            return s.messages ?? null;
+          }}
         />
       </section>
 

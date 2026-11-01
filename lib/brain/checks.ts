@@ -18,7 +18,24 @@ const NOTHING = /\b(nada|cero|ninguno|ninguna|gratis|free|nothing|none|no tengo|
 
 // Every number written in a text (digits, "1,500", "1.5", "$100", "veinte").
 export function numbersIn(text: string): number[] {
-  const t = fold(text);
+  const t0 = fold(text);
+  // "hora y media" = 1.5, "dos horas y media" = 2.5, "media hora" = 0.5,
+  // "hora y cuarto" = 1.25 (said in words, they are still the owner's numbers).
+  const halves: number[] = [];
+  const t = t0
+    .replace(/\b(\d+|una?|dos|tres|cuatro|cinco|seis|siete|ocho)?\s*horas?\s+y\s+(media|cuarto)\b/g, (_m, n: string | undefined, part: string) => {
+      const base = n === undefined ? 1 : /^\d+$/.test(n) ? Number(n) : (WORDS[n] ?? 1);
+      halves.push(base + (part === "media" ? 0.5 : 0.25));
+      return " ";
+    })
+    .replace(/\bmedia\s+hora\b/g, () => {
+      halves.push(0.5);
+      return " ";
+    })
+    .replace(/\b(\d+)\s+and\s+a\s+half\s+hours?\b|\b(an?|one)\s+hour\s+and\s+a\s+half\b/g, (_m, n: string | undefined) => {
+      halves.push((n ? Number(n) : 1) + 0.5);
+      return " ";
+    });
   const out = [...t.matchAll(/\d+(?:[.,]\d{3})*(?:[.,]\d+)?/g)].map((m) => {
     const raw = m[0];
     // "1,500" / "1.500" are thousands; "1,5" / "1.5" are decimals.
@@ -27,7 +44,7 @@ export function numbersIn(text: string): number[] {
   });
   for (const w of t.split(/[^a-z]+/)) if (w in WORDS) out.push(WORDS[w]);
   // "medio" alone is never a number: "medio tiempo" must be asked.
-  return out.filter((n) => Number.isFinite(n));
+  return [...out, ...halves].filter((n) => Number.isFinite(n));
 }
 
 // Did the owner state this number? (0 also when they said "nada", "gratis"…)
@@ -50,7 +67,7 @@ export const OWNER_NUMBERS: Record<string, { zeroOk: boolean; ask: string }> = {
 // ---------- what may reach the owner's screen ----------
 // Words of our own machinery: field names, review notes, internal labels.
 const JARGON =
-  /(market\.|market\.competitors|profile\.|packages\[|pricingNote|forNewClients|endsAt|\bjson\b|\bguard\b|guardi[aá]n|nota interna|notas internas|propuesta interna|suposici[oó]n(es)? tuya|tu c[aá]lculo|tu estimado de costos|no vinieron del due[nñ]o|sin su confirmaci[oó]n|no hagas|no puedes incluir|no va en la propuesta|tarjeta mostrada|card shown|internal note|your assumption|the owner (did not|didn't))/i;
+  /(market\.|market\.competitors|profile\.|packages\[|pricingNote|forNewClients|endsAt|\bjson\b|\bguard\b|guardi[aá]n|nota interna|notas internas|propuesta interna|suposici[oó]n(es)? tuya|tu c[aá]lculo|tu estimado de costos|no vinieron del due[nñ]o|sin su confirmaci[oó]n|no hagas|no puedes incluir|no va en la propuesta|tarjeta mostrada|card shown|internal note|your assumption|the owner (did not|didn't)|el sistema no (me )?(deja|permite)|no me deja guardar|no (lo |la )?puedo guardar|no se puede guardar|the system (won'?t|doesn'?t|does not) (let|allow)|i can'?t save)/i;
 // Customer-facing texts (the proposal, the page) can't say "expediente" either.
 export function hasJargon(text: string, customerFacing = false): boolean {
   return JARGON.test(text || "") || (customerFacing && /\bexpediente\b/i.test(text || ""));
@@ -119,8 +136,39 @@ export function silentProposalIssues(plan: BusinessPlan): string[] {
     if (hrs.length) out.push(`${where} states ${hrs.join(", ")} hours that the owner never gave. Use only the owner's hours (${ownerHours.join(", ") || "none given"}) or don't state hours.`);
     if (hasJargon(t, true)) out.push(`${where} uses internal words (field names, "expediente", notes about the owner). Write it for the customer.`);
   }
+  // A discount the owner never asked for: not in the offer, not anywhere else.
+  if (!plan.profile.offerWanted) {
+    if (plan.offer) out.push("There is an offer, but the owner never asked for a discount or promotion. Remove it (no offer).");
+    const all: [string, string][] = [...texts, ["videoScript", plan.videoScript], ["steps", plan.steps.join(" ")], ["campaignType", plan.campaignType]];
+    for (const [where, t] of all) if (t && where !== "offer" && mentionsDiscount(t)) out.push(`${where} mentions a discount or promotion the owner never asked for. Remove it.`);
+  }
   return out;
 }
+
+// Discounts and promotions ("15 % de descuento", "primera clase gratis", "% off").
+const DISCOUNT = /(\d+\s?%\s?(de\s+)?(descuento|off|menos)|descuento|\bpromo(ci[oó]n)?\b|discount|\b\d+\s?% off|(primera?|first)\s+\w+(\s+\w+)?\s+(gratis|free))/i;
+export function mentionsDiscount(text: string): boolean {
+  return DISCOUNT.test(text || "");
+}
+// Removes every sentence about a discount (and the offer) from a proposal.
+export function withoutDiscounts(plan: BusinessPlan): BusinessPlan {
+  const cut = (t: string) => (mentionsDiscount(t) ? t.split(/(?<=[.!?])\s+/).filter((x) => !mentionsDiscount(x)).join(" ").trim() : t);
+  return {
+    ...plan,
+    offer: null,
+    promise: cut(plan.promise),
+    pricingNote: cut(plan.pricingNote),
+    serviceIncludes: cut(plan.serviceIncludes),
+    videoScript: cut(plan.videoScript),
+    campaignType: cut(plan.campaignType),
+    steps: plan.steps.map(cut).filter(Boolean),
+    differentiators: plan.differentiators.map(cut).filter(Boolean),
+    packages: plan.packages.map((k) => ({ ...k, includes: cut(k.includes), note: cut(k.note) })),
+    faq: plan.faq.filter((f) => !mentionsDiscount(`${f.q} ${f.a}`)),
+  };
+}
+// The owner asking for one, in their own words.
+export const ASKS_OFFER = /(descuento|oferta|promoci|promo\b|discount|\boffer\b|% off|\d+\s?%|gratis la primera|first (one|class|session|week) free)/i;
 
 // ---------- what a reply may say ----------
 // One question per message: everything after the first question goes.
