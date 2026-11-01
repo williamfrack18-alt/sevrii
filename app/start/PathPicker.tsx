@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useLang, useT } from "@/components/LangProvider";
 import { startProjectAction } from "@/app/actions";
+import SevriiLoader from "@/components/SevriiLoader";
 
 export default function PathPicker({ newProject = false, initial = null }: { newProject?: boolean; initial?: "existing" | "new" | "agent" | null }) {
   const [selected, setSelected] = useState<"existing" | "new" | "agent" | null>(initial);
@@ -34,6 +35,8 @@ export default function PathPicker({ newProject = false, initial = null }: { new
 
   return (
     <div className="flex flex-col items-center gap-7">
+      {/* From the choice to the dashboard: Sevrii's logo loading */}
+      {pending && <SevriiLoader full label={selected === "agent" ? (es ? "Preparando tu agente…" : "Getting your agent ready…") : es ? "Preparando tu proyecto…" : "Getting your project ready…"} />}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-[1040px]">
         <button type="button" onClick={() => setSelected("existing")} className={cardStyle(selected === "existing")}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#122118" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

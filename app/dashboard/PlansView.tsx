@@ -9,8 +9,6 @@ import { ACCENT, BRAND_BTN, RING } from "@/lib/panel";
 
 const GREEN = ACCENT;
 const AMBER = "#ffc400";
-const HERO_VIDEO = "EsrX_WSx2UM"; // same background video as /ofrecerservicios
-const FADE = { WebkitMaskImage: "linear-gradient(#000 70%, transparent)", maskImage: "linear-gradient(#000 70%, transparent)" } as const;
 
 // Plans: start free, then pick the plan that includes the next step.
 export default function PlansView({
@@ -65,25 +63,10 @@ export default function PlansView({
   return (
     <div
       className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen"
-      style={{ background: "radial-gradient(ellipse 50% 30% at 80% 62%, rgba(61,220,132,.13), transparent 70%), radial-gradient(ellipse 45% 40% at 15% 85%, rgba(61,220,132,.10), transparent 70%), #000" }}
     >
-      {/* Hero: the same background video as /ofrecerservicios, tinted dark green; the cards sit on top of its lower half. */}
+      {/* Hero: the dashboard's background video (behind every section) shows
+          through; the cards sit on top of its lower half. */}
       <div className="relative overflow-hidden pb-[240px] md:pb-[300px]">
-        <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none" style={{ ...FADE, background: `#020a06 url("https://i.ytimg.com/vi/${HERO_VIDEO}/maxresdefault.jpg") center/cover no-repeat` }}>
-          <iframe
-            src={`https://www.youtube.com/embed/${HERO_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${HERO_VIDEO}&controls=0&modestbranding=1&rel=0&disablekb=1&playsinline=1`}
-            title=""
-            tabIndex={-1}
-            allow="autoplay; encrypted-media"
-            className="absolute top-1/2 left-1/2 border-0"
-            style={{ width: "100%", height: "56.25vw", minHeight: "100%", minWidth: "177.78vh", transform: "translate(-50%,-50%)" }}
-          />
-        </div>
-        <div
-          aria-hidden
-          className="absolute inset-0 pointer-events-none"
-          style={{ ...FADE, background: "radial-gradient(ellipse 70% 80% at 30% 40%, rgba(28,90,61,.55), transparent 70%), linear-gradient(to bottom, rgba(2,10,6,.70) 0%, rgba(2,10,6,.55) 45%, rgba(0,0,0,.94) 88%, #000 100%)" }}
-        />
         <div className="relative h-14 px-4 md:px-6 flex items-center">
           <span className="text-[17px] font-semibold text-white">
             Sevrii <span className="font-normal" style={{ color: "rgba(255,255,255,.55)" }}>· {t.nav}</span>

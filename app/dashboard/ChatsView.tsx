@@ -237,11 +237,11 @@ export default function ChatsView({ businessId, published, onStore }: { business
   const initial = (n: string) => (n || "?").trim().slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-var(--hdr))] md:h-screen bg-pbg text-pfg">
+    <div className="flex flex-col h-[calc(100dvh-var(--hdr))] md:h-screen text-pfg">
       {/* Header */}
-      <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3" style={{ borderBottom: line }}>
+      <div className="dash-head shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3" style={{ borderBottom: line }}>
         <div className="flex items-baseline gap-2 min-w-0">
-          <h1 className="text-[15px] font-medium tracking-[-0.01em] text-pfg">{t.title}</h1>
+          <h1 className="dash-title text-[15px] font-medium tracking-[-0.01em] text-pfg">{t.title}</h1>
           {unread > 0 && <span className="text-[13px] text-pmuted">{unread}</span>}
         </div>
         <button type="button" onClick={() => setShowAlerts((v) => !v)} className={`${quiet} -mr-2 md:mr-0 shrink-0`} style={showAlerts ? { color: "#0A0A0A", background: "rgba(10,10,10,0.051)" } : undefined}>
@@ -249,6 +249,8 @@ export default function ChatsView({ businessId, published, onStore }: { business
         </button>
       </div>
 
+      {/* Everything below the title: one white panel on the dark page */}
+      <div className="dash-panel flex-1 min-h-0 flex flex-col overflow-hidden mx-2 md:mx-4 mb-2 md:mb-4">
       {showAlerts && (
         <div className="shrink-0 px-4 md:px-6 pt-4 max-h-[50vh] overflow-y-auto" style={{ borderBottom: line }}>
           <StoreNotify />
@@ -483,6 +485,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -144,13 +144,13 @@ export default function StoreView({
   if (storeLocked(business)) return <StoreLocked business={business} lang={lang} onBrain={onBrain} />;
 
   return (
-    <div style={{ background: "#F5F5F3" }}>
+    <div>
       {/* Chat: fills the screen, composer pinned at the bottom */}
       <section
         className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col"
       >
-        <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3">
-          <span className="text-[17px] font-semibold text-pfg truncate min-w-0">
+        <div className="dash-head shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3">
+          <span className="dash-title text-[17px] font-semibold text-pfg truncate min-w-0">
             {business.name} <span className="text-pmuted font-normal">· Store</span>
           </span>
           <div className="flex items-center gap-2 shrink-0">
@@ -195,7 +195,7 @@ export default function StoreView({
                   type="button"
                   disabled={busy}
                   onClick={() => publish(true)}
-                  className="tap h-8 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60"
+                  className="dash-primary tap h-8 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60"
                   style={BRAND_BTN}
                 >
                   {busy ? st.publishing : st.publish}
@@ -363,7 +363,7 @@ function StoreLocked({ business, lang, onBrain }: { business: ClientBusiness; la
           ? es ? "Escoge una de las 3 ideas que te propuso el Cerebro." : "Pick one of the 3 ideas the Brain proposed."
           : es ? `Te falta aprobar en el Cerebro: ${pending.map((k) => parts[k]).join(", ")}.` : `Still to approve in the Brain: ${pending.map((k) => parts[k]).join(", ")}.`;
   return (
-    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen flex items-center justify-center px-4" style={{ background: "#F5F5F3" }}>
+    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen flex items-center justify-center px-4">
       <div className="max-w-[520px] w-full rounded-[24px] bg-white p-6 md:p-8 flex flex-col gap-4" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06), 0 10px 30px -14px rgba(10,10,10,.16)" }}>
         <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: ACCENT }}>{es ? "Store · se abre al aprobar tu estrategia" : "Store · opens when your strategy is approved"}</span>
         <h1 className="text-[22px] font-semibold text-pfg leading-tight">{es ? "Primero terminemos tu estrategia" : "Let's finish your strategy first"}</h1>

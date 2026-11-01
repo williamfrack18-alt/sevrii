@@ -29,8 +29,8 @@ export default function ComingSoonView({
   const name = pillar === "payments" ? "Payments" : "Capital";
 
   return (
-    <div className="px-5 md:px-10 py-8 md:py-12 max-w-[1180px]">
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center">
+    <div className="px-4 md:px-10 pt-20 md:pt-32 pb-8 md:pb-12 max-w-[1180px]">
+      <div className="dash-panel p-6 md:p-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center">
         <div>
           <div className="flex items-center gap-3 mb-5">
             <span className="text-[15px] font-medium" style={{ color: ACCENT }}>

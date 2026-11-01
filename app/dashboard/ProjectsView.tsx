@@ -186,10 +186,10 @@ export default function ProjectsView({
   const contacts = business.callClicks + business.textClicks + business.whatsappClicks;
 
   return (
-    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen bg-pbg">
+    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen">
       <div className="max-w-[1120px] mx-auto px-4 md:px-10 pt-5 md:pt-14 pb-12 md:pb-20 flex flex-col gap-5 md:gap-6">
         {/* Greeting */}
-        <header className="pt-1 pb-2 md:pb-4">
+        <header className="dash-on-dark pt-1 pb-2 md:pb-4">
           <h1 className="p-display">{tx.hello(name)}</h1>
           <p className="p-display p-display-sub mt-0.5">{tx.sub(business.name)}</p>
         </header>
@@ -246,7 +246,7 @@ export default function ProjectsView({
 
         {/* Projects */}
         <section className="pt-6 md:pt-10 flex flex-col gap-4">
-          <div>
+          <div className="dash-on-dark">
             <h2 className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfg">{tx.projects}</h2>
             <p className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfaint">{tx.projectsSub}</p>
           </div>
@@ -377,7 +377,7 @@ export default function ProjectsView({
 
         {/* Explore the pillars */}
         <section className="pt-6 md:pt-10 flex flex-col gap-4">
-          <div>
+          <div className="dash-on-dark">
             <h2 className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfg">{tx.explore}</h2>
             <p className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfaint">{tx.exploreSub}</p>
           </div>

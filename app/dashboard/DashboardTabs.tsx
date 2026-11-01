@@ -22,6 +22,7 @@ export type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, Dashboar
 import { DASHBOARD_VIEWS } from "./types";
 import ChatsView from "./ChatsView";
 import UsageMeter from "./UsageMeter";
+import SevriiLoader from "@/components/SevriiLoader";
 import { unreadChatsAction } from "@/app/chatActions";
 import { BRAND_BTN } from "@/lib/panel";
 
@@ -236,7 +237,17 @@ export default function DashboardTabs({
     });
   }
 
+  // Moving between sections: Sevrii's logo shows for a moment over the
+  // section while the new one mounts, then fades out.
+  const [moving, setMoving] = useState<"" | "on" | "leaving">("");
+  const movingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => movingTimers.current.forEach(clearTimeout), []);
   function setView(next: DashboardView) {
+    if (next !== view) {
+      movingTimers.current.forEach(clearTimeout);
+      setMoving("on");
+      movingTimers.current = [setTimeout(() => setMoving("leaving"), 420), setTimeout(() => setMoving(""), 720)];
+    }
     setViewState(next);
     if (next === "store" || next === "chats") setStoreOpen(true);
     // Keep the URL in sync so a refresh or a shared link opens the same section.
@@ -369,7 +380,9 @@ export default function DashboardTabs({
     // --hdr (set in globals.css on .dash-root) = height of the mobile chrome:
     // top bar + bottom tab bar + safe areas; 0 on desktop.
     // Full-height views use calc(100dvh - var(--hdr)).
-    <div className="dash-root theme-panel flex flex-col md:flex-row">
+    <div className="dash-root theme-panel dash-dark flex flex-col md:flex-row" style={{ ["--rail-w" as string]: railOpen ? "256px" : "76px" }}>
+      {moving && <SevriiLoader cover leaving={moving === "leaving"} />}
+      {switching && <SevriiLoader full label={lang === "es" ? "Abriendo tu proyecto…" : "Opening your project…"} />}
       {/* Mobile top bar: current project (opens Inicio), avatar (opens the menu) */}
       <header className="dash-topbar md:hidden sticky top-0 z-30">
         <button
@@ -455,14 +468,14 @@ export default function DashboardTabs({
 
       {/* Desktop rail: collapsed to icons by default, expands with the toggle */}
       <aside
-        className={`hidden md:flex ${railOpen ? "w-[256px] min-w-[256px] p-4 overflow-y-auto overflow-x-hidden" : "w-[76px] min-w-[76px] px-3 py-4"} shrink-0 sticky top-0 z-30 h-screen flex-col justify-between ${railAnim ? "transition-[width,min-width] duration-200" : ""} bg-pcard`}
+        className={`hidden md:flex ${railOpen ? "w-[256px] min-w-[256px] p-4 overflow-y-auto overflow-x-hidden" : "w-[76px] min-w-[76px] px-3 py-4"} shrink-0 sticky top-0 z-30 h-screen flex-col justify-between ${railAnim ? "transition-[width,min-width] duration-200" : ""} bg-pcard dash-rail`}
         style={{ boxShadow: "1px 0 0 rgba(10,10,10,.06)" }}
       >
         <div className="min-w-0">
           <div className={`flex items-center ${railOpen ? "justify-between pl-2" : "flex-col gap-4"} mb-6 pt-1`}>
             <a href="/dashboard" aria-label="Sevrii" className="flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/sevrii-logo.png" alt="" className="h-7 w-7 object-contain invert" />
+              <img src="/assets/sevrii-logo.png" alt="" className="h-7 w-7 object-contain" />
               {railOpen && <span className="text-[19px] font-medium tracking-[-0.02em] text-pfg">Sevrii</span>}
             </a>
             <button
@@ -622,7 +635,7 @@ export default function DashboardTabs({
                 <span className="text-[14px] font-medium text-pfg truncate">{bt.plans[plan.id].name}</span>
               </span>
               {plan.id === "free" ? (
-                <span className="text-[12px] font-medium px-3 py-1.5 rounded-full shrink-0" style={BRAND_BTN}>
+                <span className="dash-rail-cta text-[12px] font-medium px-3 py-1.5 rounded-full shrink-0" style={BRAND_BTN}>
                   {bt.lock.upgrade}
                 </span>
               ) : (
@@ -674,6 +687,16 @@ export default function DashboardTabs({
 
       {/* Main content */}
       <main className="dash-main grow min-w-0">
+        {/* The landing's background video behind the top of every section (one
+            layer, so it keeps playing when the owner moves between sections). */}
+        <div className="dash-backdrop" aria-hidden="true">
+          <iframe
+            src="https://www.youtube.com/embed/EsrX_WSx2UM?autoplay=1&mute=1&loop=1&playlist=EsrX_WSx2UM&controls=0&modestbranding=1&rel=0&disablekb=1&playsinline=1"
+            title=""
+            tabIndex={-1}
+            allow="autoplay; encrypted-media"
+          />
+        </div>
         {view === "projects" && (
           <ProjectsView
             projects={liveProjects}

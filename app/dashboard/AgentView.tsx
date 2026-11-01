@@ -88,7 +88,7 @@ export default function AgentView({
 
   if (!isAgent)
     return (
-      <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen flex items-center justify-center p-6" style={{ background: "#F5F5F3" }}>
+      <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen flex items-center justify-center p-6">
         <div className="rounded-[24px] p-6 max-w-md flex flex-col gap-3" style={CARD}>
           <span className="text-[17px] font-semibold text-pfg">{t.noAgent}</span>
           <p className="text-[13.5px] text-pfg2 leading-relaxed">{t.noAgentText}</p>
@@ -102,15 +102,15 @@ export default function AgentView({
     );
 
   return (
-    <div style={{ background: "#F5F5F3" }}>
+    <div>
       <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
-        <div className="shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3">
-          <span className="text-[17px] font-semibold text-pfg truncate min-w-0">
+        <div className="dash-head shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3">
+          <span className="dash-title text-[17px] font-semibold text-pfg truncate min-w-0">
             {a.name || business.name} <span className="text-pmuted font-normal">· {t.area}</span>
           </span>
           <div className="flex items-center gap-2 shrink-0">
             <span
-              className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1 rounded-full font-medium"
+              className="dash-chip-s inline-flex items-center gap-1.5 text-[12px] px-3 py-1 rounded-full font-medium"
               style={a.enabled ? { background: TINT, color: ACCENT } : { background: "rgba(10,10,10,0.068)", color: "#27272A" }}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: a.enabled ? ACCENT : "#A1A1AA" }} />

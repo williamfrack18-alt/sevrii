@@ -1,5 +1,6 @@
 "use client";
 
+import SevriiLoader from "@/components/SevriiLoader";
 import { useEffect, useState } from "react";
 import { useLang } from "@/components/LangProvider";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
@@ -159,17 +160,18 @@ export default function AffiliatesView({ business, onNavigate }: { business: Cli
   }, [business?.id]);
 
   return (
-    <div className="min-h-screen px-4 md:px-10 py-6 md:py-10" style={{ background: "#F5F5F3" }}>
+    <div className="min-h-screen px-4 md:px-10 pb-6 md:pb-10">
       <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
+        <div className="dash-head dash-on-dark flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h1 className="text-[24px] md:text-[28px] font-semibold text-pfg tracking-tight">{t.title}</h1>
+            <h1 className="dash-title text-[24px] md:text-[28px] font-semibold text-pfg tracking-tight">{t.title}</h1>
             <a href={lang === "es" ? "/afiliados" : "/en/afiliados"} target="_blank" rel="noreferrer" className="text-[13px] text-psub hover:text-pfg underline underline-offset-4">
               {t.how} ↗
             </a>
           </div>
           <p className="text-[14.5px] text-psub max-w-[640px] leading-relaxed">{t.sub}</p>
         </div>
+        <div className="dash-panel p-4 md:p-6 flex flex-col gap-6">
 
         <div className="inline-flex self-start rounded-full p-1" style={INSET} role="tablist">
           {(["promote", "mine"] as const).map((k) => (
@@ -188,12 +190,13 @@ export default function AffiliatesView({ business, onNavigate }: { business: Cli
         </div>
 
         {!state ? (
-          <p className="text-[14px] text-pmuted">{t.loading}</p>
+          <div className="flex justify-center"><SevriiLoader label={t.loading} /></div>
         ) : tab === "promote" ? (
           <Promote state={state} t={t} />
         ) : (
           <Mine state={state} setState={setState} t={t} onNavigate={(v) => (onNavigate ? onNavigate(v) : window.location.assign(`/dashboard?view=${v}`))} />
         )}
+        </div>
       </div>
     </div>
   );

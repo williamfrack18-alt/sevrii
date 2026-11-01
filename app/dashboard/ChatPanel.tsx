@@ -617,7 +617,7 @@ export default function ChatPanel({
 
   if (empty) {
     return (
-      <div className="flex-1 min-h-0 flex flex-col items-center px-4 overflow-y-auto">
+      <div className="dash-panel flex-1 min-h-0 flex flex-col items-center px-4 overflow-y-auto mx-2 md:mx-4 mb-2 md:mb-4">
         <div className="w-full max-w-[760px] my-auto py-4 md:py-0 flex flex-col items-center gap-6 md:gap-8">
           <div className="text-center flex flex-col gap-3">
             <h1 className="text-[24px] md:text-[32px] leading-tight font-medium tracking-[-0.02em] text-pfg">{texts.emptyTitle}</h1>
@@ -633,7 +633,8 @@ export default function ChatPanel({
   const label = dockLabel || (lang === "es" ? "Ver el resumen" : "See the summary");
   return (
     <div className="flex-1 min-h-0 flex">
-    <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+    {/* The conversation is a white panel on the dark page */}
+    <div className="dash-panel flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden mx-2 md:ml-4 md:mr-3 mb-2 md:mb-4">
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-10 md:pb-14 flex flex-col gap-6 md:gap-7">
           {head}

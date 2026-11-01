@@ -328,11 +328,11 @@ export default function PlanView({
   );
 
   return (
-    <div className="overflow-x-clip" style={{ background: "#F5F5F3" }}>
+    <div className="overflow-x-clip">
       <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
-        <div className="shrink-0 px-4 md:px-6 pt-2.5 md:pt-3 pb-2.5 flex flex-col gap-2" style={{ borderBottom: `1px solid ${HAIR}` }}>
+        <div className="dash-head shrink-0 px-4 md:px-6 pt-2.5 md:pt-3 pb-2.5 flex flex-col gap-2" style={{ borderBottom: `1px solid ${HAIR}` }}>
           <div className="flex items-center justify-between gap-3 min-w-0">
-            <span className="text-[16px] md:text-[17px] font-semibold text-pfg truncate min-w-0">
+            <span className="dash-title text-[16px] md:text-[17px] font-semibold text-pfg truncate min-w-0">
               <span className="hidden md:inline">
                 Sevrii <span className="text-pmuted font-normal">· </span>
               </span>
@@ -965,7 +965,7 @@ function CenterFooter({ plan, done, t }: { plan: BusinessPlan; done: number; t: 
 function StatusChip({ tone, children }: { tone?: "done" | "live"; children: ReactNode }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-[12px] h-7 px-3 rounded-full font-medium shrink-0 whitespace-nowrap"
+      className="dash-chip-s inline-flex items-center gap-1.5 text-[12px] h-7 px-3 rounded-full font-medium shrink-0 whitespace-nowrap"
       style={tone === "done" ? { background: "rgba(22,163,74,0.12)", color: GREEN } : { background: "rgba(10,10,10,0.043)", color: "#27272A", boxShadow: `inset 0 0 0 1px ${HAIR}` }}
     >
       {tone === "live" && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: GREEN }} />}
@@ -977,11 +977,11 @@ function StatusChip({ tone, children }: { tone?: "done" | "live"; children: Reac
 // Full labels on wide screens.
 function StageBar({ labels, current }: { labels: string[]; current: number }) {
   return (
-    <div className="hidden lg:flex items-center flex-wrap gap-x-1.5 gap-y-1">
+    <div className="dash-stage hidden lg:flex items-center flex-wrap gap-x-1.5 gap-y-1">
       {labels.map((l, i) => (
         <div key={l} className="flex items-center gap-1.5">
           <span
-            className="inline-flex items-center gap-1 text-[11.5px] px-2 py-0.5 rounded-full whitespace-nowrap"
+            className={`inline-flex items-center gap-1 text-[11.5px] px-2 py-0.5 rounded-full whitespace-nowrap ${i === current ? "dash-stage-on" : ""}`}
             style={i === current ? { background: "rgba(22,163,74,0.12)", color: GREEN, fontWeight: 600 } : i < current ? { color: "#52525B" } : { color: "#52525b" }}
           >
             {i < current && <Check size={11} />}
@@ -1004,7 +1004,7 @@ function StageSteps({ labels, current, t }: { labels: string[]; current: number;
       </span>
       <div className="flex items-center gap-1 shrink-0 w-[96px]" aria-hidden="true">
         {labels.map((l, i) => (
-          <span key={l} className="h-1 flex-1 rounded-full" style={{ background: i <= current ? GREEN : "rgba(10,10,10,0.102)", opacity: i < current ? 0.55 : 1 }} />
+          <span key={l} className={`h-1 flex-1 rounded-full ${i <= current ? "" : "dash-step-off"}`} style={{ background: i <= current ? GREEN : "rgba(10,10,10,0.102)", opacity: i < current ? 0.55 : 1 }} />
         ))}
       </div>
     </div>

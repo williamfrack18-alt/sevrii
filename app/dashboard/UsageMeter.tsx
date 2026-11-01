@@ -44,7 +44,7 @@ export default function UsageMeter({ lang, onPlans }: { lang: "es" | "en"; onPla
                 {left(r)} <span className="text-pmuted font-normal">/ {r.limit}</span>
               </span>
             </span>
-            <span className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(10,10,10,0.08)" }}>
+            <span className="dash-meter-track h-1 rounded-full overflow-hidden" style={{ background: "rgba(10,10,10,0.08)" }}>
               <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: pct <= 10 ? "#D97706" : GREEN }} />
             </span>
           </span>

@@ -1,5 +1,6 @@
 "use client";
 
+import SevriiLoader from "@/components/SevriiLoader";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getCampaignResultsAction } from "@/app/marketingResultsActions";
 import { approveStrategyAction, getAgentStateAction } from "@/app/agentActions";
@@ -196,7 +197,7 @@ export default function MarketingView({
 
   if (locked) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#F5F5F3" }}>
+      <div className="min-h-screen flex items-center justify-center px-4">
         <div className="max-w-[520px] w-full rounded-[24px] p-7 flex flex-col items-center text-center gap-4" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="5" y="11" width="14" height="9" rx="2" />
@@ -341,7 +342,7 @@ export default function MarketingView({
       )}
       <StepList items={[...nodes, ...media]} />
       <div className="pt-1">{footer}</div>
-      {approved && agent === undefined && <span className="text-[13px] text-psub">{t.agent.loading}</span>}
+      {approved && agent === undefined && <SevriiLoader size={40} label={t.agent.loading} />}
       {showAgent && agent && (
         <button type="button" onClick={() => setRunningOpen(true)} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
           {es ? "Ver lo que está en marcha" : "See what's running"}
@@ -380,10 +381,10 @@ export default function MarketingView({
 
   if (section === "agent")
     return (
-      <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen px-4 md:px-8 py-6 md:py-10" style={{ background: "#F5F5F3" }}>
+      <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen px-4 md:px-8 pb-6 md:pb-10">
         <div className="max-w-[880px] mx-auto flex flex-col gap-5">
-          <div>
-            <h1 className="text-[22px] md:text-[26px] font-semibold text-pfg">{es ? "Agente de marketing" : "Marketing agent"}</h1>
+          <div className="dash-head dash-on-dark flex flex-col">
+            <h1 className="dash-title text-[22px] md:text-[26px] font-semibold text-pfg">{es ? "Agente de marketing" : "Marketing agent"}</h1>
             <p className="text-[14.5px] text-psub mt-1 leading-relaxed max-w-[640px]">
               {es
                 ? "Ejecuta lo que aprobaste: arma tus campañas en Meta con tus videos, te pide el OK antes de lanzar o gastar, y revisa los resultados cada día. Si algo necesita que inicies sesión o pagues, te lo muestra en vivo."
@@ -417,11 +418,11 @@ export default function MarketingView({
     );
 
   return (
-    <div style={{ background: "#F5F5F3" }} className="overflow-x-clip">
+    <div className="overflow-x-clip">
       {/* 1. The strategist: the chat comes first, full height */}
       <section ref={chatRef} className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
-        <div className="shrink-0 h-12 md:h-14 px-4 md:px-6 flex items-center justify-between gap-3">
-          <span className="min-w-0 truncate text-[16px] md:text-[17px] font-semibold text-pfg">
+        <div className="dash-head shrink-0 h-12 md:h-14 px-4 md:px-6 flex items-center justify-between gap-3">
+          <span className="dash-title min-w-0 truncate text-[16px] md:text-[17px] font-semibold text-pfg">
             {business.name} <span className="text-pmuted font-normal">· {t.flow.title}</span>
           </span>
           <StatusLine parts={statusParts} approvedMark={approved} />
@@ -539,7 +540,7 @@ function StatusLine({ parts, approvedMark }: { parts: string[]; approvedMark: bo
       {parts.map((p, i) => (
         <span
           key={p}
-          className={`${i === 0 ? "flex" : "hidden lg:flex"} h-6 px-2.5 rounded-full text-[11.5px] font-medium items-center gap-1.5 whitespace-nowrap`}
+          className={`dash-chip-s ${i === 0 ? "flex" : "hidden lg:flex"} h-6 px-2.5 rounded-full text-[11.5px] font-medium items-center gap-1.5 whitespace-nowrap`}
           style={i === 0 ? { background: TINT, color: ACCENT } : { background: "rgba(10,10,10,0.05)", color: "#3F3F46" }}
         >
           {i === 0 && approvedMark && <Check />}
@@ -1129,11 +1130,11 @@ function VideosTab({
     }
   }
   return (
-    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen px-4 md:px-8 py-6 md:py-10" style={{ background: "#F5F5F3" }}>
+    <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen px-4 md:px-8 pb-6 md:pb-10">
       <div className="max-w-[1080px] mx-auto flex flex-col gap-5">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="dash-head dash-on-dark flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-[22px] md:text-[26px] font-semibold text-pfg">{es ? "Tus videos" : "Your videos"}</h1>
+            <h1 className="dash-title text-[22px] md:text-[26px] font-semibold text-pfg">{es ? "Tus videos" : "Your videos"}</h1>
             <p className="text-[14.5px] text-psub mt-1 leading-relaxed max-w-[620px]">
               {es
                 ? "Los videos que pide tu estrategia. Créalos con IA o grábalos con tu celular y súbelos aquí. Ninguno se publica sin tu OK."
@@ -1144,12 +1145,13 @@ function VideosTab({
             <button type="button" onClick={() => onAsk(es ? "¿Qué videos debo hacer para mi campaña?" : "Which videos should I make for my campaign?")} className="h-10 px-4 rounded-full text-[14px] font-medium" style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}>
               {es ? "Planear videos con el Cerebro" : "Plan videos with the Brain"}
             </button>
-            <button type="button" disabled={busy !== null} onClick={() => input.current?.click()} className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
+            <button type="button" disabled={busy !== null} onClick={() => input.current?.click()} className="dash-primary h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
               {busy !== null ? (es ? `Subiendo ${busy}%` : `Uploading ${busy}%`) : es ? "Subir mi video" : "Upload my video"}
             </button>
             <input ref={input} type="file" accept="video/mp4,video/quicktime,video/webm" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
           </div>
         </div>
+        <div className="dash-panel p-4 md:p-6 flex flex-col gap-5">
         {err && <p className="text-[13.5px] text-red-600">{err}</p>}
         {planned > 0 && (
           <p className="text-[13.5px] text-pfg2 rounded-xl px-4 py-3 bg-white" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06)" }}>
@@ -1167,6 +1169,7 @@ function VideosTab({
         ) : (
           <VideoGallery videos={vids} es={es} focusId={focusId} onPick={onPick} onAsk={onAsk} />
         )}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import SevriiLoader from "@/components/SevriiLoader";
 import { useEffect, useMemo, useState } from "react";
 import { useLang } from "@/components/LangProvider";
 import { PAYMENTS_TEXT } from "@/lib/paymentsI18n";
@@ -90,15 +91,19 @@ export default function PaymentsView({ business, services }: { business: ClientB
   }
 
   if (!state) {
-    return <div className="px-4 md:px-10 py-12 text-muted text-[14px]">{t.loading}</div>;
+    return (
+      <div className="px-4 md:px-10 pt-24 md:pt-40 flex justify-center">
+        <SevriiLoader label={t.loading} />
+      </div>
+    );
   }
 
   const ready = state.status === "ready";
 
   return (
-    <div className="px-4 md:px-10 py-6 md:py-12 max-w-[1180px]">
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <span className="text-[15px] font-medium" style={{ color: ACCENT }}>
+    <div className="px-4 md:px-10 pb-6 md:pb-12 max-w-[1180px]">
+      <div className="dash-head flex flex-wrap items-center gap-3 mb-5">
+        <span className="dash-title text-[15px] font-medium" style={{ color: ACCENT }}>
           {t.eyebrow}
         </span>
         {ready && (
@@ -108,6 +113,7 @@ export default function PaymentsView({ business, services }: { business: ClientB
         )}
       </div>
 
+      <div className="dash-panel p-5 md:p-8">
       {state.error && <p className="mb-6 text-[14px] text-red-600">{t.errLoad}</p>}
 
       {ready ? (
@@ -198,6 +204,7 @@ export default function PaymentsView({ business, services }: { business: ClientB
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
