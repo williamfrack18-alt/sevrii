@@ -89,9 +89,10 @@ footer a:hover{color:var(--ink)}
 html,body{background:#000;color:#fff}
 .hero{position:relative;overflow:hidden;padding-bottom:300px}
 .hero .video-bg,.hero .ov{-webkit-mask-image:linear-gradient(#000 70%,transparent);mask-image:linear-gradient(#000 70%,transparent)}
-.hero .video-bg{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;background:#020a06 url("https://i.ytimg.com/vi/EsrX_WSx2UM/maxresdefault.jpg") center/cover no-repeat}
-.hero .video-bg iframe{position:absolute;top:50%;left:50%;width:100vw;height:56.25vw;min-height:100%;min-width:177.78vh;transform:translate(-50%,-50%);border:0}
-.hero .ov{position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse 70% 80% at 30% 40%,rgba(28,90,61,.55),transparent 70%),linear-gradient(to bottom,rgba(2,10,6,.70) 0%,rgba(2,10,6,.55) 45%,rgba(0,0,0,.94) 88%,#000 100%)}
+.hero .video-bg{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;background:radial-gradient(ellipse 70% 80% at 30% 30%,rgba(28,90,61,.5),transparent 70%),#020a06}
+.hero .video-bg canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero .horizon{position:absolute;left:-10%;right:-10%;bottom:-20%;height:45%;border-radius:50%;background:radial-gradient(ellipse at center,#163d2c 0%,#0d2818 35%,#06130c 60%,transparent 78%);box-shadow:0 -2px 50px rgba(61,220,132,.12)}
+.hero .ov{display:none}
 .hero>header,.hero>.wrap{position:relative;z-index:2}
 header{position:relative;background:transparent;backdrop-filter:none}
 header nav{height:72px}
@@ -133,7 +134,7 @@ footer a:hover{color:#fff}
 </head>
 <body class="page-glow">
 <div class="hero">
-<div class="video-bg"><iframe src="https://www.youtube.com/embed/EsrX_WSx2UM?autoplay=1&amp;mute=1&amp;loop=1&amp;playlist=EsrX_WSx2UM&amp;controls=0&amp;showinfo=0&amp;modestbranding=1&amp;rel=0&amp;disablekb=1&amp;playsinline=1" title="" allow="autoplay; encrypted-media" tabindex="-1" aria-hidden="true"></iframe></div>
+<div class="video-bg"><canvas id="network"></canvas><div class="horizon"></div></div>
 <div class="ov"></div>
 <header><nav class="wrap">
   <a href="/en" class="logo"><img src="/assets/sevrii-logo.png" alt="">Sevrii <span>· Pricing</span></a>
@@ -188,6 +189,16 @@ document.querySelectorAll('.toggle button').forEach(function(b){b.addEventListen
   document.querySelectorAll('.toggle button').forEach(function(x){x.classList.toggle('on',x===b)});
   document.querySelectorAll('[data-m]').forEach(function(el){var v=el.getAttribute('data-'+k);if(el.tagName==='A')el.setAttribute('href',v);else el.textContent=v;});
 })});
+</script>
+<script>
+(function(){var c=document.getElementById('network');if(!c)return;var x=c.getContext('2d'),hero=c.closest('.hero'),W,H,d=Math.min(2,window.devicePixelRatio||1);
+function rs(){W=c.clientWidth;H=c.clientHeight;c.width=W*d;c.height=H*d;x.setTransform(d,0,0,d,0,0)}rs();window.addEventListener('resize',rs);
+var still=window.matchMedia('(prefers-reduced-motion: reduce)').matches,N=W<700?38:80,P=[];for(var i=0;i<N;i++)P.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25});
+var m={x:0,y:0,on:false};hero.addEventListener('mousemove',function(e){var r=c.getBoundingClientRect();m.x=e.clientX-r.left;m.y=e.clientY-r.top;m.on=true});hero.addEventListener('mouseleave',function(){m.on=false});
+function st(){x.clearRect(0,0,W,H);P.forEach(function(p){if(!still){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1}if(m.on){var dx=p.x-m.x,dy=p.y-m.y,q=Math.hypot(dx,dy);if(q<130&&q>0){var f=(130-q)/130*.6;p.x+=dx/q*f;p.y+=dy/q*f}}});
+for(var i=0;i<P.length;i++){for(var j=i+1;j<P.length;j++){var q=Math.hypot(P[i].x-P[j].x,P[i].y-P[j].y);if(q<140){x.strokeStyle='rgba(255,255,255,'+((1-q/140)*.3)+')';x.lineWidth=1;x.beginPath();x.moveTo(P[i].x,P[i].y);x.lineTo(P[j].x,P[j].y);x.stroke()}}
+if(m.on){var q2=Math.hypot(P[i].x-m.x,P[i].y-m.y);if(q2<180){x.strokeStyle='rgba(255,255,255,'+((1-q2/180)*.45)+')';x.beginPath();x.moveTo(P[i].x,P[i].y);x.lineTo(m.x,m.y);x.stroke()}}
+x.fillStyle='rgba(255,255,255,.75)';x.beginPath();x.arc(P[i].x,P[i].y,1.4,0,Math.PI*2);x.fill()}if(!still)requestAnimationFrame(st)}st()})();
 </script>
 </body>
 </html>

@@ -23,6 +23,7 @@ import { DASHBOARD_VIEWS } from "./types";
 import ChatsView from "./ChatsView";
 import UsageMeter from "./UsageMeter";
 import SevriiLoader from "@/components/SevriiLoader";
+import NetworkBackdrop from "@/components/NetworkBackdrop";
 import { unreadChatsAction } from "@/app/chatActions";
 import { BRAND_BTN } from "@/lib/panel";
 
@@ -687,15 +688,11 @@ export default function DashboardTabs({
 
       {/* Main content */}
       <main className="dash-main grow min-w-0">
-        {/* The landing's background video behind the top of every section (one
-            layer, so it keeps playing when the owner moves between sections). */}
+        {/* The landing hero's moving network behind the top of every section
+            (one layer, so it keeps moving when the owner changes sections). */}
         <div className="dash-backdrop" aria-hidden="true">
-          <iframe
-            src="https://www.youtube.com/embed/EsrX_WSx2UM?autoplay=1&mute=1&loop=1&playlist=EsrX_WSx2UM&controls=0&modestbranding=1&rel=0&disablekb=1&playsinline=1"
-            title=""
-            tabIndex={-1}
-            allow="autoplay; encrypted-media"
-          />
+          <NetworkBackdrop />
+          <div className="dash-horizon" />
         </div>
         {view === "projects" && (
           <ProjectsView
