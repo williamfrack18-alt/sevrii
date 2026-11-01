@@ -12,7 +12,8 @@ import { textOf } from "./common";
 // never touched here.
 
 const ALIGN = `Revisas una propuesta comercial después de una corrección del dueño. Tu única tarea: encontrar los textos que TODAVÍA contradicen la corrección y reescribirlos para que digan lo mismo que ella.
-- Devuelve solo los campos que hay que cambiar. Si todo ya está de acuerdo con la corrección, devuelve un objeto vacío.
+- Devuelve TODOS los campos del formato. En los que hay que cambiar, pon el texto (o la lista completa) corregido; en los que ya están de acuerdo con la corrección, pon "" (texto vacío) o [] (lista vacía). Vacío = no se toca.
+- Revisa con cuidado cada paso de "steps", cada pregunta frecuente, cada paquete y el guion del video: ahí suele quedar lo viejo.
 - No cambies nada más: ni el tono, ni datos, ni precios, ni nombres de paquetes. No agregues ofertas ni descuentos.
 - Cambia lo mínimo: la frase que contradice, no el texto entero.
 - Escribe en el mismo idioma de la propuesta.`;
@@ -40,42 +41,52 @@ const SCHEMA = {
     },
     faq: { type: "array", items: { type: "object", additionalProperties: false, properties: { q: S, a: S }, required: ["q", "a"] } },
   },
-  required: [],
+  // Every field is present; an empty string or an empty list means "no change".
+  required: ["service", "serviceIncludes", "serviceExcludes", "steps", "customer", "problem", "promise", "differentiators", "pricingNote", "videoScript", "packages", "faq"],
 };
 
 export async function alignProposal(plan: BusinessPlan, correction: string, lang: Lang): Promise<Record<string, unknown>> {
   const client = getClaude(40_000);
   if (!client || !correction.trim()) return {};
+  const system = `${ALIGN}\n\n${lang === "es" ? "La propuesta está en español." : "The proposal is in English."}`;
+  const content = `Corrección del dueño:\n${correction.slice(0, 1500)}\n\nPropuesta actual (JSON):\n${JSON.stringify({
+    service: plan.service,
+    serviceIncludes: plan.serviceIncludes,
+    serviceExcludes: plan.serviceExcludes,
+    steps: plan.steps,
+    customer: plan.customer,
+    problem: plan.problem,
+    promise: plan.promise,
+    differentiators: plan.differentiators,
+    packages: plan.packages,
+    pricingNote: plan.pricingNote,
+    faq: plan.faq,
+    videoScript: plan.videoScript,
+  })}`;
   try {
-    const res = await client.messages.create(
-      {
-        model: MODELS.guard,
-        max_tokens: 4000,
-        output_config: { format: { type: "json_schema", schema: SCHEMA } },
-        system: `${ALIGN}\n\n${lang === "es" ? "La propuesta está en español." : "The proposal is in English."}`,
-        messages: [
-          {
-            role: "user",
-            content: `Corrección del dueño:\n${correction.slice(0, 1500)}\n\nPropuesta actual (JSON):\n${JSON.stringify({
-              service: plan.service,
-              serviceIncludes: plan.serviceIncludes,
-              serviceExcludes: plan.serviceExcludes,
-              steps: plan.steps,
-              customer: plan.customer,
-              problem: plan.problem,
-              promise: plan.promise,
-              differentiators: plan.differentiators,
-              packages: plan.packages,
-              pricingNote: plan.pricingNote,
-              faq: plan.faq,
-              videoScript: plan.videoScript,
-            })}`,
-          },
-        ],
-      },
-      { timeout: 40_000, maxRetries: 1 }
-    );
-    const d = JSON.parse(textOf(res.content)) as Record<string, unknown>;
+    let d: Record<string, unknown>;
+    try {
+      const res = await client.messages.create(
+        { model: MODELS.guard, max_tokens: 4000, output_config: { format: { type: "json_schema", schema: SCHEMA } }, system, messages: [{ role: "user", content }] },
+        { timeout: 40_000, maxRetries: 1 }
+      );
+      d = JSON.parse(textOf(res.content)) as Record<string, unknown>;
+    } catch (err) {
+      // The schema can be refused (too complex for the API): the same request
+      // as plain JSON in the text, so the correction still reaches every part.
+      logAiError("align", err);
+      const res = await client.messages.create(
+        {
+          model: MODELS.guard,
+          max_tokens: 4000,
+          system: `${system}\n\nResponde SOLO con un objeto JSON con estas claves: ${Object.keys(SCHEMA.properties).join(", ")}. Vacío = no se toca.`,
+          messages: [{ role: "user", content }],
+        },
+        { timeout: 40_000, maxRetries: 1 }
+      );
+      const text = textOf(res.content);
+      d = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as Record<string, unknown>;
+    }
     const out: Record<string, unknown> = {};
     for (const k of ["service", "serviceIncludes", "serviceExcludes", "customer", "problem", "promise", "pricingNote", "videoScript"]) {
       if (typeof d[k] === "string" && (d[k] as string).trim()) out[k] = d[k];
