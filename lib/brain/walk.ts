@@ -90,7 +90,7 @@ export function forModel(content: string, lang: Lang): string {
   return content.replace(TOKEN, (_m, kind: string, arg?: string) => {
     if (kind === "part" && arg && (APPROVAL_BLOCKS as string[]).includes(arg))
       return lang === "es" ? `\n(Tarjeta mostrada: ${partName(arg as ApprovalBlock, lang)})` : `\n(Card shown: ${partName(arg as ApprovalBlock, lang)})`;
-    if (kind === "ideas") return lang === "es" ? "\n(Tarjeta mostrada: las 3 ideas)" : "\n(Card shown: the 3 ideas)";
+    if (kind === "ideas") return lang === "es" ? "\n(Tarjeta mostrada: las ideas)" : "\n(Card shown: the ideas)";
     if (kind === "market") return lang === "es" ? "\n(Tarjeta mostrada: lo que encontré en el mercado)" : "\n(Card shown: what I found in the market)";
     return lang === "es" ? "\n(Tarjeta mostrada: expediente aprobado)" : "\n(Card shown: plan approved)";
   });

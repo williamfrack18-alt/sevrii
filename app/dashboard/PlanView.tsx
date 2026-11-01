@@ -243,9 +243,12 @@ export default function PlanView({
       }
     />
   );
+  // Only the last ideas card in the chat can be the one they picked from;
+  // earlier rounds are options they passed on.
+  const lastIdeasId = [...msgs].reverse().find((m) => m.role !== "user" && m.content.includes("[[ideas]]"))?.id ?? null;
   const renderToken = ({ kind, arg, msgId }: ChatToken) => {
     if (kind === "part" && isBlock(arg)) return msgId === liveId ? partCard(arg) : <PartRow id={arg} plan={plan} stale={arg === reviewing} />;
-    if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} onChoose={(i) => act(() => chooseIdeaAction(i))} /> : null;
+    if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} passed={msgId !== lastIdeasId} onChoose={(i) => act(() => chooseIdeaAction(i))} /> : null;
     if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} />;
     if (kind === "market") return <MarketInChat plan={plan} />;
     return null;
@@ -785,16 +788,16 @@ function DoneCard({ live, onNavigate }: { live: boolean; onNavigate: (v: Dashboa
   );
 }
 
-// The 3 ideas (new-service path), inside the chat.
-function IdeasCard({ plan, busy, live, onChoose }: { plan: BusinessPlan; busy: boolean; live: boolean; onChoose: (i: number) => void }) {
+// The ideas (new-service path), inside the chat.
+function IdeasCard({ plan, busy, live, passed = false, onChoose }: { plan: BusinessPlan; busy: boolean; live: boolean; passed?: boolean; onChoose: (i: number) => void }) {
   const t = PLAN_TEXT[useLang()];
-  const chosen = plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
+  const chosen = !passed && plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
   const L = plan.mode === "agent" ? t.ideasC : t;
   if (!live) {
     return (
       <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={INSET}>
         {chosen ? <Check size={14} /> : <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "#D4D4D8" }} />}
-        <span className="text-[14px] text-pfg font-medium min-w-0 truncate">{chosen ? t.chosen(chosen.title) : t.ideasShown}</span>
+        <span className="text-[14px] text-pfg font-medium min-w-0 truncate">{chosen ? t.chosen(chosen.title) : passed ? t.ideasPassed : t.ideasShown}</span>
       </div>
     );
   }

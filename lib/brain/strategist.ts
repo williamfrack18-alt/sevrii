@@ -9,7 +9,7 @@ import { textOf } from "./common";
 const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, servicio, cliente, mercado y requisitos) armas la propuesta comercial de un servicio en EE. UU. (local, o en línea si serviceMode es "remote").
 
 Persona A: entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, una oferta de bienvenida, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
-Persona B: primero entrega 3 ideas (de las 5 investigadas). Cuando escoja una, entrega la misma propuesta que la persona A.
+Persona B: primero entrega 5 ideas variadas (de las 6 investigadas). Cuando escoja una, entrega la misma propuesta que la persona A.
 Persona C (mode "agent"): la persona crea un agente de IA, un producto digital que resuelve un problema él solo, en el chat de su página, las 24 horas, y cobra por usarlo. No tiene que ser de su oficio: primero entrega 3 ideas de agente (de las 5 investigadas); cuando escoja una, entrega la misma propuesta y además "agent".
 
 Agente (solo persona C):
@@ -32,12 +32,12 @@ Precios:
 Ideas de agente (persona C), puntaje de 1 a 5 en cada punto (mismos campos): fit = encaje con lo que le interesa (no con su experiencia); demand = cuánta gente lo busca o ya lo paga; cost = disposición a pagar frente a un chat gratis; requirements = riesgo legal bajo (nada de asesoría que exija licencia); speed = qué tan completo lo puede terminar un agente él solo, operando las páginas oficiales o el software de punta a punta. Muestra las 3 mejores con pros y contras, sin prometer ingresos.
 
 Ideas (persona B), puntaje de 1 a 5 en cada punto:
-- Encaje con su experiencia y herramientas.
+- Encaje con lo que quiere (algo de lo que ya sabe o algo nuevo: si quiere algo nuevo, no castigues la falta de experiencia), con dónde quiere trabajar y con sus herramientas.
 - Demanda con evidencia en su ciudad.
 - Inversión inicial dentro de su dinero disponible.
 - Requisitos para arrancar: menos trámites y permisos, más puntos.
 - Rapidez para conseguir el primer cliente.
-Muestra las 3 mejores con pros y contras, sin prometer ingresos. En pros y contras no hables de licencias ni de "confirmar si pide licencia", salvo que la idea investigada diga que ese servicio la exige.
+Muestra las 5 mejores, variadas entre sí, con pros y contras, sin prometer ingresos. En message no menciones datos de la persona que no estén en el perfil. En pros y contras no hables de licencias ni de "confirmar si pide licencia", salvo que la idea investigada diga que ese servicio la exige.
 
 Honestidad:
 - Solo hechos del expediente. Un diferenciador sin respaldo no va.
@@ -142,7 +142,7 @@ const AGENT_PROPOSAL_SCHEMA = obj({
 const IDEAS_SCHEMA = obj({
   ideas: {
     type: "array",
-    description: "Exactly the 3 best ideas, best first",
+    description: "The best ideas, best first: exactly 3 for persona C (agent), exactly 5 for persona B",
     items: obj({
       index: { type: "integer", description: "Index of the idea in the researched list" },
       fit: { type: "integer" },
@@ -263,9 +263,11 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
 }
 
 export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: Lang): Promise<{ ideas: Idea[]; message: string }> {
+  // B sees more options (people starting from zero want to compare); C keeps 3.
+  const count = plan.mode === "agent" ? 3 : 5;
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
-    `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\n${plan.ownIdea ? "La idea de índice 0 es la que trajo la persona: inclúyela siempre entre las 3, con su puntaje real y sus pros y contras honestos; en message di en una línea cómo salió frente a las otras. " : ""}Escoge las 3 mejores con su puntaje.`,
+    `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\n${plan.ownIdea ? "La idea de índice 0 es la que trajo la persona: inclúyela siempre entre las 3, con su puntaje real y sus pros y contras honestos; en message di en una línea cómo salió frente a las otras. " : ""}Escoge las ${count} mejores con su puntaje.`,
     IDEAS_SCHEMA
   );
   const picked: Idea[] = [];
@@ -275,11 +277,11 @@ export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: La
     if (!base || picked.some((p) => p.title === base.title)) continue;
     const pts = ["fit", "demand", "cost", "requirements", "speed"].reduce((a, k) => a + Math.max(0, Math.min(5, Number(o[k]) || 0)), 0);
     picked.push({ ...base, pros: str(o.pros, 600), cons: str(o.cons, 600), score: pts });
-    if (picked.length === 3) break;
+    if (picked.length === count) break;
   }
   // Their own idea (researched first) is always shown, with its score.
   const own = plan.ownIdea ? researched[0] : null;
-  if (own && !picked.some((p) => p.title === own.title)) picked.splice(2, 1), picked.unshift({ ...own, score: 0 });
+  if (own && !picked.some((p) => p.title === own.title)) picked.splice(count - 1, 1), picked.unshift({ ...own, score: 0 });
   else if (own) {
     const i = picked.findIndex((p) => p.title === own.title);
     if (i > 0) picked.unshift(...picked.splice(i, 1));

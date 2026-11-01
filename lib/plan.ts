@@ -39,6 +39,13 @@ export type Profile = {
   licenseNote: string;
   insured: "yes" | "no" | "";
   // B
+  // What they want: something tied to what they already know ("known"),
+  // something new they can learn ("new"), or either ("open").
+  direction: "known" | "new" | "open" | "";
+  // Where they want to work: from home/online, out (in person), or either.
+  workPlace: "home" | "out" | "any" | "";
+  // They asked for ideas before the interview ended: research with what we have.
+  ideasNow: boolean;
   workHistory: string;
   askedFor: string;
   tools: string;
@@ -183,6 +190,9 @@ export const EMPTY_PROFILE: Profile = {
   licenseStatus: "",
   licenseNote: "",
   insured: "",
+  direction: "",
+  workPlace: "",
+  ideasNow: false,
   workHistory: "",
   askedFor: "",
   tools: "",
@@ -334,6 +344,9 @@ export function parseProfile(raw: unknown): Profile {
     licenseStatus: oneOf(p.licenseStatus, ["has", "no", "not_needed"] as const),
     licenseNote: str(p.licenseNote, 400),
     insured: oneOf(p.insured, ["yes", "no"] as const),
+    direction: oneOf(p.direction, ["known", "new", "open"] as const),
+    workPlace: oneOf(p.workPlace, ["home", "out", "any"] as const),
+    ideasNow: p.ideasNow === true,
     workHistory: str(p.workHistory, 800),
     askedFor: str(p.askedFor, 600),
     tools: str(p.tools, 600),
@@ -434,7 +447,7 @@ export function parseIdeas(v: unknown): Idea[] {
       };
     })
     .filter((i) => i.title)
-    .slice(0, 5);
+    .slice(0, 6);
 }
 
 export function parsePlanAgent(raw: unknown): PlanAgent | null {
@@ -562,16 +575,20 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(p.serviceMode !== "remote" && !p.insured, "insured (yes / no)");
     need(!p.businessName, "businessName (if they have none, suggest 2 or 3 short names in the same message and let them pick)");
   } else if (plan.stage === "interview") {
+    // B: someone who wants a new service. Short and fluid: they may have no
+    // experience at all, and they can ask for ideas at any point.
     need(!p.city || !p.state, "city and state");
-    need(!p.workHistory, "workHistory (jobs they have had)");
-    need(!p.askedFor, "askedFor (what people ask them to help with)");
-    need(!p.tools, "tools (tools and equipment they already have)");
-    need(!p.hasVehicle, "hasVehicle (yes / no)");
-    need(p.hoursPerWeek === null, "hoursPerWeek (a number of hours; if they say \"medio tiempo\" or \"part time\", ask how many hours)");
-    need(p.startBudgetUsd === null, "startBudgetUsd (money available to start)");
-    need(!p.languages, "languages (es, en or both)");
-    need(!p.notWant, "notWant (work they don't want to do)");
-    need(!p.goal, "goal (extra income or full time)");
+    if (!p.ideasNow) {
+      need(!p.direction, "direction (something tied to what they already know or have done = known, something new they can learn = new, either = open; offer both, the two are fine)");
+      need(p.direction === "known" && !p.workHistory, "workHistory (jobs they have had, or what they know how to do)");
+      need(p.direction === "known" && !p.askedFor, "askedFor (what people ask them to help with)");
+      need(!p.workPlace, "workPlace (from home with a computer or phone = home, out in person at customers' places or on the street = out, either = any)");
+      need(!p.tools, "tools (what they have today: computer, phone, car, tools…)");
+      need(p.workPlace !== "home" && !p.hasVehicle, "hasVehicle (yes / no)");
+      need(p.hoursPerWeek === null, "hoursPerWeek (a number of hours; if they say \"medio tiempo\" or \"part time\", ask how many hours)");
+      need(p.startBudgetUsd === null, "startBudgetUsd (money available to start)");
+      need(!p.languages, "languages (es, en or both)");
+    }
   } else if (plan.stage === "ready_check" && plan.mode === "agent") {
     need(!p.agentTask, "agentTask (the complete task the agent DOES for each customer end to end — result left done, official pages it operates, sensitive data the customer types and when, how it proves it's done: propose it yourself from the chosen idea and ask them to confirm or adjust)");
     need(!p.remoteScope, "remoteScope (customers in the whole US = us, only one state = state, other countries too = world)");

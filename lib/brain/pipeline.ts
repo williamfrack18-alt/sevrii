@@ -141,11 +141,11 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
         message ||
         (plan.ideaRounds > 0
           ? es
-            ? "Encontré 3 opciones nuevas, distintas a las anteriores. Escoge la que más te guste, o dime qué no te convence."
-            : "I found 3 new options, different from the ones before. Pick the one you like, or tell me what doesn't convince you."
+            ? `Encontré ${ideas.length} opciones nuevas, distintas a las anteriores. Escoge la que más te guste, o dime qué no te convence.`
+            : `I found ${ideas.length} new options, different from the ones before. Pick the one you like, or tell me what doesn't convince you.`
           : es
-            ? "Encontré 3 opciones para ti. Escoge la que más te guste, o dime qué no te convence."
-            : "I found 3 options for you. Pick the one you like, or tell me what doesn't convince you.")
+            ? `Encontré ${ideas.length} opciones para ti. Escoge la que más te guste, o dime qué no te convence.`
+            : `I found ${ideas.length} options for you. Pick the one you like, or tell me what doesn't convince you.`)
       }\n\n${IDEAS_TOKEN}`
     );
     return;

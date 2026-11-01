@@ -45,6 +45,7 @@ Cómo conversas:
 - Corto y amable. Responde en el idioma en que te escribe el usuario (en español, tutea).
 - Sigue la lista "missing" del estado, en orden. Nunca preguntes algo que ya está en el expediente.
 - Si responde solo una parte, guarda eso y vuelve a preguntar SOLO lo que faltó, con otras palabras y un ejemplo. Nunca la des por respondida ni sigas a otro tema si no la contestó.
+- Horas y costos de un trabajo (costHoursPerJob, costMaterialsUsd): si nunca ha hecho ese servicio, no le preguntes en blanco. Dale el rango típico y tu número recomendado en la misma pregunta ("Un video corto suele tomar de 1 a 3 horas al principio. ¿Lo dejo en 2?"); si dice que sí, guárdalo.
 - serviceMode: si el servicio es claramente en persona (limpieza, mudanzas, reparaciones, jardinería, belleza a domicilio…), guárdalo como local sin preguntarlo; pregúntalo solo si puede hacerse a distancia.
 - Si una respuesta trae datos, guárdalos todos con save_profile en ese mismo turno y no los vuelvas a preguntar.
 - Nunca adivines ni supongas datos: guarda solo lo que la persona dijo de forma explícita (por ejemplo, no supongas sus idiomas por el idioma en que escribe; pregúntalo). La única excepción es serviceMode, como se explica abajo.
@@ -58,6 +59,12 @@ Cómo conversas:
 - Si responde "ok", "sí", "dale", "como tú digas" o algo que no contesta la pregunta, y tú le recomendaste una opción, toma tu recomendación: guárdala con save_profile en ese mismo turno y dilo en una línea ("Lo dejo en todo EE. UU.; lo puedes cambiar cuando quieras"). No repitas la misma pregunta.
 - Nunca digas que su mensaje se cortó o llegó incompleto. Si escribe algo corto o confuso ("ahora qué", "y ahora?", "no entiendo", "qué hago"), está perdido: dile en una línea qué falta y por qué, y dale 2 o 3 opciones concretas para contestar (también aparecen como botones debajo del chat). Si hay una opción recomendada, propónla: "¿Lo dejo así?".
 
+Si mode es "B: starting a new service" la persona quiere empezar un servicio nuevo. Puede no tener ninguna experiencia, y está bien: cualquiera puede aprender un servicio en pocas semanas. No es un interrogatorio:
+- Pregunta pronto, con las dos opciones, si quiere algo relacionado con lo que ya sabe hacer o prefiere probar algo nuevo (direction). Si ya dijo que no tiene experiencia o que quiere algo nuevo, guarda direction "new" (y workHistory "ninguno" si dijo que nunca ha trabajado) sin preguntarlo.
+- Si pide ideas u opciones ("dame ideas", "dime buenos servicios", "qué puedo hacer"), no sigas preguntando: guarda ideasNow=true junto con lo que ya sepas, y dile en una línea que con eso buscas ideas variadas y que después las afinan juntos. Solo hace falta su ciudad; si no la tienes, pídela en ese mismo mensaje como lo único que falta.
+- Si contesta "no sé" o "nunca lo he hecho", no insistas con la misma pregunta: propón tú una respuesta típica y pregúntale si la dejas así.
+- Si dice algo que responde varias preguntas ("solo tengo una computadora, nada de carro"), guárdalo todo de una vez.
+
 Si mode es "C: an AI agent" la persona va a crear un agente de IA: un producto digital nuevo, como un curso o un producto físico, que resuelve un problema por chat, solo, las 24 horas, y cobra por usarlo. El agente NO tiene que ser de su oficio ni de lo que ella sabe: no le preguntes por su experiencia, su método ni sus apuntes. En la entrevista solo necesitas lo justo para buscar ideas: qué temas, problemas o mercados le interesan (vale "estoy abierto a cualquier idea"), a quién le gustaría ayudar (vale "a cualquiera") y en qué idioma hablará el agente. Después tú investigas y le propones 3 ideas de agentes por los que la gente ya paga; si ella ya trae su propia idea, guárdala en agentInterest y dile que también la vas a evaluar. Cuando ya escogió una idea ("ready_check"), propón tú la tarea completa que el agente HACE por cada cliente de punta a punta (agentTask: qué deja terminado, en qué páginas oficiales o software entra, qué datos delicados escribe el cliente y cuándo, cómo comprueba que quedó hecho y qué le entrega) y sus límites (agentLimits) a partir de la idea, y pídele que los confirme o ajuste; pregunta si atiende todo EE. UU., un solo estado u otros países y recomienda todo EE. UU. (el agente le pregunta a cada cliente su estado y usa las fuentes oficiales de ese estado), salvo que la idea sea de un solo estado (por ejemplo, una licencia de Texas); no le pidas escoger un estado si no hace falta; al final sugiérele 2 nombres cortos. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA. El agente no solo guía: HACE la tarea. Entra al navegador, a las páginas oficiales o al software que haga falta, completa el trámite de punta a punta y entrega el resultado en el chat (por ejemplo: deja la LLC creada, deja la cita hecha). El cliente solo escribe lo delicado (una contraseña, su tarjeta al pagar) directo en la página oficial cuando el agente se lo pide, y da su OK antes de firmar, enviar o pagar; lo controla todo hablando o escribiendo en el chat. Nunca reemplaza a un profesional con licencia cuando la ley lo exige.
 
 Qué no haces:
@@ -67,8 +74,9 @@ Qué no haces:
 
 Cuando save_profile responda que el perfil está completo, dile en una o dos líneas que ahora vas a investigar su zona (1 a 2 minutos) y que aquí mismo verá el avance y después la propuesta. En ese mensaje NO hagas ninguna pregunta: mientras investigas el chat queda bloqueado y no te puede contestar.`;
 
-const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las 3 ideas que aparecen en el estado ("ideas"; si mode es C son ideas de agentes de IA); las ve en una tarjeta en este mismo chat, con un botón para escoger cada una. Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
-- Si dice cuál quiere, llama a choose_idea con su número (1, 2 o 3).
+const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las ideas que aparecen en el estado ("ideas"; si mode es C son ideas de agentes de IA); las ve en una tarjeta en este mismo chat, con un botón para escoger cada una. Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
+- Si dice cuál quiere, llama a choose_idea con su número (el de la tarjeta).
+- Si pide más o muchas ideas para comparar, búscalas con more_ideas (con lo que dijo como feedback).
 - Si ninguna le convence ("no me gusta", "dame otras", "no me siento cómoda con eso"), pregúntale en una línea qué no le gustó o qué preferiría, si no lo dijo ya. Con su respuesta llama a more_ideas con ese feedback. No insistas en las ideas que rechazó.
 - Si trae su propia idea concreta ("quiero un agente que…", "prefiero ofrecer…"), llama a own_idea con un título corto y lo que hace.
 - Si "roundsLeft" es 0, no puedes buscar más: ayúdale a escoger entre las actuales o a describir su propia idea (own_idea).
@@ -111,7 +119,7 @@ Piensa antes de responder: mira el estado, lo que ya está guardado y lo que fal
 
 Si la persona escribe algo corto como "ok", "ya", "listo", "dale", "sí", "y ahora", "qué pasó", "qué sigue", "no entiendo" o "?":
 1. Si tu último mensaje recomendaba una opción o pedía confirmar algo, tómalo como un sí: guárdalo o aplícalo con tu herramienta en este mismo turno.
-2. Dile en una frase en qué paso va y qué viene ("Vamos en el paso 4, Tu agente; después investigo y te muestro la propuesta").
+2. Solo si parece perdido ("y ahora", "qué sigue", "no entiendo", "?"), dile en una frase en qué paso va y qué viene ("Vamos en el paso 4, Tu agente; después investigo y te muestro la propuesta"). Si solo dijo "sí" u "ok" a tu pregunta, no hables de pasos: guarda y sigue.
 3. Si todavía falta algo suyo, pregúntalo con tu opción recomendada ya puesta ("Te propongo X. ¿Lo dejo así?"). Debajo del chat aparecen botones con las respuestas.
 Nunca repitas una pregunta con las mismas palabras: si no la contestó, propón tú una respuesta concreta. Nunca digas que su mensaje se cortó.`;
 
@@ -145,7 +153,21 @@ const PROFILE_PROPS: Record<string, unknown> = {
   licenseStatus: { type: "string", enum: ["has", "no", "not_needed"] },
   licenseNote: { type: "string", description: "Which license / certification, if any" },
   insured: { type: "string", enum: ["yes", "no"] },
-  workHistory: { type: "string" },
+  direction: {
+    type: "string",
+    enum: ["known", "new", "open"],
+    description: "B only: known = something tied to what they already know or have done; new = something new they can learn (no experience needed); open = either. 'No tengo experiencia' / 'quiero probar algo nuevo' = new",
+  },
+  workPlace: {
+    type: "string",
+    enum: ["home", "out", "any"],
+    description: "B only: home = from home with a computer or phone; out = in person, at customers' places or on the street; any = either",
+  },
+  ideasNow: {
+    type: "boolean",
+    description: "B only: true when the person asks you for ideas or options now ('dame ideas', 'dime qué servicios puedo ofrecer') instead of answering more questions",
+  },
+  workHistory: { type: "string", description: "B: jobs they have had or what they know how to do ('ninguno' if they said none)" },
   askedFor: { type: "string" },
   tools: { type: "string" },
   hasVehicle: { type: "string", enum: ["yes", "no"] },
@@ -170,12 +192,12 @@ const SAVE_PROFILE: Tool = {
 };
 const CHOOSE_IDEA: Tool = {
   name: "choose_idea",
-  description: "The person picked one of the 3 ideas.",
-  input_schema: { type: "object", properties: { number: { type: "integer", enum: [1, 2, 3] } }, required: ["number"] },
+  description: "The person picked one of the ideas shown (by its number).",
+  input_schema: { type: "object", properties: { number: { type: "integer", enum: [1, 2, 3, 4, 5] } }, required: ["number"] },
 };
 const MORE_IDEAS: Tool = {
   name: "more_ideas",
-  description: "None of the 3 ideas convinces the person: search for different ones, taking their feedback into account.",
+  description: "None of the ideas convinces the person, or they want more to compare: search for different ones, taking their feedback into account.",
   input_schema: {
     type: "object",
     properties: { feedback: { type: "string", description: "What they didn't like and what they'd prefer, in their words" } },
@@ -184,7 +206,7 @@ const MORE_IDEAS: Tool = {
 };
 const OWN_IDEA: Tool = {
   name: "own_idea",
-  description: "The person wants their own idea instead of the 3 proposed: save it as the chosen idea.",
+  description: "The person wants their own idea instead of the ones proposed: save it as the chosen idea.",
   input_schema: {
     type: "object",
     properties: {
@@ -371,6 +393,11 @@ async function renameProject(b: BusinessRow, name: string) {
 const NO_NAME = /^(sin nombre|no tengo|todav[ií]a no|a[uú]n no|ninguno|ninguna|n\/?a|none|no name|not yet|no tiene|sin nombre todav[ií]a|por definir|tbd|-+)\b/i;
 const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
+// A plain yes to the Brain's last proposal ("sí, está bien", "dale", "ok").
+const SAID_YES = /^\s*(si|ok|okay|dale|esta bien|me parece|de acuerdo|perfecto|listo|claro|va|bueno|yes|yep|sure|sounds good|that works|fine)\b/;
+// The owner asks for ideas instead of more questions.
+const ASKS_IDEAS = /\b(ideas?|opciones|options|dime (buenos |algunos |que )?servicios|que (servicios? )?(puedo|podria) (hacer|ofrecer)|recomiendame|recomienda(me)?|sugiere(me)?|sugerencias|give me|what can i (do|offer)|suggest)\b/;
+
 // Did the owner actually talk about languages? (the model sometimes guesses
 // them from the language they write in, or from "Hispanic customers").
 const SAID_LANGUAGES = /\b(espa[ñn]ol|ingl[eé]s|spanish|english|idiomas?|languages?|biling[uü]e|bilingual|ambos|los dos|both)\b/i;
@@ -424,14 +451,22 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         delete input.languages;
         note = " (languages NOT saved: the owner never said which languages they serve in; ask them: español, inglés o los dos)";
       }
-      // A number is saved only if the owner said it ("medio tiempo" is not 20 hours).
+      // A number is saved only if the owner said it ("medio tiempo" is not 20
+      // hours), or if the Brain proposed it and the owner just said yes to it.
+      const agreed = SAID_YES.test(fold(lastSaid));
       for (const [k, rule] of Object.entries(OWNER_NUMBERS)) {
         if (input[k] === undefined || input[k] === null) continue;
         const n = Number(input[k]);
-        if (!Number.isFinite(n) || !ownerStated(n, ownerSaid, rule.zeroOk)) {
+        const ok = Number.isFinite(n) && (ownerStated(n, ownerSaid, rule.zeroOk) || (agreed && ownerStated(n, lastAssistant)));
+        if (!ok) {
           delete input[k];
-          note += ` (${k} NOT saved: the owner never said that number. Ask them ${rule.ask}; never assume it)`;
+          note += ` (${k} NOT saved: the owner never said or agreed to that number. Ask them ${rule.ask}, with a typical number they can accept; never assume it, and never mention a system or a rule to them)`;
         }
+      }
+      // "Give me ideas" is the owner's call, not the model's guess.
+      if (input.ideasNow === true && (plan.mode !== "new" || !ASKS_IDEAS.test(fold(ownerSaid)))) {
+        delete input.ideasNow;
+        note += " (ideasNow NOT saved: they did not ask for ideas; keep the interview going)";
       }
       // "No tengo nombre" is not a name: the Brain suggests some instead.
       if (typeof input.businessName === "string" && NO_NAME.test(input.businessName.trim())) {
@@ -493,7 +528,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
       if (plan.ideaRounds >= MAX_IDEA_ROUNDS) return { out: "error: no more idea rounds; help them pick or describe a service they want" };
       if (!(await researchWouldStart(b.userId, { budgetOnly: true })))
-        return { out: `error: no new search now. Facts to tell them (don't suggest upgrading unless this text does): "${researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es")}". Their 3 ideas are still here: help them pick one.` };
+        return { out: `error: no new search now. Facts to tell them (don't suggest upgrading unless this text does): "${researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es")}". Their ideas are still here: help them pick one.` };
       await updateBusinessPlan(b.id, requestMoreIdeas(plan, str(input.feedback, 300)));
       return { out: "searching new ideas. Tell them in one line you're looking for different options with what they said (1-2 minutes) and they'll see them here in the chat.", startPipeline: true };
     }
@@ -724,8 +759,8 @@ export function planGreeting(lang: Lang, b: BusinessRow): string {
   }
   if (p.mode === "new") {
     return es
-      ? "¡Hola! Soy el Cerebro de Sevrii. Te voy a ayudar a escoger un servicio que puedas empezar a ofrecer, según tu experiencia, tu tiempo y tu zona. Después investigo el mercado y te propongo cómo venderlo. Para empezar: ¿en qué ciudad y estado vives?"
-      : "Hi! I'm Sevrii's Brain. I'll help you pick a service you can start offering, based on your experience, your time and your area. Then I'll research the market and propose how to sell it. To start: what city and state do you live in?";
+      ? "¡Hola! Soy el Cerebro de Sevrii. Te voy a ayudar a escoger un servicio que puedas empezar a ofrecer: algo relacionado con lo que ya sabes hacer o algo nuevo que aprendas rápido, aunque no tengas experiencia. Te hago pocas preguntas, investigo tu zona y te doy ideas; si prefieres ver ideas ya, solo dímelo. Para empezar: ¿en qué ciudad y estado vives?"
+      : "Hi! I'm Sevrii's Brain. I'll help you pick a service you can start offering: something tied to what you already know, or something new you can learn fast, even with no experience. I'll ask a few questions, research your area and give you ideas; if you'd rather see ideas right away, just say so. To start: what city and state do you live in?";
   }
   return es
     ? "¡Hola! Soy el Cerebro de Sevrii. Primero te entiendo bien, después investigo tu zona y te propongo cómo vender tu servicio: a quién, a qué precio y con qué campaña. Para empezar: ¿qué servicio quieres vender y cuál fue el último trabajo que hiciste?"
