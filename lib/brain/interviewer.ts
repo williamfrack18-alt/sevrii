@@ -82,7 +82,7 @@ const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre la
 - Si dice cuál quiere, llama a choose_idea con su número (el de la tarjeta).
 - Si pide más o muchas ideas para comparar, búscalas con more_ideas (con lo que dijo como feedback).
 - Si ninguna le convence ("no me gusta", "dame otras", "no me siento cómoda con eso"), pregúntale en una línea qué no le gustó o qué preferiría, si no lo dijo ya. Con su respuesta llama a more_ideas con ese feedback. No insistas en las ideas que rechazó.
-- Si trae su propia idea concreta ("quiero un agente que…", "prefiero ofrecer…"), llama a own_idea con un título corto y lo que hace.
+- Si trae su propia idea concreta ("quiero un agente que…", "prefiero ofrecer…", "prefiero X", "mejor X", "quiero hacer X" con un servicio concreto), llama a own_idea con un título corto y lo que hace. NO busques más ideas en ese caso: su idea es la que va.
 - Si "roundsLeft" es 0, no puedes buscar más: ayúdale a escoger entre las actuales o a describir su propia idea (own_idea).
 Máximo 70 palabras.`;
 
@@ -701,12 +701,38 @@ export async function runPlanChatTurn(opts: {
   }
 
   // What the owner wrote in this chat (to check facts the model saves).
+  let nameNote = "";
+  // The name of the business is the owner's: when the Brain just asked for it
+  // and the answer is a name ("redes latinas"), it is saved as they wrote it
+  // (capitalized), never swapped for suggestions.
+  {
+    const p0 = business.plan;
+    const next0 = missingProfile(p0)[0] || "";
+    const lastAi = [...opts.history].reverse().find((h) => h.role === "assistant")?.content ?? "";
+    const msg = opts.message.trim().replace(/^["'«“]|["'»”.!]$/g, "").trim();
+    const words = msg.split(/\s+/).filter(Boolean);
+    if (
+      (p0.stage === "interview" || p0.stage === "ready_check") &&
+      next0.startsWith("businessName") &&
+      /nombre|name/i.test(lastAi) &&
+      words.length >= 1 && words.length <= 6 && msg.length <= 60 &&
+      !/[?¿]/.test(msg) && !NO_NAME.test(msg) &&
+      !/^(s[ií]|no|ok|dale|cu[aá]l|el|la|ese|esa|esta|este|the|that|yes)\b/i.test(msg)
+    ) {
+      const name = words.map((w) => (w.length > 2 || words.indexOf(w) === 0 ? w[0].toUpperCase() + w.slice(1) : w)).join(" ");
+      const profile = parseProfile({ ...p0.profile, businessName: name });
+      await updateBusinessPlan(business.id, parsePlan({ ...p0, profile }));
+      await renameProject(business, name);
+      business = (await getBusinessById(business.id))!;
+      nameNote = `\n\n(Internal note: the owner's business name "${name}" is saved. Call save_profile with businessName "${name}" now to confirm it, and don't suggest other names.)`;
+    }
+  }
   const ownerSaid = [...opts.history.filter((h) => h.role === "user").map((h) => h.content), opts.message].join("\n");
   const lastAssistant = [...opts.history].reverse().find((h) => h.role === "assistant")?.content ?? "";
   const askedSomething = isQuestionTurn(opts.message);
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
-    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}${askedSomething ? "\n\n(Internal note: the owner asked something or didn't understand. Answer exactly that, in simpler words, and don't ask them to approve anything in this message.)" : ""}\n\n${HARD_RULES}` },
+    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}${nameNote}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}${askedSomething ? "\n\n(Internal note: the owner asked something or didn't understand. Answer exactly that, in simpler words, and don't ask them to approve anything in this message.)" : ""}\n\n${HARD_RULES}` },
   ];
   let reply = "";
   let startPipeline = false;

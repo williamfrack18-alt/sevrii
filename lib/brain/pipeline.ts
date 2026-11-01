@@ -183,6 +183,9 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     // to the Strategist, never to the owner. Up to 2 correction rounds; the
     // owner only ever sees the corrected proposal.
     let guard = await guardPlan(plan, lang);
+    // Packages as the Strategist first wrote them: if the review changes them,
+    // its first summary (with the old names and prices) can't be shown.
+    const firstPackages = JSON.stringify(plan.packages.map((k) => [k.name, k.price]));
     for (let round = 0; round < 2; round++) {
       const issues = [...guard.block, ...silentProposalIssues(plan)];
       const kept = keptPriceIssue(plan, lang);
@@ -213,8 +216,9 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     const stale = [...strategyMsg.matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)/g)].some((m) => !known.has(Number(m[1].replace(/,/g, ""))));
     const range = marketRangeText(plan.market.prices, lang);
     const list = plan.packages.filter((k) => k.name && k.price).map((k) => `${k.name} (${k.price})`).join(", ");
+    const samePackages = JSON.stringify(plan.packages.map((k) => [k.name, k.price])) === firstPackages;
     const base =
-      strategyMsg && !stale && !hasJargon(strategyMsg, true) && !/\$\s?\d[\d,]*\s*[–-]\s*\$/.test(strategyMsg) && (plan.profile.offerWanted || !mentionsDiscount(strategyMsg))
+      strategyMsg && samePackages && !stale && !hasJargon(strategyMsg, true) && !/\$\s?\d[\d,]*\s*[–-]\s*\$/.test(strategyMsg) && (plan.profile.offerWanted || !mentionsDiscount(strategyMsg))
         ? strategyMsg
         : es
           ? `Listo: investigué tu zona y armé tu propuesta. ${range ? `En el mercado se cobra ${range}. ` : ""}${list ? `Te propongo estos paquetes: ${list}.` : ""}`.trim()
