@@ -53,7 +53,7 @@ export type SiteData = {
   // The owner decides how the page looks: price/offer cards in the photos
   // ("auto" = only while there are no real photos), and sections they hide.
   galleryCards: "auto" | "on" | "off";
-  hidden: PageSection[];
+  hidden: Hideable[];
   // The order of the sections under the first screen, and the look of that
   // first screen ("classic" = photos left and details right; "hero" = a wide
   // banner with the details under it; "simple" = text only, centered).
@@ -61,10 +61,23 @@ export type SiteData = {
   design: PageDesign;
   // What the owner already said no to, so it's never pushed again.
   declined: string[];
+  // How the owner chose to start the page: Sevrii's ready-to-sell template,
+  // one picked from the gallery, or a blank page ("" = not chosen yet).
+  start: StartMode;
 };
+
+export const START_MODES = ["ready", "template", "blank"] as const;
+export type StartMode = "" | (typeof START_MODES)[number];
 
 export const PAGE_SECTIONS = ["trust", "offerBand", "services", "photos", "steps", "faq", "cta"] as const;
 export type PageSection = (typeof PAGE_SECTIONS)[number];
+// Parts of the first screen the owner can also hide (a blank page starts with
+// all of them hidden): the photo column, the pitch with its key points, and
+// the packages/info cards. They stay in place; they never move.
+export const TOP_PARTS = ["media", "intro", "packages"] as const;
+export type TopPart = (typeof TOP_PARTS)[number];
+export type Hideable = PageSection | TopPart;
+export const HIDEABLE: readonly Hideable[] = [...PAGE_SECTIONS, ...TOP_PARTS];
 export const PAGE_DESIGNS = ["classic", "hero", "simple"] as const;
 export type PageDesign = (typeof PAGE_DESIGNS)[number];
 
@@ -140,6 +153,7 @@ export const EMPTY_SITE: SiteData = {
   order: [...PAGE_SECTIONS],
   design: "classic",
   declined: [],
+  start: "",
 };
 
 export const LIMITS = {
@@ -276,10 +290,11 @@ export function parseSite(raw: unknown): SiteData {
     lang: obj.lang === "en" ? "en" : "es",
     fromPlan: str(obj.fromPlan, 20),
     galleryCards: obj.galleryCards === "on" || obj.galleryCards === "off" ? obj.galleryCards : "auto",
-    hidden: (Array.isArray(obj.hidden) ? obj.hidden : []).filter((x): x is PageSection => (PAGE_SECTIONS as readonly string[]).includes(String(x))),
+    hidden: (Array.isArray(obj.hidden) ? obj.hidden : []).filter((x): x is Hideable => (HIDEABLE as readonly string[]).includes(String(x))),
     order: sectionOrder(obj.order),
     design: (PAGE_DESIGNS as readonly string[]).includes(String(obj.design)) ? (obj.design as PageDesign) : "classic",
     declined: (Array.isArray(obj.declined) ? obj.declined : []).map((x) => str(x, 30)).filter(Boolean).slice(0, 20),
+    start: (START_MODES as readonly string[]).includes(String(obj.start)) ? (obj.start as StartMode) : "",
   };
 }
 
@@ -313,6 +328,15 @@ export function activeOffer(site: SiteData, now = Date.now()): Offer | null {
   if (!site.offer) return null;
   if (site.offer.endsAt && Date.parse(site.offer.endsAt) <= now) return null;
   return site.offer;
+}
+
+// What each way of starting does to the page's look. The content is always the
+// one approved in the Brain; only what shows and how it's laid out changes.
+export function startLayout(mode: Exclude<StartMode, "">, design: PageDesign = "classic"): Pick<SiteData, "start" | "design" | "hidden"> {
+  // Blank keeps the classic layout underneath: while the photo column is hidden
+  // the page shows centered, and it takes its place as soon as it's shown.
+  if (mode === "blank") return { start: "blank", design: "classic", hidden: [...HIDEABLE] };
+  return { start: mode, design: mode === "ready" ? "classic" : design, hidden: [] };
 }
 
 // What the page still lacks to really sell — the chat asks for these, in order.

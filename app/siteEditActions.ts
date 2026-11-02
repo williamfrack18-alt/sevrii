@@ -8,7 +8,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/session";
 import { getBusinessBySlug, getServiceById, mergeBusinessSite, updateBusinessDetails, updateService, type BusinessRow } from "@/lib/db";
-import { LIMITS, PAGE_DESIGNS, PAGE_SECTIONS, sectionOrder, type PageDesign, type PageSection, type Point } from "@/lib/site";
+import { HIDEABLE, LIMITS, PAGE_DESIGNS, PAGE_SECTIONS, sectionOrder, type Hideable, type PageDesign, type PageSection, type Point } from "@/lib/site";
 
 async function owned(slug: string): Promise<BusinessRow | null> {
   const user = await getCurrentUser();
@@ -115,8 +115,9 @@ export async function moveSectionAction(slug: string, section: string, dir: numb
 
 export async function toggleSectionAction(slug: string, section: string, hide: boolean): Promise<{ ok: boolean }> {
   const b = await owned(slug);
-  if (!b || !isSection(section)) return fail;
-  const hidden = hide ? [...new Set([...b.site.hidden, section])] : b.site.hidden.filter((x) => x !== section);
+  if (!b || !(HIDEABLE as readonly string[]).includes(section)) return fail;
+  const part = section as Hideable;
+  const hidden = hide ? [...new Set([...b.site.hidden, part])] : b.site.hidden.filter((x) => x !== part);
   await mergeBusinessSite(b.id, b.site, { hidden });
   return done(b.slug);
 }

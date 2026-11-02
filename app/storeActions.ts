@@ -19,7 +19,8 @@ import {
   type BusinessRow,
   type ServiceRow,
 } from "@/lib/db";
-import { isOurBlob, ownsBlob, LIMITS, normalizePhone, publishGaps, type PublishGap, type SiteData } from "@/lib/site";
+import { isOurBlob, ownsBlob, LIMITS, normalizePhone, publishGaps, startLayout, PAGE_DESIGNS, START_MODES, type PageDesign, type PublishGap, type SiteData } from "@/lib/site";
+import { planFingerprint, planReadyForStore } from "@/lib/planToStore";
 import { allow, LIMITS as RATE } from "@/lib/guard";
 import { addChatMessage, listChatMessages } from "@/lib/db";
 import { agentAreaGreeting, runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
@@ -341,6 +342,49 @@ export async function fillStoreFromPlanAction(): Promise<{
   const business = await requireBusiness();
   const lang = await getLang();
   const ok = (await allow(`fillplan:${business.id}`, 20, 60 * 60)) && (await fillStoreFromPlan(business.id, lang)).filled;
+  const fresh = (await getBusinessById(business.id)) ?? business;
+  if (ok) refresh(fresh.slug);
+  return {
+    ok,
+    business: fresh,
+    services: await listServices(business.id),
+    messages: (await listChatMessages(business.id, "store")).map((m) => ({ id: m.id, role: m.role, content: m.content })),
+  };
+}
+
+// Creating the store: the owner picks how to start (Sevrii's ready-to-sell
+// template, a design from the gallery, or a blank page). The content is always
+// the strategy approved in the Brain: nothing is invented here.
+export async function chooseStartAction(mode: string, design?: string): Promise<{
+  ok: boolean;
+  business: BusinessRow;
+  services: ServiceRow[];
+  messages: { id: string; role: string; content: string }[];
+}> {
+  const business = await requireBusiness();
+  const lang = await getLang();
+  const valid = (START_MODES as readonly string[]).includes(mode);
+  const pick = (PAGE_DESIGNS as readonly string[]).includes(String(design)) ? (design as PageDesign) : "classic";
+  // The store opens only after the strategy is approved (same gate as the screen).
+  const open = business.published || business.plan.stage === "approved";
+  let ok = false;
+  if (valid && open && (await allow(`start:${business.id}`, 20, 60 * 60))) {
+    // The page is built from what was approved, if it doesn't have it yet.
+    if (planReadyForStore(business.plan) && business.site.fromPlan !== planFingerprint(business.plan)) await fillStoreFromPlan(business.id, lang);
+    const fresh = (await getBusinessById(business.id)) ?? business;
+    await mergeBusinessSite(business.id, fresh.site, startLayout(mode as "ready" | "template" | "blank", pick));
+    const es = lang === "es";
+    const note =
+      mode === "blank"
+        ? es
+          ? "Empezamos con tu página en blanco. Dime qué quieres poner primero (por ejemplo tus paquetes y precios, cómo trabajas o tus preguntas frecuentes) y lo agrego con lo que aprobaste en el Cerebro. A la derecha ves tu página tal como va quedando."
+          : "We're starting from a blank page. Tell me what to add first (for example your packages and prices, how you work or your FAQ) and I'll add it with what you approved in the Brain. On the right you see your page as it takes shape."
+        : es
+          ? "Tu página ya está armada con lo que aprobaste en el Cerebro. Revísala en la vista previa y dime aquí lo que quieras cambiar, o súbeme fotos y video reales de tu trabajo con el botón +."
+          : "Your page is built with what you approved in the Brain. Check it in the preview and tell me here what you'd like to change, or send me real photos and video of your work with the + button.";
+    await addChatMessage(business.id, "store", "assistant", note);
+    ok = true;
+  }
   const fresh = (await getBusinessById(business.id)) ?? business;
   if (ok) refresh(fresh.slug);
   return {

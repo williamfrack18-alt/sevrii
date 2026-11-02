@@ -12,7 +12,7 @@ import { previewOk } from "@/lib/preview";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { reachLabel, resolveReach } from "@/lib/reach";
-import { activeOffer, sectionOrder, storeTheme, type PageSection } from "@/lib/site";
+import { activeOffer, HIDEABLE, PAGE_DESIGNS, sectionOrder, storeTheme, type PageDesign, type PageSection, type TopPart } from "@/lib/site";
 import { getLang } from "@/lib/lang";
 import type { EditField } from "@/app/siteEditActions";
 import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, type MediaItem } from "./StoreParts";
@@ -103,7 +103,11 @@ export default async function PublicBusinessPage({
   // The owner can open their own page in edit mode (?editar=1): texts change in
   // place, sections move or hide, and the design is picked. Visitors never see it.
   const editing = isOwner && sp.editar === "1";
-  const ui = editing ? await getLang() : "es";
+  // The template gallery in the Store shows the owner their own page in each
+  // design (?diseno=…) before they pick one: complete, nothing saved.
+  const designParam = typeof sp.diseno === "string" ? sp.diseno : "";
+  const trying = isOwner && !editing && (PAGE_DESIGNS as readonly string[]).includes(designParam);
+  const ui = editing || (isOwner && !live) ? await getLang() : "es";
   // Payment links the owner turned on (only when their Stripe account can take payments).
   const [services, allPayLinks] = await Promise.all([
     listServices(business.id),
@@ -185,7 +189,15 @@ export default async function PublicBusinessPage({
     media.push({ kind: "slide", tone: "service", kicker: sv.featured ? sv.tag || t.featured : t.packageKicker, title: sv.name, price: sv.price || t.priceOnRequest, text: sv.description || "" });
   }
   // Sections the owner chose to hide (in edit mode they stay, dimmed, so they can bring them back).
-  const on = (k: PageSection) => editing || !site.hidden.includes(k);
+  const on = (k: PageSection) => editing || trying || !site.hidden.includes(k);
+  // The parts of the first screen that can be hidden too (a blank page starts
+  // with all of them hidden; the owner shows each one when they want it).
+  const onTop = (k: TopPart) => editing || trying || !site.hidden.includes(k);
+  const ghostTop = (k: TopPart) => editing && site.hidden.includes(k);
+  const topTools = (k: TopPart) => (editing ? <SectionTools slug={business.slug} section={k} peers={[]} hidden={site.hidden.includes(k)} ui={ui} fixed /> : null);
+  // Without the photo column the first screen is laid out like "simple".
+  const design: PageDesign = trying ? (designParam as PageDesign) : !onTop("media") ? "simple" : site.design;
+  const blankHint = isOwner && !live && !editing && !trying && site.start === "blank" && HIDEABLE.every((k) => site.hidden.includes(k));
   // A text of the page: plain for visitors, editable in place in edit mode.
   const edit = (field: EditField, value: string, o: { index?: number; sub?: string; id?: string; multiline?: boolean; ph?: string } = {}): React.ReactNode =>
     editing ? <Ed slug={business.slug} field={field} value={value} {...o} /> : value;
@@ -454,10 +466,10 @@ export default async function PublicBusinessPage({
   const present = order.filter((k) => nodes[k]);
 
   return (
-    <div className={`mt${editing ? " editing" : ""}`} data-design={site.design} lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
+    <div className={`mt${editing ? " editing" : ""}`} data-design={design} lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
       {live && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson }} />}
       {affRef}
-      {!live && !editing && <div className="draft-bar">{preview ? t.previewBanner : t.draftBanner}</div>}
+      {!live && !editing && !trying && <div className="draft-bar">{preview ? t.previewBanner : t.draftBanner}</div>}
       {editing && <EditBar slug={business.slug} design={site.design} ui={ui} exitHref={`/site/${business.slug}`} />}
 
       <header className="mt-header">
@@ -486,7 +498,9 @@ export default async function PublicBusinessPage({
         </div>
 
         <section className="product wrap">
-          <div className="gallery-col">
+          {onTop("media") && (
+          <div className={`gallery-col${ghostTop("media") ? " mt-ghost" : ""}`}>
+            {topTools("media")}
             <div className="gallery-title">{business.name}</div>
             <Gallery
               items={media}
@@ -500,9 +514,11 @@ export default async function PublicBusinessPage({
               }
             />
           </div>
+          )}
 
-          {(ordered.length > 0 || area || site.hours || site.googleReviewsUrl) && (
-            <div className="below-gallery">
+          {onTop("packages") && (ordered.length > 0 || area || site.hours || site.googleReviewsUrl) && (
+            <div className={`below-gallery${ghostTop("packages") ? " mt-ghost" : ""}`}>
+              {topTools("packages")}
               {ordered.length > 1 && (
                 <div className="pkg-card">
                   <div className="eyebrow grad-text">{t.packagesTitle}</div>
@@ -553,7 +569,7 @@ export default async function PublicBusinessPage({
           )}
 
           <div className="buybox">
-            {(site.licenseNumber || site.insured || site.spanish) && (
+            {onTop("intro") && (site.licenseNumber || site.insured || site.spanish) && (
               <div className="badge-row">
                 {site.licenseNumber && <span className="badge">✓ {t.license} #{site.licenseNumber}</span>}
                 {site.insured && <span className="badge soft">{t.insured}</span>}
@@ -561,7 +577,7 @@ export default async function PublicBusinessPage({
               </div>
             )}
 
-            {offer && (
+            {onTop("intro") && offer && (
               <UntilOfferEnds endsAt={offer.endsAt}>
               <div className="deal">
                 <span className="deal-dot" />
@@ -591,25 +607,30 @@ export default async function PublicBusinessPage({
             )}
 
             <h1>{edit("headline", mainTitle)}</h1>
-            {fromPrice !== null && (
-              <div className="from-price">
-                {t.fromPrice} <strong className="grad-text">{usd(fromPrice * 100).replace(/\.00$/, "")}</strong>
-              </div>
-            )}
-            <p className="lede">{edit("pitch", business.pitch, { multiline: true })}</p>
+            {onTop("intro") && (
+              <div className={`mt-intro${ghostTop("intro") ? " mt-ghost" : ""}`}>
+                {topTools("intro")}
+                {fromPrice !== null && (
+                  <div className="from-price">
+                    {t.fromPrice} <strong className="grad-text">{usd(fromPrice * 100).replace(/\.00$/, "")}</strong>
+                  </div>
+                )}
+                <p className="lede">{edit("pitch", business.pitch, { multiline: true })}</p>
 
-            {keyPoints.length > 0 && (
-              <ul className="about-list">
-                {keyPoints.map((p, n) => (
-                  <li key={n}>
-                    {p.title ? <strong>{edit("keyPoint", p.title, { index: n, sub: "title" })}:</strong> : null} {edit("keyPoint", p.text, { index: n, sub: "text", multiline: true })}
-                  </li>
-                ))}
-              </ul>
+                {keyPoints.length > 0 && (
+                  <ul className="about-list">
+                    {keyPoints.map((p, n) => (
+                      <li key={n}>
+                        {p.title ? <strong>{edit("keyPoint", p.title, { index: n, sub: "title" })}:</strong> : null} {edit("keyPoint", p.text, { index: n, sub: "text", multiline: true })}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
 
             <BuyActions
-              services={ordered.map((s) => {
+              services={(onTop("packages") ? ordered : []).map((s) => {
                 const link = payFor(s.name);
                 return { id: s.id, name: s.name, price: s.price ?? "", payHref: link ? `/pay/${link.id}` : undefined };
               })}
@@ -620,6 +641,15 @@ export default async function PublicBusinessPage({
             />
           </div>
         </section>
+
+        {blankHint && (
+          <section className="wrap mt-blank">
+            <strong>{ui === "en" ? "Your page starts blank." : "Tu página empieza en blanco."}</strong>{" "}
+            {ui === "en"
+              ? "Tell the chat what you want to add (your packages, how you work, your FAQ…) or tap «Edit my page» to show its parts. Everything comes from what you approved in the Brain."
+              : "Dile al chat qué quieres agregar (tus paquetes, cómo trabajas, tus preguntas frecuentes…) o toca «Editar mi página» para mostrar sus partes. Todo sale de lo que aprobaste en el Cerebro."}
+          </section>
+        )}
 
         {order.flatMap((k) => {
           const out: React.ReactNode[] = [];

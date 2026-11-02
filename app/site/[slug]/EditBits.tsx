@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { moveSectionAction, saveSiteTextAction, setDesignAction, toggleSectionAction, type EditField } from "@/app/siteEditActions";
-import type { PageDesign, PageSection } from "@/lib/site";
+import type { Hideable, PageDesign, PageSection } from "@/lib/site";
 
 type Ui = "es" | "en";
 type Status = "idle" | "saving" | "saved" | "error";
@@ -15,7 +15,7 @@ type Status = "idle" | "saving" | "saved" | "error";
 const TXT = {
   es: {
     title: "Editando tu página",
-    help: "Toca cualquier texto para cambiarlo. Usa las flechas para mover secciones y «Ocultar» para quitar una.",
+    help: "Toca cualquier texto para cambiarlo. Usa las flechas para mover secciones, «Ocultar» para quitar una y «Mostrar» para agregarla.",
     design: "Diseño",
     designs: { classic: "Clásico", hero: "Portada grande", simple: "Solo texto" } as Record<PageDesign, string>,
     done: "Listo",
@@ -27,11 +27,11 @@ const TXT = {
     hide: "Ocultar",
     show: "Mostrar",
     hiddenTag: "Oculta: no se ve en tu página",
-    sections: { trust: "Datos de confianza", offerBand: "Oferta", services: "Servicios", photos: "Fotos", steps: "Cómo trabajo", faq: "Preguntas frecuentes", cta: "Cierre" } as Record<PageSection, string>,
+    sections: { trust: "Datos de confianza", offerBand: "Oferta", services: "Servicios", photos: "Fotos", steps: "Cómo trabajo", faq: "Preguntas frecuentes", cta: "Cierre", media: "Fotos y video de arriba", intro: "Presentación", packages: "Paquetes e información" } as Record<Hideable, string>,
   },
   en: {
     title: "Editing your page",
-    help: "Tap any text to change it. Use the arrows to move sections and “Hide” to remove one.",
+    help: "Tap any text to change it. Use the arrows to move sections, “Hide” to remove one and “Show” to add it.",
     design: "Design",
     designs: { classic: "Classic", hero: "Big cover", simple: "Text only" } as Record<PageDesign, string>,
     done: "Done",
@@ -43,7 +43,7 @@ const TXT = {
     hide: "Hide",
     show: "Show",
     hiddenTag: "Hidden: not shown on your page",
-    sections: { trust: "Trust facts", offerBand: "Offer", services: "Services", photos: "Photos", steps: "How I work", faq: "FAQ", cta: "Closing" } as Record<PageSection, string>,
+    sections: { trust: "Trust facts", offerBand: "Offer", services: "Services", photos: "Photos", steps: "How I work", faq: "FAQ", cta: "Closing", media: "Top photos and video", intro: "Introduction", packages: "Packages and info" } as Record<Hideable, string>,
   },
 };
 
@@ -193,12 +193,13 @@ export function EditBar({ slug, design, ui, exitHref }: { slug: string; design: 
   );
 }
 
-// Above each section in edit mode: move it, hide it, show it again.
-export function SectionTools({ slug, section, peers, hidden, ui }: { slug: string; section: PageSection; peers: PageSection[]; hidden: boolean; ui: Ui }) {
+// Above each section in edit mode: move it, hide it, show it again. The parts
+// of the first screen (`fixed`) don't move: they only hide or show.
+export function SectionTools({ slug, section, peers, hidden, ui, fixed = false }: { slug: string; section: Hideable; peers: PageSection[]; hidden: boolean; ui: Ui; fixed?: boolean }) {
   const t = TXT[ui];
   const router = useRouter();
   const [pending, start] = useTransition();
-  const at = peers.indexOf(section);
+  const at = (peers as Hideable[]).indexOf(section);
   function run(fn: () => Promise<{ ok: boolean }>) {
     report("saving");
     start(async () => {
@@ -208,18 +209,22 @@ export function SectionTools({ slug, section, peers, hidden, ui }: { slug: strin
     });
   }
   return (
-    <div className="mt-sectools wrap">
+    <div className={`mt-sectools ${fixed ? "fixed" : "wrap"}`}>
       <span className="mt-sectools-name">
         {t.sections[section]}
         {hidden && <em> · {t.hiddenTag}</em>}
       </span>
       <span className="mt-sectools-btns">
-        <button type="button" disabled={pending || at <= 0} onClick={() => run(() => moveSectionAction(slug, section, -1, peers))} aria-label={t.up} title={t.up}>
-          ↑
-        </button>
-        <button type="button" disabled={pending || at < 0 || at >= peers.length - 1} onClick={() => run(() => moveSectionAction(slug, section, 1, peers))} aria-label={t.down} title={t.down}>
-          ↓
-        </button>
+        {!fixed && (
+          <>
+            <button type="button" disabled={pending || at <= 0} onClick={() => run(() => moveSectionAction(slug, section, -1, peers))} aria-label={t.up} title={t.up}>
+              ↑
+            </button>
+            <button type="button" disabled={pending || at < 0 || at >= peers.length - 1} onClick={() => run(() => moveSectionAction(slug, section, 1, peers))} aria-label={t.down} title={t.down}>
+              ↓
+            </button>
+          </>
+        )}
         <button type="button" disabled={pending} onClick={() => run(() => toggleSectionAction(slug, section, !hidden))}>
           {hidden ? t.show : t.hide}
         </button>
