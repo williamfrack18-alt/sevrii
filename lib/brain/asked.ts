@@ -101,7 +101,7 @@ const ASK: Record<string, { es: [string, string]; en: [string, string] }> = {
     en: ["Do you have a car or vehicle to get around?", "Just yes or no: do you have a car or vehicle to get to work?"],
   },
   hoursPerWeek: {
-    es: ["¿Cuántas horas a la semana podrías dedicarle? Dime un número aproximado.", "Dime un número aproximado de horas por semana, por ejemplo 10, 20 o 30. Si no estás segura o seguro, dime cuál te parece posible."],
+    es: ["¿Cuántas horas a la semana podrías dedicarle? Dime un número aproximado.", "Dime un número aproximado de horas por semana, por ejemplo 10, 20 o 30. Si no lo tienes claro, dime cuál te parece posible."],
     en: ["How many hours a week could you give it? Give me an approximate number.", "Give me an approximate number of hours per week, for example 10, 20 or 30. If you're not sure, tell me which seems possible."],
   },
   startBudgetUsd: {
@@ -132,6 +132,18 @@ const ASK: Record<string, { es: [string, string]; en: [string, string] }> = {
     es: ["¿Qué te hace diferente de otras personas que hacen lo mismo?", "Si un cliente te eligió a ti y no a otra persona, ¿por qué crees que fue?"],
     en: ["What makes you different from others who do the same work?", "If a customer picked you over someone else, why do you think it was?"],
   },
+  serviceMode: {
+    es: ["¿Atiendes a tus clientes en persona, en una zona, o por internet desde donde estés?", "Elige una: 1) en persona, en una zona o ciudad, 2) por internet, sin importar dónde viva el cliente."],
+    en: ["Do you serve customers in person, in an area, or online from wherever you are?", "Pick one: 1) in person, in a city or area, 2) online, wherever the customer lives."],
+  },
+  zip: {
+    es: ["¿Cuál es tu código postal de 5 dígitos? Lo uso para ubicarte en el mapa.", "Solo los 5 números de tu código postal (ZIP), por ejemplo 33101."],
+    en: ["What is your 5-digit ZIP code? I use it to place you on the map.", "Just the 5 digits of your ZIP code, for example 33101."],
+  },
+  radiusMiles: {
+    es: ["¿Hasta cuántas millas te mueves para atender a un cliente? Dime un número.", "Dime un número aproximado de millas desde tu ciudad, por ejemplo 10, 20 o 30."],
+    en: ["How many miles will you travel to serve a customer? Give me a number.", "Give me an approximate number of miles from your city, for example 10, 20 or 30."],
+  },
   city: {
     es: ["¿En qué ciudad y estado vives?", "Dime la ciudad y el estado donde vives, por ejemplo «Miami, FL»."],
     en: ["What city and state do you live in?", "Tell me the city and state where you live, for example \"Miami, FL\"."],
@@ -145,6 +157,14 @@ export function nextQuestion(plan: BusinessPlan, lang: "es" | "en", history: { r
   if (!ask) return "";
   const times = askedTopics(history).filter((a) => a.topic === key).length;
   return ask[lang][times > 0 ? 1 : 0];
+}
+
+// Is this field really filled in the profile? (A field that is just not part of
+// this interview is not "answered": a question about it is left alone.)
+function filled(plan: BusinessPlan, key: string): boolean {
+  const v = (plan.profile as unknown as Record<string, unknown>)[key];
+  if (key === "city") return Boolean(plan.profile.city && plan.profile.state);
+  return v !== "" && v !== null && v !== undefined;
 }
 
 export type Dedupe = {
@@ -191,7 +211,7 @@ export function dedupeReply(reply: string, plan: BusinessPlan, history: { role: 
     if (!missing.includes(t)) {
       // Already answered (or not part of this interview): don't ask it. (In the
       // readiness check the model may ask about the chosen idea with the same words.)
-      if (plan.stage !== "interview") continue;
+      if (plan.stage !== "interview" || !filled(plan, t)) continue;
       text = text.replace(q, "");
       out.dropped.push(t);
     } else if (t === missing[0] && asked.some((a) => a.topic === t && a.turn === lastAssistantTurn)) {

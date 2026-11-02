@@ -45,6 +45,18 @@ export function extractJson(text: string): Record<string, unknown> | null {
   return null;
 }
 
+// "&ndash;", "&#8211;", "&ntilde;" in titles and descriptions of pages.
+const NAMED: Record<string, string> = { amp: "&", quot: '"', apos: "'", lt: "<", gt: ">", nbsp: " ", ndash: "–", mdash: "—", hellip: "…", rsquo: "’", lsquo: "‘", ldquo: "“", rdquo: "”", ntilde: "ñ", Ntilde: "Ñ", aacute: "á", eacute: "é", iacute: "í", oacute: "ó", uacute: "ú", Aacute: "Á", Eacute: "É", Iacute: "Í", Oacute: "Ó", Uacute: "Ú", uuml: "ü", iexcl: "¡", iquest: "¿" };
+export function decodeEntities(t: string): string {
+  return t.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
+    if (e[0] === "#") {
+      const n = e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : m;
+    }
+    return NAMED[e] ?? NAMED[e.toLowerCase()] ?? m;
+  });
+}
+
 function normUrl(u: string): string {
   try {
     const x = new URL(u);
@@ -124,7 +136,8 @@ export class SeenPages {
   add(url: string, title?: string | null, description?: string | null) {
     const n = normUrl(url);
     if (!n || !/^https?:/i.test(n)) return;
-    const desc = (description || "").replace(/\s+/g, " ").trim().slice(0, 300);
+    const desc = decodeEntities(description || "").replace(/\s+/g, " ").trim().slice(0, 300);
+    title = title ? decodeEntities(title) : title;
     const cur = this.pages.get(n);
     if (!cur) this.pages.set(n, { url, title: (title || url).slice(0, 120), ...(desc ? { description: desc } : {}) });
     else if (!cur.description && desc) this.pages.set(n, { ...cur, description: desc });

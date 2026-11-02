@@ -20,7 +20,7 @@ import {
 import { codeGuard } from "./guard";
 import { priceMoves, swapAmounts } from "../reprice";
 import { dedupeReply, lockedFacts, nextQuestion } from "./asked";
-import { groundedInOwner, scrubInternal, withoutAvoidedSuggestions } from "./checks";
+import { dropDanglingClause, groundedInOwner, neutralGender, scrubInternal, withoutAvoidedSuggestions } from "./checks";
 import { unknownAmountSentences, ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
 import { alignProposal } from "./align";
@@ -469,7 +469,7 @@ const CLAIMS_EDIT = /\b(actualiz\w*|cambi[eé]|lo cambio|los cambio|quit[eé]|qu
 // chat never loses them (the code checks them too).
 const HARD_RULES = `(Reglas de siempre: lenguaje neutro de género (nunca «ubicada», «lista», «contenta», «ubicado», «listo» para la persona: di «tu zona ya quedó guardada», «ya tengo lo que necesito»); nunca expliques qué puede o no guardar el sistema (si un dato necesita confirmación, pregunta "¿lo dejo en X?"); ningún descuento que el dueño no pidió; una sola pregunta por mensaje; guarda números solo si la persona los dijo, nunca conviertas "medio tiempo" u otra respuesta vaga en un número; no cambies precios sin su OK explícito; responde primero lo que pregunta, con otras palabras si no entendió; nada de notas internas, nombres de campos ni "expediente"; no pidas seguros ni permisos que no sean indispensables, y si ya lo preguntaste una vez no vuelvas a preguntarlo; nunca preguntes algo que ya está en "Datos ya confirmados"; lo que la persona odia o nunca quiere volver a hacer solo se excluye: jamás lo propongas ni lo pongas de ejemplo; nunca le atribuyas a la persona algo que escribió el sistema; no cambies cómo ni dónde se hace el servicio sin su permiso.)`;
 
-async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = "", lastAssistant = ""): Promise<{ out: string; startPipeline?: boolean }> {
+async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = "", lastAssistant = "", turn: { approved: boolean } = { approved: false }): Promise<{ out: string; startPipeline?: boolean }> {
   const plan = b.plan;
   switch (name) {
     case "save_profile": {
@@ -656,9 +656,13 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       let blocks = (Array.isArray(input.blocks) ? input.blocks : []).filter((x): x is ApprovalBlock => APPROVAL_BLOCKS.includes(x as ApprovalBlock));
       // One OK approves the part being reviewed, nothing more, unless they say "todo".
       const current = APPROVAL_BLOCKS.find((x) => !plan.approvals[x]);
-      if (!/\b(todo|todas|todos|everything|all (of it|parts))\b/i.test(lastSaid)) blocks = blocks.filter((x) => x === current);
+      const all = /\b(todo|todas|todos|everything|all (of it|parts))\b/i.test(lastSaid);
+      if (!all) blocks = blocks.filter((x) => x === current);
+      // One message approves one part: a second approval in the same turn needs "todo".
+      if (!all && turn.approved) return { out: "not approved: this message already approved the part that was being reviewed. The next part needs its own OK. Do not call approve_blocks again in this turn." };
       if (!blocks.length) return { out: "not approved: only the part being reviewed can be approved with this OK, and they didn't say it was approved. Nothing changed. Show it again briefly and ask if they approve this part or what to change." };
       const { plan: next, refused } = applyApprovals(plan, blocks, lang);
+      if (!refused.length) turn.approved = true;
       await updateBusinessPlan(b.id, next);
       const built = next.stage === "approved" ? (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true })).filled : false;
       return { out: `${next.stage === "approved" ? (built ? "all approved: the store page was built from the expediente automatically; tell the owner to open Store to see it" : "all approved: the expediente is ready; the owner can update the page from Store") : "approved"}${refused.length ? `; not approved: ${refused.join(" ")}` : ""}` };
@@ -812,6 +816,7 @@ export async function runPlanChatTurn(opts: {
   // An edit that didn't save can't be announced as done.
   let editFailed = false;
   let editSaved = false;
+  const turnState = { approved: false };
   try {
     for (let step = 0; step < 7; step++) {
       if (step > 0 && Date.now() - started > TURN_DEADLINE_MS) {
@@ -862,7 +867,7 @@ export async function runPlanChatTurn(opts: {
       for (const u of uses) {
         let out: string;
         try {
-          const r = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, opts.lang, ownerSaid, opts.message, lastAssistant);
+          const r = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, business, opts.lang, ownerSaid, opts.message, lastAssistant, turnState);
           out = r.out;
           if (r.startPipeline) startPipeline = true;
           if (u.name === "update_proposal") {
@@ -908,12 +913,15 @@ export async function runPlanChatTurn(opts: {
       } else if (d.sameWords) swap = true; // not answered: a new wording with options, never the same words
     }
     if (d.dropped.length || swap) {
+      const original = reply;
       reply = d.reply;
-      if (swap) reply = reply.replace(d.repeatedQuestion, "").replace(/\s{2,}/g, " ").trim();
+      if (swap) reply = dropDanglingClause(reply.replace(d.repeatedQuestion, "").replace(/\s{2,}/g, " ").trim());
+      else if (d.dropped.length) reply = dropDanglingClause(reply);
       if (!startPipeline) {
         const q = nextQuestion(business.plan, opts.lang === "en" ? "en" : "es", turnHistory);
         if (q) reply = `${reply ? `${reply} ` : ""}${q}`.trim();
-        else if (!reply) reply = es ? "Anotado." : "Noted.";
+        // Nothing fixed to ask in its place: the model's own question stays (never a dead end).
+        else if (!/[?¿]/.test(reply)) reply = original;
       }
     }
   }
@@ -959,6 +967,7 @@ export async function runPlanChatTurn(opts: {
   }
   // What the owner never wants is never suggested, not even as an example.
   reply = withoutAvoidedSuggestions(reply, business.plan.profile.notWant) || reply;
+  reply = neutralGender(reply);
   reply = reply
     .replace(/^\s*\((Tarjeta mostrada|Card shown)[^)\n]*\)\s*$/gim, "")
     .replace(/\$\s*\$(?=\s?\d)/g, "$")

@@ -287,3 +287,18 @@ export function groundedInOwner(value: string, ownerText: string): boolean {
   const ownerStems = new Set(wordsOf(o).map(stem));
   return wordsOf(v).some((w) => ownerStems.has(stem(w)));
 }
+
+
+// ---------- gender-neutral wording for the person ----------
+// The owner's gender is never guessed: "eres bueno", "estás listo" become neutral.
+export function neutralGender(reply: string): string {
+  return reply
+    .replace(/\b(en qu[eé]|qu[eé]|con qu[eé]) (eres|te sientes) (bueno|buena|bien|c[oó]mod[oa]|segur[oa])\b/gi, (_m, a: string) => `${a} se te da bien`)
+    .replace(/\b(est[aá]s|estas|ya est[aá]s|est[eé]s) (list[oa]|content[oa]|segur[oa]|ubicad[oa]|preparad[oa]|motivad[oa])\b/gi, "ya tienes lo necesario")
+    .replace(/\b(bienvenid[oa])\b/gi, "bienvenida o bienvenido")
+    .replace(/\bsi no est[aá]s segur[oa] o segur[oa]\b/gi, "si no lo tienes claro");
+}
+// A comma or colon left hanging when a question was cut out of the sentence.
+export function dropDanglingClause(text: string): string {
+  return text.replace(/(^|[.!?]\s+)[^.!?]*[,:]\s*$/, "$1").trim();
+}
