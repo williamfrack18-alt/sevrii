@@ -457,7 +457,7 @@ const CLAIMS_EDIT = /\b(actualiz\w*|cambi[eé]|lo cambio|los cambio|quit[eé]|qu
 
 // Rules that must hold on every turn, re-sent with each message so a long
 // chat never loses them (the code checks them too).
-const HARD_RULES = `(Reglas de siempre: lenguaje neutro de género; nunca expliques qué puede o no guardar el sistema (si un dato necesita confirmación, pregunta "¿lo dejo en X?"); ningún descuento que el dueño no pidió; una sola pregunta por mensaje; guarda números solo si la persona los dijo, nunca conviertas "medio tiempo" u otra respuesta vaga en un número; no cambies precios sin su OK explícito; responde primero lo que pregunta, con otras palabras si no entendió; nada de notas internas, nombres de campos ni "expediente"; no pidas seguros ni permisos que no sean indispensables.)`;
+const HARD_RULES = `(Reglas de siempre: lenguaje neutro de género (nunca «ubicada», «lista», «contenta», «ubicado», «listo» para la persona: di «tu zona ya quedó guardada», «ya tengo lo que necesito»); nunca expliques qué puede o no guardar el sistema (si un dato necesita confirmación, pregunta "¿lo dejo en X?"); ningún descuento que el dueño no pidió; una sola pregunta por mensaje; guarda números solo si la persona los dijo, nunca conviertas "medio tiempo" u otra respuesta vaga en un número; no cambies precios sin su OK explícito; responde primero lo que pregunta, con otras palabras si no entendió; nada de notas internas, nombres de campos ni "expediente"; no pidas seguros ni permisos que no sean indispensables.)`;
 
 async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = "", lastAssistant = ""): Promise<{ out: string; startPipeline?: boolean }> {
   const plan = b.plan;
@@ -709,7 +709,9 @@ export async function runPlanChatTurn(opts: {
     const p0 = business.plan;
     const next0 = missingProfile(p0)[0] || "";
     const lastAi = [...opts.history].reverse().find((h) => h.role === "assistant")?.content ?? "";
-    const msg = opts.message.trim().replace(/^["'«“]|["'»”.!]$/g, "").trim();
+    // "Se llamará Orden Latino" → "Orden Latino": the name without the lead-in.
+    const LEAD = /^(?:mi\s+(?:negocio|servicio|empresa)\s+)?(?:se\s+(?:va\s+a\s+)?llam(?:a|ar[aá])|el\s+nombre\s+(?:es|ser[aá])|(?:quiero\s+)?(?:llamarlo|llamarla|que\s+se\s+llame)|p[oó]nle|it'?s\s+called|call\s+it|the\s+name\s+is|name\s+it)\s*[:,-]?\s+/i;
+    const msg = opts.message.trim().replace(/^["'«“]|["'»”.!]$/g, "").trim().replace(LEAD, "").replace(/^["'«“]|["'»”.!]$/g, "").replace(/\s+(?:por favor|please)$/i, "").trim();
     const words = msg.split(/\s+/).filter(Boolean);
     if (
       (p0.stage === "interview" || p0.stage === "ready_check") &&
