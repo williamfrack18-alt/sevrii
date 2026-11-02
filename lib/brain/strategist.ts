@@ -1,7 +1,7 @@
-import { MODELS, getClaude } from "../claude";
+import { BRAIN_MODEL, getBrainModel } from "../claude";
 import type { Lang } from "../i18n";
 import { parseIdeas, parsePlanAgent, str, type BusinessPlan, type Idea } from "../plan";
-import { textOf } from "./common";
+import { extractJson, textOf } from "./common";
 
 // The Strategist (the most capable model): turns the expediente into a
 // commercial proposal, or picks the 3 best ideas for someone starting out.
@@ -166,12 +166,12 @@ function langLine(lang: Lang) {
 }
 
 async function ask(system: string, user: string, schema: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const client = getClaude(150_000);
-  if (!client) throw new Error("ANTHROPIC_API_KEY is not set");
+  const client = getBrainModel(150_000);
+  if (!client) throw new Error("MODEL_API_KEY is not set");
   const res = await client.messages.create(
     {
-      model: MODELS.strategy,
-      max_tokens: 16000,
+      model: BRAIN_MODEL,
+      max_tokens: 24000,
       thinking: { type: "adaptive" },
       output_config: { effort: "high", format: { type: "json_schema", schema } },
       system,
@@ -179,7 +179,14 @@ async function ask(system: string, user: string, schema: Record<string, unknown>
     },
     { timeout: 150_000 }
   );
-  return JSON.parse(textOf(res.content)) as Record<string, unknown>;
+  const raw = textOf(res.content);
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    const loose = extractJson(raw);
+    if (!loose) throw new Error("strategist: no JSON in the reply");
+    return loose;
+  }
 }
 
 function expediente(plan: BusinessPlan) {

@@ -1,5 +1,5 @@
 import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from "@anthropic-ai/sdk/resources/messages";
-import { MODELS, aiErrorReply, getClaude, logAiError } from "../claude";
+import { BRAIN_MODEL, aiErrorReply, getBrainModel, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import { slugify } from "../ai";
 import { addChatMessage, getBusinessById, isSlugTaken, listChatMessages, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
@@ -690,9 +690,9 @@ export async function runPlanChatTurn(opts: {
       startPipeline: true,
     };
   }
-  const client = getClaude();
+  const client = getBrainModel();
   if (!client) {
-    console.error("[ai:brain] ANTHROPIC_API_KEY is not set");
+    console.error("[ai:brain] MODEL_API_KEY is not set");
     return {
       reply: es ? "El asistente no está disponible en este momento. Inténtalo de nuevo en unos minutos." : "The assistant isn't available right now. Please try again in a few minutes.",
       business,
@@ -757,12 +757,12 @@ export async function runPlanChatTurn(opts: {
       const tools = askedSomething ? st.tools.filter((t) => t.name !== "approve_blocks") : st.tools;
       const res = await client.messages.create(
         {
-          model: MODELS.chat,
-          max_tokens: 6000,
-          thinking: { type: "between_tools" },
+          model: BRAIN_MODEL,
+          // Muse Spark always reasons and the reasoning counts here.
+          max_tokens: 10000,
           // Medium: it thinks about where the owner is and what comes next.
           output_config: { effort: "medium" },
-          system: [{ type: "text", text: `${system}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`, cache_control: { type: "ephemeral" } }],
+          system: `${system}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`,
           ...(tools.length ? { tools } : {}),
           messages,
         },
@@ -779,8 +779,8 @@ export async function runPlanChatTurn(opts: {
         if (!reply && !nudged) {
           nudged = true;
           // Never resend a tool call without its result (the API rejects it).
-          const kept = res.content.filter((c) => c.type !== "tool_use");
-          if (kept.some((c) => c.type === "text")) messages.push({ role: "assistant", content: kept });
+          const kept = res.content.filter((c) => c.type === "text");
+          if (kept.length) messages.push({ role: "assistant", content: kept });
           messages.push({
             role: "user",
             content: es
@@ -809,7 +809,8 @@ export async function runPlanChatTurn(opts: {
         business = (await getBusinessById(business.id))!;
         results.push({ type: "tool_result", tool_use_id: u.id, content: out });
       }
-      messages.push({ role: "assistant", content: res.content });
+      // Replay only text and tool calls (Meta keeps its own reasoning).
+      messages.push({ role: "assistant", content: res.content.filter((c) => c.type === "text" || c.type === "tool_use") });
       messages.push({ role: "user", content: [...results, { type: "text", text: `Updated state (JSON):\n${JSON.stringify(state(business))}` }] });
     }
   } catch (err) {

@@ -34,6 +34,17 @@ export function getAgentModel(timeoutMs = 60_000): Anthropic | null {
   return metered(new Anthropic({ baseURL: "https://api.meta.ai", apiKey: null, authToken: token, maxRetries: 2, timeout: timeoutMs }));
 }
 
+// The Brain (interview, research, strategy, review and consistency pass) also
+// runs on Muse Spark, through the same Messages API and the same MODEL_API_KEY.
+// SEVRII_BRAIN_MODEL can point it at another Meta model from Vercel.
+// There is no fallback to Claude here on purpose: without MODEL_API_KEY the
+// Brain says it is unavailable. Muse Spark always reasons, and reasoning counts
+// inside max_tokens, so Brain calls leave generous room.
+export const BRAIN_MODEL = process.env.SEVRII_BRAIN_MODEL || AGENT_MODEL;
+export function getBrainModel(timeoutMs = 45_000): Anthropic | null {
+  return getAgentModel(timeoutMs);
+}
+
 function metered(client: Anthropic): Anthropic {
   // Charge every call to the account being served (see lib/usage.ts).
   const create = client.messages.create.bind(client.messages);

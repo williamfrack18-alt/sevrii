@@ -1,4 +1,4 @@
-import { MODELS, getClaude, logAiError } from "../claude";
+import { BRAIN_MODEL, getBrainModel, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import type { BusinessPlan } from "../plan";
 import { textOf } from "./common";
@@ -46,7 +46,7 @@ const SCHEMA = {
 };
 
 export async function alignProposal(plan: BusinessPlan, correction: string, lang: Lang): Promise<Record<string, unknown>> {
-  const client = getClaude(40_000);
+  const client = getBrainModel(60_000);
   if (!client || !correction.trim()) return {};
   const system = `${ALIGN}\n\n${lang === "es" ? "La propuesta está en español." : "The proposal is in English."}`;
   const content = `Corrección del dueño:\n${correction.slice(0, 1500)}\n\nPropuesta actual (JSON):\n${JSON.stringify({
@@ -67,8 +67,8 @@ export async function alignProposal(plan: BusinessPlan, correction: string, lang
     let d: Record<string, unknown>;
     try {
       const res = await client.messages.create(
-        { model: MODELS.guard, max_tokens: 4000, output_config: { format: { type: "json_schema", schema: SCHEMA } }, system, messages: [{ role: "user", content }] },
-        { timeout: 40_000, maxRetries: 1 }
+        { model: BRAIN_MODEL, max_tokens: 10000, output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } }, system, messages: [{ role: "user", content }] },
+        { timeout: 60_000, maxRetries: 1 }
       );
       d = JSON.parse(textOf(res.content)) as Record<string, unknown>;
     } catch (err) {
@@ -77,12 +77,13 @@ export async function alignProposal(plan: BusinessPlan, correction: string, lang
       logAiError("align", err);
       const res = await client.messages.create(
         {
-          model: MODELS.guard,
-          max_tokens: 4000,
+          model: BRAIN_MODEL,
+          max_tokens: 10000,
+          output_config: { effort: "low" },
           system: `${system}\n\nResponde SOLO con un objeto JSON con estas claves: ${Object.keys(SCHEMA.properties).join(", ")}. Vacío = no se toca.`,
           messages: [{ role: "user", content }],
         },
-        { timeout: 40_000, maxRetries: 1 }
+        { timeout: 60_000, maxRetries: 1 }
       );
       const text = textOf(res.content);
       d = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as Record<string, unknown>;

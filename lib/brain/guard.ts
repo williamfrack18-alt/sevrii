@@ -1,4 +1,4 @@
-import { MODELS, getClaude, logAiError } from "../claude";
+import { BRAIN_MODEL, getBrainModel, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import { codeChecks, type BusinessPlan } from "../plan";
 import { textOf, today } from "./common";
@@ -89,13 +89,14 @@ export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block
   const code = codeGuard(plan, lang, false);
   const kept = keptPriceIssue(plan, lang);
   const fromCode = { ...code, block: kept ? [...code.block, kept] : code.block };
-  const client = getClaude(40_000);
+  const client = getBrainModel(60_000);
   if (!client) return fromCode;
   try {
     const res = await client.messages.create({
-      model: MODELS.guard,
-      max_tokens: 1500,
-      output_config: { format: { type: "json_schema", schema: SCHEMA } },
+      model: BRAIN_MODEL,
+      max_tokens: 8000,
+      // Medium: its review decides what the owner sees.
+      output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
       system: `${GUARDIAN}\n\nEscribe cada punto en ${lang === "es" ? "español neutro" : "English"}, para el dueño del negocio.`,
       messages: [
         {

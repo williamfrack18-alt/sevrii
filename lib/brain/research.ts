@@ -1,5 +1,5 @@
 import type { ToolUnion } from "@anthropic-ai/sdk/resources/messages";
-import { MODELS, getClaude, logAiError } from "../claude";
+import { BRAIN_MODEL, getBrainModel, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import { safeHttpUrl, str, type BusinessPlan, type PlanSource } from "../plan";
 import { RESTRICTED, SeenPages, extractJson, runWithServerTools, today } from "./common";
@@ -108,8 +108,8 @@ ${out}`;
 export type ResearchResult = { data: Record<string, unknown> | null; sources: PlanSource[]; usedWeb: boolean };
 
 export async function runResearch(kind: ResearchKind, plan: BusinessPlan, lang: Lang): Promise<ResearchResult> {
-  const client = getClaude(130_000);
-  if (!client) throw new Error("ANTHROPIC_API_KEY is not set");
+  const client = getBrainModel(130_000);
+  if (!client) throw new Error("MODEL_API_KEY is not set");
   const p = plan.profile;
   // Online services compete across the country: no city bias in the search.
   // (Requirements still depend on their state, which the task text names.)
@@ -118,21 +118,23 @@ export async function runResearch(kind: ResearchKind, plan: BusinessPlan, lang: 
     local && p.city
       ? { type: "approximate" as const, city: p.city.slice(0, 60), ...(p.state ? { region: p.state } : {}), country: "US" }
       : { type: "approximate" as const, ...(!local && p.state && (kind === "requirements" || p.remoteScope === "state") ? { region: p.state } : {}), country: "US" };
-  const search: ToolUnion = { type: "web_search_20260318", name: "web_search", max_uses: 3, allowed_callers: ["direct"], user_location: location };
-  const fetchTool: ToolUnion = { type: "web_fetch_20260318", name: "web_fetch", max_uses: 4, max_content_tokens: 6000, allowed_callers: ["direct"] };
+  // Meta's web search accepts only the location (no max_uses or domain lists)
+  // and there is no page-fetch tool: the research reads what search returns.
+  const search = { type: "web_search_20260318", name: "web_search", user_location: location } as unknown as ToolUnion;
+  // Same tool under the plain name, in case the dated type isn't recognized.
+  const searchPlain = { type: "web_search", name: "web_search", user_location: location } as unknown as ToolUnion;
   const seen = new SeenPages();
 
   const { text, usedTools } = await runWithServerTools(
     client,
     {
-      model: MODELS.research,
-      max_tokens: 6000,
-      thinking: { type: "between_tools" },
+      model: BRAIN_MODEL,
+      max_tokens: 12000,
       output_config: { effort: "medium" },
       system: `${RESEARCHER}\n\nHoy es ${today(p.state)}.`,
     },
     [{ role: "user", content: task(kind, plan, lang) }],
-    [[search, fetchTool], [search], []],
+    [[search], [searchPlain], []],
     { timeoutMs: 110_000, seen }
   );
   const data = extractJson(text);
