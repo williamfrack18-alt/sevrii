@@ -54,12 +54,26 @@ export type SiteData = {
   // ("auto" = only while there are no real photos), and sections they hide.
   galleryCards: "auto" | "on" | "off";
   hidden: PageSection[];
+  // The order of the sections under the first screen, and the look of that
+  // first screen ("classic" = photos left and details right; "hero" = a wide
+  // banner with the details under it; "simple" = text only, centered).
+  order: PageSection[];
+  design: PageDesign;
   // What the owner already said no to, so it's never pushed again.
   declined: string[];
 };
 
 export const PAGE_SECTIONS = ["trust", "offerBand", "services", "photos", "steps", "faq", "cta"] as const;
 export type PageSection = (typeof PAGE_SECTIONS)[number];
+export const PAGE_DESIGNS = ["classic", "hero", "simple"] as const;
+export type PageDesign = (typeof PAGE_DESIGNS)[number];
+
+// The owner's order first (valid, no repeats), then whatever they never placed.
+export function sectionOrder(raw: unknown): PageSection[] {
+  const list = (Array.isArray(raw) ? raw : []).map(String).filter((x): x is PageSection => (PAGE_SECTIONS as readonly string[]).includes(x));
+  const seen = [...new Set(list)];
+  return [...seen, ...PAGE_SECTIONS.filter((k) => !seen.includes(k))];
+}
 
 export type ContactPref = "" | "call" | "text" | "whatsapp" | "chat";
 export type Channel = "call" | "text" | "whatsapp" | "chat";
@@ -123,6 +137,8 @@ export const EMPTY_SITE: SiteData = {
   fromPlan: "",
   galleryCards: "auto",
   hidden: [],
+  order: [...PAGE_SECTIONS],
+  design: "classic",
   declined: [],
 };
 
@@ -261,6 +277,8 @@ export function parseSite(raw: unknown): SiteData {
     fromPlan: str(obj.fromPlan, 20),
     galleryCards: obj.galleryCards === "on" || obj.galleryCards === "off" ? obj.galleryCards : "auto",
     hidden: (Array.isArray(obj.hidden) ? obj.hidden : []).filter((x): x is PageSection => (PAGE_SECTIONS as readonly string[]).includes(String(x))),
+    order: sectionOrder(obj.order),
+    design: (PAGE_DESIGNS as readonly string[]).includes(String(obj.design)) ? (obj.design as PageDesign) : "classic",
     declined: (Array.isArray(obj.declined) ? obj.declined : []).map((x) => str(x, 30)).filter(Boolean).slice(0, 20),
   };
 }

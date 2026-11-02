@@ -46,6 +46,13 @@ export async function sendMarketingChatAction(message: string, focusVideoId?: st
     campaigns: await listCampaigns(business.id),
   });
   if (!text) return respond(business);
+  // Marketing opens only after the Brain's strategy is approved (checked here too).
+  if (!business.published && business.plan.stage !== "approved") {
+    return {
+      ...(await respond(business)),
+      notice: lang === "es" ? "Marketing se abre cuando apruebes tu estrategia en el Cerebro." : "Marketing opens once you approve your strategy in the Brain.",
+    } as MarketingChatResponse;
+  }
 
   let history = await listChatMessages(business.id, CHANNEL);
   if (history.length === 0) {

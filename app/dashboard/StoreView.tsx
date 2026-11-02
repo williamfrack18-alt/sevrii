@@ -77,6 +77,18 @@ export default function StoreView({
     }
   }
   const liveUrl = `/site/${business.slug}`;
+  // "Editar mi página": the same preview, in edit mode (texts, sections, design).
+  const [editMode, setEditMode] = useState(false);
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && e.data?.type === "sevrii-edit-done") {
+        setEditMode(false);
+        setPreviewKey((k) => k + 1);
+      }
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
 
   // The Brain's expediente is approved and the page doesn't reflect it yet.
   const planPending = planReadyForStore(business.plan) && business.site.fromPlan !== planFingerprint(business.plan);
@@ -141,7 +153,7 @@ export default function StoreView({
 
   // The store opens only once the Brain's strategy is approved (a page that is
   // already published stays editable). Until then: what's left, and a way back.
-  if (storeLocked(business)) return <StoreLocked business={business} lang={lang} onBrain={onBrain} />;
+  if (storeLocked(business)) return <StrategyGate area="store" business={business} lang={lang} onBrain={onBrain} />;
 
   return (
     <div>
@@ -231,6 +243,14 @@ export default function StoreView({
                   <span style={{ color: ACCENT }}>✓ </span>
                   {st.publishedOk}
                   {business.marketCategory ? ` ${st.inMarket}: ${lang === "es" ? business.marketCategory : MARKET_CATEGORY_EN[business.marketCategory as MarketCategory] ?? business.marketCategory}.` : ""}
+                  {!business.payReady && onPayments && (
+                    <>
+                      {" "}
+                      <button type="button" onClick={onPayments} className="font-semibold underline underline-offset-2" style={{ color: ACCENT }}>
+                        {es ? "Conecta tus pagos para cobrar con tarjeta →" : "Connect your payments to charge by card →"}
+                      </button>
+                    </>
+                  )}
                 </span>
               ) : (
                 <span>{st.publishFailed}</span>
@@ -264,6 +284,10 @@ export default function StoreView({
                 fillError={fillError}
                 onFill={fillFromPlan}
                 onOpenPage={() => setPageOpen(true)}
+                onEditPage={() => {
+                  setEditMode(true);
+                  setPageOpen(true);
+                }}
                 onPayments={onPayments}
                 onAgent={onAgent}
                 onAddMedia={() => setPickKey(Date.now())}
@@ -301,14 +325,25 @@ export default function StoreView({
       </section>
 
       {/* The page, below the chat */}
-      <Sheet open={pageOpen} title={business.published ? st.yourPage : es ? "Vista previa de tu página" : "Preview of your page"} onClose={() => setPageOpen(false)} wide>
+      <Sheet open={pageOpen} title={business.published ? st.yourPage : es ? "Vista previa de tu página" : "Preview of your page"} onClose={() => { setPageOpen(false); setEditMode(false); setPreviewKey((k) => k + 1); }} wide>
         <div className="flex flex-col h-full">
-          <div className="shrink-0 px-4 md:px-5 py-2.5 flex justify-end">
+          <div className="shrink-0 px-4 md:px-5 py-2.5 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setEditMode((v) => !v);
+                setPreviewKey((k) => k + 1);
+              }}
+              className="tap h-9 px-4 rounded-full text-[13px] font-semibold"
+              style={editMode ? { background: "rgba(10,10,10,0.068)", color: "#27272A" } : BRAND_BTN}
+            >
+              {editMode ? (es ? "Terminar de editar" : "Finish editing") : es ? "Editar mi página" : "Edit my page"}
+            </button>
             <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap text-[13px] text-psub hover:text-pfg">
               {business.published ? t.dashboard.openLive : st.viewDraft} ↗
             </a>
           </div>
-          <iframe key={`${business.slug}-${previewKey}`} src={liveUrl} title={business.published ? t.dashboard.livePageTitle : es ? "Vista previa de tu página (borrador)" : "Preview of your page (draft)"} className="w-full flex-1 min-h-[70vh] border-0 block" style={{ background: "#fff" }} />
+          <iframe key={`${business.slug}-${previewKey}-${editMode ? "e" : "v"}`} src={editMode ? `${liveUrl}?editar=1` : liveUrl} title={business.published ? t.dashboard.livePageTitle : es ? "Vista previa de tu página (borrador)" : "Preview of your page (draft)"} className="w-full flex-1 min-h-[70vh] border-0 block" style={{ background: "#fff" }} />
         </div>
       </Sheet>
     </div>
@@ -347,7 +382,7 @@ export function storeLocked(b: ClientBusiness): boolean {
 }
 
 // What's still missing in the Brain, said plainly, with one button back to it.
-function StoreLocked({ business, lang, onBrain }: { business: ClientBusiness; lang: "es" | "en"; onBrain?: () => void }) {
+export function StrategyGate({ area, business, lang, onBrain }: { area: "store" | "marketing"; business: ClientBusiness; lang: "es" | "en"; onBrain?: () => void }) {
   const es = lang === "es";
   const p = business.plan;
   const parts = es
@@ -365,12 +400,18 @@ function StoreLocked({ business, lang, onBrain }: { business: ClientBusiness; la
   return (
     <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen flex items-center justify-center px-4">
       <div className="max-w-[520px] w-full rounded-[24px] bg-white p-6 md:p-8 flex flex-col gap-4" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06), 0 10px 30px -14px rgba(10,10,10,.16)" }}>
-        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: ACCENT }}>{es ? "Store · se abre al aprobar tu estrategia" : "Store · opens when your strategy is approved"}</span>
+        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: ACCENT }}>
+          {area === "marketing" ? (es ? "Marketing · se abre al aprobar tu estrategia" : "Marketing · opens when your strategy is approved") : es ? "Store · se abre al aprobar tu estrategia" : "Store · opens when your strategy is approved"}
+        </span>
         <h1 className="text-[22px] font-semibold text-pfg leading-tight">{es ? "Primero terminemos tu estrategia" : "Let's finish your strategy first"}</h1>
         <p className="text-[14.5px] text-psub leading-relaxed">
-          {es
-            ? "Tu tienda se arma sola con lo que apruebes en el Cerebro: tu servicio, tus precios, tu oferta y tus preguntas frecuentes. Por eso se abre cuando tu estrategia esté aprobada."
-            : "Your store builds itself from what you approve in the Brain: your service, prices, offer and FAQ. That's why it opens once your strategy is approved."}
+          {area === "marketing"
+            ? es
+              ? "Tus anuncios y tus videos se arman con lo que apruebes en el Cerebro: tu servicio, tus precios y tu oferta. Por eso Marketing se abre cuando tu estrategia esté aprobada."
+              : "Your ads and videos are built from what you approve in the Brain: your service, prices and offer. That's why Marketing opens once your strategy is approved."
+            : es
+              ? "Tu tienda se arma sola con lo que apruebes en el Cerebro: tu servicio, tus precios, tu oferta y tus preguntas frecuentes. Por eso se abre cuando tu estrategia esté aprobada."
+              : "Your store builds itself from what you approve in the Brain: your service, prices, offer and FAQ. That's why it opens once your strategy is approved."}
         </p>
         <p className="text-[14.5px] text-pfg leading-relaxed">{where}</p>
         {onBrain && (

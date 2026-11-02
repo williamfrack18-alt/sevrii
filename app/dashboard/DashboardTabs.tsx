@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { keepProjectAction, logoutAction, switchProjectAction } from "@/app/actions";
-import StoreView from "./StoreView";
+import StoreView, { StrategyGate, storeLocked } from "./StoreView";
 import AgentView from "./AgentView";
 import MarketingView from "./MarketingView";
 import ProjectsView from "./ProjectsView";
@@ -757,7 +757,10 @@ export default function DashboardTabs({
             }}
           />
         )}
-        {(view === "marketing" || view === "mkvideos" || view === "mkagent") && (
+        {(view === "marketing" || view === "mkvideos" || view === "mkagent") && storeLocked(currentBusiness) && (
+          <StrategyGate area="marketing" business={currentBusiness} lang={lang} onBrain={() => setView("plan")} />
+        )}
+        {(view === "marketing" || view === "mkvideos" || view === "mkagent") && !storeLocked(currentBusiness) && (
           <MarketingView
             key={view}
             section={view === "mkvideos" ? "videos" : view === "mkagent" ? "agent" : "brain"}

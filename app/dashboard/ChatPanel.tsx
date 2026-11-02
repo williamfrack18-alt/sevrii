@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
 import { BRAND_BTN, DEEP, GREEN as ACCENT } from "@/lib/panel";
 import { upgradeText, type LimitInfo } from "@/lib/upgrade";
+import { canListen, listenError, listenOnce, speakText, unlockSpeech } from "./speech";
 export type Msg = { id: string; role: string; content: string };
 
 export type ChatTexts = {
@@ -30,17 +31,6 @@ const OLD_CARD = /\[\[card:[a-z]+\]\]/g;
 // chat that owns the cards draws them (Brain), the others just hide them.
 const TOKEN = /\s*\[\[([a-z]+)(?::([A-Za-z0-9_-]+))?\]\]\s*$/;
 const ANY_TOKEN = /\[\[[a-z]+(?::[A-Za-z0-9_-]+)?\]\]/g;
-
-type SpeechRec = {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  onresult: (e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void;
-  onend: () => void;
-  onerror: () => void;
-  start: () => void;
-  stop: () => void;
-};
 
 export type ChatToken = { kind: string; arg: string; msgId: string };
 export type SendResult = { messages: Msg[]; limit?: LimitInfo | null; notice?: string };
@@ -418,50 +408,76 @@ export default function ChatPanel({
 
   const canSend = !busy && input.trim().length > 0;
 
-  // Voice: what they say goes in the box and is sent when they stop talking;
-  // with the speaker on, new replies are read aloud.
+  // Voice: what they say goes in the box; a moment after they stop it is sent
+  // (tapping the microphone again in that moment keeps the same message going).
+  // With the speaker on, new replies are read aloud.
   const [can, setCan] = useState({ listen: false, speak: false });
   useEffect(() => {
-    const w = window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
-    setCan({ listen: Boolean(w.SpeechRecognition || w.webkitSpeechRecognition), speak: "speechSynthesis" in window });
+    setCan({ listen: canListen(), speak: "speechSynthesis" in window });
   }, []);
   const [listening, setListening] = useState(false);
+  const [sending, setSending] = useState(false);
   const [speakOn, setSpeakOn] = useState(false);
   const recRef = useRef<{ stop: () => void } | null>(null);
   const spoken = useRef<Set<string>>(new Set());
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  const inputNow = useRef("");
+  inputNow.current = input;
+  const sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (sendTimer.current) clearTimeout(sendTimer.current);
+      recRef.current?.stop();
+    },
+    []
+  );
   function listen() {
-    const W = window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec };
-    const Rec = W.SpeechRecognition || W.webkitSpeechRecognition;
-    if (!Rec || busy) return;
+    if (busy || recRef.current) return;
+    // Keep talking on the same message if it hadn't been sent yet.
+    const pending0 = sendTimer.current !== null;
+    if (sendTimer.current) clearTimeout(sendTimer.current);
+    sendTimer.current = null;
+    setSending(false);
+    setError("");
+    const before = pending0 ? inputNow.current.trim() : "";
     if (speakOn) window.speechSynthesis.cancel();
     else if (can.speak) {
       // Spoken to, answers aloud (the speaker button turns it off).
+      unlockSpeech();
       spoken.current = new Set(messages.map((m) => m.id));
       setSpeakOn(true);
     }
-    const rec = new Rec();
-    rec.lang = lang === "es" ? "es-US" : "en-US";
-    rec.interimResults = true;
-    rec.continuous = false;
-    let finalText = "";
-    rec.onresult = (e) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) finalText += r[0].transcript;
-        else interim += r[0].transcript;
+    const h = listenOnce(
+      lang,
+      (text) => setInput([before, text].filter(Boolean).join(" ")),
+      (text, err) => {
+        setListening(false);
+        recRef.current = null;
+        const full = [before, text].filter(Boolean).join(" ").trim();
+        if (err && !full) {
+          setError(listenError(err, lang));
+          return;
+        }
+        if (!full) {
+          setError(listenError("no-speech", lang));
+          return;
+        }
+        setInput(full);
+        setSending(true);
+        sendTimer.current = setTimeout(() => {
+          sendTimer.current = null;
+          setSending(false);
+          sendRef.current(inputNow.current);
+        }, 1400);
       }
-      setInput((finalText + interim).trim());
-    };
-    rec.onend = () => {
-      setListening(false);
-      recRef.current = null;
-      if (finalText.trim()) send(finalText.trim());
-    };
-    rec.onerror = () => setListening(false);
-    recRef.current = rec;
+    );
+    if (!h) {
+      setError(listenError("start", lang));
+      return;
+    }
+    recRef.current = h;
     setListening(true);
-    rec.start();
   }
   useEffect(() => {
     if (!voice || !speakOn || !("speechSynthesis" in window)) return;
@@ -471,14 +487,13 @@ export default function ChatPanel({
       if (m.role === "user" || m.id.startsWith("local-")) continue;
       const said = m.content.replace(ANY_TOKEN, "").replace(/https?:\/\/\S+/g, "").replace(/\*\*/g, "").replace(/[«»“”]/g, "").trim();
       if (!said) continue;
-      const u = new SpeechSynthesisUtterance(said);
-      u.lang = lang === "es" ? "es-US" : "en-US";
-      window.speechSynthesis.speak(u);
+      speakText(said, lang);
     }
   }, [messages, speakOn, voice, lang]);
   const toggleSpeak = () => {
     spoken.current = new Set(messages.map((m) => m.id));
     if (speakOn) window.speechSynthesis.cancel();
+    else unlockSpeech();
     setSpeakOn((v) => !v);
   };
   const micLabel = listening ? (lang === "es" ? "Dejar de escuchar" : "Stop listening") : lang === "es" ? "Hablar" : "Speak";
@@ -547,10 +562,16 @@ export default function ChatPanel({
           </span>
         </div>
       )}
-      {voice && listening && (
+      {voice && (listening || sending) && (
         <p className="text-[13px] text-psub mb-2 px-4 flex items-center gap-2" role="status" aria-live="polite">
           <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
-          {lang === "es" ? "Te escucho… habla y lo envío cuando termines." : "Listening… talk and I'll send it when you stop."}
+          {listening
+            ? lang === "es"
+              ? "Te escucho… habla y toca el micrófono cuando termines."
+              : "Listening… talk and tap the microphone when you're done."
+            : lang === "es"
+              ? "Enviando… toca el micrófono si quieres seguir hablando."
+              : "Sending… tap the microphone to keep talking."}
         </p>
       )}
       <form
@@ -614,7 +635,7 @@ export default function ChatPanel({
             aria-pressed={speakOn}
             aria-label={speakLabel}
             title={speakLabel}
-            className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition hover:bg-black/10"
+            className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-full flex items-center justify-center transition hover:bg-black/10"
             style={speakOn ? { color: ACCENT } : { color: "#71717A" }}
           >
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -628,9 +649,10 @@ export default function ChatPanel({
             type="button"
             onClick={() => (listening ? recRef.current?.stop() : listen())}
             disabled={busy && !listening}
+            aria-pressed={listening}
             aria-label={micLabel}
             title={micLabel}
-            className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition disabled:opacity-40"
+            className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-full flex items-center justify-center transition disabled:opacity-40"
             style={listening ? { background: ACCENT, color: "#fff" } : { color: "#3F3F46" }}
           >
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

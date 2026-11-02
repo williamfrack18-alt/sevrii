@@ -259,7 +259,7 @@ export default function PlanView({
   const renderToken = ({ kind, arg, msgId }: ChatToken) => {
     if (kind === "part" && isBlock(arg)) return msgId === liveId ? partCard(arg) : <PartRow id={arg} plan={plan} stale={arg === reviewing} />;
     if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} passed={msgId !== lastIdeasId} onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} /> : null;
-    if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} />;
+    if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} payReady={business.payReady} />;
     if (kind === "market") return <MarketInChat plan={plan} />;
     return null;
   };
@@ -776,7 +776,7 @@ function FinishCard({ plan, busy, onFinish }: { plan: BusinessPlan; busy: boolea
 }
 
 // The plan is approved: where to go next.
-function DoneCard({ live, onNavigate }: { live: boolean; onNavigate: (v: DashboardView) => void }) {
+function DoneCard({ live, onNavigate, payReady }: { live: boolean; onNavigate: (v: DashboardView) => void; payReady: boolean }) {
   const t = PLAN_TEXT[useLang()];
   if (!live) {
     return (
@@ -797,6 +797,11 @@ function DoneCard({ live, onNavigate }: { live: boolean; onNavigate: (v: Dashboa
         <button type="button" onClick={() => onNavigate("store")} className="h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
           {t.goStore} →
         </button>
+        {!payReady && (
+          <button type="button" onClick={() => onNavigate("payments")} className="h-10 px-5 rounded-full text-[14px] font-medium" style={GHOST_BTN}>
+            {t.goPayments} →
+          </button>
+        )}
         <button type="button" onClick={() => onNavigate("marketing")} className="h-10 px-5 rounded-full text-[14px] font-medium" style={GHOST_BTN}>
           {t.goMarketing} →
         </button>

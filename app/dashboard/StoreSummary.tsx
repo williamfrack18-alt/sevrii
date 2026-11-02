@@ -112,6 +112,7 @@ export default function StoreSummary({
   fillError,
   onFill,
   onOpenPage,
+  onEditPage,
   onUpdated,
   onPayments,
   onAgent,
@@ -127,6 +128,7 @@ export default function StoreSummary({
   fillError: boolean;
   onFill: () => void;
   onOpenPage: () => void;
+  onEditPage?: () => void;
   onUpdated: (b: ClientBusiness) => void;
   onPayments?: () => void;
 }) {
@@ -172,9 +174,16 @@ export default function StoreSummary({
             {business.published ? `${t.live}${category ? ` · ${category}` : ""}` : t.draft}
           </span>
         </div>
-        <button type="button" onClick={onOpenPage} className="h-8 px-3.5 rounded-full text-[12.5px] font-semibold shrink-0" style={BRAND_BTN}>
-          {t.see}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {onEditPage && (
+            <button type="button" onClick={onEditPage} className="h-8 px-3.5 rounded-full text-[12.5px] font-semibold" style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}>
+              {lang === "es" ? "Editar" : "Edit"}
+            </button>
+          )}
+          <button type="button" onClick={onOpenPage} className="h-8 px-3.5 rounded-full text-[12.5px] font-semibold" style={BRAND_BTN}>
+            {t.see}
+          </button>
+        </div>
       </div>
 
       <div className="min-w-0 flex flex-col gap-1">
@@ -247,6 +256,20 @@ export default function StoreSummary({
               {t.addMedia}
             </button>
           )}
+        </div>
+      )}
+
+      {/* Payments: a gentle next step, never a requirement to publish. */}
+      {!isAgent && !business.payReady && onPayments && services.length > 0 && (
+        <div className="rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ background: "rgba(10,10,10,0.034)", boxShadow: `inset 0 0 0 1px ${HAIR}` }}>
+          <p className="text-[13px] leading-relaxed text-pfg min-w-0">
+            {lang === "es"
+              ? "Todavía no cobras con tarjeta. Conecta tus pagos y tus clientes podrán pagar desde tu página. Es opcional: puedes publicar sin esto."
+              : "You can't charge by card yet. Connect your payments and customers can pay from your page. It's optional: you can publish without it."}
+          </p>
+          <button type="button" onClick={onPayments} className="h-9 px-4 rounded-full text-[13px] font-semibold shrink-0 self-start sm:self-auto" style={BRAND_BTN}>
+            {lang === "es" ? "Conectar pagos" : "Connect payments"}
+          </button>
         </div>
       )}
     </div>

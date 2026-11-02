@@ -105,6 +105,7 @@ export const PLAN_TEXT = {
     marketNote: "Son referencias de internet, no precios garantizados. El precio final lo decides tú.",
     goStore: "Armar mi página en Store",
     goMarketing: "Crear mis campañas",
+    goPayments: "Conectar mis pagos",
     // Strategy mind map
     strategyEyebrow: "Tu estrategia",
     proposalMapSub: "Toca cada rama para verla completa. Aprueba lo que esté bien; para cambiar algo, toca Cambiar y díselo al Cerebro.",
@@ -141,7 +142,7 @@ export const PLAN_TEXT = {
     ideasShown: "Las opciones",
     ideasPassed: "Opciones que no te convencieron",
     doneTitle: "Tu estrategia está lista",
-    doneSub: "Tu página ya se arma en Store con esto. El siguiente paso son tus campañas en Marketing.",
+    doneSub: "Tu página ya se arma en Store con esto. Después puedes conectar tus pagos para cobrar con tarjeta (es opcional, y puedes publicar sin esto) y crear tus campañas en Marketing.",
     doneShort: "Estrategia aprobada",
     finishChat: "Todas las partes están aprobadas. Corrige esto en el chat y termina tu expediente:",
     mapSub: "Así va quedando tu estrategia. Las partes se aprueban en el chat de arriba.",
@@ -261,6 +262,7 @@ export const PLAN_TEXT = {
     marketNote: "These are online references, not guaranteed prices. You decide the final price.",
     goStore: "Build my page in Store",
     goMarketing: "Create my campaigns",
+    goPayments: "Connect my payments",
     // Strategy mind map
     strategyEyebrow: "Your strategy",
     proposalMapSub: "Tap each branch to see all of it. Approve what's right; to change something, tap Change and tell the Brain.",
@@ -296,7 +298,7 @@ export const PLAN_TEXT = {
     ideasShown: "The options",
     ideasPassed: "Options you passed on",
     doneTitle: "Your strategy is ready",
-    doneSub: "Your page is built in Store from this. The next step is your campaigns in Marketing.",
+    doneSub: "Your page is built in Store from this. Next you can connect your payments to charge by card (optional, you can publish without it) and create your campaigns in Marketing.",
     doneShort: "Strategy approved",
     finishChat: "Every part is approved. Fix this in the chat and finish your plan:",
     mapSub: "This is how your strategy is shaping up. Parts are approved in the chat above.",

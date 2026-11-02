@@ -16,7 +16,7 @@ import {
   type BusinessRow,
   type ServiceRow,
 } from "./db";
-import { LIMITS, PAGE_SECTIONS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, type PageSection, type SiteData } from "./site";
+import { LIMITS, PAGE_DESIGNS, PAGE_SECTIONS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, sectionOrder, type PageDesign, type PageSection, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
 import { planFingerprint } from "./planToStore";
 import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, offerTarget, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
@@ -199,13 +199,15 @@ const TOOLS: Tool[] = [
   {
     name: "set_layout",
     description:
-      "Change how the page looks, beyond its texts: the price/offer cards inside the photo gallery, which sections show, which photo goes first, and what the owner said no to (so you never push it again). Use it whenever the owner wants something on the page shown, hidden, moved or removed.",
+      "Change how the page looks, beyond its texts: the price/offer cards inside the photo gallery, which sections show, the ORDER of the sections, the DESIGN of the first screen, which photo goes first, and what the owner said no to (so you never push it again). Use it whenever the owner wants something on the page shown, hidden, moved or removed.",
     input_schema: {
       type: "object",
       properties: {
         galleryCards: { type: "string", enum: ["auto", "on", "off"], description: "Price and offer cards inside the photo gallery: off = never, on = always, auto = only while there are no real photos" },
         hide: { type: "array", items: { type: "string", enum: [...PAGE_SECTIONS] }, description: "Sections to hide: trust (facts bar), offerBand (offer banner), services (packages list), photos (photo grid), steps (how it works), faq, cta (closing section)" },
         show: { type: "array", items: { type: "string", enum: [...PAGE_SECTIONS] }, description: "Sections to show again" },
+        order: { type: "array", items: { type: "string", enum: [...PAGE_SECTIONS] }, description: "The new order of the sections under the first screen, top to bottom (list every section you want placed; the rest keep their relative order after them)" },
+        design: { type: "string", enum: [...PAGE_DESIGNS], description: "Look of the first screen: classic = photos left and details right; hero = a wide banner photo with the details centered under it; simple = text only, centered, no photo column" },
         firstPhoto: { type: "string", description: "URL of a gallery photo to put first" },
         declined: { type: "array", items: { type: "string", enum: ["video", "publish", "alerts", "reviews", "photos", "offer", "hours"] }, description: "Things the owner said no to (never suggest them again)" },
       },
@@ -244,7 +246,7 @@ How to work:
 
 How to think (always):
 - Read what the owner REALLY asks in this message and do exactly that first, with your tools, in this same turn. Then stop. Don't add a new suggestion unless they ask what's next.
-- You have full freedom over the page: texts and sections (update_page), services and prices (save_service, delete_service), photos (set_photo), and the layout (set_layout: price/offer cards in the gallery on/off, hide or show any section, which photo goes first). Never say "no tengo herramienta" or "no puedo" for something these tools do. If something truly can't be done, say so in one line and do the closest thing you can.
+- You have full freedom over the page: texts and sections (update_page), services and prices (save_service, delete_service), photos (set_photo), and the layout (set_layout: price/offer cards in the gallery on/off, hide or show any section, move sections up or down with "order", change the design of the first screen with "design" — classic, hero (wide banner) or simple (text only) —, which photo goes first). The owner can also tap «Editar» / «Editar mi página» (next to «Ver mi página») to change any text by touching it on the page, move sections with arrows and pick the design; tell them so when they want to arrange things themselves. Never say "no tengo herramienta" or "no puedo" for something these tools do. If something truly can't be done, say so in one line and do the closest thing you can.
 - Images: describe a NEW upload once, then classify it with set_photo (whatItIs). A screenshot of a screen (this panel, the page, an app, a chat, text) is never a work photo: don't put it on the page; look at what the owner points at in it and fix that. Never describe old photos again.
 - Facts in the state are the truth: "published", "alertsOn", "ownerDeclined", "realPhotos", "hasVideo", "languages". Never ask for what's already done (alertsOn true = alerts are on) or what they declined. When they say no to something (video, publishing, reviews…), save it with set_layout.declined and never suggest it again.
 - Publish (or unpublish) ONLY when the owner asks for it in their message ("publícala"). Don't keep asking "¿la publico?".
@@ -533,6 +535,14 @@ async function runTool(
       if (hide.length || show.length) {
         patch.hidden = [...new Set([...cur.hidden, ...hide])].filter((x) => !show.includes(x));
         done.push(`hidden sections: ${patch.hidden.join(", ") || "none"}`);
+      }
+      if (Array.isArray(input.order) && input.order.length) {
+        patch.order = sectionOrder([...valid(input.order), ...cur.order]);
+        done.push(`section order: ${patch.order.join(" > ")}`);
+      }
+      if (typeof input.design === "string" && (PAGE_DESIGNS as readonly string[]).includes(input.design)) {
+        patch.design = input.design as PageDesign;
+        done.push(`design: ${input.design}`);
       }
       if (typeof input.firstPhoto === "string" && cur.gallery.includes(input.firstPhoto)) {
         patch.gallery = [input.firstPhoto, ...cur.gallery.filter((g) => g !== input.firstPhoto)];

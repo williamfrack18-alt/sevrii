@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { cache } from "react";
+import { cache, Fragment } from "react";
 import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, addCampaignEvent, campaignBelongs, listAgentReviews, type BusinessRow } from "@/lib/db";
 import { cleanCampaignId } from "@/lib/campaignLink";
 import { limitsFor } from "@/lib/billing";
@@ -12,9 +12,12 @@ import { previewOk } from "@/lib/preview";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { reachLabel, resolveReach } from "@/lib/reach";
-import { activeOffer, storeTheme, type PageSection } from "@/lib/site";
+import { activeOffer, sectionOrder, storeTheme, type PageSection } from "@/lib/site";
+import { getLang } from "@/lib/lang";
+import type { EditField } from "@/app/siteEditActions";
 import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, type MediaItem } from "./StoreParts";
 import { ChatJump } from "./ChatWidget";
+import { Ed, EditBar, SectionTools } from "./EditBits";
 import AgentPage from "./AgentPage";
 import AffRef from "./AffRef";
 import { chatAgentFor } from "./agentChat";
@@ -97,6 +100,10 @@ export default async function PublicBusinessPage({
 
   const site = business.site;
   const t = STORE_TEXT[site.lang].site;
+  // The owner can open their own page in edit mode (?editar=1): texts change in
+  // place, sections move or hide, and the design is picked. Visitors never see it.
+  const editing = isOwner && sp.editar === "1";
+  const ui = editing ? await getLang() : "es";
   // Payment links the owner turned on (only when their Stripe account can take payments).
   const [services, allPayLinks] = await Promise.all([
     listServices(business.id),
@@ -177,8 +184,11 @@ export default async function PublicBusinessPage({
   if (cards) for (const sv of ordered.slice(0, 4)) {
     media.push({ kind: "slide", tone: "service", kicker: sv.featured ? sv.tag || t.featured : t.packageKicker, title: sv.name, price: sv.price || t.priceOnRequest, text: sv.description || "" });
   }
-  // Sections the owner chose to hide.
-  const show = (k: PageSection) => !site.hidden.includes(k);
+  // Sections the owner chose to hide (in edit mode they stay, dimmed, so they can bring them back).
+  const on = (k: PageSection) => editing || !site.hidden.includes(k);
+  // A text of the page: plain for visitors, editable in place in edit mode.
+  const edit = (field: EditField, value: string, o: { index?: number; sub?: string; id?: string; multiline?: boolean; ph?: string } = {}): React.ReactNode =>
+    editing ? <Ed slug={business.slug} field={field} value={value} {...o} /> : value;
 
   // Lowest price shown as "From $X": only with several services and only when
   // every dollar price is a plain amount (else it could be wrong).
@@ -255,11 +265,200 @@ export default async function PublicBusinessPage({
   }
   const ldJson = JSON.stringify(ld).replace(/</g, "\\u003c");
 
+  // The sections under the first screen, each one a block the owner can move,
+  // hide or show. `null` = nothing to show there (no content yet).
+  const nodes: Partial<Record<PageSection, React.ReactNode>> = {
+    trust:
+      on("trust") && trust.length > 0 ? (
+        <section className="trust">
+          <div className="wrap">
+            <div className="trust-grid">
+              {trust.map((x) => (
+                <div key={x.text} className="trust-item">
+                  <div className="trust-icon">{x.icon}</div>
+                  <span>{x.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null,
+
+    offerBand:
+      on("offerBand") && offer && hasChat ? (
+        <UntilOfferEnds endsAt={offer.endsAt}>
+          <section className="offer-band">
+            <div className="wrap offer-row">
+              <div>
+                <span className="offer-kicker">
+                  <span className="deal-dot" /> {t.offer}
+                </span>
+                <div className="offer-title">{offer.label}</div>
+                {offer.endsAt && (
+                  <div className="offer-ends">
+                    {t.endsIn} <Countdown endsAt={offer.endsAt} />
+                  </div>
+                )}
+              </div>
+              {/* Opens the chat already asking about the offer, so the assistant applies it. */}
+              {chatLink("btn light", `${t.offerCta} →`, offer.label)}
+            </div>
+          </section>
+        </UntilOfferEnds>
+      ) : null,
+
+    services:
+      on("services") && ordered.length > 0 ? (
+        <section className="block services-block" id="servicios">
+          <div className="wrap">
+            <div className="section-head">
+              <span className="eyebrow grad-text">{t.servicesEyebrow}</span>
+              <h2>{single ? (site.lang === "en" ? "What you get" : "Lo que recibes") : t.servicesTitle}</h2>
+            </div>
+            <div className={`services-grid ${ordered.length === 2 ? "n2" : ""} ${ordered.length === 4 ? "n4" : ""} ${single ? "single" : ""}`}>
+              {ordered.map((s, n) => {
+                const pay = payFor(s.name);
+                const img = images.length ? images[(n + 1) % images.length] : "";
+                return (
+                  <article key={s.id} className={`service-card ${s.featured ? "lead" : ""}`}>
+                    <div className={`service-media ${img ? "" : "grad"}`} style={img ? { backgroundImage: `url("${img}")` } : undefined}>
+                      {s.featured && !single && <span className="service-ribbon">★ {s.tag || t.featured}</span>}
+                      <span className="service-price-chip">{editing ? edit("service", s.price || "", { id: s.id, sub: "price", ph: t.priceOnRequest }) : s.price || t.priceOnRequest}</span>
+                    </div>
+                    <div className="service-body">
+                      <h3>{edit("service", s.name, { id: s.id, sub: "name" })}</h3>
+                      {s.description && <p>{edit("service", s.description, { id: s.id, sub: "description", multiline: true })}</p>}
+                      <div className="service-actions">
+                        {pay && (
+                          <a href={`/pay/${pay.id}`} className="btn pay">
+                            💳 {payText.button}
+                          </a>
+                        )}
+                        {hasChat && chatLink(`btn ${pay ? "ghost" : "chat"}`, <><ChatIcon /> {chatShort}</>, s.name)}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      ) : null,
+
+    photos:
+      on("photos") && images.length >= 2 ? (
+        <section className="block wrap">
+          <div className="section-head">
+            <span className="eyebrow grad-text">{t.workEyebrow}</span>
+            <h2>{t.workTitle}</h2>
+          </div>
+          <div className={`mosaic n${Math.min(images.length, 5)}`}>
+            {images.slice(0, 5).map((src, n) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={src} src={src} alt={t.photoAlt(business.name)} loading="lazy" className={n === 0 ? "big" : undefined} />
+            ))}
+          </div>
+        </section>
+      ) : null,
+
+    steps:
+      on("steps") && site.steps.length > 0 ? (
+        <section className="block steps-block">
+          <div className="wrap">
+            <div className="section-head">
+              <span className="eyebrow grad-text">{t.howEyebrow}</span>
+              <h2>{t.howTitle}</h2>
+            </div>
+            <div className={`process-grid ${site.steps.length === 4 ? "n4" : ""}`}>
+              {site.steps.map((st, n) => (
+                <div key={n} className="process-card">
+                  <span className="process-num">{n + 1}</span>
+                  {st.title ? <h3>{edit("step", st.title, { index: n, sub: "title" })}</h3> : null}
+                  <p className={st.title ? undefined : "solo"}>{edit("step", st.text, { index: n, sub: "text", multiline: true })}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null,
+
+    faq:
+      on("faq") && site.faq.length > 0 ? (
+        <section className="block wrap">
+          <div className="section-head">
+            <span className="eyebrow grad-text">{t.faqEyebrow}</span>
+            <h2>{t.faqTitle}</h2>
+          </div>
+          <div className="faq-list">
+            {site.faq.map((f, n) =>
+              editing ? (
+                // Open and plain while editing: a closed one can't be edited.
+                <div key={n} className="faq-edit">
+                  <strong>{edit("faq", f.q, { index: n, sub: "q" })}</strong>
+                  <p>{edit("faq", f.a, { index: n, sub: "a", multiline: true })}</p>
+                </div>
+              ) : (
+                <details key={n} open={n === 0}>
+                  <summary>
+                    {f.q} <span className="plus" aria-hidden>+</span>
+                  </summary>
+                  <p>{f.a}</p>
+                </details>
+              )
+            )}
+          </div>
+        </section>
+      ) : null,
+
+    cta:
+      hasChat && on("cta") ? (
+        <section className="final-cta" style={site.coverUrl ? { ["--cta-img" as string]: `url("${site.coverUrl}")` } : undefined}>
+          <div className="wrap">
+            {offer && (
+              <UntilOfferEnds endsAt={offer.endsAt}>
+                <span className="final-offer">🎁 {offer.label}</span>
+              </UntilOfferEnds>
+            )}
+            {/* A title an older version cut ("…?") is replaced by the plain one. */}
+            <h2>{edit("ctaTitle", site.ctaTitle && !/…\??$/.test(site.ctaTitle.trim()) ? site.ctaTitle : t.ctaDefaultTitle)}</h2>
+            <p>{edit("ctaText", site.ctaText || t.ctaDefaultText, { multiline: true })}</p>
+            <div className="btns">
+              {chatLink("btn light", <><ChatIcon /> {chatLong}</>)}
+            </div>
+            {(area || site.hours) && <div className="final-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
+          </div>
+        </section>
+      ) : null,
+  };
+  // Payment links that don't belong to a listed service sit right after the services.
+  const payNode =
+    extraPayLinks.length > 0 ? (
+      <section className="block wrap" id="pagar">
+        <div className="section-head">
+          <span className="eyebrow grad-text">{payText.eyebrow}</span>
+          <h2>{payText.title}</h2>
+        </div>
+        <div className={`services-grid ${extraPayLinks.length === 2 ? "n2" : ""} ${extraPayLinks.length === 4 ? "n4" : ""}`}>
+          {extraPayLinks.map((l) => (
+            <a key={l.id} href={`/pay/${l.id}`} className="pay-card-link">
+              <h3>{l.title}</h3>
+              {l.description && <p>{l.description}</p>}
+              <span className="pay-amount">{usd(l.amountCents)}</span>
+              <span className="btn pay pay-cta">💳 {payText.button} →</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    ) : null;
+  const order = sectionOrder(site.order);
+  const present = order.filter((k) => nodes[k]);
+
   return (
-    <div className="mt" lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
+    <div className={`mt${editing ? " editing" : ""}`} data-design={site.design} lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
       {live && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson }} />}
       {affRef}
-      {!live && <div className="draft-bar">{preview ? t.previewBanner : t.draftBanner}</div>}
+      {!live && !editing && <div className="draft-bar">{preview ? t.previewBanner : t.draftBanner}</div>}
+      {editing && <EditBar slug={business.slug} design={site.design} ui={ui} exitHref={`/site/${business.slug}`} />}
 
       <header className="mt-header">
         <div className="wrap header-row">
@@ -391,19 +590,19 @@ export default async function PublicBusinessPage({
               </UntilOfferEnds>
             )}
 
-            <h1>{mainTitle}</h1>
+            <h1>{edit("headline", mainTitle)}</h1>
             {fromPrice !== null && (
               <div className="from-price">
                 {t.fromPrice} <strong className="grad-text">{usd(fromPrice * 100).replace(/\.00$/, "")}</strong>
               </div>
             )}
-            <p className="lede">{business.pitch}</p>
+            <p className="lede">{edit("pitch", business.pitch, { multiline: true })}</p>
 
             {keyPoints.length > 0 && (
               <ul className="about-list">
                 {keyPoints.map((p, n) => (
                   <li key={n}>
-                    {p.title ? <strong>{p.title}:</strong> : null} {p.text}
+                    {p.title ? <strong>{edit("keyPoint", p.title, { index: n, sub: "title" })}:</strong> : null} {edit("keyPoint", p.text, { index: n, sub: "text", multiline: true })}
                   </li>
                 ))}
               </ul>
@@ -414,7 +613,7 @@ export default async function PublicBusinessPage({
                 const link = payFor(s.name);
                 return { id: s.id, name: s.name, price: s.price ?? "", payHref: link ? `/pay/${link.id}` : undefined };
               })}
-              chat={hasChat ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang, campaign: campaign || undefined, agent: chatAgent, hello } : null}
+              chat={hasChat && !editing ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang, campaign: campaign || undefined, agent: chatAgent, hello } : null}
               ctaNote={site.ctaNote}
               lang={site.lang}
               labels={{ chooseLabel: t.chooseLabel, selected: t.selected, priceOnRequest: t.priceOnRequest, payNow: t.payNow }}
@@ -422,173 +621,25 @@ export default async function PublicBusinessPage({
           </div>
         </section>
 
-        {show("trust") && trust.length > 0 && (
-          <section className="trust">
-            <div className="wrap">
-              <div className="trust-grid">
-                {trust.map((x) => (
-                  <div key={x.text} className="trust-item">
-                    <div className="trust-icon">{x.icon}</div>
-                    <span>{x.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-
-        {show("offerBand") && offer && hasChat && (
-          <UntilOfferEnds endsAt={offer.endsAt}>
-          <section className="offer-band">
-            <div className="wrap offer-row">
-              <div>
-                <span className="offer-kicker">
-                  <span className="deal-dot" /> {t.offer}
-                </span>
-                <div className="offer-title">{offer.label}</div>
-                {offer.endsAt && (
-                  <div className="offer-ends">
-                    {t.endsIn} <Countdown endsAt={offer.endsAt} />
-                  </div>
-                )}
-              </div>
-              {/* Opens the chat already asking about the offer, so the assistant applies it. */}
-              {chatLink("btn light", `${t.offerCta} →`, offer.label)}
-            </div>
-          </section>
-          </UntilOfferEnds>
-        )}
-
-        {show("services") && ordered.length > 0 && (
-          <section className="block services-block" id="servicios">
-            <div className="wrap">
-              <div className="section-head">
-                <span className="eyebrow grad-text">{t.servicesEyebrow}</span>
-                <h2>{single ? (site.lang === "en" ? "What you get" : "Lo que recibes") : t.servicesTitle}</h2>
-              </div>
-              <div className={`services-grid ${ordered.length === 2 ? "n2" : ""} ${ordered.length === 4 ? "n4" : ""} ${single ? "single" : ""}`}>
-                {ordered.map((s, n) => {
-                  const pay = payFor(s.name);
-                  const img = images.length ? images[(n + 1) % images.length] : "";
-                  return (
-                    <article key={s.id} className={`service-card ${s.featured ? "lead" : ""}`}>
-                      <div className={`service-media ${img ? "" : "grad"}`} style={img ? { backgroundImage: `url("${img}")` } : undefined}>
-                        {s.featured && !single && <span className="service-ribbon">★ {s.tag || t.featured}</span>}
-                        <span className="service-price-chip">{s.price || t.priceOnRequest}</span>
-                      </div>
-                      <div className="service-body">
-                        <h3>{s.name}</h3>
-                        {s.description && <p>{s.description}</p>}
-                        <div className="service-actions">
-                          {pay && (
-                            <a href={`/pay/${pay.id}`} className="btn pay">
-                              💳 {payText.button}
-                            </a>
-                          )}
-                          {hasChat && chatLink(`btn ${pay ? "ghost" : "chat"}`, <><ChatIcon /> {chatShort}</>, s.name)}
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {show("photos") && images.length >= 2 && (
-          <section className="block wrap">
-            <div className="section-head">
-              <span className="eyebrow grad-text">{t.workEyebrow}</span>
-              <h2>{t.workTitle}</h2>
-            </div>
-            <div className={`mosaic n${Math.min(images.length, 5)}`}>
-              {images.slice(0, 5).map((src, n) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={src} src={src} alt={t.photoAlt(business.name)} loading="lazy" className={n === 0 ? "big" : undefined} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {show("steps") && site.steps.length > 0 && (
-          <section className="block steps-block">
-            <div className="wrap">
-              <div className="section-head">
-                <span className="eyebrow grad-text">{t.howEyebrow}</span>
-                <h2>{t.howTitle}</h2>
-              </div>
-              <div className={`process-grid ${site.steps.length === 4 ? "n4" : ""}`}>
-                {site.steps.map((st, n) => (
-                  <div key={n} className="process-card">
-                    <span className="process-num">{n + 1}</span>
-                    {st.title ? <h3>{st.title}</h3> : null}
-                    <p className={st.title ? undefined : "solo"}>{st.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {extraPayLinks.length > 0 && (
-          <section className="block wrap" id="pagar">
-            <div className="section-head">
-              <span className="eyebrow grad-text">{payText.eyebrow}</span>
-              <h2>{payText.title}</h2>
-            </div>
-            <div className={`services-grid ${extraPayLinks.length === 2 ? "n2" : ""} ${extraPayLinks.length === 4 ? "n4" : ""}`}>
-              {extraPayLinks.map((l) => (
-                <a key={l.id} href={`/pay/${l.id}`} className="pay-card-link">
-                  <h3>{l.title}</h3>
-                  {l.description && <p>{l.description}</p>}
-                  <span className="pay-amount">{usd(l.amountCents)}</span>
-                  <span className="btn pay pay-cta">💳 {payText.button} →</span>
-                </a>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {show("faq") && site.faq.length > 0 && (
-          <section className="block wrap">
-            <div className="section-head">
-              <span className="eyebrow grad-text">{t.faqEyebrow}</span>
-              <h2>{t.faqTitle}</h2>
-            </div>
-            <div className="faq-list">
-              {site.faq.map((f, n) => (
-                <details key={n} open={n === 0}>
-                  <summary>
-                    {f.q} <span className="plus" aria-hidden>+</span>
-                  </summary>
-                  <p>{f.a}</p>
-                </details>
-              ))}
-            </div>
-          </section>
-        )}
+        {order.flatMap((k) => {
+          const out: React.ReactNode[] = [];
+          const node = nodes[k];
+          if (node) {
+            out.push(
+              editing ? (
+                <div key={k} className={`mt-sec${site.hidden.includes(k) ? " mt-ghost" : ""}`}>
+                  <SectionTools slug={business.slug} section={k} peers={present} hidden={site.hidden.includes(k)} ui={ui} />
+                  {node}
+                </div>
+              ) : (
+                <Fragment key={k}>{node}</Fragment>
+              )
+            );
+          }
+          if (k === "services" && payNode) out.push(<Fragment key="pay">{payNode}</Fragment>);
+          return out;
+        })}
       </main>
-
-      {hasChat && show("cta") && (
-        <section className="final-cta" style={site.coverUrl ? { ["--cta-img" as string]: `url("${site.coverUrl}")` } : undefined}>
-          <div className="wrap">
-            {offer && (
-              <UntilOfferEnds endsAt={offer.endsAt}>
-                <span className="final-offer">🎁 {offer.label}</span>
-              </UntilOfferEnds>
-            )}
-            {/* A title an older version cut ("…?") is replaced by the plain one. */}
-            <h2>{site.ctaTitle && !/…\??$/.test(site.ctaTitle.trim()) ? site.ctaTitle : t.ctaDefaultTitle}</h2>
-            <p>{site.ctaText || t.ctaDefaultText}</p>
-            <div className="btns">
-              {chatLink("btn light", <><ChatIcon /> {chatLong}</>)}
-            </div>
-            {(area || site.hours) && <div className="final-meta">{[area, site.hours].filter(Boolean).join(" · ")}</div>}
-          </div>
-        </section>
-      )}
 
       <footer>
         <div className="wrap">
@@ -602,9 +653,9 @@ export default async function PublicBusinessPage({
         </div>
       </footer>
 
-      {hasChat && <ChatJump lang={site.lang} />}
+      {hasChat && !editing && <ChatJump lang={site.lang} />}
 
-      {hasChat && (
+      {hasChat && !editing && (
         <div className="sticky-cta">
           <div className="row">
             {chatLink("btn chat", <><ChatIcon /> {chatLong}</>)}
