@@ -78,7 +78,7 @@ Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en
     case "ideas":
       if (plan.mode === "agent") return agentIdeasTask(plan, out);
       return `Tarea: IDEAS de servicio para alguien que quiere independizarse ${where}.
-Perfil: quiere ${p.direction === "known" ? "algo relacionado con lo que ya sabe hacer" : p.direction === "new" ? "probar algo nuevo: NO importa su experiencia, todo se puede aprender" : "algo de lo que ya sabe o algo nuevo, le da igual"}; dónde quiere trabajar: ${p.workPlace === "home" ? "desde casa (en línea)" : p.workPlace === "out" ? "en persona, fuera de casa" : "le da igual"}; trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; no quiere: ${p.notWant || "-"}; meta: ${p.goal || "?"}. ("?" = no lo sabemos todavía: no lo supongas.)
+Perfil: quiere ${p.direction === "known" ? "algo relacionado con lo que ya sabe hacer" : p.direction === "new" ? "probar algo nuevo: NO importa su experiencia, todo se puede aprender" : "algo de lo que ya sabe o algo nuevo, le da igual"}; dónde quiere trabajar: ${p.workPlace === "home" ? "desde casa (en línea)" : p.workPlace === "out" ? "en persona, fuera de casa" : "le da igual"}; trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; le gusta: ${p.likes || "?"}; ODIA o NUNCA quiere volver a hacer (filtro duro: no lo propongas, ni parecido, ni como ejemplo; solo excluye): ${p.notWant || "-"}; meta: ${p.goal || "?"}. ("?" = no lo sabemos todavía: no lo supongas.)
 Propón 6 servicios rentables (locales en su ciudad o que se puedan hacer en línea desde casa; di cuál es cuál en "why") que encajen con lo que quiere${p.direction === "known" ? " y con lo que ya sabe hacer" : " y que pueda aprender rápido (en pocas semanas), aunque nunca lo haya hecho"}, con su dinero y su tiempo. Que sean variados: tipos de trabajo distintos entre sí (no 3 versiones de lo mismo). Evita trabajos que la IA ya hace sola y casi gratis (transcribir, traducir, redactar textos simples), salvo que la persona los pida. Busca para cada uno el precio típico en su zona y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
 Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
 Lo que dijo que prefiere o no quiere: ${plan.ideaPrefs}. Respétalo.` : ""}
@@ -137,9 +137,16 @@ export async function runResearch(kind: ResearchKind, plan: BusinessPlan, lang: 
     [[search], [searchPlain], []],
     { timeoutMs: 110_000, seen }
   );
+  // Pages the model names that the search blocks didn't hand back are opened and
+  // kept only if they really answer (title and description from the page).
+  if (usedTools) await seen.verifyFromText(text).catch(() => {});
+  console.log("[brain:research]", kind, "blocks:", [...seen.blockTypes].join(",") || "none", "pages:", seen.all().length);
   const data = extractJson(text);
-  if (!data) return { data: null, sources: [], usedWeb: usedTools };
-  return { data: cleanResearch(kind, data, seen), sources: seen.filter(data.sources, 6), usedWeb: usedTools };
+  if (!data) return { data: null, sources: seen.all().slice(0, 6), usedWeb: usedTools };
+  // The links the search returned are the sources, whether or not the model listed them.
+  const listed = seen.filter(data.sources, 6);
+  const sources = [...listed, ...seen.all().filter((p) => !listed.some((l) => l.url === p.url))].slice(0, 6);
+  return { data: cleanResearch(kind, data, seen), sources, usedWeb: usedTools };
 }
 
 // Keep only links the search really returned; trim every field.

@@ -135,6 +135,7 @@ export function silentProposalIssues(plan: BusinessPlan, ownerSaid = ""): string
     ["promise", plan.promise],
     ["pricingNote", plan.pricingNote],
     ["serviceIncludes", plan.serviceIncludes],
+    ...plan.firstSteps.map((x, i): [string, string] => [`firstSteps[${i}]`, x]),
     ...plan.differentiators.map((d, i): [string, string] => [`differentiators[${i}]`, d]),
     ...plan.packages.map((k, i): [string, string] => [`packages[${i}]`, `${k.includes} ${k.note}`]),
     ...plan.faq.map((f, i): [string, string] => [`faq[${i}]`, `${f.q} ${f.a}`]),
@@ -225,4 +226,64 @@ export function priceChangeAllowed(before: Package[], after: Package[], ownerLas
   const proposed = new Set(dollars(lastAssistant));
   const ok = changed.every((n) => ownerNums.includes(n) || (saidYes && proposed.has(n)));
   return { ok, changed };
+}
+
+
+// ---------- internal notes never reach the owner ----------
+// The model sometimes echoes the notes and rules we give it: "(Internal note…)",
+// "(Nota interna…)", "(Reglas de siempre…)", "(Sistema…)", tool or field names.
+const NOTE_PAREN = /\(\s*(internal note|nota interna|notas? del sistema|system|sistema|reglas? de siempre|rules?|tarjeta mostrada|card shown|recordatorio|reminder)[^)]*\)/gi;
+const NOTE_LINE = /^\s*(internal note|nota interna|sistema|system|reglas de siempre|note to self)\s*:.*$/gim;
+const MACHINERY = /(save_profile|update_proposal|approve_blocks|choose_idea|more_ideas|own_idea|stillToAskAfterThis|\bmissing\b\s*:|\bstate\s*\(json\)|\bNOT saved\b|\bwas not saved\b|\b(hoursPerWeek|startBudgetUsd|costHoursPerJob|costMaterialsUsd|yearsExperience|yearsOwnBusiness|offerWanted|workLocation|serviceMode|remoteScope|businessName|currentPrice|mainService|typicalCustomer|howGetsClients|workHistory|askedFor|notWant|hasVehicle|workPlace|ideasNow|toolsReady|exampleJob)\b)/i;
+// Returns the reply without our machinery; `leaked` says whether anything was cut
+// (the caller may then regenerate silently).
+export function scrubInternal(reply: string): { reply: string; leaked: boolean } {
+  let leaked = false;
+  let t = reply.replace(NOTE_PAREN, () => ((leaked = true), "")).replace(NOTE_LINE, () => ((leaked = true), ""));
+  const parts = t.split(/(?<=[.!?])\s+/);
+  const kept = parts.filter((x) => !MACHINERY.test(x));
+  if (kept.length !== parts.length) leaked = true;
+  t = kept.join(" ").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  return { reply: t, leaked };
+}
+
+// ---------- what the owner never wants (a hard filter) ----------
+const AVOID_STOP = new Set(
+  ("nunca quiero quieres volver hacer hacerlo odio odias detesto detestas trabajo trabajos trabajar algo cosas cosa como para cuando porque tengo tener estar desde hasta tampoco jamas nada mucho mucha muy " +
+    "gente personas cliente clientes tiempo ganas poder puedo pienso creo sobre entre ellos ellas esto esta este eso esas esos otra otro tipo ningun ninguna ninguno " +
+    "never want again hate doing work anything about with from have would like thing things people customer customers that this").split(" ")
+);
+const stem = (w: string) => (w.length > 5 ? w.slice(0, 5) : w);
+const wordsOf = (t: string) => fold(t).split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+// Stems of the words the owner used to say what they don't want.
+export function avoidTerms(notWant: string): string[] {
+  const nothing = /^\s*(nada|ninguno|ninguna|no hay|none|nothing|n\/?a|nada en especial|nothing in particular)\b/i.test(fold(notWant).trim());
+  if (nothing) return [];
+  return [...new Set(wordsOf(notWant).filter((w) => !AVOID_STOP.has(w)).map(stem))];
+}
+export function touchesAvoid(text: string, terms: string[]): boolean {
+  if (!terms.length) return false;
+  const ws = wordsOf(text);
+  return terms.some((t) => ws.some((w) => (t.length < 5 ? w === t : w.startsWith(t))));
+}
+// A sentence that SUGGESTS something the owner never wants ("te propongo limpieza…").
+const SUGGESTS = /(te (propongo|sugiero|recomiendo)|podr[ií]as|puedes ofrecer|una idea|opci[oó]n|ofrecer|\bprueba\b|propon|sugier|i suggest|you could|how about|idea|option|offer)/i;
+export function withoutAvoidedSuggestions(reply: string, notWant: string): string {
+  const terms = avoidTerms(notWant);
+  if (!terms.length) return reply;
+  return reply
+    .split(/(?<=[.!?])\s+/)
+    .filter((x) => !(SUGGESTS.test(fold(x)) && touchesAvoid(x, terms)))
+    .join(" ")
+    .trim();
+}
+
+// A saved free-text answer must come from the owner: it shares words with what
+// they wrote, or it is a plain "nothing" that they also said.
+export function groundedInOwner(value: string, ownerText: string): boolean {
+  const v = fold(value).trim();
+  const o = fold(ownerText);
+  if (/^(ninguno|ninguna|nada|nada en especial|no hay|none|nothing|n\/?a)\b/.test(v)) return /\b(ninguno|ninguna|nada|no hay|nunca|none|nothing|no tengo|sin experiencia|cualquiera)\b/.test(o);
+  const ownerStems = new Set(wordsOf(o).map(stem));
+  return wordsOf(v).some((w) => ownerStems.has(stem(w)));
 }

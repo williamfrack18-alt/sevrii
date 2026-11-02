@@ -37,7 +37,9 @@ export function upgradeText(l: LimitInfo, lang: "es" | "en") {
   const title =
     l.kind === "day"
       ? es ? `Usaste los mensajes de hoy de tu plan ${planName(l.plan)}` : `You used today's messages on your ${planName(l.plan)} plan`
-      : es ? `Usaste la IA de este mes de tu plan ${planName(l.plan)}` : `You used this month's AI on your ${planName(l.plan)} plan`;
+      : l.kind === "budget"
+        ? es ? `Se terminó el saldo de IA de este mes de tu plan ${planName(l.plan)}` : `This month's AI balance on your ${planName(l.plan)} plan ran out`
+        : es ? `Usaste los mensajes de este mes de tu plan ${planName(l.plan)}` : `You used this month's messages on your ${planName(l.plan)} plan`;
   const body = es
     ? "Todo lo que llevas quedó guardado: tu entrevista y tu propuesta siguen aquí, justo donde quedaron."
     : "Everything so far is saved: your interview and your proposal stay right here, where you left them.";

@@ -13,7 +13,7 @@ import {
 import type { Lang } from "../i18n";
 import { countAiUnit, researchGate, runForUser } from "../usage";
 import { IDEAS_TOKEN, MARKET_TOKEN, nextPartMessage } from "./walk";
-import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanStage } from "../plan";
+import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanSource, type PlanStage } from "../plan";
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
 import { guardPlan, keptPriceIssue } from "./guard";
@@ -116,8 +116,8 @@ async function advanceStep(b: NonNullable<Awaited<ReturnType<typeof getBusinessB
   return { more: false };
 }
 
-function resultOf(jobs: ResearchJobRow[], kind: string): { data: Record<string, unknown> | null; sources: { title: string; url: string }[] } {
-  const r = (jobOf(jobs, kind)?.result ?? {}) as { data?: Record<string, unknown> | null; sources?: { title: string; url: string }[] };
+function resultOf(jobs: ResearchJobRow[], kind: string): { data: Record<string, unknown> | null; sources: PlanSource[] } {
+  const r = (jobOf(jobs, kind)?.result ?? {}) as { data?: Record<string, unknown> | null; sources?: PlanSource[] };
   return { data: jobOf(jobs, kind)?.status === "done" ? r.data ?? null : null, sources: r.sources ?? [] };
 }
 

@@ -87,7 +87,8 @@ export function cardAfterTurn(before: BusinessPlan, after: BusinessPlan, lang: L
 
 // Tokens are for the screen; the model reads a plain note instead.
 export function forModel(content: string, lang: Lang): string {
-  return content.replace(TOKEN, (_m, kind: string, arg?: string) => {
+  // The balance warning is for the screen only.
+  return content.replace(/\n\n⚠ [\s\S]*$/, "").replace(TOKEN, (_m, kind: string, arg?: string) => {
     if (kind === "part" && arg && (APPROVAL_BLOCKS as string[]).includes(arg))
       return lang === "es" ? `\n(Tarjeta mostrada: ${partName(arg as ApprovalBlock, lang)})` : `\n(Card shown: ${partName(arg as ApprovalBlock, lang)})`;
     if (kind === "ideas") return lang === "es" ? "\n(Tarjeta mostrada: las ideas)" : "\n(Card shown: the ideas)";

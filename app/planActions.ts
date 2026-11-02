@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { fillStoreFromPlan } from "@/lib/storeFill";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { chatGate, gateLimit, gateMessage, researchWouldStart, runForUser } from "@/lib/usage";
+import { budgetUsed, chatGate, gateLimit, gateMessage, month, researchWouldStart, runForUser } from "@/lib/usage";
 import type { LimitInfo } from "@/lib/upgrade";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
 import type { Lang } from "@/lib/i18n";
@@ -86,11 +86,25 @@ export async function sendPlanChatAction(message: string, businessId?: string): 
       role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
       content: forModel(m.content, lang).slice(0, LIMITS.aiMaxChars),
     })),
+    fullHistory: history.map((m) => ({
+      role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
+      content: forModel(m.content, lang).slice(0, LIMITS.aiMaxChars),
+    })),
     message: text,
     lang,
   }), "brain_chat", true);
   // The real error stays in the server logs; the chat only shows the plain message.
-  const reply = result.reply;
+  let reply = result.reply;
+  // Before the AI balance runs out, say so once (the work stays saved).
+  try {
+    const used = await budgetUsed(business.userId);
+    if (used >= 0.85 && used < 1 && (await allow(`brain:nearbudget:${business.userId}:${month()}`, 1, 32 * 24 * 60 * 60))) {
+      const pct = Math.round(used * 100);
+      reply += lang === "es"
+        ? `\n\n⚠ Aviso: ya usaste el ${pct}% del saldo de IA de tu plan este mes. Cuando se acabe, todo queda guardado y puedes mejorar tu plan en Planes para seguir.`
+        : `\n\n⚠ Heads-up: you've used ${pct}% of this month's AI balance on your plan. When it runs out, everything stays saved and you can upgrade in Plans to keep going.`;
+    }
+  } catch {}
   // The part the chat moved to (or changed) shows its card under the reply.
   const card = cardAfterTurn(business.plan, result.business.plan, lang);
   if (card === DONE_TOKEN) {

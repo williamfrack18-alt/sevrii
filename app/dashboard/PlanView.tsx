@@ -442,6 +442,21 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
               </ol>
             </div>
           )}
+          {plan.firstSteps.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <Label>{t.firstSteps}</Label>
+              <ol className="flex flex-col gap-2">
+                {plan.firstSteps.map((s, i) => (
+                  <li key={i} className="flex gap-3 text-[13.5px] text-pfg leading-relaxed">
+                    <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-px" style={{ background: "rgba(10,10,10,0.051)", color: "#52525B" }}>
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0">{s}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
       );
     case "pitch":
@@ -708,7 +723,7 @@ function PartCard({
 function cutTexts(plan: BusinessPlan, id: ApprovalBlock): number {
   const texts =
     id === "pitch" ? [plan.promise, ...plan.differentiators]
-    : id === "service" ? [plan.serviceIncludes, plan.serviceExcludes, ...plan.steps]
+    : id === "service" ? [plan.serviceIncludes, plan.serviceExcludes, ...plan.steps, ...plan.firstSteps]
     : id === "packages" ? plan.packages.flatMap((p) => [p.includes, p.note])
     : id === "offer" ? [plan.offer?.detail ?? ""]
     : plan.faq.flatMap((f) => [f.q, f.a]);
@@ -1418,7 +1433,7 @@ function Notes({ title, items, color }: { title: string; items: string[]; color:
   );
 }
 
-function Sources({ list }: { list: { title: string; url: string }[] }) {
+function Sources({ list }: { list: { title: string; url: string; description?: string }[] }) {
   const t = PLAN_TEXT[useLang()];
   if (!list.length) return null;
   return (
@@ -1431,7 +1446,7 @@ function Sources({ list }: { list: { title: string; url: string }[] }) {
             href={s.url}
             target="_blank"
             rel="noopener noreferrer nofollow"
-            title={s.url}
+            title={s.description ? `${s.description} — ${s.url}` : s.url}
             className="text-[12px] px-3 py-1.5 rounded-full text-pfg2 hover:text-pfg max-w-full truncate"
             style={{ background: "rgba(10,10,10,0.043)", boxShadow: `inset 0 0 0 1px ${HAIR}` }}
           >

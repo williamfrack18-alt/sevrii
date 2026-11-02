@@ -1,6 +1,7 @@
 import { BRAIN_MODEL, getBrainModel } from "../claude";
 import type { Lang } from "../i18n";
 import { parseIdeas, parsePlanAgent, str, type BusinessPlan, type Idea } from "../plan";
+import { avoidTerms, touchesAvoid } from "./checks";
 import { extractJson, textOf } from "./common";
 
 // The Strategist (the most capable model): turns the expediente into a
@@ -8,6 +9,8 @@ import { extractJson, textOf } from "./common";
 
 const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, servicio, cliente, mercado y requisitos) armas la propuesta comercial de un servicio en EE. UU. (local, o en línea si serviceMode es "remote").
 
+Antes de los precios (obligatorio): la parte "servicio" es un menú. En serviceIncludes escribe 2 a 4 servicios concretos que esta persona podría ofrecer, cada uno con una razón corta de por qué le conviene (su experiencia, su ciudad, la demanda), separados por «;». Los paquetes se arman con lo que ese menú dice, nunca con servicios que no estén en él. La persona escoge qué conservar antes de aprobar precios.
+Primeros pasos (obligatorio): firstSteps son 3 a 5 pasos concretos y cortos que la persona puede hacer ya: qué hacer primero, qué tener listo (solo lo que dijo tener o lo que cuesta poco) y cómo conseguir su primer cliente. Sin inventar horas, costos ni herramientas que no dijo.
 Persona A: entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, la oferta solo si el dueño la pidió, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
 Persona B: primero entrega 5 ideas variadas (de las 6 investigadas). Cuando escoja una, entrega la misma propuesta que la persona A.
 Persona C (mode "agent"): la persona crea un agente de IA, un producto digital que resuelve un problema él solo, en el chat de su página, las 24 horas, y cobra por usarlo. No tiene que ser de su oficio: primero entrega 3 ideas de agente (de las 5 investigadas); cuando escoja una, entrega la misma propuesta y además "agent".
@@ -46,7 +49,7 @@ Honestidad:
 
 Verdad y consistencia (obligatorio, revísalo antes de responder):
 - Idiomas: usa SOLO profile.languages. "es" = atiende solo en español: nunca digas que atiende en inglés ni "bilingüe" (sí puedes decir que atiende en español si la competencia no lo hace). "en" = solo inglés. "both" = los dos. Nunca lo supongas.
-- Lo que el dueño dijo que NO quiere hacer o que le cuesta (profile.notWant, o un límite que dio) es sagrado: nunca lo uses como argumento de venta ni como experiencia.
+- Lo que el dueño dijo que NO quiere hacer, que odia o que NUNCA quiere volver a hacer (profile.notWant, o un límite que dio) es un filtro duro: nunca lo propongas, ni como idea, ni como ejemplo, ni como paquete, ni como argumento de venta o experiencia. Solo excluye; no genera ideas.
 - Años: "años en el negocio" es solo profile.yearsOwnBusiness (los años por su cuenta). profile.yearsExperience son años de experiencia en el oficio; no los presentes como años del negocio.
 - Precio de hoy (obligatorio): profile.currentPrice es lo que cobra hoy y es SU decisión. El paquete de su servicio de hoy lleva EXACTAMENTE ese precio, con su misma unidad (si cobra $55 por noche, el paquete dice $55 por noche). Si crees que debería cobrar otro, NO lo pongas en packages: déjalo como pregunta en pricingNote ("Hoy cobras $30. Podrías cobrar $35 porque…; ¿quieres que lo cambie?"). Avisar no es pedir permiso: el cambio lo aprueba el dueño en el chat. Un nivel nuevo (más caro o más barato) solo si incluye algo distinto, y su "note" empieza con "Sugerido:".
 - Comparaciones con el mercado: si dices que un precio está "en el rango", "por debajo" o "por encima", compruébalo con los números exactos de market.prices. Si no lo está, dilo como es.
@@ -93,6 +96,7 @@ const PROPOSAL_PROPS = {
   serviceIncludes: S("What the service includes, one line"),
   serviceExcludes: S("What it does not include, one line"),
   steps: { type: "array", items: { type: "string" }, description: "3 steps: how the job works from the customer's side" },
+  firstSteps: { type: "array", items: { type: "string" }, description: "3-5 concrete first steps for the owner: what to do first, what to have ready, how to get the first client" },
   customer: S("Who buys it and where"),
   problem: S("The problem or need, in the customer's words"),
   fears: S("What worries the customer before hiring"),
@@ -246,6 +250,7 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
     serviceIncludes: str(d.serviceIncludes, 800),
     serviceExcludes: str(d.serviceExcludes, 600),
     steps: (Array.isArray(d.steps) ? d.steps : []).map((x) => str(x, 500)).filter(Boolean).slice(0, 5),
+    firstSteps: (Array.isArray(d.firstSteps) ? d.firstSteps : []).map((x) => str(x, 400)).filter(Boolean).slice(0, 5),
     customer: str(d.customer, 500),
     problem: str(d.problem, 500),
     fears: str(d.fears, 500),
@@ -274,9 +279,17 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
   };
 }
 
-export async function pickIdeas(plan: BusinessPlan, researched: Idea[], lang: Lang): Promise<{ ideas: Idea[]; message: string }> {
+export async function pickIdeas(plan: BusinessPlan, researchedIn: Idea[], lang: Lang): Promise<{ ideas: Idea[]; message: string }> {
   // B sees more options (people starting from zero want to compare); C keeps 3.
+  let researched = researchedIn;
   const count = plan.mode === "agent" ? 3 : 5;
+  // What they hate or never want again is a hard filter, applied in code:
+  // those ideas never get to the model (their own idea is always kept).
+  const terms = avoidTerms(plan.profile.notWant);
+  if (terms.length) {
+    const ownTitle = plan.ownIdea ? researched[0]?.title : "";
+    researched = researched.filter((i) => i.title === ownTitle || !touchesAvoid(`${i.title} ${i.why}`, terms));
+  }
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
     `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\n${plan.ownIdea ? "La idea de índice 0 es la que trajo la persona: inclúyela siempre entre las 3, con su puntaje real y sus pros y contras honestos; en message di en una línea cómo salió frente a las otras. " : ""}Escoge las ${count} mejores con su puntaje.`,

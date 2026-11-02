@@ -28,6 +28,7 @@ const SCHEMA = {
     serviceIncludes: S,
     serviceExcludes: S,
     steps: LIST,
+    firstSteps: LIST,
     customer: S,
     problem: S,
     promise: S,
@@ -42,7 +43,7 @@ const SCHEMA = {
     faq: { type: "array", items: { type: "object", additionalProperties: false, properties: { q: S, a: S }, required: ["q", "a"] } },
   },
   // Every field is present; an empty string or an empty list means "no change".
-  required: ["service", "serviceIncludes", "serviceExcludes", "steps", "customer", "problem", "promise", "differentiators", "pricingNote", "videoScript", "packages", "faq"],
+  required: ["service", "serviceIncludes", "serviceExcludes", "steps", "firstSteps", "customer", "problem", "promise", "differentiators", "pricingNote", "videoScript", "packages", "faq"],
 };
 
 export async function alignProposal(plan: BusinessPlan, correction: string, lang: Lang): Promise<Record<string, unknown>> {
@@ -54,6 +55,7 @@ export async function alignProposal(plan: BusinessPlan, correction: string, lang
     serviceIncludes: plan.serviceIncludes,
     serviceExcludes: plan.serviceExcludes,
     steps: plan.steps,
+    firstSteps: plan.firstSteps,
     customer: plan.customer,
     problem: plan.problem,
     promise: plan.promise,
@@ -92,7 +94,7 @@ export async function alignProposal(plan: BusinessPlan, correction: string, lang
     for (const k of ["service", "serviceIncludes", "serviceExcludes", "customer", "problem", "promise", "pricingNote", "videoScript"]) {
       if (typeof d[k] === "string" && (d[k] as string).trim()) out[k] = d[k];
     }
-    for (const k of ["steps", "differentiators"]) if (Array.isArray(d[k]) && (d[k] as unknown[]).length) out[k] = d[k];
+    for (const k of ["steps", "firstSteps", "differentiators"]) if (Array.isArray(d[k]) && (d[k] as unknown[]).length) out[k] = d[k];
     if (Array.isArray(d.faq) && d.faq.length) out.faq = d.faq;
     // Packages: only what each one includes and its note; names and prices stay.
     if (Array.isArray(d.packages) && d.packages.length === plan.packages.length) {

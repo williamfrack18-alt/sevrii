@@ -19,10 +19,12 @@ import {
 } from "../plan";
 import { codeGuard } from "./guard";
 import { priceMoves, swapAmounts } from "../reprice";
+import { dedupeReply, lockedFacts, nextQuestion } from "./asked";
+import { groundedInOwner, scrubInternal, withoutAvoidedSuggestions } from "./checks";
 import { unknownAmountSentences, ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
 import { alignProposal } from "./align";
-import { textOf, today } from "./common";
+import { extractJson, textOf, today } from "./common";
 import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
 
 // The Brain's chat. The code decides the stage; in each stage the model only
@@ -68,6 +70,9 @@ Si mode es "B: starting a new service" la persona quiere empezar un servicio nue
 - Si pide ideas u opciones ("dame ideas", "dime buenos servicios", "qué puedo hacer"), no sigas preguntando: guarda ideasNow=true junto con lo que ya sepas, y dile en una línea que con eso buscas ideas variadas y que después las afinan juntos. Solo hace falta su ciudad; si no la tienes, pídela en ese mismo mensaje como lo único que falta.
 - Si contesta "no sé" o "nunca lo he hecho", no insistas con la misma pregunta: propón tú una respuesta típica y pregúntale si la dejas así.
 - Si dice algo que responde varias preguntas ("solo tengo una computadora, nada de carro"), guárdalo todo de una vez.
+- Descubre a la persona, no la interrogues: primero qué le gusta y qué sabe hacer; después qué odia o NUNCA quiere volver a hacer (notWant). Lo que odia es un filtro duro: se guarda con sus palabras y jamás vuelve como idea, ejemplo ni pregunta; no te da ideas, solo las excluye. Si te cuenta algo de su vida o de lo que le pasó, reconócelo en una frase y adapta la siguiente pregunta a eso en vez de leer una lista.
+- Si dice "ya sé hacer X pero nunca lo he vendido", eso es direction "known" y workHistory con X: guárdalo y sigue con el detalle, NUNCA vuelvas a ofrecerle la disyuntiva "lo que ya sabes o algo nuevo".
+- Permisos, seguros, licencias: si de verdad son indispensables por ley para ese servicio, pregúntalo UNA sola vez, claro y en su momento. Si ya lo preguntaste, no lo repitas.
 
 Si mode es "C: an AI agent" la persona va a crear un agente de IA: un producto digital nuevo, como un curso o un producto físico, que resuelve un problema por chat, solo, las 24 horas, y cobra por usarlo. El agente NO tiene que ser de su oficio ni de lo que ella sabe: no le preguntes por su experiencia, su método ni sus apuntes. En la entrevista solo necesitas lo justo para buscar ideas: qué temas, problemas o mercados le interesan (vale "estoy abierto a cualquier idea"), a quién le gustaría ayudar (vale "a cualquiera") y en qué idioma hablará el agente. Después tú investigas y le propones 3 ideas de agentes por los que la gente ya paga; si ella ya trae su propia idea, guárdala en agentInterest y dile que también la vas a evaluar. Cuando ya escogió una idea ("ready_check"), propón tú la tarea completa que el agente HACE por cada cliente de punta a punta (agentTask: qué deja terminado, en qué páginas oficiales o software entra, qué datos delicados escribe el cliente y cuándo, cómo comprueba que quedó hecho y qué le entrega) y sus límites (agentLimits) a partir de la idea, y pídele que los confirme o ajuste; pregunta si atiende todo EE. UU., un solo estado u otros países y recomienda todo EE. UU. (el agente le pregunta a cada cliente su estado y usa las fuentes oficiales de ese estado), salvo que la idea sea de un solo estado (por ejemplo, una licencia de Texas); no le pidas escoger un estado si no hace falta; al final sugiérele 2 nombres cortos. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA. El agente no solo guía: HACE la tarea. Entra al navegador, a las páginas oficiales o al software que haga falta, completa el trámite de punta a punta y entrega el resultado en el chat (por ejemplo: deja la LLC creada, deja la cita hecha). El cliente solo escribe lo delicado (una contraseña, su tarjeta al pagar) directo en la página oficial cuando el agente se lo pide, y da su OK antes de firmar, enviar o pagar; lo controla todo hablando o escribiendo en el chat. Nunca reemplaza a un profesional con licencia cuando la ley lo exige.
 
@@ -90,6 +95,8 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 - No repitas el contenido de la tarjeta ni hagas listas: ya la está viendo. Habla de la parte actual, en 1 a 3 frases.
 - Si aprueba esa parte de forma explícita ("apruebo", "así está bien", o un "sí"/"dale" respondiendo a si la aprueba), llama a approve_blocks con currentPart y no digas nada de la siguiente: el sistema la muestra sola. Responde solo algo corto como "Perfecto, aprobado."
 - "Continúa", "sigue", "lo demás" o "el resto" NO son aprobación: no llames a approve_blocks. Dile en una línea que para seguir apruebe esta parte con el botón Aprobar de la tarjeta (o te diga que la aprueba), o qué quiere cambiar.
+- El servicio es un menú: antes de hablar de precios, la persona escoge cuáles de los servicios de la tarjeta conserva. Si todavía no aprobó el servicio, no hables de aprobar paquetes.
+- Los primeros pasos (firstSteps) forman parte del servicio: dile qué hacer primero, qué tener listo y cómo conseguir su primer cliente; tú aconsejas, no solo preguntas.
 - Si pide un cambio, hazlo con update_proposal (solo los campos que cambian) y confírmalo en una línea; la tarjeta actualizada aparece sola debajo. Cambiar una parte ya aprobada le quita la aprobación y vuelve a mostrarse.
 - Si pregunta algo o dice que no entendió, responde SOLO eso, de forma directa y con otras palabras (más simple, con un ejemplo). En ese mensaje no pidas aprobar nada. Todo lo que aparece en las tarjetas lo escribió Sevrii, no el dueño: nunca digas "lo que me enviaste" de algo que mostró el sistema.
 - El mercado se cita SOLO con el texto exacto de "marketRange" del estado; no inventes otros rangos. Nunca contestes una pregunta con una acción (no regeneres ni cambies nada si solo preguntó). Ejemplo: "¿Los textos cortados se verían así en mi página?" → di si sí o no y qué vas a hacer.
@@ -187,7 +194,8 @@ const PROFILE_PROPS: Record<string, unknown> = {
   costHoursPerJob: { type: "number", description: "Hours one job takes them (or one client a month for a monthly service), exactly as they said it" },
   costMaterialsUsd: { type: "number", description: "Dollars of materials or tools per job (or per client a month); 0 if they said free / nothing" },
   startBudgetUsd: { type: "number" },
-  notWant: { type: "string" },
+  likes: { type: "string", description: "B: what they enjoy doing or are good at, in their words" },
+  notWant: { type: "string", description: "What they hate or NEVER want to do again, in their words ('nada en especial' if they said there is nothing). It only excludes: never turn it into an idea" },
   goal: { type: "string", enum: ["extra", "fulltime"] },
   toolsReady: { type: "string", enum: ["yes", "no"] },
   agentInterest: { type: "string", description: "C only: topics, problems or markets they'd like the agent to solve, or their own agent idea ('open to any idea' is valid)" },
@@ -238,6 +246,7 @@ const UPDATE_PROPOSAL: Tool = {
       serviceIncludes: { type: "string" },
       serviceExcludes: { type: "string" },
       steps: { type: "array", items: { type: "string" } },
+      firstSteps: { type: "array", items: { type: "string" } },
       customer: { type: "string" },
       problem: { type: "string" },
       promise: { type: "string" },
@@ -289,13 +298,14 @@ const APPROVE_BLOCKS: Tool = {
 };
 
 // Texts that can contradict a correction (checked after every edit).
-const ALIGN_KEYS = ["service", "serviceIncludes", "serviceExcludes", "steps", "customer", "problem", "promise", "differentiators", "packages", "pricingNote", "faq", "videoScript"];
+const ALIGN_KEYS = ["service", "serviceIncludes", "serviceExcludes", "steps", "firstSteps", "customer", "problem", "promise", "differentiators", "packages", "pricingNote", "faq", "videoScript"];
 
 const FIELD_BLOCK: Record<string, ApprovalBlock> = {
   service: "service",
   serviceIncludes: "service",
   serviceExcludes: "service",
   steps: "service",
+  firstSteps: "service",
   customer: "service",
   problem: "service",
   promise: "pitch",
@@ -457,7 +467,7 @@ const CLAIMS_EDIT = /\b(actualiz\w*|cambi[eé]|lo cambio|los cambio|quit[eé]|qu
 
 // Rules that must hold on every turn, re-sent with each message so a long
 // chat never loses them (the code checks them too).
-const HARD_RULES = `(Reglas de siempre: lenguaje neutro de género (nunca «ubicada», «lista», «contenta», «ubicado», «listo» para la persona: di «tu zona ya quedó guardada», «ya tengo lo que necesito»); nunca expliques qué puede o no guardar el sistema (si un dato necesita confirmación, pregunta "¿lo dejo en X?"); ningún descuento que el dueño no pidió; una sola pregunta por mensaje; guarda números solo si la persona los dijo, nunca conviertas "medio tiempo" u otra respuesta vaga en un número; no cambies precios sin su OK explícito; responde primero lo que pregunta, con otras palabras si no entendió; nada de notas internas, nombres de campos ni "expediente"; no pidas seguros ni permisos que no sean indispensables.)`;
+const HARD_RULES = `(Reglas de siempre: lenguaje neutro de género (nunca «ubicada», «lista», «contenta», «ubicado», «listo» para la persona: di «tu zona ya quedó guardada», «ya tengo lo que necesito»); nunca expliques qué puede o no guardar el sistema (si un dato necesita confirmación, pregunta "¿lo dejo en X?"); ningún descuento que el dueño no pidió; una sola pregunta por mensaje; guarda números solo si la persona los dijo, nunca conviertas "medio tiempo" u otra respuesta vaga en un número; no cambies precios sin su OK explícito; responde primero lo que pregunta, con otras palabras si no entendió; nada de notas internas, nombres de campos ni "expediente"; no pidas seguros ni permisos que no sean indispensables, y si ya lo preguntaste una vez no vuelvas a preguntarlo; nunca preguntes algo que ya está en "Datos ya confirmados"; lo que la persona odia o nunca quiere volver a hacer solo se excluye: jamás lo propongas ni lo pongas de ejemplo; nunca le atribuyas a la persona algo que escribió el sistema; no cambies cómo ni dónde se hace el servicio sin su permiso.)`;
 
 async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = "", lastAssistant = ""): Promise<{ out: string; startPipeline?: boolean }> {
   const plan = b.plan;
@@ -479,6 +489,14 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         if (!ok) {
           delete input[k];
           note += ` (${k} NOT saved: the owner never said or agreed to that number. Ask them ${rule.ask}, with a typical number they can accept; never assume it, and never mention a system or a rule to them)`;
+        }
+      }
+      // Free-text answers come from the owner's own words, never from a guess.
+      for (const k of ["likes", "notWant", "workHistory", "askedFor"] as const) {
+        const v = input[k];
+        if (typeof v === "string" && v.trim() && !groundedInOwner(v, ownerSaid)) {
+          delete input[k];
+          note += ` (${k} NOT saved: the owner didn't say that. Ask them again with other words and 2 or 3 options they can pick; never fill it in yourself and never mention a system)`;
         }
       }
       // An offer exists only if the owner asked for one.
@@ -635,7 +653,11 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (plan.stage !== "proposal") return { out: "error: nothing to approve" };
       if (!saidApproval(lastSaid))
         return { out: "not approved: the owner did not explicitly approve this part (asking to continue is not an approval). Nothing changed. Tell them in one line that to go on they approve this part with the card's \"Aprobar\" button (or tell you it's approved), or say what to change." };
-      const blocks = (Array.isArray(input.blocks) ? input.blocks : []).filter((x): x is ApprovalBlock => APPROVAL_BLOCKS.includes(x as ApprovalBlock));
+      let blocks = (Array.isArray(input.blocks) ? input.blocks : []).filter((x): x is ApprovalBlock => APPROVAL_BLOCKS.includes(x as ApprovalBlock));
+      // One OK approves the part being reviewed, nothing more, unless they say "todo".
+      const current = APPROVAL_BLOCKS.find((x) => !plan.approvals[x]);
+      if (!/\b(todo|todas|todos|everything|all (of it|parts))\b/i.test(lastSaid)) blocks = blocks.filter((x) => x === current);
+      if (!blocks.length) return { out: "not approved: only the part being reviewed can be approved with this OK, and they didn't say it was approved. Nothing changed. Show it again briefly and ask if they approve this part or what to change." };
       const { plan: next, refused } = applyApprovals(plan, blocks, lang);
       await updateBusinessPlan(b.id, next);
       const built = next.stage === "approved" ? (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true })).filled : false;
@@ -673,11 +695,53 @@ export function chooseIdea(plan: BusinessPlan, i: number): BusinessPlan {
   });
 }
 
+// What the owner answered but the model didn't save (so it asked again): a
+// small call pulls the one data point out of their message, with the exact
+// words that prove it. Code checks those words are really theirs and saves it
+// through the same guarded path as the model's own saves.
+const EXTRACT_ENUM: Record<string, string[]> = { direction: ["known", "new", "open"], workPlace: ["home", "out", "any"], hasVehicle: ["yes", "no"], languages: ["es", "en", "both"] };
+const EXTRACT_TEXT = ["workHistory", "askedFor", "likes", "notWant", "tools", "howGetsClients", "typicalCustomer", "differentiators", "exampleJob", "currentPrice"];
+async function extractAnswer(client: NonNullable<ReturnType<typeof getBrainModel>>, key: string, question: string, ownerReply: string): Promise<string | null> {
+  const isEnum = key in EXTRACT_ENUM;
+  const isNumber = key in OWNER_NUMBERS;
+  if (!isEnum && !isNumber && !EXTRACT_TEXT.includes(key)) return null;
+  const what = isEnum ? `exactly one of: ${EXTRACT_ENUM[key].join(", ")}` : isNumber ? "only the number (digits)" : "a short phrase with their own words";
+  try {
+    const res = await client.messages.create(
+      {
+        model: BRAIN_MODEL,
+        max_tokens: 3000,
+        output_config: { effort: "low" },
+        system: "You extract one data point from a person's message. Reply with JSON only, no other text.",
+        messages: [
+          {
+            role: "user",
+            content: `Question that was asked: ${question}\nPerson's answer: ${ownerReply}\n\nField: ${key}. If the answer states it, "value" is ${what}. "evidence" is the exact words copied from the answer that prove it. If they did not answer that question, or it is vague (for example "medio tiempo" is not a number of hours), "value" is null. Never guess.\nJSON: {"value": string|null, "evidence": string}`,
+          },
+        ],
+      },
+      { timeout: 30_000, maxRetries: 1 }
+    );
+    const d = extractJson(textOf(res.content));
+    const value = d && typeof d.value === "string" ? d.value.trim() : "";
+    const evidence = d && typeof d.evidence === "string" ? d.evidence.trim() : "";
+    const norm = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ");
+    if (!value || !evidence || !norm(ownerReply).includes(norm(evidence))) return null;
+    if (isEnum) return EXTRACT_ENUM[key].includes(value) ? value : null;
+    return value;
+  } catch (err) {
+    console.warn("[ai:brain] extractAnswer failed", key, (err as Error)?.message);
+    return null;
+  }
+}
+
 export type BrainChatResult = { reply: string; business: BusinessRow; startPipeline: boolean; debug?: string };
 
 export async function runPlanChatTurn(opts: {
   business: BusinessRow;
   history: { role: "user" | "assistant"; content: string }[];
+  // The whole chat (the model sees only the last messages; the checks in code see all of it).
+  fullHistory?: { role: "user" | "assistant"; content: string }[];
   message: string;
   lang: Lang;
 }): Promise<BrainChatResult> {
@@ -729,12 +793,13 @@ export async function runPlanChatTurn(opts: {
       nameNote = `\n\n(Internal note: the owner's business name "${name}" is saved. Call save_profile with businessName "${name}" now to confirm it, and don't suggest other names.)`;
     }
   }
-  const ownerSaid = [...opts.history.filter((h) => h.role === "user").map((h) => h.content), opts.message].join("\n");
+  const mem = opts.fullHistory ?? opts.history;
+  const ownerSaid = [...mem.filter((h) => h.role === "user").map((h) => h.content), opts.message].join("\n");
   const lastAssistant = [...opts.history].reverse().find((h) => h.role === "assistant")?.content ?? "";
   const askedSomething = isQuestionTurn(opts.message);
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
-    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}${nameNote}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}${askedSomething ? "\n\n(Internal note: the owner asked something or didn't understand. Answer exactly that, in simpler words, and don't ask them to approve anything in this message.)" : ""}\n\n${HARD_RULES}` },
+    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}${nameNote}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}${askedSomething ? "\n\n(Internal note: the owner asked something or didn't understand. Answer exactly that, in simpler words, and don't ask them to approve anything in this message.)" : ""}\n\n(${lockedFacts(business.plan, mem)})\n\n${HARD_RULES}` },
   ];
   let reply = "";
   let startPipeline = false;
@@ -743,7 +808,7 @@ export async function runPlanChatTurn(opts: {
   // A reply never hangs: each call has a short timeout, and the whole turn a
   // deadline. What the tools saved stays saved; the owner gets an answer.
   const started = Date.now();
-  const TURN_DEADLINE_MS = 70_000;
+  const TURN_DEADLINE_MS = 120_000;
   // An edit that didn't save can't be announced as done.
   let editFailed = false;
   let editSaved = false;
@@ -761,15 +826,15 @@ export async function runPlanChatTurn(opts: {
         {
           model: BRAIN_MODEL,
           // Muse Spark always reasons and the reasoning counts here.
-          max_tokens: 10000,
-          // Medium: it thinks about where the owner is and what comes next.
-          output_config: { effort: "medium" },
+          max_tokens: 14000,
+          // High: it thinks about where the owner is, what is already saved and what comes next.
+          output_config: { effort: "high" },
           system: `${system}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`,
           ...(tools.length ? { tools } : {}),
           messages,
         },
         // One quick retry at most: never minutes of "Pensando…".
-        { timeout: 40_000, maxRetries: 1 }
+        { timeout: 60_000, maxRetries: 1 }
       );
       const text = textOf(res.content);
       if (text) reply = text;
@@ -820,6 +885,38 @@ export async function runPlanChatTurn(opts: {
     debug = String((err as Error)?.message || err).slice(0, 400);
     reply = aiErrorReply(err, opts.lang === "en" ? "en" : "es");
   }
+  // A question that was answered is never asked again: the model's repeat is
+  // taken out in code. If the owner did answer but nothing was saved, the answer
+  // is pulled out of their message (with proof) and saved; then the next missing
+  // question comes from a fixed wording, not from the model.
+  if (!startPipeline && reply) {
+    const turnHistory = [...mem, { role: "user", content: opts.message }];
+    const d = dedupeReply(reply, business.plan, mem);
+    let swap = false;
+    if (d.repeated) {
+      // Same topic as the last message and still missing: did the owner answer it?
+      const value = askedSomething ? null : await extractAnswer(client, d.repeated, lastAssistant, opts.message);
+      if (value !== null) {
+        try {
+          const r = await runTool("save_profile", { [d.repeated]: d.repeated in OWNER_NUMBERS ? Number(value) : value }, business, opts.lang, ownerSaid, opts.message, lastAssistant);
+          business = (await getBusinessById(business.id))!;
+          if (r.startPipeline) startPipeline = true;
+          swap = true;
+        } catch (err) {
+          console.error("[ai:brain] save from answer failed", d.repeated, err);
+        }
+      } else if (d.sameWords) swap = true; // not answered: a new wording with options, never the same words
+    }
+    if (d.dropped.length || swap) {
+      reply = d.reply;
+      if (swap) reply = reply.replace(d.repeatedQuestion, "").replace(/\s{2,}/g, " ").trim();
+      if (!startPipeline) {
+        const q = nextQuestion(business.plan, opts.lang === "en" ? "en" : "es", turnHistory);
+        if (q) reply = `${reply ? `${reply} ` : ""}${q}`.trim();
+        else if (!reply) reply = es ? "Anotado." : "Noted.";
+      }
+    }
+  }
   if (!reply && startPipeline) {
     reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.";
   }
@@ -846,7 +943,22 @@ export async function runPlanChatTurn(opts: {
   // No discount the owner never asked for, not even as a suggestion.
   if (!business.plan.profile.offerWanted && !ASKS_OFFER.test(ownerSaid) && mentionsDiscount(reply))
     reply = reply.split(/(?<=[.!?])\s+/).filter((x) => !mentionsDiscount(x)).join(" ").trim();
-  // Never show the owner our internal notes (they sometimes get echoed).
+  // Never show the owner our internal notes (they sometimes get echoed): the
+  // notes are cut out, and if the cut leaves no question the next one is added.
+  {
+    const clean = scrubInternal(reply);
+    if (clean.leaked) {
+      console.warn("[ai:brain] internal note cut from a reply", business.id);
+      reply = clean.reply;
+      const stage = business.plan.stage;
+      if (!startPipeline && (stage === "interview" || stage === "ready_check") && !/[?¿]/.test(reply)) {
+        const q = nextQuestion(business.plan, opts.lang === "en" ? "en" : "es", [...mem, { role: "user", content: opts.message }]);
+        if (q) reply = `${reply} ${q}`.trim();
+      }
+    }
+  }
+  // What the owner never wants is never suggested, not even as an example.
+  reply = withoutAvoidedSuggestions(reply, business.plan.profile.notWant) || reply;
   reply = reply
     .replace(/^\s*\((Tarjeta mostrada|Card shown)[^)\n]*\)\s*$/gim, "")
     .replace(/\$\s*\$(?=\s?\d)/g, "$")

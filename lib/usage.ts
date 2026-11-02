@@ -14,7 +14,8 @@ const PRICES: { match: RegExp; input: number; output: number; cacheWrite: number
   // Meta Muse Spark (service agents' chat), dev.meta.ai/models/muse-spark.
   { match: /muse-spark/, input: 1.25, output: 4.25, cacheWrite: 1.25, cacheRead: 0.15 },
 ];
-const WEB_SEARCH_USD = 0.01; // $10 per 1,000 searches
+const WEB_SEARCH_USD = 0.01; // $10 per 1,000 searches (Claude)
+const MUSE_SEARCH_USD = 0.0025; // $2.50 per 1,000 searches (Meta: dev.meta.ai/docs/pricing-rate-limits), on top of the tokens
 
 type Usage = {
   input_tokens?: number | null;
@@ -33,7 +34,7 @@ export function costUsd(model: string, u: Usage | undefined | null): number {
       (u.cache_creation_input_tokens ?? 0) * p.cacheWrite +
       (u.cache_read_input_tokens ?? 0) * p.cacheRead) /
     1_000_000;
-  return tokens + (u.server_tool_use?.web_search_requests ?? 0) * WEB_SEARCH_USD;
+  return tokens + (u.server_tool_use?.web_search_requests ?? 0) * (/muse-spark/.test(model) ? MUSE_SEARCH_USD : WEB_SEARCH_USD);
 }
 
 // The account the current request is working for, so every AI call made while
@@ -149,6 +150,12 @@ export async function monthSpendUsd(userId: string): Promise<number> {
   } catch {
     return 0;
   }
+}
+
+// How much of this month's AI budget is used (0 to 1+), to warn before it runs out.
+export async function budgetUsed(userId: string): Promise<number> {
+  const l = await limitsForUserId(userId);
+  return l.aiBudgetUsd > 0 ? (await monthSpendUsd(userId)) / l.aiBudgetUsd : 0;
 }
 
 export type GateReason = "slow" | "day" | "month" | "budget";

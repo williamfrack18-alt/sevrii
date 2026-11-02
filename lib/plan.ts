@@ -5,7 +5,7 @@ import { parseTask, type AgentTask } from "./serviceAgentConfig";
 
 export type PlanPackage = { name: string; price: string; includes: string; note: string };
 export type PlanChannel = { channel: string; why: string };
-export type PlanSource = { title: string; url: string };
+export type PlanSource = { title: string; url: string; description?: string };
 
 // Where the project is. The code moves between stages, never the AI.
 //  A (already offers): interview → research → proposal → approved
@@ -61,6 +61,10 @@ export type Profile = {
   // the prices are built on these, so they are never guessed.
   costHoursPerJob: number | null;
   costMaterialsUsd: number | null;
+  // What they enjoy doing, and what they hate or NEVER want to do again. The
+  // second one (notWant) is a hard filter: it never comes back as an idea, an
+  // example or a question; it only excludes.
+  likes: string;
   notWant: string;
   goal: "extra" | "fulltime" | "";
   toolsReady: "yes" | "no" | "";
@@ -136,6 +140,9 @@ export type BusinessPlan = {
   serviceIncludes: string;
   serviceExcludes: string;
   steps: string[]; // how the job works, for the page
+  // Concrete first moves for the owner: what to do first, what to have ready,
+  // how to get the first client.
+  firstSteps: string[];
   customer: string;
   problem: string;
   fears: string;
@@ -208,6 +215,7 @@ export const EMPTY_PROFILE: Profile = {
   startBudgetUsd: null,
   costHoursPerJob: null,
   costMaterialsUsd: null,
+  likes: "",
   notWant: "",
   goal: "",
   toolsReady: "",
@@ -231,6 +239,7 @@ export const EMPTY_PLAN: BusinessPlan = {
   serviceIncludes: "",
   serviceExcludes: "",
   steps: [],
+  firstSteps: [],
   customer: "",
   problem: "",
   fears: "",
@@ -314,7 +323,10 @@ function sources(v: unknown, max = 8): PlanSource[] {
   for (const x of Array.isArray(v) ? v : []) {
     const r = (x ?? {}) as Record<string, unknown>;
     const url = safeHttpUrl(r.url);
-    if (url && !out.some((o) => o.url === url)) out.push({ title: str(r.title, 120) || url, url });
+    if (url && !out.some((o) => o.url === url)) {
+      const description = str(r.description, 300);
+      out.push({ title: str(r.title, 120) || url, url, ...(description ? { description } : {}) });
+    }
     if (out.length >= max) break;
   }
   return out;
@@ -365,6 +377,7 @@ export function parseProfile(raw: unknown): Profile {
     startBudgetUsd: num(p.startBudgetUsd, 0, 1_000_000),
     costHoursPerJob: dec(p.costHoursPerJob, 0.25, 500),
     costMaterialsUsd: num(p.costMaterialsUsd, 0, 1_000_000),
+    likes: str(p.likes, 600),
     notWant: str(p.notWant, 600),
     goal: oneOf(p.goal, ["extra", "fulltime"] as const),
     toolsReady: oneOf(p.toolsReady, ["yes", "no"] as const),
@@ -508,6 +521,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
     serviceIncludes: str(o.serviceIncludes, 800),
     serviceExcludes: str(o.serviceExcludes, 600),
     steps: list(o.steps, 5, 500),
+    firstSteps: list(o.firstSteps, 5, 400),
     customer: str(o.customer, 500),
     problem: str(o.problem, 500),
     fears: str(o.fears, 500),
@@ -590,6 +604,8 @@ export function missingProfile(plan: BusinessPlan): string[] {
       need(!p.direction, "direction (something tied to what they already know or have done = known, something new they can learn = new, either = open; offer both, the two are fine)");
       need(p.direction === "known" && !p.workHistory, "workHistory (jobs they have had, or what they know how to do)");
       need(p.direction === "known" && !p.askedFor, "askedFor (what people ask them to help with)");
+      need(!p.likes, "likes (what they enjoy doing or are good at, even if it is not work; 'no sé' is fine: then offer 2 or 3 options to pick from)");
+      need(!p.notWant, "notWant (what they hate or NEVER want to do again, jobs or tasks; 'nada en especial' is a valid answer. Ask it kindly, once)");
       need(!p.workPlace, "workPlace (from home with a computer or phone = home, out in person at customers' places or on the street = out, either = any)");
       need(!p.tools, "tools (what they have today: computer, phone, car, tools…)");
       need(p.workPlace !== "home" && !p.hasVehicle, "hasVehicle (yes / no)");

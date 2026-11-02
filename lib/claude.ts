@@ -50,7 +50,14 @@ function metered(client: Anthropic): Anthropic {
   const create = client.messages.create.bind(client.messages);
   client.messages.create = (async (body: Parameters<typeof create>[0], opts?: Parameters<typeof create>[1]) => {
     const res = await create(body, opts);
-    const usage = (res as { usage?: Parameters<typeof recordAiUsage>[1] }).usage;
+    let usage = (res as { usage?: Parameters<typeof recordAiUsage>[1] }).usage;
+    // Meta may not report its searches in usage: they are counted from the
+    // search calls in the answer, so the meter includes the search charge.
+    if (usage && !usage.server_tool_use?.web_search_requests) {
+      const content = (res as { content?: { type?: string; name?: string }[] }).content;
+      const searches = Array.isArray(content) ? content.filter((c) => c.type === "server_tool_use" && c.name === "web_search").length : 0;
+      if (searches) usage = { ...usage, server_tool_use: { ...(usage.server_tool_use ?? {}), web_search_requests: searches } };
+    }
     await recordAiUsage(String((body as { model?: string }).model ?? ""), usage);
     return res;
   }) as unknown as typeof client.messages.create;

@@ -55,24 +55,115 @@ function normUrl(u: string): string {
   }
 }
 
+
+async function openPage(url: string): Promise<{ title: string; description: string } | null> {
+  const { lookup } = await import("node:dns/promises");
+  let cur = url;
+  for (let hop = 0; hop < 4; hop++) {
+    let u: URL;
+    try {
+      u = new URL(cur);
+    } catch {
+      return null;
+    }
+    if (!/^https?:$/.test(u.protocol) || PRIVATE_HOST.test(u.hostname)) return null;
+    // The name must resolve to a public address.
+    const addrs = await lookup(u.hostname, { all: true }).catch(() => []);
+    if (!addrs.length || addrs.some((a) => PRIVATE_HOST.test(a.address))) return null;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6000);
+    try {
+      const res = await fetch(u, { redirect: "manual", signal: ctl.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; SevriiBot/1.0)", accept: "text/html,*/*;q=0.5" } });
+      if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
+        cur = new URL(res.headers.get("location")!, u).toString();
+        continue;
+      }
+      // Blocked for bots (401/403/429) still means the page exists; 404/410/5xx do not.
+      if (res.status === 401 || res.status === 403 || res.status === 429) return { title: u.hostname.replace(/^www\./, ""), description: "" };
+      if (!res.ok) return null;
+      const reader = res.body?.getReader();
+      let html = "";
+      if (reader) {
+        const dec = new TextDecoder();
+        while (html.length < 150_000) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          html += dec.decode(value, { stream: true });
+          if (/<\/head>/i.test(html)) break;
+        }
+        reader.cancel().catch(() => {});
+      }
+      const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "";
+      const desc = /<meta[^>]+(?:name|property)=["'](?:og:)?description["'][^>]*content=["']([^"']*)["']/i.exec(html)?.[1] ?? /<meta[^>]+content=["']([^"']*)["'][^>]*(?:name|property)=["'](?:og:)?description["']/i.exec(html)?.[1] ?? "";
+      const clean = (x: string) => x.replace(/&amp;/g, "&").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
+      return { title: clean(title).slice(0, 120) || u.hostname.replace(/^www\./, ""), description: clean(desc) };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return null;
+}
+
 // Every page the server tools actually returned. Sources the model writes are
 // only kept if they are in this set, so it can't invent links.
+//
+// Meta's search does not document the shape of its results, so the collector
+// is shape-agnostic: it walks every block the model returned (except its own
+// reasoning) and keeps anything that looks like a page (a link with a title,
+// a description or a snippet). Links that only show up in the model's text are
+// kept only after the page itself answers (see verifyFromText).
+const PRIVATE_HOST = /^(localhost|.*\.local|.*\.internal|0\.0\.0\.0|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$|\[?f[cd][0-9a-f]{2}:|\[?fe80:)/i;
+const first = (...v: unknown[]) => v.find((x) => typeof x === "string" && x.trim()) as string | undefined;
+
 export class SeenPages {
   private pages = new Map<string, PlanSource>();
-  add(url: string, title?: string | null) {
+  // What the search blocks looked like (types only), for the logs.
+  blockTypes = new Set<string>();
+  add(url: string, title?: string | null, description?: string | null) {
     const n = normUrl(url);
-    if (n && /^https?:/i.test(n) && !this.pages.has(n)) this.pages.set(n, { url, title: (title || url).slice(0, 120) });
+    if (!n || !/^https?:/i.test(n)) return;
+    const desc = (description || "").replace(/\s+/g, " ").trim().slice(0, 300);
+    const cur = this.pages.get(n);
+    if (!cur) this.pages.set(n, { url, title: (title || url).slice(0, 120), ...(desc ? { description: desc } : {}) });
+    else if (!cur.description && desc) this.pages.set(n, { ...cur, description: desc });
+  }
+  // Any object with a link in it: {url,title,description|snippet|page_snippet|content|text}.
+  private walk(v: unknown, depth = 0) {
+    if (depth > 6 || v === null || typeof v !== "object") return;
+    if (Array.isArray(v)) {
+      for (const x of v) this.walk(x, depth + 1);
+      return;
+    }
+    const o = v as Record<string, unknown>;
+    if (o.type === "thinking" || o.type === "redacted_thinking") return;
+    const url = first(o.url, o.link, o.source);
+    if (url && /^https?:\/\//i.test(url.trim())) {
+      this.add(url.trim(), first(o.title, o.name, o.page_title), first(o.description, o.snippet, o.page_snippet, o.summary, typeof o.content === "string" ? o.content : undefined, o.cited_text, o.text));
+    }
+    for (const k of Object.keys(o)) if (typeof o[k] === "object") this.walk(o[k], depth + 1);
   }
   collect(content: ContentBlock[]) {
     for (const c of content) {
-      if (c.type === "web_search_tool_result" && Array.isArray(c.content)) {
-        for (const r of c.content) if (r.type === "web_search_result") this.add(r.url, r.title);
-      } else if (c.type === "web_fetch_tool_result" && c.content && c.content.type === "web_fetch_result") {
-        this.add(c.content.url, (c.content.content as { title?: string | null })?.title ?? null);
-      } else if (c.type === "text" && c.citations) {
-        for (const cit of c.citations) if (cit.type === "web_search_result_location") this.add(cit.url, cit.title);
+      const t = String((c as { type?: string }).type ?? "");
+      if (t !== "text" && t !== "thinking" && t !== "redacted_thinking" && t !== "tool_use") this.blockTypes.add(t);
+      if (t === "text") {
+        const cits = (c as { citations?: unknown }).citations;
+        if (Array.isArray(cits)) this.walk(cits);
+      } else if (t !== "thinking" && t !== "redacted_thinking" && t !== "tool_use" && t !== "server_tool_use") {
+        this.walk(c);
       }
     }
+  }
+  // Pages the model names in its answer that the search blocks didn't hand us.
+  // Each one is opened (public web only) and kept only if the page really
+  // answers; its title and description come from the page itself.
+  async verifyFromText(text: string, max = 12): Promise<void> {
+    const urls = [...new Set([...text.matchAll(/https?:\/\/[^\s"'<>)\]}]+/g)].map((m) => m[0].replace(/[.,;:]+$/, "")))]
+      .filter((u) => !this.has(u))
+      .slice(0, max);
+    await Promise.all(urls.map((u) => openPage(u).then((r) => r && this.add(u, r.title, r.description)).catch(() => {})));
   }
   has(url: string): boolean {
     return this.pages.has(normUrl(url));
