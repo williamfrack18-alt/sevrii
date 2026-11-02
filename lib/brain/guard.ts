@@ -62,7 +62,16 @@ const CODE_TEXT: Record<string, { es: string; en: string }> = {
 
 export function codeGuard(plan: BusinessPlan, lang: Lang, final = true): { block: string[]; warn: string[] } {
   const raw = codeChecks(plan, today(plan.profile.state), final);
-  const keys = [...new Set(raw.block.map((b) => b.split(":")[0]))];
+  // Only the version being approved counts, and a note that quotes a phrase
+  // blocks only if that exact phrase is in it (never a ghost of an old version).
+  const corpus = JSON.stringify([plan.service, plan.serviceIncludes, plan.promise, plan.differentiators, plan.packages, plan.offer, plan.faq, plan.steps, plan.agent]).toLowerCase();
+  const backed = raw.block.filter((b) => {
+    const q = /"([^"]{6,})"/.exec(b);
+    if (!q) return true; // structural checks (an offer date, a restricted service) read the plan itself
+    const phrase = q[1].replace(/…$/, "").slice(0, 60).toLowerCase();
+    return corpus.includes(JSON.stringify(phrase).slice(1, -1));
+  });
+  const keys = [...new Set(backed.map((b) => b.split(":")[0]))];
   return { block: keys.map((k) => (CODE_TEXT[k] ? CODE_TEXT[k][lang] : k)), warn: [] };
 }
 

@@ -4,6 +4,7 @@
 // forget its instructions.
 
 import type { BusinessPlan, PlanPackage as Package, PriceRange } from "../plan";
+import { stripReasoning } from "../pageText";
 
 const fold = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -251,20 +252,27 @@ export function scrubInternal(reply: string): { reply: string; leaked: boolean }
 const AVOID_STOP = new Set(
   ("nunca quiero quieres volver hacer hacerlo odio odias detesto detestas trabajo trabajos trabajar algo cosas cosa como para cuando porque tengo tener estar desde hasta tampoco jamas nada mucho mucha muy " +
     "gente personas cliente clientes tiempo ganas poder puedo pienso creo sobre entre ellos ellas esto esta este eso esas esos otra otro tipo ningun ninguna ninguno " +
-    "never want again hate doing work anything about with from have would like thing things people customer customers that this").split(" ")
+    "todo toda todos todas dias largo larga largos largas mismo misma siempre bajo concepto ningun alguna alguno " +
+    "never want again hate doing work anything about with from have would like thing things people customer customers that this all day days long").split(" ")
 );
 const stem = (w: string) => (w.length > 5 ? w.slice(0, 5) : w);
 const wordsOf = (t: string) => fold(t).split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
 // Stems of the words the owner used to say what they don't want.
+// Each thing they named is one entry ("vender por teléfono" → "vende+telef"):
+// a text touches it only when it has every word of that entry, so a limit on
+// phone sales doesn't wipe out every idea that sells something.
 export function avoidTerms(notWant: string): string[] {
   const nothing = /^\s*(nada|ninguno|ninguna|no hay|none|nothing|n\/?a|nada en especial|nothing in particular)\b/i.test(fold(notWant).trim());
   if (nothing) return [];
-  return [...new Set(wordsOf(notWant).filter((w) => !AVOID_STOP.has(w)).map(stem))];
+  const phrases = fold(notWant).split(/[,;\n]|\s+(?:y|ni|o|and|or|nor)\s+/);
+  const out = phrases.map((ph) => [...new Set(wordsOf(ph).filter((w) => !AVOID_STOP.has(w)).map(stem))].join("+")).filter(Boolean);
+  return [...new Set(out)];
 }
 export function touchesAvoid(text: string, terms: string[]): boolean {
   if (!terms.length) return false;
   const ws = wordsOf(text);
-  return terms.some((t) => ws.some((w) => (t.length < 5 ? w === t : w.startsWith(t))));
+  const has = (t: string) => ws.some((w) => (t.length < 5 ? w === t : w.startsWith(t)));
+  return terms.some((entry) => entry.split("+").every(has));
 }
 // A sentence that SUGGESTS something the owner never wants ("te propongo limpieza…").
 const SUGGESTS = /(te (propongo|sugiero|recomiendo)|podr[ií]as|puedes ofrecer|una idea|opci[oó]n|ofrecer|\bprueba\b|propon|sugier|i suggest|you could|how about|idea|option|offer)/i;
@@ -301,4 +309,91 @@ export function neutralGender(reply: string): string {
 // A comma or colon left hanging when a question was cut out of the sentence.
 export function dropDanglingClause(text: string): string {
   return text.replace(/(^|[.!?]\s+)[^.!?]*[,:]\s*$/, "$1").trim();
+}
+
+// ---------- the owner's prices vs. market references ----------
+const dollarAmounts = (t: string) => [...(t || "").matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/g)].map((m) => Number(m[1].replace(/,/g, "")));
+
+// A package price is the owner's only when every amount in it is one they
+// gave (on the price card, in the chat, or typed on the confirmation card).
+// Anything else is a market reference and is shown as such. Checked in code
+// on every proposal and every edit: the model can't present a researched
+// number as "your price".
+export function markReferencePrices(plan: BusinessPlan, ownerSaid = ""): BusinessPlan {
+  // C's access prices are the Brain's proposal, approved part by part.
+  if (plan.mode === "agent") return plan;
+  const priceCard = plan.cards.prices && !plan.cards.prices.u ? plan.cards.prices.v : "";
+  const own = new Set(dollarAmounts(`${plan.profile.currentPrice} ${priceCard} ${ownerSaid}`));
+  return {
+    ...plan,
+    packages: plan.packages.map((k) => {
+      const am = dollarAmounts(k.price);
+      return { ...k, ref: !(am.length > 0 && am.every((n) => own.has(n))) };
+    }),
+  };
+}
+
+// "Tus costos" only when the owner gave costs: otherwise that sentence is a
+// guess dressed as their numbers, and it goes.
+const OWN_COSTS = /\b(tus|sus)\s+costos?\b|\btu\s+costo\b|\byour\s+costs?\b|\bcon tus costos\b|\bseg[uú]n tus (gastos|costos)\b/i;
+export function noFakeCosts(plan: BusinessPlan): BusinessPlan {
+  const gave = Boolean(plan.profile.costs?.trim()) || plan.profile.costMaterialsUsd !== null || (plan.cards.costs && !plan.cards.costs.u && plan.cards.costs.v.trim());
+  if (gave) return plan;
+  const cut = (t: string) => (OWN_COSTS.test(t) ? t.split(/(?<=[.!?])\s+/).filter((x) => !OWN_COSTS.test(x)).join(" ").trim() : t);
+  return {
+    ...plan,
+    pricingNote: cut(plan.pricingNote),
+    promise: cut(plan.promise),
+    differentiators: plan.differentiators.map(cut).filter(Boolean),
+    packages: plan.packages.map((k) => ({ ...k, includes: cut(k.includes), note: cut(k.note) })),
+    faq: plan.faq.map((f) => ({ q: f.q, a: cut(f.a) })).filter((f) => f.a),
+  };
+}
+
+// The approved text as it may reach the page: no reasoning for the owner,
+// no invented costs.
+export function readyForPage(plan: BusinessPlan): BusinessPlan {
+  const p = noFakeCosts(plan);
+  return {
+    ...p,
+    service: stripReasoning(p.service),
+    serviceIncludes: stripReasoning(p.serviceIncludes),
+    promise: stripReasoning(p.promise),
+    customer: stripReasoning(p.customer),
+    problem: stripReasoning(p.problem),
+    steps: p.steps.map(stripReasoning).filter(Boolean),
+    differentiators: p.differentiators.map(stripReasoning).filter(Boolean),
+    packages: p.packages.map((k) => ({ ...k, includes: stripReasoning(k.includes), note: stripReasoning(k.note) })),
+    faq: p.faq.map((f) => ({ q: f.q, a: stripReasoning(f.a) })).filter((f) => f.q && f.a),
+  };
+}
+
+// ---------- the sacred limit, on the whole proposal ----------
+// Whatever the owner NEVER wants can't be in any part of a proposal: not as a
+// service, a package, a step or an answer. Found → the Strategist redoes it;
+// still there → it's cut by code.
+function proposalTexts(p: BusinessPlan): string[] {
+  return [p.service, p.serviceIncludes, p.promise, p.customer, ...p.steps, ...p.firstSteps, ...p.differentiators, ...p.packages.map((k) => `${k.name} ${k.includes} ${k.note}`), ...p.faq.map((f) => `${f.q} ${f.a}`)];
+}
+export function avoidedIssue(plan: BusinessPlan): string | null {
+  const terms = avoidTerms(plan.profile.notWant);
+  if (!terms.length) return null;
+  const hit = proposalTexts(plan).find((t) => t && touchesAvoid(t, terms));
+  return hit ? `The owner NEVER wants to do "${plan.profile.notWant}", but the proposal includes it ("${hit.slice(0, 80)}"). Remove it from every part.` : null;
+}
+export function withoutAvoided(plan: BusinessPlan): BusinessPlan {
+  const terms = avoidTerms(plan.profile.notWant);
+  if (!terms.length) return plan;
+  const cut = (t: string) => (touchesAvoid(t, terms) ? t.split(/(?<=[.!?;])\s+/).filter((x) => !touchesAvoid(x, terms)).join(" ").trim() : t);
+  return {
+    ...plan,
+    serviceIncludes: cut(plan.serviceIncludes),
+    promise: cut(plan.promise),
+    customer: cut(plan.customer),
+    steps: plan.steps.map(cut).filter(Boolean),
+    firstSteps: plan.firstSteps.map(cut).filter(Boolean),
+    differentiators: plan.differentiators.map(cut).filter(Boolean),
+    packages: plan.packages.filter((k) => !touchesAvoid(`${k.name} ${k.includes}`, terms)).map((k) => ({ ...k, note: cut(k.note) })),
+    faq: plan.faq.filter((f) => !touchesAvoid(`${f.q} ${f.a}`, terms)),
+  };
 }

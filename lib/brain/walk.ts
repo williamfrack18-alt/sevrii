@@ -6,13 +6,17 @@ import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan } from "../plan"
 //   [[part:service]]  one part of the proposal, with Approve / Change
 //   [[ideas]]         the 3 ideas to pick from (new-service path)
 //   [[done]]          everything approved: go to Store / Marketing
+//   [[summary]]       A and B: the whole strategy on one card, one confirmation
 
-export const TOKEN = /\s*\[\[(part|ideas|done|market)(?::([a-z]+))?\]\]\s*$/;
+export const TOKEN = /\s*\[\[(part|ideas|done|market|summary)(?::([a-z]+))?\]\]\s*$/;
 
 export const partToken = (b: ApprovalBlock) => `[[part:${b}]]`;
 export const IDEAS_TOKEN = "[[ideas]]";
 export const DONE_TOKEN = "[[done]]";
 export const MARKET_TOKEN = "[[market]]";
+export const SUMMARY_TOKEN = "[[summary]]";
+// A and B review everything at once and confirm once; C goes part by part.
+export const oneConfirmation = (p: BusinessPlan) => p.mode !== "agent";
 
 export function firstPending(p: BusinessPlan): ApprovalBlock | null {
   if (p.stage !== "proposal") return null;
@@ -29,14 +33,14 @@ const INTRO: Record<Lang, Record<ApprovalBlock, string>> = {
   es: {
     service: "Empecemos por tu servicio: qué haces, para quién y qué incluye. ¿Así está bien?",
     pitch: "Ahora, cómo te presentas: la promesa y las razones para escogerte. ¿Te suena a ti?",
-    packages: "Tus paquetes y precios. Los armé con tus costos y lo que se cobra en tu zona.",
+    packages: "Tus paquetes y precios, con lo que se cobra en tu zona.",
     offer: "Una oferta de bienvenida ayuda a que te prueben. Es opcional: puedes dejarla, cambiarla o quitarla.",
     faq: "Última parte: las preguntas que más hacen los clientes, con tus respuestas para la página.",
   },
   en: {
     service: "Let's start with your service: what you do, for whom and what it includes. Does this look right?",
     pitch: "Now, how you present yourself: your promise and the reasons to choose you. Does it sound like you?",
-    packages: "Your packages and prices. I built them from your costs and what's charged in your area.",
+    packages: "Your packages and prices, with what's charged in your area.",
     offer: "A welcome offer helps people try you. It's optional: keep it, change it or remove it.",
     faq: "Last part: the questions customers ask most, with your answers for the page.",
   },
@@ -50,6 +54,14 @@ const AGENT_INTRO: Record<Lang, string> = {
 const introFor = (p: BusinessPlan, b: ApprovalBlock, lang: Lang) => (p.mode === "agent" && b === "service" ? AGENT_INTRO[lang] : INTRO[lang][b]);
 
 export function nextPartMessage(p: BusinessPlan, lang: Lang): string | null {
+  if (oneConfirmation(p)) {
+    if (p.stage !== "proposal") return null;
+    return `${
+      lang === "es"
+        ? "Aquí está tu estrategia completa. Revísala: los precios marcados «Referencia de mercado» son lo que se cobra en tu zona, no tus precios; escribe los tuyos en la tarjeta si quieres. Si algo no te gusta, dímelo aquí y lo cambio. Cuando esté bien, confírmala y paso a crear tu página."
+        : "Here's your complete strategy. Review it: prices marked \"Market reference\" are what's charged in your area, not your prices; type yours on the card if you like. If something's off, tell me here and I'll change it. When it's right, confirm it and I'll move on to building your page."
+    }\n\n${SUMMARY_TOKEN}`;
+  }
   const b = firstPending(p);
   if (!b) return null;
   return `${introFor(p, b, lang)}\n\n${partToken(b)}`;
@@ -75,6 +87,11 @@ export function partSignature(p: BusinessPlan, b: ApprovalBlock): string {
 // intro) when the chat moved on, the same part's card again when it changed.
 export function cardAfterTurn(before: BusinessPlan, after: BusinessPlan, lang: Lang): string | null {
   if (after.stage === "approved") return before.stage === "approved" ? null : DONE_TOKEN;
+  if (oneConfirmation(after)) {
+    if (after.stage !== "proposal") return null;
+    if (before.stage !== "proposal") return SUMMARY_TOKEN;
+    return APPROVAL_BLOCKS.some((b) => partSignature(before, b) !== partSignature(after, b)) ? SUMMARY_TOKEN : null;
+  }
   const now = firstPending(after);
   if (!now) return null;
   const was = firstPending(before);
@@ -92,6 +109,7 @@ export function forModel(content: string, lang: Lang): string {
     if (kind === "part" && arg && (APPROVAL_BLOCKS as string[]).includes(arg))
       return lang === "es" ? `\n(Tarjeta mostrada: ${partName(arg as ApprovalBlock, lang)})` : `\n(Card shown: ${partName(arg as ApprovalBlock, lang)})`;
     if (kind === "ideas") return lang === "es" ? "\n(Tarjeta mostrada: las ideas)" : "\n(Card shown: the ideas)";
+    if (kind === "summary") return lang === "es" ? "\n(Tarjeta mostrada: la estrategia completa con el botón Confirmar)" : "\n(Card shown: the whole strategy with the Confirm button)";
     if (kind === "market") return lang === "es" ? "\n(Tarjeta mostrada: lo que encontré en el mercado)" : "\n(Card shown: what I found in the market)";
     return lang === "es" ? "\n(Tarjeta mostrada: expediente aprobado)" : "\n(Card shown: plan approved)";
   });

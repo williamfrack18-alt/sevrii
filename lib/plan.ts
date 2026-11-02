@@ -1,9 +1,11 @@
+import { cleanAnswers, pendingCards, type CardAnswers } from "./cards";
 import { parseTask, type AgentTask } from "./serviceAgentConfig";
 // The "expediente" of one project: everything the Brain learns and decides
 // about the one service it sells. Store and Marketing only read it. Pure data
 // + validation, shared by the agents (server) and the UI (client).
 
-export type PlanPackage = { name: string; price: string; includes: string; note: string };
+// ref: a market reference, not the owner's own price (until they confirm one).
+export type PlanPackage = { name: string; price: string; includes: string; note: string; ref: boolean };
 export type PlanChannel = { channel: string; why: string };
 export type PlanSource = { title: string; url: string; description?: string };
 
@@ -79,6 +81,9 @@ export type Profile = {
   agentKnowledge: string; // what the owner knows and will teach it (materials, method)
   agentLimits: string; // what it must never do, and when the owner steps in
   agentEdge: string; // what they know or do that a free AI chat doesn't
+  // From the cards: how much they want to earn (B) and their goal (A).
+  incomeGoal: string;
+  ownerGoal: string;
 };
 
 // C: the agent the strategy proposes (built later in Store).
@@ -126,6 +131,14 @@ export type Idea = {
   // What it pays per hour of work in their area (estimated from the research):
   // the ideas are shown best paid first.
   hourlyUsd: number | null;
+  // The proposal card: what it is, for whom, digital or in person, what they
+  // need to start, the first concrete steps, and which "no sé" answers it uses.
+  what: string;
+  forWhom: string;
+  delivery: "digital" | "fisico" | "ambos" | "";
+  needs: string;
+  steps: string[];
+  usesUnknown: string[];
   sources: PlanSource[];
 };
 
@@ -171,6 +184,12 @@ export type BusinessPlan = {
   ideaPrefs: string;
   // C: an idea the person brought, evaluated with the same research before going on.
   ownIdea: string;
+  // A and B: the interview cards, as answered (see lib/cards.ts), the language
+  // the flow runs in (the page's fixed labels follow it), and why each service
+  // of the menu fits them (Brain only: never reaches the page).
+  cards: CardAnswers;
+  flowLang: "es" | "en" | "";
+  serviceWhy: string;
   ideaRounds: number;
   // How the owner shows up on the page: a video script and photos to take.
   videoScript: string;
@@ -231,6 +250,8 @@ export const EMPTY_PROFILE: Profile = {
   agentKnowledge: "",
   agentLimits: "",
   agentEdge: "",
+  incomeGoal: "",
+  ownerGoal: "",
 };
 
 export const EMPTY_MARKET: Market = { prices: null, competitors: [], gaps: [], requirements: [], faq: [], sources: [], researchedAt: "", incomplete: [] };
@@ -265,6 +286,9 @@ export const EMPTY_PLAN: BusinessPlan = {
   rejectedIdeas: [],
   ideaPrefs: "",
   ownIdea: "",
+  cards: {},
+  flowLang: "",
+  serviceWhy: "",
   ideaRounds: 0,
   videoScript: "",
   photoIdeas: [],
@@ -394,6 +418,8 @@ export function parseProfile(raw: unknown): Profile {
     agentKnowledge: str(p.agentKnowledge, 1200),
     agentLimits: str(p.agentLimits, 800),
     agentEdge: str(p.agentEdge, 1000),
+    incomeGoal: str(p.incomeGoal, 300),
+    ownerGoal: str(p.ownerGoal, 300),
   };
 }
 
@@ -475,6 +501,12 @@ export function parseIdeas(v: unknown): Idea[] {
         cons: str(i.cons, 600),
         score: num(i.score, 0, 25) ?? 0,
         hourlyUsd: num(i.hourlyUsd, 1, 2000),
+        what: str(i.what, 400),
+        forWhom: str(i.forWhom, 300),
+        delivery: oneOf(i.delivery, ["digital", "fisico", "ambos"] as const),
+        needs: str(i.needs, 400),
+        steps: list(i.steps, 5, 300),
+        usesUnknown: list(i.usesUnknown, 8, 40),
         sources: sources(i.sources, 4),
       };
     })
@@ -518,7 +550,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
   const ap = obj(o.approvals);
   const approvals: Partial<Record<ApprovalBlock, boolean>> = {};
   for (const b of APPROVAL_BLOCKS) if (ap[b] === true) approvals[b] = true;
-  const chosen = num(o.chosenIdea, 0, 4);
+  const chosen = num(o.chosenIdea, 0, 13);
   return {
     mode: o.mode === "existing" || o.mode === "new" || o.mode === "agent" ? o.mode : "",
     stage,
@@ -539,7 +571,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
     packages: (Array.isArray(o.packages) ? o.packages : [])
       .map((x) => {
         const p = obj(x);
-        return { name: str(p.name, 100), price: str(p.price, 80), includes: str(p.includes, 600), note: str(p.note, 400) };
+        return { name: str(p.name, 100), price: str(p.price, 80), includes: str(p.includes, 600), note: str(p.note, 400), ref: p.ref === true };
       })
       .filter((p) => p.name)
       .slice(0, 4),
@@ -558,10 +590,13 @@ export function parsePlan(raw: unknown): BusinessPlan {
     agent: parsePlanAgent(o.agent),
     approvals,
     guard: { block: list(g.block, 8, 400), warn: list(g.warn, 8, 400) },
-    rejectedIdeas: list(o.rejectedIdeas, 20, 120),
+    rejectedIdeas: list(o.rejectedIdeas, 80, 120),
     ideaPrefs: typeof o.ideaPrefs === "string" ? o.ideaPrefs.trim().slice(0, 600) : "",
     ownIdea: typeof o.ownIdea === "string" ? o.ownIdea.trim().slice(0, 400) : "",
-    ideaRounds: num(o.ideaRounds, 0, 50) ?? 0,
+    cards: cleanAnswers(o.mode === "new" ? "new" : "existing", o.cards),
+    flowLang: o.flowLang === "es" || o.flowLang === "en" ? o.flowLang : "",
+    serviceWhy: str(o.serviceWhy, 800),
+    ideaRounds: num(o.ideaRounds, 0, 999) ?? 0,
     videoScript: typeof o.videoScript === "string" ? o.videoScript.trim().slice(0, 1200) : "",
     photoIdeas: list(o.photoIdeas, 6, 400),
     marketResearch: str(o.marketResearch, 600),
@@ -587,16 +622,10 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.agentInterest, "agentInterest (topics, problems or markets they'd like their agent to solve; 'open to any idea' is a valid answer)");
     need(!p.typicalCustomer, "typicalCustomer (who they'd like the agent to help; 'anyone' is a valid answer)");
     need(!p.languages, "languages (the language(s) the agent will talk to customers in: es, en or both)");
-  } else if (plan.stage === "interview" && plan.mode !== "new") {
-    // A: only what the research can't work without. Everything else the Brain
-    // asks only if it really changes the strategy (it decides, not a list).
-    need(!p.mainService, "mainService (what service they offer)");
-    need(p.serviceMode !== "remote" && (!p.city || !p.state), "city and state (where they work)");
   } else if (plan.stage === "interview") {
-    // B: where they live and something about them (what they know, like or
-    // have done), unless they asked for ideas right away.
-    need(!p.city || !p.state, "city and state");
-    need(!p.ideasNow && !p.workHistory && !p.likes && !p.askedFor && !p.direction, "something about them (what they know how to do, what they like or jobs they have had)");
+    // A and B: the cards. Every one needs an answer or an explicit "no sé"
+    // before anything is researched or proposed.
+    for (const id of pendingCards(plan.mode, plan.cards)) out.push(`card:${id}`);
   } else if (plan.stage === "ready_check" && plan.mode === "agent") {
     need(!p.agentTask, "agentTask (the complete task the agent DOES for each customer end to end — result left done, official pages it operates, sensitive data the customer types and when, how it proves it's done: propose it yourself from the chosen idea and ask them to confirm or adjust)");
     need(!p.remoteScope, "remoteScope (customers in the whole US = us, only one state = state, other countries too = world)");
@@ -615,6 +644,17 @@ export function missingProfile(plan: BusinessPlan): string[] {
 export function profileComplete(plan: BusinessPlan): boolean {
   if (missingProfile(plan).length) return false;
   return plan.mode === "agent" || plan.stage === "ready_check" || plan.profile.researchReady;
+}
+
+// A: the numbers that make a proposal "theirs". Without every one of them
+// confirmed on the cards, no price is presented as the owner's own.
+export const OWN_NUMBER_CARDS = ["prices", "costs", "hours", "clients", "goal"];
+export function ownNumbersConfirmed(plan: BusinessPlan): boolean {
+  if (plan.mode !== "existing") return false;
+  return OWN_NUMBER_CARDS.every((id) => {
+    const a = plan.cards[id];
+    return a && !a.u && (a.v.trim() || a.c);
+  });
 }
 
 // ---------- approvals ----------
@@ -681,14 +721,23 @@ export function codeChecks(p: BusinessPlan, today: string, final = true): { bloc
 }
 
 // ---------- B: "show me other ideas" ----------
-export const MAX_IDEA_ROUNDS = 5;
+// "Dame otras" has no limit of its own (the plan's AI budget still applies).
+export const MAX_IDEA_ROUNDS = 999;
 
 // Sends the person back to idea research, remembering what they turned down
 // and what they said they'd prefer, so the next ideas are different.
 export function requestMoreIdeas(plan: BusinessPlan, feedback: string): BusinessPlan {
-  const rejected = [...new Set([...plan.rejectedIdeas, ...plan.ideas.map((i) => i.title)])].slice(-20);
+  const rejected = [...new Set([...plan.rejectedIdeas, ...plan.ideas.map((i) => i.title)])].slice(-80);
   const note = feedback.trim().replace(/\s+/g, " ").slice(0, 300);
-  const prefs = [plan.ideaPrefs, note].filter(Boolean).join(" | ").slice(-600);
+  // What the rejected batch says by itself: all in person → lean digital, and so on.
+  const kinds = plan.ideas.map((i) => i.delivery).filter(Boolean);
+  const lean =
+    kinds.length >= 3 && kinds.every((k) => k === "fisico")
+      ? "rechazó todas las ideas en persona: da más peso a las digitales"
+      : kinds.length >= 3 && kinds.every((k) => k === "digital")
+        ? "rechazó todas las ideas digitales: da más peso a las de en persona"
+        : "";
+  const prefs = [plan.ideaPrefs, note, lean].filter(Boolean).join(" | ").slice(-600);
   return parsePlan({
     ...plan,
     rejectedIdeas: rejected,

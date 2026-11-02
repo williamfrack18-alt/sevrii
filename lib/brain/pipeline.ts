@@ -17,7 +17,8 @@ import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanSource,
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
 import { guardPlan, keptPriceIssue } from "./guard";
-import { hasJargon, knownAmounts, marketRangeText, mentionsDiscount, silentProposalIssues, withoutDiscounts } from "./checks";
+import { avoidedIssue, withoutAvoided, hasJargon, knownAmounts, markReferencePrices, marketRangeText, mentionsDiscount, noFakeCosts, silentProposalIssues, withoutDiscounts } from "./checks";
+import { oneConfirmation } from "./walk";
 import { today } from "./common";
 
 // The research pipeline, driven by the client one step per request so no
@@ -50,7 +51,9 @@ export async function advancePipeline(businessId: string, userId: string, lang: 
   if (!b) return { more: false };
   if (b.plan.stage !== "ideas_research" && b.plan.stage !== "research") return { more: false };
   // Every AI call of this step is measured as research (see lib/usage.ts).
-  return runForUser(userId, () => advanceStep(b, businessId, userId, lang, retry), b.plan.stage === "ideas_research" ? "brain_ideas" : "brain_research");
+  // The research and the proposal are written in the language the flow runs in.
+  const flow: Lang = b.plan.flowLang || lang;
+  return runForUser(userId, () => advanceStep(b, businessId, userId, flow, retry), b.plan.stage === "ideas_research" ? "brain_ideas" : "brain_research");
 }
 
 async function advanceStep(b: NonNullable<Awaited<ReturnType<typeof getBusinessById>>>, businessId: string, userId: string, lang: Lang, retry: boolean): Promise<AdvanceResult> {
@@ -190,6 +193,8 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
       const issues = [...guard.block, ...silentProposalIssues(plan)];
       const kept = keptPriceIssue(plan, lang);
       if (kept && !issues.includes(kept)) issues.push(kept);
+      const sacred = avoidedIssue(plan);
+      if (sacred) issues.push(sacred);
       if (!issues.length) break;
       const fixed = await proposePlan(plan, lang, issues);
       const { message: _m, ...fields } = fixed;
@@ -198,6 +203,9 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     }
     // Last resort, by code: a discount nobody asked for never reaches the owner.
     if (!plan.profile.offerWanted) plan = withoutDiscounts(plan);
+    // By code too: a researched number is a market reference, never "your
+    // price", and "your costs" only exist if the owner gave them.
+    plan = withoutAvoided(noFakeCosts(markReferencePrices(plan)));
     const left = [...guard.block, ...silentProposalIssues(plan)];
     if (left.length) console.warn("[brain] proposal shown with open review notes (kept internal)", businessId, left.slice(0, 6));
     // Only plain "keep in mind" notes reach the owner; review notes never do.
@@ -215,17 +223,23 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     const known = knownAmounts(plan);
     const stale = [...strategyMsg.matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)/g)].some((m) => !known.has(Number(m[1].replace(/,/g, ""))));
     const range = marketRangeText(plan.market.prices, lang);
-    const list = plan.packages.filter((k) => k.name && k.price).map((k) => `${k.name} (${k.price})`).join(", ");
+    const list = plan.packages
+      .filter((k) => k.name && k.price)
+      .map((k) => (k.ref ? `${k.name} (${es ? "referencia de mercado" : "market reference"}: ${k.price})` : `${k.name} (${k.price})`))
+      .join(", ");
+    const anyRef = plan.packages.some((k) => k.ref);
     const samePackages = JSON.stringify(plan.packages.map((k) => [k.name, k.price])) === firstPackages;
     const base =
-      strategyMsg && samePackages && !stale && !hasJargon(strategyMsg, true) && !/\$\s?\d[\d,]*\s*[–-]\s*\$/.test(strategyMsg) && (plan.profile.offerWanted || !mentionsDiscount(strategyMsg))
+      strategyMsg && !anyRef && samePackages && !stale && !hasJargon(strategyMsg, true) && !/\$\s?\d[\d,]*\s*[–-]\s*\$/.test(strategyMsg) && (plan.profile.offerWanted || !mentionsDiscount(strategyMsg))
         ? strategyMsg
         : es
           ? `Listo: investigué tu zona y armé tu propuesta. ${range ? `En el mercado se cobra ${range}. ` : ""}${list ? `Te propongo estos paquetes: ${list}.` : ""}`.trim()
           : `Done: I researched your area and built your proposal. ${range ? `The market charges ${range}. ` : ""}${list ? `I propose these packages: ${list}.` : ""}`.trim();
-    const walk = es
-      ? "\n\nTe la muestro aquí mismo, parte por parte. En cada una me dices si va así o qué cambio."
-      : "\n\nI'll show it to you right here, part by part. For each one, tell me if it's right or what to change.";
+    const walk = oneConfirmation(plan)
+      ? ""
+      : es
+        ? "\n\nTe la muestro aquí mismo, parte por parte. En cada una me dices si va así o qué cambio."
+        : "\n\nI'll show it to you right here, part by part. For each one, tell me if it's right or what to change.";
     // The research shows right here in the chat, as a card that opens in place.
     await addChatMessage(businessId, "plan", "ai", `${base}${walk}${plan.market.researchedAt ? `\n\n${MARKET_TOKEN}` : ""}`);
     const first = nextPartMessage(plan, lang);

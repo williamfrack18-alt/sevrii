@@ -78,12 +78,13 @@ Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en
     case "ideas":
       if (plan.mode === "agent") return agentIdeasTask(plan, out);
       return `Tarea: IDEAS de servicio para alguien que quiere independizarse ${where}.
-Perfil: quiere ${p.direction === "known" ? "algo relacionado con lo que ya sabe hacer" : p.direction === "new" ? "probar algo nuevo: NO importa su experiencia, todo se puede aprender" : "algo de lo que ya sabe o algo nuevo, le da igual"}; dónde quiere trabajar: ${p.workPlace === "home" ? "desde casa (en línea)" : p.workPlace === "out" ? "en persona, fuera de casa" : "le da igual"}; trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; le gusta: ${p.likes || "?"}; ODIA o NUNCA quiere volver a hacer (filtro duro: no lo propongas, ni parecido, ni como ejemplo; solo excluye): ${p.notWant || "-"}; meta: ${p.goal || "?"}. ("?" = no lo sabemos todavía: no lo supongas.)
+Perfil: quiere ${p.direction === "known" ? "algo relacionado con lo que ya sabe hacer" : p.direction === "new" ? "probar algo nuevo: NO importa su experiencia, todo se puede aprender" : "algo de lo que ya sabe o algo nuevo, le da igual"}; dónde quiere trabajar: ${p.workPlace === "home" ? "desde casa (en línea)" : p.workPlace === "out" ? "en persona, fuera de casa" : "le da igual"}; trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; le gusta: ${p.likes || "?"}; ODIA o NUNCA quiere volver a hacer (filtro duro: no lo propongas, ni parecido, ni como ejemplo; solo excluye): ${p.notWant || "-"}; meta: ${p.goal || "?"}; cuánto quiere ganar: ${p.incomeGoal || "?"}. ("?" = no lo sabemos todavía: no lo supongas.)
+Sus respuestas en las tarjetas, tal cual (u = respondió "no sé"): ${JSON.stringify(plan.cards)}.
 Propón 12 servicios BIEN PAGADOS (locales en su ciudad o que se puedan hacer en línea desde casa; di cuál es cuál en "why") que encajen con lo que sabe, le gusta y tiene${p.direction === "known" ? ", aprovechando lo que ya sabe hacer" : ", o que pueda aprender rápido (en pocas semanas) aunque nunca lo haya hecho"}. Prioriza lo que mejor paga por hora en su zona y tiene demanda real. Que sean variados: tipos de trabajo distintos entre sí (no 3 versiones de lo mismo). Si un dato del perfil es "?", no lo uses para descartar ideas. Evita trabajos que la IA ya hace sola y casi gratis (transcribir, traducir, redactar textos simples), salvo que la persona los pida. Busca para cada uno el precio típico en su zona, cuánto se gana por hora de trabajo (hourlyUsd: un número en dólares, estimado del precio y del tiempo típico de un trabajo) y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
 Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
 Lo que dijo que prefiere o no quiere: ${plan.ideaPrefs}. Respétalo.` : ""}
 No propongas: reparación de crédito, asesoría legal o migratoria, préstamos ni servicios de salud.
-Forma: {"ideas":[{"title":"…","why":"por qué encaja con esta persona (con lo que quiere, sus herramientas y su tiempo)","typicalPrice":"rango corto, ej. '$15–$25 por hora' (máx. 40 caracteres)","hourlyUsd":35,"startCost":"monto y en qué, en una frase corta (máx. 100 caracteres)","license":"No (solo si una fuente oficial dice que ese servicio exige licencia en el estado, escribe cuál)","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
+Forma: {"ideas":[{"title":"…","why":"por qué encaja con esta persona (con lo que quiere, sus herramientas y su tiempo)","typicalPrice":"rango corto, ej. '$15–$25 por hora' (máx. 40 caracteres)","hourlyUsd":35,"what":"qué hace, en una frase","forWhom":"para quién es","delivery":"digital | fisico | ambos","needs":"qué necesita la persona para empezar","steps":["3 pasos concretos para empezar"],"usesUnknown":["ids de las tarjetas que respondió 'no sé' y que esta idea supone (por ejemplo time, resources)"],"startCost":"monto y en qué, en una frase corta (máx. 100 caracteres)","license":"No (solo si una fuente oficial dice que ese servicio exige licencia en el estado, escribe cuál)","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
 ${out}`;
   }
 }
@@ -199,6 +200,12 @@ function cleanResearch(kind: ResearchKind, d: Record<string, unknown>, seen: See
               demand: str(o.demand, 2000),
               how: str(o.how, 2000),
               hourlyUsd: Number.isFinite(Number(o.hourlyUsd)) && Number(o.hourlyUsd) > 0 ? Math.round(Number(o.hourlyUsd)) : null,
+              what: str(o.what, 400),
+              forWhom: str(o.forWhom, 300),
+              delivery: o.delivery === "digital" || o.delivery === "fisico" || o.delivery === "ambos" ? o.delivery : "",
+              needs: str(o.needs, 400),
+              steps: (Array.isArray(o.steps) ? o.steps : []).map((x) => str(x, 300)).filter(Boolean).slice(0, 5),
+              usesUnknown: (Array.isArray(o.usesUnknown) ? o.usesUnknown : []).map((x) => str(x, 40)).filter(Boolean).slice(0, 8),
               sources: seen.filter(o.sources, 3),
             };
           })

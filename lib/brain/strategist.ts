@@ -1,6 +1,7 @@
 import { BRAIN_MODEL, getBrainModel } from "../claude";
 import type { Lang } from "../i18n";
 import { parseIdeas, parsePlanAgent, str, type BusinessPlan, type Idea } from "../plan";
+import { similar } from "./asked";
 import { avoidTerms, touchesAvoid } from "./checks";
 import { extractJson, textOf } from "./common";
 
@@ -9,8 +10,9 @@ import { extractJson, textOf } from "./common";
 
 const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, servicio, cliente, mercado y requisitos) armas la propuesta comercial de un servicio en EE. UU. (local, o en línea si serviceMode es "remote").
 
-Antes de los precios (obligatorio): la parte "servicio" es un menú. En serviceIncludes escribe 2 a 4 servicios concretos que esta persona podría ofrecer, cada uno con una razón corta de por qué le conviene (su experiencia, su ciudad, la demanda), separados por «;». Los paquetes se arman con lo que ese menú dice, nunca con servicios que no estén en él. La persona escoge qué conservar antes de aprobar precios.
+Antes de los precios (obligatorio): la parte "servicio" es un menú. En serviceIncludes escribe 2 a 4 servicios concretos que esta persona podría ofrecer, solo sus nombres y qué incluyen, separados por «;» (este texto va a su página, para sus clientes). Por qué le conviene cada uno va APARTE, en serviceWhy (eso solo lo lee el dueño, nunca sale en la página). Ningún texto que va a la página (servicio, promesa, diferenciadores, pasos, paquetes, preguntas) explica por qué se eligió algo ni dice «te conviene», «encaja contigo» o «por tu experiencia». Los paquetes se arman con lo que ese menú dice, nunca con servicios que no estén en él. La persona escoge qué conservar antes de aprobar precios.
 Primeros pasos (obligatorio): firstSteps son 3 a 5 pasos concretos y cortos que la persona puede hacer ya: qué hacer primero, qué tener listo (solo lo que dijo tener o lo que cuesta poco) y cómo conseguir su primer cliente. Sin inventar horas, costos ni herramientas que no dijo.
+Precios del dueño: profile.currentPrice (y cardAnswers.prices) es lo único que es SU precio. Si está vacío o es "no sé", todos los precios de los paquetes salen de market.prices y son referencia de mercado: nunca escribas "tu precio", "tus costos" ni "cobras" sobre ellos. Si cardAnswers dice "no sé" en costos, horas o clientes, no los supongas ni calcules con ellos.
 Persona A: entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, la oferta solo si el dueño la pidió, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
 Persona B: primero entrega de 8 a 10 ideas variadas y bien pagadas (de las investigadas), de la mejor a la peor pagada por hora. Cuando escoja una, entrega la misma propuesta que la persona A.
 Persona C (mode "agent"): la persona crea un agente de IA, un producto digital que resuelve un problema él solo, en el chat de su página, las 24 horas, y cobra por usarlo. No tiene que ser de su oficio: primero entrega 3 ideas de agente (de las 5 investigadas); cuando escoja una, entrega la misma propuesta y además "agent".
@@ -93,7 +95,8 @@ const obj = (properties: Record<string, unknown>) => ({ type: "object", addition
 
 const PROPOSAL_PROPS = {
   service: S("The one concrete service, max 100 chars"),
-  serviceIncludes: S("What the service includes, one line"),
+  serviceIncludes: S("The menu for the page: 2-4 concrete services with what each includes, separated by ';'. No reasons, no 'te conviene'"),
+  serviceWhy: S("For the owner only (never on the page): why each service of the menu fits them, one short line each"),
   serviceExcludes: S("What it does not include, one line"),
   steps: { type: "array", items: { type: "string" }, description: "3 steps: how the job works from the customer's side" },
   firstSteps: { type: "array", items: { type: "string" }, description: "3-5 concrete first steps for the owner: what to do first, what to have ready, how to get the first client" },
@@ -202,6 +205,7 @@ function expediente(plan: BusinessPlan) {
     mode: plan.mode,
     service: plan.profile.mainService || plan.service,
     profile: plan.profile,
+    ...(plan.mode !== "agent" ? { cardAnswers: plan.cards, flowLanguage: plan.flowLang || null } : {}),
     chosenIdea: idea,
     market: plan.market,
   };
@@ -248,6 +252,7 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
   return {
     service: str(d.service, 200),
     serviceIncludes: str(d.serviceIncludes, 800),
+    serviceWhy: str(d.serviceWhy, 800),
     serviceExcludes: str(d.serviceExcludes, 600),
     steps: (Array.isArray(d.steps) ? d.steps : []).map((x) => str(x, 500)).filter(Boolean).slice(0, 5),
     firstSteps: (Array.isArray(d.firstSteps) ? d.firstSteps : []).map((x) => str(x, 400)).filter(Boolean).slice(0, 5),
@@ -258,7 +263,7 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
     differentiators: (Array.isArray(d.differentiators) ? d.differentiators : []).map((x) => str(x, 500)).filter(Boolean).slice(0, 5),
     packages: (Array.isArray(d.packages) ? d.packages : []).slice(0, 4).map((x) => {
       const p = (x ?? {}) as Record<string, unknown>;
-      return { name: str(p.name, 100), price: str(p.price, 80), includes: str(p.includes, 600), note: str(p.note, 400) };
+      return { name: str(p.name, 100), price: str(p.price, 80), includes: str(p.includes, 600), note: str(p.note, 400), ref: true };
     }),
     pricingNote: str(d.pricingNote, 1500),
     // A suggestion only: no end date until the owner sets a real one.
@@ -279,17 +284,44 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
   };
 }
 
+
+// In code, before the model ever sees them: nothing the person NEVER wants,
+// no idea they already rejected (not even renamed), and "no sé" named only
+// where they really said it.
+export function filterIdeas(plan: BusinessPlan, list: Idea[]): Idea[] {
+  let researched = list;
+  const terms = avoidTerms(plan.profile.notWant);
+  const ownTitle = plan.ownIdea ? researched[0]?.title : "";
+  if (terms.length) researched = researched.filter((i) => i.title === ownTitle || !touchesAvoid(`${i.title} ${i.why} ${i.what} ${i.steps.join(" ")}`, terms));
+  // "Dame otras" never brings back a rejected idea, not even renamed (code check).
+  if (plan.rejectedIdeas.length) {
+    const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    // Same idea with another name: the meaningful words share their roots.
+    const STOP = new Set("de del la las el los y e o u para por con sin en a al un una unos unas tu su sus tus of the and or for with to in on a an your".split(" "));
+    const roots = (x: string) => new Set(fold(x).split(" ").filter((w) => w.length >= 3 && !STOP.has(w)).map((w) => w.slice(0, 4)));
+    const same = (a: string, b: string) => {
+      const x = roots(a);
+      const y = roots(b);
+      if (!x.size || !y.size) return false;
+      let n = 0;
+      for (const w of x) if (y.has(w)) n++;
+      return n / (x.size + y.size - n) >= 0.5;
+    };
+    researched = researched.filter((i) => i.title === ownTitle || !plan.rejectedIdeas.some((r) => fold(r) === fold(i.title) || similar(r, i.title) >= 0.5 || same(r, i.title)));
+  }
+  // Only "no sé" answers can be named as unknown on a card.
+  const unknown = new Set(Object.entries(plan.cards).filter(([, a]) => a.u).map(([id]) => id));
+  researched = researched.map((i) => ({ ...i, usesUnknown: i.usesUnknown.filter((x) => unknown.has(x)) }));
+  return researched;
+}
+
 export async function pickIdeas(plan: BusinessPlan, researchedIn: Idea[], lang: Lang): Promise<{ ideas: Idea[]; message: string }> {
   // B sees more options (people starting from zero want to compare); C keeps 3.
   let researched = researchedIn;
   const count = plan.mode === "agent" ? 3 : 10;
   // What they hate or never want again is a hard filter, applied in code:
   // those ideas never get to the model (their own idea is always kept).
-  const terms = avoidTerms(plan.profile.notWant);
-  if (terms.length) {
-    const ownTitle = plan.ownIdea ? researched[0]?.title : "";
-    researched = researched.filter((i) => i.title === ownTitle || !touchesAvoid(`${i.title} ${i.why}`, terms));
-  }
+  researched = filterIdeas(plan, researched);
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
     `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\n${plan.ownIdea ? "La idea de índice 0 es la que trajo la persona: inclúyela siempre entre las 3, con su puntaje real y sus pros y contras honestos; en message di en una línea cómo salió frente a las otras. " : ""}${plan.mode === "agent" ? `Escoge las ${count} mejores con su puntaje.` : `Escoge las mejores, entre 8 y ${count} (todas las que valgan la pena), con su puntaje: bien pagadas, con demanda real y que encajen con la persona.`}`,

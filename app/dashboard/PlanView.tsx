@@ -4,7 +4,10 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
-import { approveBlockAction, chooseIdeaAction, finishPlanAction, noOfferAction, resumePlanAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
+import { approveBlockAction, chooseIdeaAction, confirmProposalAction, finishPlanAction, moreIdeasAction, noOfferAction, resumePlanAction, saveCardsAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
+import CardFlow from "./CardFlow";
+import { oneConfirmation } from "@/lib/brain/walk";
+import { cardTitle, unknownCards } from "@/lib/cards";
 import { MAX_IDEA_ROUNDS, missingProfile, profileComplete, shownRequirements } from "@/lib/plan";
 import type { ChatChip } from "./ChatPanel";
 
@@ -210,6 +213,7 @@ export default function PlanView({
   const current = Math.max(0, order.indexOf(plan.stage));
 
   const act = (fn: () => Promise<PlanChatResponse>) => startAction(async () => applyAction(await fn()));
+  const es = lang === "es";
   // "Cambiar" closes the map's panel and starts the request in the chat.
   const change = (block: ApprovalBlock) => {
     setPrefill({ key: Date.now(), text: t.changePrefix(t.blocks[block]) });
@@ -226,12 +230,15 @@ export default function PlanView({
 
   // The review happens in the chat: the part being reviewed is the first one
   // not approved yet, and only the latest card for it has buttons.
-  const reviewing: ApprovalBlock | null = plan.stage === "proposal" ? (APPROVAL_BLOCKS.find((b) => !plan.approvals[b]) ?? null) : null;
+  // A and B see the whole strategy on one card and confirm once; C goes part by part.
+  const single = oneConfirmation(plan);
+  const cardsMode = plan.stage === "interview" && (plan.mode === "new" || plan.mode === "existing");
+  const reviewing: ApprovalBlock | null = plan.stage === "proposal" && !single ? (APPROVAL_BLOCKS.find((b) => !plan.approvals[b]) ?? null) : null;
   const lastCard = [...msgs].reverse().find((m) => m.role !== "user" && TOKEN.test(m.content));
   const lastTok = lastCard ? TOKEN.exec(lastCard.content) : null;
   const liveId =
     lastCard && lastTok
-      ? (reviewing && lastTok[1] === "part" && lastTok[2] === reviewing) || (plan.stage === "choose" && lastTok[1] === "ideas") || (plan.stage === "approved" && lastTok[1] === "done")
+      ? (reviewing && lastTok[1] === "part" && lastTok[2] === reviewing) || (plan.stage === "choose" && lastTok[1] === "ideas") || (plan.stage === "approved" && lastTok[1] === "done") || (single && plan.stage === "proposal" && lastTok[1] === "summary")
         ? lastCard.id
         : null
       : null;
@@ -256,23 +263,28 @@ export default function PlanView({
   // Only the last ideas card in the chat can be the one they picked from;
   // earlier rounds are options they passed on.
   const lastIdeasId = [...msgs].reverse().find((m) => m.role !== "user" && m.content.includes("[[ideas]]"))?.id ?? null;
+  const summaryCard = <SummaryCard plan={plan} busy={busy} onConfirm={(prices) => act(() => confirmProposalAction(prices, bizRef.current.id))} />;
+  const onMore = (why: string) => act(() => moreIdeasAction(why, bizRef.current.id));
   const renderToken = ({ kind, arg, msgId }: ChatToken) => {
     if (kind === "part" && isBlock(arg)) return msgId === liveId ? partCard(arg) : <PartRow id={arg} plan={plan} stale={arg === reviewing} />;
-    if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} passed={msgId !== lastIdeasId} onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} /> : null;
+    if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} passed={msgId !== lastIdeasId} onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} onMore={onMore} /> : null;
     if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} payReady={business.payReady} />;
     if (kind === "market") return <MarketInChat plan={plan} />;
+    if (kind === "summary") return msgId === liveId ? summaryCard : <PassedRow text={es ? "Tu estrategia (versión anterior)" : "Your strategy (earlier version)"} />;
     return null;
   };
   // No live card in the chat yet (an older chat, or a final check stopped
   // the plan): show what's next after the last message.
   const tail = liveId
     ? null
-    : reviewing
+    : single && plan.stage === "proposal"
+      ? summaryCard
+      : reviewing
       ? partCard(reviewing)
       : plan.stage === "proposal"
         ? <FinishCard plan={plan} busy={busy} onFinish={() => act(() => finishPlanAction(bizRef.current.id))} />
         : plan.stage === "choose" && plan.ideas.length
-          ? <IdeasCard plan={plan} busy={busy} live onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} />
+          ? <IdeasCard plan={plan} busy={busy} live onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} onMore={onMore} />
           : null;
   const tailKey = `${plan.stage}:${reviewing}:${liveId}:${busy}`;
 
@@ -290,7 +302,6 @@ export default function PlanView({
 
   // Everything stays in the chat: while it gets to know you, your file; once
   // approved, the final card with the whole strategy (each part opens in place).
-  const es = lang === "es";
   const savedFacts = Object.keys(PROFILE_LABELS[lang]).filter((k) => {
     const v = plan.profile[k as keyof Profile];
     return v !== null && v !== "" && v !== undefined;
@@ -354,6 +365,16 @@ export default function PlanView({
           <StageBar labels={stages} current={current} />
           <StageSteps labels={stages} current={current} t={t} />
         </div>
+        {cardsMode ? (
+          <CardFlow
+            key={business.id}
+            mode={plan.mode as "new" | "existing"}
+            initial={plan.cards}
+            busy={busy}
+            notice={notice}
+            onSave={(answers, submit) => act(() => saveCardsAction(answers, submit, bizRef.current.id))}
+          />
+        ) : (
         <ChatPanel
           greeting={greeting}
           initialMessages={initialMessages}
@@ -402,6 +423,7 @@ export default function PlanView({
             return s.messages ?? null;
           }}
         />
+        )}
       </section>
 
     </div>
@@ -490,9 +512,14 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
             {plan.packages.map((p, i) => (
               <div key={i} className="rounded-xl p-4 flex flex-col gap-1.5 min-w-0" style={i === 1 ? { ...INSET, boxShadow: `inset 0 0 0 1px ${RING}` } : INSET}>
                 <span className="text-[14px] font-semibold text-pfg break-words">{p.name}</span>
-                <span className="text-[22px] font-semibold tracking-tight break-words leading-tight" style={{ color: GREEN }}>
+                <span className="text-[22px] font-semibold tracking-tight break-words leading-tight" style={{ color: p.ref ? "#52525B" : GREEN }}>
                   {p.price || "—"}
                 </span>
+                {p.ref && (
+                  <span className="self-start text-[11px] font-semibold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full" style={{ background: "rgba(10,10,10,0.06)", color: "#52525B" }}>
+                    {t.marketRef}
+                  </span>
+                )}
                 {p.includes && <span className="text-[13px] text-pfg2 leading-relaxed">{p.includes}</span>}
                 {p.note && <span className="text-[12px] text-pmuted leading-relaxed">{p.note}</span>}
               </div>
@@ -826,7 +853,7 @@ function DoneCard({ live, onNavigate, payReady }: { live: boolean; onNavigate: (
 }
 
 // The ideas (new-service path), inside the chat.
-function IdeasCard({ plan, busy, live, passed = false, onChoose }: { plan: BusinessPlan; busy: boolean; live: boolean; passed?: boolean; onChoose: (i: number) => void }) {
+function IdeasCard({ plan, busy, live, passed = false, onChoose, onMore }: { plan: BusinessPlan; busy: boolean; live: boolean; passed?: boolean; onChoose: (i: number) => void; onMore?: (why: string) => void }) {
   const t = PLAN_TEXT[useLang()];
   const chosen = !passed && plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
   const L = plan.mode === "agent" ? t.ideasC : t;
@@ -845,7 +872,124 @@ function IdeasCard({ plan, busy, live, passed = false, onChoose }: { plan: Busin
       {plan.ideas.map((idea, i) => (
         <IdeaItem key={i} idea={idea} i={i} plan={plan} busy={busy} compact={compact} onChoose={onChoose} />
       ))}
-      <p className="text-[13px] text-psub leading-relaxed">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.ideasNone}</p>
+      {plan.mode === "new" && onMore ? <MoreIdeas busy={busy} onMore={onMore} /> : <p className="text-[13px] text-psub leading-relaxed">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.ideasNone}</p>}
+    </div>
+  );
+}
+
+// "Dame otras": none of these. Optional reasons weigh on the next batch; the
+// ideas shown here are remembered as rejected and never come back.
+function MoreIdeas({ busy, onMore }: { busy: boolean; onMore: (why: string) => void }) {
+  const es = useLang() === "es";
+  const reasons = es
+    ? ["Pagan poco", "Toman mucho tiempo", "No me gustan", "Prefiero digital", "Prefiero en persona", "Cuestan mucho para empezar"]
+    : ["They pay too little", "They take too much time", "I don't like them", "I'd rather go digital", "I'd rather work in person", "Too costly to start"];
+  const [why, setWhy] = useState<string[]>([]);
+  const [text, setText] = useState("");
+  const toggle = (r: string) => setWhy((w) => (w.includes(r) ? w.filter((x) => x !== r) : [...w, r]));
+  return (
+    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3" style={CARD}>
+      <span className="text-[14.5px] font-semibold text-pfg">{es ? "¿Ninguna te convence?" : "None of these?"}</span>
+      <span className="text-[13px] text-psub">{es ? "Dime por qué (opcional) y te traigo otras distintas. Estas no vuelven a salir." : "Tell me why (optional) and I'll bring different ones. These won't come back."}</span>
+      <div className="flex flex-wrap gap-2">
+        {reasons.map((r) => (
+          <button key={r} type="button" onClick={() => toggle(r)} aria-pressed={why.includes(r)} className="h-9 px-3.5 rounded-full text-[13px]" style={why.includes(r) ? { background: "#0A0A0A", color: "#fff" } : GHOST_BTN}>
+            {r}
+          </button>
+        ))}
+      </div>
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder={es ? "Otra razón (opcional)" : "Another reason (optional)"} className="h-11 rounded-xl px-4 text-[14px] outline-none" style={INSET} />
+      <button type="button" disabled={busy} onClick={() => onMore([...why, text.trim()].filter(Boolean).join("; "))} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
+        {es ? "Dame otras" : "Show me others"}
+      </button>
+    </div>
+  );
+}
+
+function PassedRow({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={INSET}>
+      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "#D4D4D8" }} />
+      <span className="text-[14px] text-pfg font-medium min-w-0 truncate">{text}</span>
+    </div>
+  );
+}
+
+// A and B: the whole strategy on one card. A package that shows a market
+// reference can get the owner's own price right here; one button confirms
+// everything (that is the approval) and opens Store.
+function SummaryCard({ plan, busy, onConfirm }: { plan: BusinessPlan; busy: boolean; onConfirm: (prices: Record<string, string>) => void }) {
+  const lang = useLang();
+  const t = PLAN_TEXT[lang];
+  const es = lang === "es";
+  const [prices, setPrices] = useState<Record<string, string>>({});
+  const unknown = unknownCards(plan.mode, plan.cards);
+  const sec = (title: string, body: ReactNode) => (
+    <div className="flex flex-col gap-2.5 pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+      <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-pmuted">{title}</span>
+      {body}
+    </div>
+  );
+  return (
+    <div className="rounded-[24px] p-4 md:p-6 flex flex-col gap-4 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${RING}` }}>
+      <div className="flex flex-col gap-1">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: GREEN }}>{es ? "Tu estrategia" : "Your strategy"}</span>
+        <span className="text-[19px] font-semibold text-pfg leading-snug">{plan.service}</span>
+      </div>
+      {sec(t.blocks.service, <PartBody id="service" plan={plan} />)}
+      {plan.serviceWhy && (
+        <p className="text-[13px] text-psub leading-relaxed">
+          <span className="text-pfg2 font-medium">{es ? "Por qué te lo propongo (solo lo ves tú)" : "Why I suggest it (only you see this)"}:</span> {plan.serviceWhy}
+        </p>
+      )}
+      {sec(t.blocks.pitch, <PartBody id="pitch" plan={plan} />)}
+      {sec(
+        t.blocks.packages,
+        <div className="flex flex-col gap-3">
+          {plan.packages.map((p, i) => (
+            <div key={i} className="rounded-xl p-4 flex flex-col gap-2 min-w-0" style={INSET}>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-[14.5px] font-semibold text-pfg">{p.name}</span>
+                <span className="text-[18px] font-semibold" style={{ color: p.ref ? "#52525B" : GREEN }}>{p.price || "—"}</span>
+              </div>
+              {p.includes && <span className="text-[13px] text-pfg2 leading-relaxed">{p.includes}</span>}
+              {p.ref ? (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[12px] text-pmuted">
+                    <b className="font-semibold">{t.marketRef}</b> · {es ? "lo que se cobra en tu zona, no es tu precio. Escribe el tuyo si ya lo sabes:" : "what's charged in your area, not your price. Type yours if you know it:"}
+                  </span>
+                  <input
+                    value={prices[String(i)] ?? ""}
+                    onChange={(e) => setPrices((x) => ({ ...x, [String(i)]: e.target.value }))}
+                    placeholder={es ? "Tu precio, ej.: $40" : "Your price, e.g. $40"}
+                    inputMode="decimal"
+                    className="h-10 rounded-lg px-3 text-[14px] outline-none bg-white"
+                    style={{ boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.14)" }}
+                  />
+                </div>
+              ) : (
+                <span className="text-[12px]" style={{ color: GREEN }}>{es ? "Tu precio" : "Your price"}</span>
+              )}
+            </div>
+          ))}
+          {plan.pricingNote && <p className="text-[13px] text-psub leading-relaxed">{plan.pricingNote}</p>}
+          {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
+        </div>
+      )}
+      {sec(t.blocks.offer, <PartBody id="offer" plan={plan} />)}
+      {plan.faq.length > 0 && sec(t.blocks.faq, <PartBody id="faq" plan={plan} />)}
+      {unknown.length > 0 && (
+        <p className="text-[13px] leading-relaxed rounded-xl px-4 py-3" style={{ background: "rgba(245,158,11,0.07)", color: "#78350F" }}>
+          {es ? "Contestaste «no sé» en: " : "You answered \"don't know\" on: "}
+          {unknown.map((id) => cardTitle(plan.mode, id, lang)).join(" · ")}. {es ? "No supuse nada en su lugar." : "I didn't assume anything instead."}
+        </p>
+      )}
+      <div className="flex flex-col gap-2 pt-1">
+        <button type="button" disabled={busy} onClick={() => onConfirm(prices)} className="self-start h-11 px-6 rounded-full text-[15px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
+          {busy ? (es ? "Confirmando…" : "Confirming…") : es ? "Confirmar y crear mi página" : "Confirm and build my page"}
+        </button>
+        <span className="text-[12.5px] text-psub">{es ? "¿Quieres cambiar algo? Escríbelo en el chat y actualizo la tarjeta." : "Want to change something? Write it in the chat and I'll update the card."}</span>
+      </div>
     </div>
   );
 }
@@ -876,10 +1020,44 @@ function IdeaItem({ idea, i, plan, busy, compact, onChoose }: { idea: BusinessPl
           )}
         </span>
       </div>
-      <p className={`text-[13.5px] text-pfg2 leading-relaxed ${open ? "" : "line-clamp-2"}`}>{idea.why}</p>
-      {!open && idea.typicalPrice && (
-        <p className="text-[13px] text-psub">
-          {L.typicalPrice}: <span className="text-pfg font-medium">{idea.typicalPrice}</span>
+      {plan.mode !== "agent" && (idea.what || idea.forWhom || idea.delivery) ? (
+        <div className="flex flex-col gap-1">
+          {idea.what && <p className="text-[14px] text-pfg leading-relaxed">{idea.what}</p>}
+          <p className="text-[13px] text-psub leading-relaxed">
+            {idea.forWhom && (
+              <>
+                {es ? "Para" : "For"}: <span className="text-pfg2">{idea.forWhom}</span>
+              </>
+            )}
+            {idea.delivery && (
+              <span className="ml-2 inline-flex items-center h-6 px-2.5 rounded-full text-[12px] font-medium align-middle" style={{ background: "rgba(10,10,10,0.06)", color: "#3F3F46" }}>
+                {idea.delivery === "digital" ? "Digital" : idea.delivery === "fisico" ? (es ? "Físico" : "In person") : es ? "Digital o físico" : "Digital or in person"}
+              </span>
+            )}
+          </p>
+        </div>
+      ) : (
+        <p className={`text-[13.5px] text-pfg2 leading-relaxed ${open ? "" : "line-clamp-2"}`}>{idea.why}</p>
+      )}
+      {plan.mode !== "agent" && (idea.typicalPrice || idea.startCost) && (
+        <div className="rounded-xl px-3.5 py-2.5 flex flex-col gap-0.5" style={INSET}>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-pmuted">{t.marketRef}</span>
+          {idea.typicalPrice && (
+            <span className="text-[13px] text-pfg2">
+              {es ? "Se cobra" : "Charged"}: <b className="font-semibold text-pfg">{idea.typicalPrice}</b>
+            </span>
+          )}
+          {idea.startCost && (
+            <span className="text-[13px] text-pfg2">
+              {es ? "Para empezar" : "To start"}: {idea.startCost}
+            </span>
+          )}
+        </div>
+      )}
+      {plan.mode !== "agent" && idea.usesUnknown.length > 0 && (
+        <p className="text-[12.5px] leading-relaxed" style={{ color: AMBER }}>
+          {es ? "Supone algo que respondiste «no sé»: " : "Relies on something you answered \"don't know\": "}
+          {idea.usesUnknown.map((id) => cardTitle(plan.mode, id, lang)).join(" · ")}
         </p>
       )}
       {open && (
@@ -895,13 +1073,26 @@ function IdeaItem({ idea, i, plan, busy, compact, onChoose }: { idea: BusinessPl
                     [L.startCost, idea.startCost],
                   ]
                 : [
-                    [L.typicalPrice, idea.typicalPrice],
-                    [L.startCost, idea.startCost],
+                    [es ? "Por qué te puede servir" : "Why it may suit you", idea.what ? idea.why : ""],
+                    [es ? "Qué necesitas para empezar" : "What you need to start", idea.needs],
                     [L.license, idea.license && !/^no\b/i.test(idea.license.trim()) ? idea.license : ""],
                     [L.demand, idea.demand],
                   ]
             }
           />
+          {plan.mode !== "agent" && idea.steps.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-pmuted">{es ? "Pasos para empezar" : "Steps to start"}</span>
+              <ol className="flex flex-col gap-1.5">
+                {idea.steps.map((x, k) => (
+                  <li key={k} className="flex gap-2.5 text-[13.5px] text-pfg leading-relaxed">
+                    <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-px" style={{ background: "rgba(10,10,10,0.051)", color: "#52525B" }}>{k + 1}</span>
+                    <span className="min-w-0">{x}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           {(idea.pros || idea.cons) && (
             <div className="flex flex-col gap-1.5">
               {idea.pros && (

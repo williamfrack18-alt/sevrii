@@ -8,6 +8,7 @@ import {
   allApproved,
   blockHasContent,
   missingProfile,
+  parseIdeas,
   parsePlan,
   profileComplete,
   parseProfile,
@@ -22,6 +23,9 @@ import { codeGuard } from "./guard";
 import { priceMoves, swapAmounts } from "../reprice";
 import { lockedFacts, questionSentences, similar } from "./asked";
 import { dropDanglingClause, groundedInOwner, neutralGender, scrubInternal, withoutAvoidedSuggestions } from "./checks";
+import { markReferencePrices, noFakeCosts, readyForPage, withoutAvoided } from "./checks";
+import { oneConfirmation } from "./walk";
+import { unknownCards } from "../cards";
 import { unknownAmountSentences, ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
 import { alignProposal } from "./align";
@@ -75,7 +79,9 @@ const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre la
 - Si "roundsLeft" es 0, no puedes buscar más: ayúdale a escoger entre las actuales o a describir su propia idea (own_idea).
 Máximo 70 palabras.`;
 
-const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí mismo en el chat, una parte a la vez y en este orden: servicio, presentación, paquetes, oferta y preguntas frecuentes. Aquí solo se diseña la oferta: la campaña, los anuncios, el video y las fotos se deciden después en Marketing; si pregunta por eso, díselo en una línea. La parte que están viendo ahora es "currentPart" en el estado: el sistema la muestra en una tarjeta justo debajo de tu mensaje, con botones de Aprobar y Cambiar.
+const EDITOR = `Eres el Cerebro de Sevrii.
+Si mode es A o B: el dueño ve TODA su estrategia en una sola tarjeta (servicio, presentación, paquetes, oferta y preguntas frecuentes) con un botón «Confirmar y crear mi página»; no hay partes una por una y "currentPart" no aplica. Si confirma de forma explícita ("confirmo", "apruebo todo", "así está bien"), llama a approve_blocks con todas las partes. Los paquetes con "ref": true son una REFERENCIA DE MERCADO (lo que se cobra en su zona), nunca sus precios: nunca digas "tus precios" ni "tus costos" de ellos. Si el dueño te dice su precio, guárdalo con update_proposal tal cual. Si dice en qué idiomas atiende, guárdalo con update_proposal.languages.
+Si mode es C: el dueño revisa su propuesta aquí mismo en el chat, una parte a la vez y en este orden: servicio, presentación, paquetes, oferta y preguntas frecuentes. Aquí solo se diseña la oferta: la campaña, los anuncios, el video y las fotos se deciden después en Marketing; si pregunta por eso, díselo en una línea. La parte que están viendo ahora es "currentPart" en el estado: el sistema la muestra en una tarjeta justo debajo de tu mensaje, con botones de Aprobar y Cambiar.
 - No repitas el contenido de la tarjeta ni hagas listas: ya la está viendo. Habla de la parte actual, en 1 a 3 frases.
 - Si aprueba esa parte de forma explícita ("apruebo", "así está bien", o un "sí"/"dale" respondiendo a si la aprueba), llama a approve_blocks con currentPart y no digas nada de la siguiente: el sistema la muestra sola. Responde solo algo corto como "Perfecto, aprobado."
 - "Continúa", "sigue", "lo demás" o "el resto" NO son aprobación: no llames a approve_blocks. Dile en una línea que para seguir apruebe esta parte con el botón Aprobar de la tarjeta (o te diga que la aprueba), o qué quiere cambiar.
@@ -263,6 +269,7 @@ const UPDATE_PROPOSAL: Tool = {
       },
       noOffer: { type: "boolean", description: "true if the owner doesn't want an offer" },
       businessName: { type: "string", description: "The business name the owner chose or gave (only then)" },
+      languages: { type: "string", enum: ["es", "en", "both"], description: "Only when the owner says which languages they serve customers in" },
       resolvedWarnings: { type: "array", items: { type: "string" }, description: "Exact text of 'keep in mind' warnings the conversation already resolved: they are removed" },
       faq: { type: "array", items: { type: "object", properties: { q: { type: "string" }, a: { type: "string" } }, required: ["q", "a"] } },
       agent: {
@@ -369,7 +376,8 @@ function state(b: BusinessRow, ownerReplies = 0) {
     warnings: p.guard.warn,
     approvals: p.approvals,
     notApprovedYet: APPROVAL_BLOCKS.filter((x) => !p.approvals[x]),
-    currentPart: p.stage === "proposal" ? (APPROVAL_BLOCKS.find((x) => !p.approvals[x]) ?? "all approved") : "none (approved)",
+    currentPart: p.stage !== "proposal" ? "none (approved)" : oneConfirmation(p) ? "the whole strategy at once (one Confirm button)" : (APPROVAL_BLOCKS.find((x) => !p.approvals[x]) ?? "all approved"),
+    ...(p.mode !== "agent" ? { unknownAnswers: unknownCards(p.mode, p.cards), cards: p.cards } : {}),
   };
 }
 
@@ -385,7 +393,8 @@ export function applyApprovals(plan: BusinessPlan, blocks: ApprovalBlock[], lang
       refused.push(lang === "es" ? "La oferta necesita una fecha de fin. Dímela en el chat o quita la oferta." : "The offer needs an end date. Tell me in the chat or remove the offer.");
       continue;
     }
-    if (!blockHasContent(next, blk)) continue;
+    // A and B confirm the whole strategy: a part with nothing in it never blocks.
+    if (!blockHasContent(next, blk) && !oneConfirmation(plan)) continue;
     approvals[blk] = true;
   }
   next = { ...next, approvals };
@@ -395,7 +404,7 @@ export function applyApprovals(plan: BusinessPlan, blocks: ApprovalBlock[], lang
       refused.push(...g.block);
       next = { ...next, guard: { ...next.guard, block: g.block } };
     } else {
-      next = { ...next, stage: "approved", ready: true, approvedAt: today(next.profile.state), guard: { block: [], warn: next.guard.warn } };
+      next = { ...readyForPage(next), stage: "approved", ready: true, approvedAt: today(next.profile.state), guard: { block: [], warn: next.guard.warn } };
     }
   }
   return { plan: parsePlan(next), refused };
@@ -426,6 +435,16 @@ const ASKS_IDEAS = /\b(ideas?|opciones|options|dime (buenos |algunos |que )?serv
 // Did the owner actually talk about languages? (the model sometimes guesses
 // them from the language they write in, or from "Hispanic customers").
 const SAID_LANGUAGES = /\b(espa[ñn]ol|ingl[eé]s|spanish|english|idiomas?|languages?|biling[uü]e|bilingual|ambos|los dos|both)\b/i;
+// "Atiendo en inglés y español" / "solo español" / "only English" → what they said.
+export function saidLanguages(text: string): "es" | "en" | "both" | null {
+  const t = text.toLowerCase();
+  const es = /espa[ñn]ol|spanish/.test(t);
+  const en = /ingl[eé]s|english/.test(t);
+  if (/biling[uü]e|bilingual/.test(t) || (es && en && !/\b(no|sin|nada de|not|no hablo|don'?t)\s+(\w+\s+){0,2}(ingl[eé]s|english|espa[ñn]ol|spanish)/.test(t))) return "both";
+  if (/\b(solo|s[oó]lamente|only|just)\b/.test(t) && es && !en) return "es";
+  if (/\b(solo|s[oó]lamente|only|just)\b/.test(t) && en && !es) return "en";
+  return null;
+}
 
 // A profile that was completed while the owner was over their research limit
 // stays in the interview. Once research can start (new month, a higher plan,
@@ -578,7 +597,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         await updateBusinessPlan(b.id, parsePlan({ ...requestMoreIdeas(plan, ""), ownIdea: `${title}${what ? `: ${what}` : ""}` }));
         return { out: "evaluating their idea with the same research (1-2 minutes). Tell them in one line you'll check their idea against what people pay and need, and show it here next to 2 alternatives.", startPipeline: true };
       }
-      const own = { title, why: str(input.what, 800), typicalPrice: "", startCost: "", license: "", demand: "", how: "", pros: "", cons: "", score: 0, hourlyUsd: null, sources: [] };
+      const own = parseIdeas([{ title, why: str(input.what, 800), what: str(input.what, 400) }])[0];
       const ideas = [...plan.ideas.slice(0, 9), own];
       return afterChoice(b, chooseIdea({ ...plan, ideas }, ideas.length - 1), lang, `their own idea, ${title}`);
     }
@@ -593,6 +612,11 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     case "update_proposal": {
       if (plan.stage !== "proposal" && plan.stage !== "approved") return { out: "error: no proposal yet" };
       const patch: Record<string, unknown> = { ...input };
+      // The languages they serve in, when they say so (a correction here is a
+      // fact about them, so the final check reads the new one, never the old).
+      delete patch.languages;
+      const langs = saidLanguages(lastSaid) ?? (typeof input.languages === "string" && SAID_LANGUAGES.test(lastSaid) ? (input.languages as "es" | "en" | "both") : null);
+      if (langs && langs !== plan.profile.languages) patch.profile = { ...plan.profile, languages: langs };
       // The name is the owner's: saved only when they wrote it or picked one we suggested.
       let nameNote = "";
       if (typeof input.businessName === "string") {
@@ -600,7 +624,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         delete patch.businessName;
         const said = fold(lastSaid);
         if (name && !NO_NAME.test(name) && (said.includes(fold(name)) || (fold(lastAssistant).includes(fold(name)) && lastSaid.trim().length <= 80))) {
-          patch.profile = { ...plan.profile, businessName: name };
+          patch.profile = { ...((patch.profile as BusinessPlan["profile"] | undefined) ?? plan.profile), businessName: name };
           await renameProject(b, name);
           nameNote = `; business name saved: ${name}`;
         } else nameNote = "; business name NOT saved: the owner didn't give or pick it";
@@ -665,6 +689,8 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       // (video script, photo ideas…) keeps the stage as it was.
       const reopen = touched.size > 0;
       let next = parsePlan({ ...plan, ...patch, approvals, ...(reopen ? { stage: "proposal", ready: false } : {}) });
+      // A price is the owner's only if they said it; the rest stay market references.
+      next = withoutAvoided(noFakeCosts(markReferencePrices(next, ownerSaid)));
       // Invented amounts or hours, or internal words, never reach the owner.
       // (Only problems this edit brings in: an older proposal is never blocked.)
       const had = new Set(silentProposalIssues(plan, ownerSaid));
@@ -682,6 +708,15 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (plan.stage !== "proposal") return { out: "error: nothing to approve" };
       if (!saidApproval(lastSaid))
         return { out: "not approved: the owner did not explicitly approve this part (asking to continue is not an approval). Nothing changed. Tell them in one line that to go on they approve this part with the card's \"Aprobar\" button (or tell you it's approved), or say what to change." };
+      // A and B confirm the whole strategy at once.
+      if (oneConfirmation(plan)) {
+        const { plan: done, refused: no } = applyApprovals(readyForPage(plan), APPROVAL_BLOCKS, lang);
+        await updateBusinessPlan(b.id, done);
+        if (done.stage !== "approved") return { out: `not approved yet: ${no.join(" ") || "try again"}` };
+        turn.approved = true;
+        const filled = (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true })).filled;
+        return { out: `all approved: ${filled ? "the store page was built from it" : "the owner can build the page in Store"}. Tell them in one line that Store is open to create their page.` };
+      }
       let blocks = (Array.isArray(input.blocks) ? input.blocks : []).filter((x): x is ApprovalBlock => APPROVAL_BLOCKS.includes(x as ApprovalBlock));
       // One OK approves the part being reviewed, nothing more, unless they say "todo".
       const current = APPROVAL_BLOCKS.find((x) => !plan.approvals[x]);
@@ -758,6 +793,17 @@ export async function runPlanChatTurn(opts: {
       reply: es ? "Estoy investigando tu zona. En un momento te muestro lo que encontré." : "I'm researching your area. I'll show you what I found in a moment.",
       business,
       startPipeline: true,
+    };
+  }
+  // A and B answer the interview on cards: the chat never asks or researches
+  // in their place (the cards are the gate, in code).
+  if (business.plan.stage === "interview" && business.plan.mode !== "agent") {
+    return {
+      reply: es
+        ? "Para armarte algo que de verdad sirva, primero contesta las tarjetas de arriba (puedes poner «no sé» en cualquiera). Con todas completas investigo y te muestro las propuestas."
+        : "To build something that really works for you, first answer the cards above (you can say \"I don't know\" on any of them). Once they're all done I research and show you the proposals.",
+      business,
+      startPipeline: false,
     };
   }
   const client = getBrainModel();

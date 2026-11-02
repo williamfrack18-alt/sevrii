@@ -7,6 +7,7 @@
 
 import type { BusinessPlan } from "./plan";
 import { LIMITS, type FaqItem, type Offer, type Point } from "./site";
+import { stripReasoning } from "./pageText";
 
 type Lang = "es" | "en";
 
@@ -94,7 +95,20 @@ export function planReadyForStore(plan: BusinessPlan): boolean {
   return plan.stage === "approved" && Boolean(plan.service) && plan.packages.length > 0;
 }
 
-export function storeFromPlan(plan: BusinessPlan, lang: Lang): StoreDraft {
+export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraft {
+  // The page speaks the language the flow ran in: its texts were written in
+  // it, so its fixed labels are too (never Spanish texts under English labels).
+  const lang: Lang = planIn.flowLang || flowLangIn;
+  // Reasoning meant for the owner ("te conviene porque…") never reaches customers.
+  const plan: BusinessPlan = {
+    ...planIn,
+    promise: stripReasoning(planIn.promise),
+    serviceIncludes: stripReasoning(planIn.serviceIncludes),
+    steps: planIn.steps.map(stripReasoning).filter(Boolean),
+    differentiators: planIn.differentiators.map(stripReasoning).filter(Boolean),
+    faq: planIn.faq.map((f) => ({ q: f.q, a: stripReasoning(f.a) })).filter((f) => f.a),
+    packages: planIn.packages.map((k) => ({ ...k, includes: stripReasoning(k.includes) })),
+  };
   const p = plan.profile;
   const es = lang === "es";
   const city = [p.city, p.state].filter(Boolean).join(", ");
@@ -111,7 +125,7 @@ export function storeFromPlan(plan: BusinessPlan, lang: Lang): StoreDraft {
         : `${city} and ${p.radiusMiles} miles around`
       : city
     : "";
-  const pageLang: Lang = p.languages === "en" ? "en" : p.languages === "es" ? "es" : lang;
+  const pageLang: Lang = lang;
 
   const headline = cut(plan.promise && plan.promise.length <= LIMITS.headline ? plan.promise : plan.service, LIMITS.headline);
   const sentence = (x: string) => (x && !/[.!?]$/.test(x.trim()) ? `${x.trim()}.` : x.trim());
@@ -163,7 +177,9 @@ export function storeFromPlan(plan: BusinessPlan, lang: Lang): StoreDraft {
       .slice(0, 6)
       .map((k) => ({
         name: cut(k.name, LIMITS.serviceName),
-        price: cut(k.price, LIMITS.servicePrice),
+        // A market reference is not the owner's price: the page shows none
+        // until they confirm theirs (the Store chat asks for it).
+        price: k.ref ? "" : cut(k.price, LIMITS.servicePrice),
         description: cut(k.includes, LIMITS.serviceDescription),
       })),
   };

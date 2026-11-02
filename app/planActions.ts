@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { fillStoreFromPlan } from "@/lib/storeFill";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { budgetUsed, chatGate, gateLimit, gateMessage, month, researchWouldStart, runForUser } from "@/lib/usage";
+import { budgetUsed, chatGate, gateLimit, gateMessage, month, researchLimitText, researchUsage, researchWouldStart, runForUser } from "@/lib/usage";
+import { cleanAnswers, isOnlinePlace, pendingCards, cardTitle, type CardAnswers } from "@/lib/cards";
+import { markReferencePrices, readyForPage } from "@/lib/brain/checks";
 import type { LimitInfo } from "@/lib/upgrade";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
 import type { Lang } from "@/lib/i18n";
@@ -281,7 +283,7 @@ export async function moreIdeasAction(feedback: string, businessId?: string): Pr
   const plan = business.plan;
   if (plan.stage !== "choose") return respond(business);
   if (plan.ideaRounds >= MAX_IDEA_ROUNDS) return respond(business, { notice: t.moreNoLeft });
-  if (!(await allow(`brain:more:${business.id}`, 6, 60 * 60))) return respond(business, { notice: getDict(lang).auth.errTooMany });
+  if (!(await allow(`brain:more:${business.id}`, 30, 60 * 60))) return respond(business, { notice: getDict(lang).auth.errTooMany });
   // Checked before anything changes: over the budget, the 3 ideas stay.
   if (!(await researchWouldStart(business.userId, { budgetOnly: true }))) return respond(business, { notice: getDict(lang).dashboard.aiMonthlyLimit });
   const note = String(feedback || "").trim().replace(/\s+/g, " ").slice(0, 300);
@@ -290,4 +292,135 @@ export async function moreIdeasAction(feedback: string, businessId?: string): Pr
   await addChatMessage(business.id, CHANNEL, "ai", t.moreAi);
   revalidatePath("/dashboard");
   return respond(business, { startPipeline: true });
+}
+
+
+// ---------- The interview cards (A and B) ----------
+
+// The cards as profile facts the research and the Strategist already read.
+// Only what the person wrote: a "no sé" stays unknown, never a guess.
+async function profileFromCards(plan: BusinessPlan, cards: CardAnswers): Promise<BusinessPlan["profile"]> {
+  const { lookupPlace } = await import("@/lib/geo");
+  const said = (id: string) => (cards[id] && !cards[id].u ? cards[id].v.trim() : "");
+  const num = (re: RegExp, text: string) => {
+    const m = re.exec(text);
+    return m ? Number(m[1].replace(/,/g, "")) : null;
+  };
+  const place = (raw: string) => {
+    if (!raw.trim() || isOnlinePlace(raw)) return null;
+    return lookupPlace(raw);
+  };
+  const p = { ...plan.profile };
+  if (plan.mode === "new") {
+    const d = cards.delivery;
+    p.likes = [said("talent"), said("likes")].filter(Boolean).join("; ");
+    p.workHistory = cards.experience?.u ? "ninguna" : said("experience");
+    p.notWant = cards.notWant?.u ? "nada en especial" : said("notWant");
+    p.tools = cards.resources?.u ? "nada de eso" : said("resources");
+    p.hoursPerWeek = num(/(\d{1,3})\s*(?:h\b|hrs?|horas|hours)/i, said("time"));
+    p.startBudgetUsd = num(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)/, said("resources"));
+    p.incomeGoal = said("income");
+    p.direction = "open";
+    if (d && !d.u) {
+      p.workPlace = d.c === "digital" ? "home" : d.c === "fisico" ? "out" : "any";
+      if (d.c === "digital") p.serviceMode = "remote";
+      const where = place(d.p);
+      if (where) Object.assign(p, { city: where.city, state: where.state });
+    } else p.workPlace = "any";
+  } else {
+    const s = cards.service;
+    p.mainService = said("service");
+    if (s && isOnlinePlace(s.p)) p.serviceMode = "remote";
+    else {
+      const where = s ? place(s.p) : null;
+      if (where) Object.assign(p, { city: where.city, state: where.state });
+      if (!p.serviceMode) p.serviceMode = "local";
+    }
+    p.currentPrice = said("prices");
+    p.costs = said("costs");
+    p.costMaterialsUsd = num(/\$\s?(\d+)\s*(?:de|en)?\s*materiales?\b/i, said("costs"));
+    p.hoursPerWeek = num(/(\d{1,3})\s*(?:h\b|hrs?|horas|hours)\s*(?:a la|por|per|a)\s*(?:semana|week)/i, said("hours"));
+    p.costHoursPerJob = num(/(\d{1,2}(?:\.\d)?)\s*(?:h\b|hrs?|horas?|hours?)\s*(?:por|per|each|cada)\s*(?:trabajo|par|cliente|visita|job|pair|client|visit)/i, said("hours"));
+    p.typicalCustomer = cards.clients?.u ? "todavía no tiene clientes" : said("clients");
+    p.howGetsClients = said("clients");
+    p.tools = said("assets");
+    const g = cards.goal;
+    const goals: Record<string, string> = { clients: "más clientes", price: "cobrar mejor", hours: "trabajar más horas", new: "ofrecer algo nuevo" };
+    p.ownerGoal = g && !g.u ? [goals[g.c] ?? "", g.v].filter(Boolean).join(": ") : "";
+  }
+  return p;
+}
+
+// Saves the cards as they go (back and forth never loses one). With submit,
+// the code checks that every card is answered (or "no sé") before anything
+// is researched: the structure is the gate, not the model.
+export async function saveCardsAction(cards: unknown, submit: boolean, businessId?: string): Promise<PlanChatResponse> {
+  const business = await requireBusiness(businessId);
+  const lang = await getLang();
+  const es = lang === "es";
+  const plan = business.plan;
+  if (plan.stage !== "interview" || (plan.mode !== "new" && plan.mode !== "existing")) return respond(business);
+  const answers = cleanAnswers(plan.mode, cards);
+  let next: BusinessPlan = { ...plan, cards: answers };
+  if (!submit) {
+    await updateBusinessPlan(business.id, next);
+    return respond(business);
+  }
+  const left = pendingCards(plan.mode, answers);
+  if (left.length) {
+    await updateBusinessPlan(business.id, next);
+    return respond(business, { notice: `${es ? "Te falta contestar:" : "Still to answer:"} ${left.map((id) => cardTitle(plan.mode, id, lang)).join(" · ")}` });
+  }
+  if (!(await allow(`brain:cards:${business.id}`, 20, 60 * 60))) return respond(business, { notice: getDict(lang).auth.errTooMany });
+  const profile = await profileFromCards(next, answers);
+  next = { ...next, profile: { ...profile, researchReady: true }, flowLang: lang };
+  if (!(await researchWouldStart(business.userId))) {
+    await updateBusinessPlan(business.id, next);
+    return respond(business, { notice: researchLimitText(await researchUsage(business.userId), es ? "es" : "en") });
+  }
+  next = { ...next, stage: plan.mode === "new" ? "ideas_research" : "research", runId: "" };
+  await updateBusinessPlan(business.id, next);
+  await addChatMessage(
+    business.id,
+    CHANNEL,
+    "ai",
+    plan.mode === "new"
+      ? es
+        ? "Gracias, ya tengo todas tus respuestas. Ahora investigo tu zona y te muestro propuestas de servicio que encajen contigo (1 o 2 minutos). Nada de lo que me dijiste que no quieres va a aparecer."
+        : "Thanks, I have all your answers. I'm researching your area now and will show you service proposals that fit you (1-2 minutes). Nothing you said you don't want will show up."
+      : es
+        ? "Gracias, ya tengo todas tus respuestas. Ahora investigo precios, competencia y clientes de tu zona (1 o 2 minutos) y te armo la propuesta."
+        : "Thanks, I have all your answers. I'm researching prices, competition and customers in your area (1-2 minutes) and will build your proposal."
+  );
+  revalidatePath("/dashboard");
+  return respond(business, { startPipeline: true });
+}
+
+// The one confirmation (A and B): the owner reviews the whole strategy on one
+// card, may write their own price for any package that shows a market
+// reference, and confirms. That confirmation is the approval: Store opens.
+export async function confirmProposalAction(prices: Record<string, string>, businessId?: string): Promise<PlanChatResponse> {
+  const business = await requireBusiness(businessId);
+  const lang = await getLang();
+  const es = lang === "es";
+  let plan = business.plan;
+  if (plan.stage !== "proposal" || plan.mode === "agent") return respond(business);
+  if (!(await allow(`brain:approve:${business.id}`, 60, 10 * 60))) return respond(business);
+  // A price typed here is the owner's own: it replaces the reference.
+  const typed: string[] = [];
+  const packages = plan.packages.map((k, i) => {
+    const raw = String(prices?.[String(i)] ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
+    if (!raw || !/\d/.test(raw)) return k;
+    const price = /\$/.test(raw) ? raw : `$${raw}`;
+    typed.push(`${k.name}: ${price}`);
+    return { ...k, price, ref: false };
+  });
+  plan = markReferencePrices({ ...plan, packages }, typed.join(" "));
+  if (typed.length) await addChatMessage(business.id, CHANNEL, "user", `${es ? "Mis precios" : "My prices"}: ${typed.join(" · ")}`);
+  await addChatMessage(business.id, CHANNEL, "user", es ? "Confirmo mi estrategia." : "I confirm my strategy.");
+  const { plan: next, refused } = applyApprovals(readyForPage(plan), APPROVAL_BLOCKS, lang);
+  await updateBusinessPlan(business.id, next);
+  await walkOn(business, next, refused, lang);
+  revalidatePath("/dashboard");
+  return respond(business);
 }

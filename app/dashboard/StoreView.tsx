@@ -9,6 +9,7 @@ import { PLANS_TEXT } from "@/lib/plansI18n";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
 import { chooseStartAction, fillStoreFromPlanAction, loadStoreAction, previewLinkAction, setPublishedAction } from "@/app/storeActions";
 import { planFingerprint, planReadyForStore } from "@/lib/planToStore";
+import { cardsFor, pendingCards } from "@/lib/cards";
 import type { PageDesign, PublishGap } from "@/lib/site";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
 import { ACCENT, BRAND_BTN, GREEN, INK, TINT } from "@/lib/panel";
@@ -594,13 +595,23 @@ export function StrategyGate({ area, business, lang, onBrain }: { area: "store" 
     ? { service: "tu servicio", pitch: "cómo te presentas", packages: "tus paquetes y precios", offer: "tu oferta de bienvenida", faq: "tus preguntas frecuentes" }
     : { service: "your service", pitch: "how you present yourself", packages: "your packages and prices", offer: "your welcome offer", faq: "your FAQ" };
   const pending = (Object.keys(parts) as (keyof typeof parts)[]).filter((k) => !p.approvals[k]);
+  const cardsLeft = p.stage === "interview" && p.mode !== "agent" ? pendingCards(p.mode, p.cards).length : 0;
+  const cardsTotal = p.mode !== "agent" ? cardsFor(p.mode).length : 0;
   const where =
-    p.stage === "interview" || p.stage === "ready_check"
+    cardsLeft > 0
+      ? es
+        ? `Te faltan ${cardsLeft} de ${cardsTotal} tarjetas por contestar en el Cerebro. Puedes poner «no sé» en las que no sepas.`
+        : `${cardsLeft} of ${cardsTotal} cards are still to answer in the Brain. You can say "I don't know" on any of them.`
+      : p.stage === "proposal" && p.mode !== "agent"
+        ? es
+          ? "Tu estrategia ya está lista en el Cerebro: revísala y toca «Confirmar y crear mi página»."
+          : "Your strategy is ready in the Brain: review it and tap \"Confirm and build my page\"."
+      : p.stage === "interview" || p.stage === "ready_check"
       ? es ? "Todavía estás en la entrevista con el Cerebro: contesta sus preguntas para que investigue tu zona." : "You're still in the interview with the Brain: answer its questions so it can research your area."
       : p.stage === "ideas_research" || p.stage === "research"
         ? es ? "El Cerebro está investigando tu zona. En 1 o 2 minutos te muestra tu propuesta." : "The Brain is researching your area. In 1-2 minutes it shows you your proposal."
         : p.stage === "choose"
-          ? es ? "Escoge una de las 3 ideas que te propuso el Cerebro." : "Pick one of the 3 ideas the Brain proposed."
+          ? es ? "Escoge una de las propuestas del Cerebro (o pide otras)." : "Pick one of the Brain's proposals (or ask for others)."
           : es ? `Te falta aprobar en el Cerebro: ${pending.map((k) => parts[k]).join(", ")}.` : `Still to approve in the Brain: ${pending.map((k) => parts[k]).join(", ")}.`;
   return (
     <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen flex items-center justify-center px-4">
@@ -621,7 +632,7 @@ export function StrategyGate({ area, business, lang, onBrain }: { area: "store" 
         <p className="text-[14.5px] text-pfg leading-relaxed">{where}</p>
         {onBrain && (
           <button type="button" onClick={onBrain} className="self-start h-11 px-6 rounded-full text-[14.5px] font-semibold" style={BRAND_BTN}>
-            {es ? "Ir al Cerebro a terminarla" : "Go to the Brain to finish it"}
+            {cardsLeft > 0 ? (es ? "Ir a contestar las tarjetas" : "Go answer the cards") : es ? "Ir al Cerebro a terminarla" : "Go to the Brain to finish it"}
           </button>
         )}
       </div>
