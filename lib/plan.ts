@@ -51,6 +51,9 @@ export type Profile = {
   workPlace: "home" | "out" | "any" | "";
   // They asked for ideas before the interview ended: research with what we have.
   ideasNow: boolean;
+  // A and B: the Brain decided it knows enough to research (it decides, not a
+  // fixed list of questions); set when the research couldn't start yet.
+  researchReady: boolean;
   workHistory: string;
   askedFor: string;
   tools: string;
@@ -120,6 +123,9 @@ export type Idea = {
   pros: string;
   cons: string;
   score: number; // 0-25
+  // What it pays per hour of work in their area (estimated from the research):
+  // the ideas are shown best paid first.
+  hourlyUsd: number | null;
   sources: PlanSource[];
 };
 
@@ -207,6 +213,7 @@ export const EMPTY_PROFILE: Profile = {
   direction: "",
   workPlace: "",
   ideasNow: false,
+  researchReady: false,
   workHistory: "",
   askedFor: "",
   tools: "",
@@ -369,6 +376,7 @@ export function parseProfile(raw: unknown): Profile {
     direction: oneOf(p.direction, ["known", "new", "open"] as const),
     workPlace: oneOf(p.workPlace, ["home", "out", "any"] as const),
     ideasNow: p.ideasNow === true,
+    researchReady: p.researchReady === true,
     workHistory: str(p.workHistory, 800),
     askedFor: str(p.askedFor, 600),
     tools: str(p.tools, 600),
@@ -466,11 +474,12 @@ export function parseIdeas(v: unknown): Idea[] {
         pros: str(i.pros, 600),
         cons: str(i.cons, 600),
         score: num(i.score, 0, 25) ?? 0,
+        hourlyUsd: num(i.hourlyUsd, 1, 2000),
         sources: sources(i.sources, 4),
       };
     })
     .filter((i) => i.title)
-    .slice(0, 6);
+    .slice(0, 14);
 }
 
 export function parsePlanAgent(raw: unknown): PlanAgent | null {
@@ -579,40 +588,15 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.typicalCustomer, "typicalCustomer (who they'd like the agent to help; 'anyone' is a valid answer)");
     need(!p.languages, "languages (the language(s) the agent will talk to customers in: es, en or both)");
   } else if (plan.stage === "interview" && plan.mode !== "new") {
-    need(!p.mainService, "mainService");
-    need(!p.exampleJob, "exampleJob (a recent real job)");
-    need(!p.city || !p.state, "city and state");
-    need(!p.serviceMode, "serviceMode (in person in an area = local, or remote/online = remote)");
-    need(p.serviceMode === "local" && !p.zip, "zip (their 5-digit ZIP code, to place them on the map; ask it together with the city or the radius)");
-    need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they travel)");
-    need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, only customers in their own state = state, other countries too = world)");
-    need(!p.typicalCustomer, "typicalCustomer");
-    need(!p.howGetsClients, "howGetsClients (how they get customers today)");
-    need(!p.currentPrice, "currentPrice (what they charge today)");
-    need(p.costHoursPerJob === null, "costHoursPerJob (hours one job takes them — or one client a month for a monthly service; ask for the number, never assume it)");
-    need(p.costMaterialsUsd === null, "costMaterialsUsd (dollars of materials or tools per job or per client a month; 0 is fine if they said free)");
-    need(p.yearsExperience === null, "yearsExperience (years doing this work in total)");
-    need(p.yearsExperience !== null && p.yearsExperience > 0 && p.yearsOwnBusiness === null, "yearsOwnBusiness (how many of those years on their own, with their own business; 0 if they are just starting on their own)");
-    need(!p.languages, "languages (es, en or both)");
-    need(!p.differentiators, "differentiators (what makes them different)");
-    need(!p.businessName, "businessName (if they have none, suggest 2 or 3 short names in the same message and let them pick)");
+    // A: only what the research can't work without. Everything else the Brain
+    // asks only if it really changes the strategy (it decides, not a list).
+    need(!p.mainService, "mainService (what service they offer)");
+    need(p.serviceMode !== "remote" && (!p.city || !p.state), "city and state (where they work)");
   } else if (plan.stage === "interview") {
-    // B: someone who wants a new service. Short and fluid: they may have no
-    // experience at all, and they can ask for ideas at any point.
+    // B: where they live and something about them (what they know, like or
+    // have done), unless they asked for ideas right away.
     need(!p.city || !p.state, "city and state");
-    if (!p.ideasNow) {
-      need(!p.direction, "direction (something tied to what they already know or have done = known, something new they can learn = new, either = open; offer both, the two are fine)");
-      need(p.direction === "known" && !p.workHistory, "workHistory (jobs they have had, or what they know how to do)");
-      need(p.direction === "known" && !p.askedFor, "askedFor (what people ask them to help with)");
-      need(!p.likes, "likes (what they enjoy doing or are good at, even if it is not work; 'no sé' is fine: then offer 2 or 3 options to pick from)");
-      need(!p.notWant, "notWant (what they hate or NEVER want to do again, jobs or tasks; 'nada en especial' is a valid answer. Ask it kindly, once)");
-      need(!p.workPlace, "workPlace (from home with a computer or phone = home, out in person at customers' places or on the street = out, either = any)");
-      need(!p.tools, "tools (what they have today: computer, phone, car, tools…)");
-      need(p.workPlace !== "home" && !p.hasVehicle, "hasVehicle (yes / no)");
-      need(p.hoursPerWeek === null, "hoursPerWeek (a number of hours; if they say \"medio tiempo\" or \"part time\", ask how many hours)");
-      need(p.startBudgetUsd === null, "startBudgetUsd (money available to start)");
-      need(!p.languages, "languages (es, en or both)");
-    }
+    need(!p.ideasNow && !p.workHistory && !p.likes && !p.askedFor && !p.direction, "something about them (what they know how to do, what they like or jobs they have had)");
   } else if (plan.stage === "ready_check" && plan.mode === "agent") {
     need(!p.agentTask, "agentTask (the complete task the agent DOES for each customer end to end — result left done, official pages it operates, sensitive data the customer types and when, how it proves it's done: propose it yourself from the chosen idea and ask them to confirm or adjust)");
     need(!p.remoteScope, "remoteScope (customers in the whole US = us, only one state = state, other countries too = world)");
@@ -620,16 +604,17 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.agentLimits, "agentLimits (what it must never do and when the creator steps in: propose sensible limits for this idea and ask them to confirm)");
     need(!p.businessName, "businessName (last: suggest 2 short brand names for the agent)");
   } else if (plan.stage === "ready_check") {
+    // B after picking an idea: only how it's delivered, if it isn't obvious.
     need(!p.serviceMode, "serviceMode (the chosen service: in person in an area = local, or remote/online = remote)");
-    need(p.serviceMode === "local" && !p.zip, "zip (their 5-digit ZIP code, to place them on the map)");
-    need(p.serviceMode === "local" && p.radiusMiles === null, "radiusMiles (how far they will travel)");
-    need(p.serviceMode === "remote" && !p.remoteScope, "remoteScope (whole US = us, only customers in their own state = state, other countries too = world)");
-    need(!p.toolsReady, "toolsReady (has the tools for the chosen idea: yes / no)");
-    need(p.costHoursPerJob === null, "costHoursPerJob (hours one job takes them — or one client a month for a monthly service; ask for the number, never assume it)");
-    need(p.costMaterialsUsd === null, "costMaterialsUsd (dollars of materials or tools per job or per client a month; 0 is fine if they said free)");
-    need(!p.businessName, "businessName (last; if they have none, suggest 2 or 3 short names in the same message and let them pick)");
   }
   return out;
+}
+
+// A and B: the Brain itself decides when it knows enough (start_research);
+// C still follows its own short list.
+export function profileComplete(plan: BusinessPlan): boolean {
+  if (missingProfile(plan).length) return false;
+  return plan.mode === "agent" || plan.stage === "ready_check" || plan.profile.researchReady;
 }
 
 // ---------- approvals ----------

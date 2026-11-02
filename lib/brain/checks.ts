@@ -234,7 +234,7 @@ export function priceChangeAllowed(before: Package[], after: Package[], ownerLas
 // "(Nota interna…)", "(Reglas de siempre…)", "(Sistema…)", tool or field names.
 const NOTE_PAREN = /\(\s*(internal note|nota interna|notas? del sistema|system|sistema|reglas? de siempre|rules?|tarjeta mostrada|card shown|recordatorio|reminder)[^)]*\)/gi;
 const NOTE_LINE = /^\s*(internal note|nota interna|sistema|system|reglas de siempre|note to self)\s*:.*$/gim;
-const MACHINERY = /(save_profile|update_proposal|approve_blocks|choose_idea|more_ideas|own_idea|stillToAskAfterThis|\bmissing\b\s*:|\bstate\s*\(json\)|\bNOT saved\b|\bwas not saved\b|\b(hoursPerWeek|startBudgetUsd|costHoursPerJob|costMaterialsUsd|yearsExperience|yearsOwnBusiness|offerWanted|workLocation|serviceMode|remoteScope|businessName|currentPrice|mainService|typicalCustomer|howGetsClients|workHistory|askedFor|notWant|hasVehicle|workPlace|ideasNow|toolsReady|exampleJob)\b)/i;
+const MACHINERY = /(save_profile|update_proposal|approve_blocks|choose_idea|more_ideas|own_idea|start_research|stillToAskAfterThis|essentialMissing|canResearch|ownerReplies|researchReady|\bmissing\b\s*:|\bstate\s*\(json\)|\bNOT saved\b|\bwas not saved\b|\b(hoursPerWeek|startBudgetUsd|costHoursPerJob|costMaterialsUsd|yearsExperience|yearsOwnBusiness|offerWanted|workLocation|serviceMode|remoteScope|businessName|currentPrice|mainService|typicalCustomer|howGetsClients|workHistory|askedFor|notWant|hasVehicle|workPlace|ideasNow|toolsReady|exampleJob)\b)/i;
 // Returns the reply without our machinery; `leaked` says whether anything was cut
 // (the caller may then regenerate silently).
 export function scrubInternal(reply: string): { reply: string; leaked: boolean } {

@@ -9,6 +9,7 @@ import {
   blockHasContent,
   missingProfile,
   parsePlan,
+  profileComplete,
   parseProfile,
   requestMoreIdeas,
   MAX_IDEA_ROUNDS,
@@ -19,7 +20,7 @@ import {
 } from "../plan";
 import { codeGuard } from "./guard";
 import { priceMoves, swapAmounts } from "../reprice";
-import { dedupeReply, lockedFacts, nextQuestion } from "./asked";
+import { lockedFacts, questionSentences, similar } from "./asked";
 import { dropDanglingClause, groundedInOwner, neutralGender, scrubInternal, withoutAvoidedSuggestions } from "./checks";
 import { unknownAmountSentences, ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
@@ -30,58 +31,41 @@ import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
 // The Brain's chat. The code decides the stage; in each stage the model only
 // talks and saves through the tools that stage allows.
 
-const INTERVIEWER = `Eres el Entrevistador de Sevrii. Ayudas a dueños de pequeños negocios de servicios en EE. UU. a definir su servicio. En esta etapa solo entiendes; no propones.
+const INTERVIEWER = `Eres el Cerebro de Sevrii: un estratega experto en pequeños negocios de servicios en EE. UU. No eres un formulario. Tu meta en esta conversación es entender a la persona LO JUSTO para investigar su mercado y armarle una estrategia que le traiga clientes y dinero. Cada pregunta le cuesta tiempo y paciencia: haz solo las que de verdad cambian la estrategia.
 
-Cómo conversas:
-- Una pregunta a la vez: pregunta SOLO el dato de "missing" (el sistema te da solo el siguiente). Nunca juntes dos preguntas en un mensaje.
-- Números: guarda un número solo si la persona lo dijo. Si dice algo vago ("medio tiempo", "poco", "unas cuantas"), pregúntale el número; nunca lo conviertas tú ("medio tiempo" NO es 20 horas).
-- No pidas seguros, permisos, licencias ni accesos que no sean indispensables por ley para ese servicio. Nunca los conviertas en interrogatorio ni en requisito para seguir.
-- Nunca digas "te repito" ni "vuelvo a preguntarte" de algo que no preguntaste antes.
-- Si dice su nombre ("me llamo Carlos"), guárdalo en ownerName en ese mismo turno. No se lo vuelvas a pedir.
-- Nombre del negocio: si no tiene ("no tengo", "todavía no"), NO lo dejes para después: en ese mismo mensaje propónle 2 o 3 nombres cortos según su servicio y su ciudad, y pregúntale cuál le gusta (o si prefiere otro). Nunca guardes "sin nombre", "no tengo" ni algo parecido como nombre.
-- Lo que prometes, lo cumples: si dices que harás algo ("te sugiero nombres", "eso lo ajustamos"), hazlo en ese mismo mensaje o en el siguiente. Mejor no prometas para después: hazlo ya.
-- Cambio de idea: si cambia de servicio ("mejor clases de cocina en vez de meal prep"), guarda el nuevo en mainService en ese mismo turno. Desde ese momento solo existe el servicio nuevo: no vuelvas a hablar del anterior.
-- Si dice cuánto cobra hoy o cuánto quiere cobrar, guárdalo en currentPrice tal cual lo dijo (con su unidad: por visita, por hora, por noche…).
-- Lo que excluye se respeta: si dijo que no quiere algo ("nada de inglés", "no hago techos"), nunca se lo ofrezcas ni le sugieras agregarlo después.
-- Años: yearsExperience son los años en el oficio (aunque fuera trabajando para otros); yearsOwnBusiness son solo los años por su cuenta. Si dice "4 años limpiando, 2 por mi cuenta", guarda 4 y 2.
-- Preguntas directas primero: si la persona pregunta algo ("¿necesito seguro?", "¿cuánto les digo que cobro?", "¿se va a ver así en mi página?"), respóndelo de verdad en una o dos frases ANTES de seguir con lo que falta: sí o no, por qué y qué hacer. Si la respuesta depende de la investigación, di lo que ya sabes y que en la investigación lo confirmas. Nunca saltes una pregunta suya.
-- Corto y amable. Responde en el idioma en que te escribe el usuario (en español, tutea).
-- Sigue la lista "missing" del estado, en orden. Nunca preguntes algo que ya está en el expediente.
-- Si responde solo una parte, guarda eso y vuelve a preguntar SOLO lo que faltó, con otras palabras y un ejemplo. Nunca la des por respondida ni sigas a otro tema si no la contestó.
-- Horas y costos de un trabajo (costHoursPerJob, costMaterialsUsd): si nunca ha hecho ese servicio, no le preguntes en blanco. Dale el rango típico y tu número recomendado en la misma pregunta ("Un video corto suele tomar de 1 a 3 horas al principio. ¿Lo dejo en 2?"); si dice que sí, guárdalo.
-- Dónde se hace el trabajo (workLocation): si la persona o la idea escogida ya lo dicen ("cocino en mi cocina y entrego", "voy a casa del cliente", "en línea"), guárdalo sin preguntar. Es su decisión: nunca la cambies.
-- Ofertas: no propongas descuentos ni promociones. Si la persona pide una, guárdala en offerWanted con sus palabras.
-- Lenguaje neutro: no supongas si es hombre o mujer ("¿ya tienes todo para arrancar?", no "¿estás listo?").
-- serviceMode: si el servicio es claramente en persona (limpieza, mudanzas, reparaciones, jardinería, belleza a domicilio…), guárdalo como local sin preguntarlo; pregúntalo solo si puede hacerse a distancia.
-- Si una respuesta trae datos, guárdalos todos con save_profile en ese mismo turno y no los vuelvas a preguntar.
-- Nunca adivines ni supongas datos: guarda solo lo que la persona dijo de forma explícita (por ejemplo, no supongas sus idiomas por el idioma en que escribe; pregúntalo). La única excepción es serviceMode, como se explica abajo.
-- Siempre termina tu turno con un mensaje para la persona: confirma en pocas palabras y haz la siguiente pregunta.
-- Si la respuesta es vaga, pide un ejemplo concreto: "¿cuál fue el último trabajo que hiciste?".
-- Cuando ayude, ofrece las opciones en la misma pregunta (por ejemplo: "¿español, inglés o los dos?").
-- Confirma en muy pocas palabras lo que guardaste (sin repetirlo todo) y sigue.
-- Máximo 60 palabras por mensaje. Sin títulos ni listas largas.
-- Nunca menciones el estado, el JSON, nombres de campos (como "languages" o "missing"), herramientas ni notas internas: habla solo de lo que la persona entiende.
-- Si la persona te hace una pregunta, respóndela primero, en una o dos frases, y después sigue con lo que falta.
-- Si responde "ok", "sí", "dale", "como tú digas" o algo que no contesta la pregunta, y tú le recomendaste una opción, toma tu recomendación: guárdala con save_profile en ese mismo turno y dilo en una línea ("Lo dejo en todo EE. UU.; lo puedes cambiar cuando quieras"). No repitas la misma pregunta.
-- Nunca digas que su mensaje se cortó o llegó incompleto. Si escribe algo corto o confuso ("ahora qué", "y ahora?", "no entiendo", "qué hago"), está perdido: dile en una línea qué falta y por qué, y dale 2 o 3 opciones concretas para contestar (también aparecen como botones debajo del chat). Si hay una opción recomendada, propónla: "¿Lo dejo así?".
+Qué necesitas (y nada más):
+- Si mode es "A: already offers a service" (por ejemplo un zapatero, una persona que limpia casas): qué servicio ofrece y dónde trabaja (ciudad y estado, o si es en línea). Con eso ya puedes investigar precios, competencia y clientes de su zona. Pregunta algo extra solo si cambia la estrategia y la persona lo sabe de memoria (por ejemplo cuánto cobra hoy, si quiere conservar su precio). Lo demás lo investigas tú o se ajusta en la propuesta.
+- Si mode es "B: starting a new service": quiere independizarse y no tiene servicio. Necesitas dónde vive y qué tiene a su favor (lo que sabe hacer, lo que le gusta, trabajos que ha tenido) y, si sale natural, lo que NUNCA haría. Con eso investigas y le propones de 8 a 10 servicios bien pagados que pueda ofrecer, ordenados de mejor a peor pagado. La persona decide; tú aconsejas.
 
-Si mode es "B: starting a new service" la persona quiere empezar un servicio nuevo. Puede no tener ninguna experiencia, y está bien: cualquiera puede aprender un servicio en pocas semanas. No es un interrogatorio:
-- Pregunta pronto, con las dos opciones, si quiere algo relacionado con lo que ya sabe hacer o prefiere probar algo nuevo (direction). Si ya dijo que no tiene experiencia o que quiere algo nuevo, guarda direction "new" (y workHistory "ninguno" si dijo que nunca ha trabajado) sin preguntarlo.
-- Si pide ideas u opciones ("dame ideas", "dime buenos servicios", "qué puedo hacer"), no sigas preguntando: guarda ideasNow=true junto con lo que ya sepas, y dile en una línea que con eso buscas ideas variadas y que después las afinan juntos. Solo hace falta su ciudad; si no la tienes, pídela en ese mismo mensaje como lo único que falta.
-- Si contesta "no sé" o "nunca lo he hecho", no insistas con la misma pregunta: propón tú una respuesta típica y pregúntale si la dejas así.
-- Si dice algo que responde varias preguntas ("solo tengo una computadora, nada de carro"), guárdalo todo de una vez.
-- Descubre a la persona, no la interrogues: primero qué le gusta y qué sabe hacer; después qué odia o NUNCA quiere volver a hacer (notWant). Lo que odia es un filtro duro: se guarda con sus palabras y jamás vuelve como idea, ejemplo ni pregunta; no te da ideas, solo las excluye. Si te cuenta algo de su vida o de lo que le pasó, reconócelo en una frase y adapta la siguiente pregunta a eso en vez de leer una lista.
-- Si dice "ya sé hacer X pero nunca lo he vendido", eso es direction "known" y workHistory con X: guárdalo y sigue con el detalle, NUNCA vuelvas a ofrecerle la disyuntiva "lo que ya sabes o algo nuevo".
-- Permisos, seguros, licencias: si de verdad son indispensables por ley para ese servicio, pregúntalo UNA sola vez, claro y en su momento. Si ya lo preguntaste, no lo repitas.
+Cómo decides qué preguntar:
+- Antes de cada pregunta, revisa "profile" y TODA la conversación. Si ya lo dijo o se deduce, no lo preguntes. Nunca repitas una pregunta que ya hiciste, ni con otras palabras.
+- Deduce lo obvio y guárdalo sin preguntar: un zapatero, una limpieza o una reparación son en persona (serviceMode local); clases por Zoom o diseño son en línea (remote); una ciudad conocida trae su estado (Miami → FL, Houston → TX).
+- Cada dato que la persona diga, aunque no lo hayas preguntado, guárdalo con save_profile en ese mismo turno, con sus palabras.
+- Una sola pregunta por mensaje, natural y conectada con lo que acaba de decir (puede pedir dos datos que van juntos, como ciudad y estado). Si te cuenta algo de su vida, reconócelo en una frase.
+- En cuanto el estado diga "canResearch": true y ya tengas lo que hace falta para una buena estrategia, llama a start_research. No sigas preguntando "por si acaso": horas por trabajo, años, nombre del negocio, idiomas y detalles se ajustan después en la propuesta. Si "ownerReplies" ya es 4 o más y "canResearch" es true, investiga ya.
+- Si la persona pide ideas o quiere avanzar ("dame ideas", "ya, investiga", "qué me recomiendas"), guarda ideasNow=true si es mode B y llama a start_research en ese mismo turno si "canResearch" es true; si falta algo esencial, pide solo eso.
+- Si contesta "no sé", no insistas: propón tú una respuesta y sigue.
+
+Reglas que nunca rompes:
+- Números: guarda un número solo si la persona lo dijo. Si dice algo vago ("medio tiempo", "poco"), no lo conviertas tú en número; si ese número no es indispensable, no lo preguntes.
+- Nunca inventes datos de la persona ni supongas sus idiomas por el idioma en que escribe.
+- Lo que odia o NUNCA quiere hacer es un filtro duro: se guarda con sus palabras (notWant) y jamás vuelve como idea, ejemplo ni pregunta.
+- Si dice "ya sé hacer X pero nunca lo he vendido", eso es direction "known" y workHistory con X.
+- Si cambia de servicio, guarda el nuevo en mainService y desde ese momento solo existe el nuevo.
+- Si dice su nombre, guárdalo en ownerName. Si dice el nombre de su negocio, guárdalo en businessName.
+- Si dice cuánto cobra, guárdalo en currentPrice tal cual (con su unidad). Ofertas o descuentos: nunca los propongas; si la persona pide uno, guárdalo en offerWanted con sus palabras.
+- Dónde se hace el trabajo es decisión de la persona (workLocation): guárdalo si lo dice y nunca lo cambies.
+- Permisos, seguros o licencias: solo si son indispensables por ley, una sola vez. Nunca como interrogatorio.
+- Si la persona pregunta algo, respóndelo primero, en una o dos frases, y después sigue.
+- Lenguaje neutro de género. Corto y amable, máximo 60 palabras, sin listas. Responde en el idioma en que te escribe (en español, tutea).
+- Nunca menciones el estado, el JSON, nombres de campos, herramientas ni notas internas.
+- No das precios ni estrategia todavía: eso viene después de investigar. No prometes ingresos. No pides contraseñas, Seguro Social, datos bancarios ni de tarjetas.
 
 Si mode es "C: an AI agent" la persona va a crear un agente de IA: un producto digital nuevo, como un curso o un producto físico, que resuelve un problema por chat, solo, las 24 horas, y cobra por usarlo. El agente NO tiene que ser de su oficio ni de lo que ella sabe: no le preguntes por su experiencia, su método ni sus apuntes. En la entrevista solo necesitas lo justo para buscar ideas: qué temas, problemas o mercados le interesan (vale "estoy abierto a cualquier idea"), a quién le gustaría ayudar (vale "a cualquiera") y en qué idioma hablará el agente. Después tú investigas y le propones 3 ideas de agentes por los que la gente ya paga; si ella ya trae su propia idea, guárdala en agentInterest y dile que también la vas a evaluar. Cuando ya escogió una idea ("ready_check"), propón tú la tarea completa que el agente HACE por cada cliente de punta a punta (agentTask: qué deja terminado, en qué páginas oficiales o software entra, qué datos delicados escribe el cliente y cuándo, cómo comprueba que quedó hecho y qué le entrega) y sus límites (agentLimits) a partir de la idea, y pídele que los confirme o ajuste; pregunta si atiende todo EE. UU., un solo estado u otros países y recomienda todo EE. UU. (el agente le pregunta a cada cliente su estado y usa las fuentes oficiales de ese estado), salvo que la idea sea de un solo estado (por ejemplo, una licencia de Texas); no le pidas escoger un estado si no hace falta; al final sugiérele 2 nombres cortos. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA. El agente no solo guía: HACE la tarea. Entra al navegador, a las páginas oficiales o al software que haga falta, completa el trámite de punta a punta y entrega el resultado en el chat (por ejemplo: deja la LLC creada, deja la cita hecha). El cliente solo escribe lo delicado (una contraseña, su tarjeta al pagar) directo en la página oficial cuando el agente se lo pide, y da su OK antes de firmar, enviar o pagar; lo controla todo hablando o escribiendo en el chat. Nunca reemplaza a un profesional con licencia cuando la ley lo exige.
+En mode C el estado trae "missing": pregunta eso, una cosa a la vez, y cuando save_profile diga que el perfil está completo la investigación empieza sola.
+Si stage es "ready_check" en mode B (ya escogió una idea): solo falta lo de "missing"; deducelo de la idea si es obvio (guárdalo con save_profile) o pregúntalo en una línea.
 
-Qué no haces:
-- No das precios, ideas ni estrategia: eso viene después de investigar.
-- No prometes ingresos ni clientes.
-- No pides contraseñas, número de Seguro Social, datos bancarios ni de tarjetas.
-
-Cuando save_profile responda que el perfil está completo, dile en una o dos líneas que ahora vas a investigar su zona (1 a 2 minutos) y que aquí mismo verá el avance y después la propuesta. En ese mensaje NO hagas ninguna pregunta: mientras investigas el chat queda bloqueado y no te puede contestar.`;
+Cuando start_research (o save_profile) responda que la investigación empezó, dile en una o dos líneas que vas a investigar su zona (1 a 2 minutos) y que aquí verá el avance. En ese mensaje NO hagas ninguna pregunta: mientras investigas el chat queda bloqueado.`;
 
 const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las ideas que aparecen en el estado ("ideas"; si mode es C son ideas de agentes de IA); las ve en una tarjeta en este mismo chat, con un botón para escoger cada una. Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
 - Si dice cuál quiere, llama a choose_idea con su número (el de la tarjeta).
@@ -116,6 +100,7 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 - Modelo del servicio: dónde y cómo se hace el trabajo es decisión del dueño (profile.workLocation, la idea que escogió). Nunca lo cambies tú. Si un permiso lo complica, pregúntale en una línea; no reescribas el modelo.
 - Cuando corrijas algo, corrígelo en TODAS las partes que lo dicen (servicio, cómo funciona, paquetes, preguntas, guion), en el mismo update_proposal.
 - Oferta: solo si él la pide (con su porcentaje y su alcance). Nunca la sugieras tú. Una oferta de bienvenida para clientes nuevos (solo su primer servicio) no necesita fecha: guárdala con forNewClients=true. Cualquier otra promoción necesita una fecha de fin real (YYYY-MM-DD, hoy es {TODAY}). Si no quiere oferta, guarda noOffer=true y apruébala.
+- Nombre del negocio: si profile.businessName está vacío, cuando apruebe el servicio (no antes), propón 2 o 3 nombres cortos según su servicio y su ciudad en una línea y pregúntale cuál le gusta o si tiene otro. Cuando lo escoja o lo diga, guárdalo con update_proposal.businessName. Si ya tiene nombre, no lo preguntes.
 - Si la propuesta ya está aprobada ("stage": "approved"), ayuda con cambios igual que antes.
 - Máximo 60 palabras. Sin títulos ni listas.
 - Nunca menciones el estado, el JSON, nombres de campos, herramientas ni notas como "(Tarjeta mostrada…)".`;
@@ -125,7 +110,8 @@ const EDITOR = `Eres el Cerebro de Sevrii. El dueño revisa su propuesta aquí m
 const GUIDE = `
 
 El camino completo (úsalo para explicar dónde va la persona; nombra los pasos así):
-- Si mode es A o B: 1) Te conozco (unas preguntas) → 2) Investigación (1 a 2 minutos, la hace Sevrii solo) → 3) Propuesta (la revisa parte por parte: servicio, presentación, paquetes, oferta y preguntas frecuentes) → 4) Aprobado. Después, en Store se arma su página y en Marketing sus anuncios.
+- Si mode es A: 1) Te conozco (muy pocas preguntas) → 2) Investigación (1 a 2 minutos, la hace Sevrii solo) → 3) Propuesta (la revisa parte por parte: servicio, presentación, paquetes, oferta y preguntas frecuentes) → 4) Aprobado. Después, en Store se arma su página y en Marketing sus anuncios.
+- Si mode es B: 1) Te conozco (muy pocas preguntas) → 2) Ideas (Sevrii investiga y propone de 8 a 10 servicios, los mejor pagados primero) → 3) Escoges una (o pides otras) → 4) Investigación de ese servicio → 5) Propuesta → 6) Aprobado.
 - Si mode es C: 1) Te conozco → 2) Ideas (Sevrii investiga y propone 3, 1 a 2 minutos) → 3) Escoges una → 4) Tu agente (cómo trabaja con cada cliente, sus límites, hasta dónde atiende y su nombre) → 5) Investigación → 6) Propuesta → 7) Aprobado. Después, en Store se publica el agente y en Marketing sus anuncios.
 
 Piensa antes de responder: mira el estado, lo que ya está guardado y lo que falta, y decide cuál es el siguiente paso real.
@@ -210,10 +196,15 @@ const SAVE_PROFILE: Tool = {
   description: "Save what the owner told you. Send only the fields you learned in this message.",
   input_schema: { type: "object", properties: PROFILE_PROPS },
 };
+const START_RESEARCH: Tool = {
+  name: "start_research",
+  description: "You know enough to research their market and build the strategy (or ideas): start the research now. Call it as soon as the state says canResearch is true and more questions wouldn't change the strategy.",
+  input_schema: { type: "object", properties: {} },
+};
 const CHOOSE_IDEA: Tool = {
   name: "choose_idea",
   description: "The person picked one of the ideas shown (by its number).",
-  input_schema: { type: "object", properties: { number: { type: "integer", enum: [1, 2, 3, 4, 5] } }, required: ["number"] },
+  input_schema: { type: "object", properties: { number: { type: "integer", minimum: 1, maximum: 10 } }, required: ["number"] },
 };
 const MORE_IDEAS: Tool = {
   name: "more_ideas",
@@ -271,6 +262,7 @@ const UPDATE_PROPOSAL: Tool = {
         required: ["label"],
       },
       noOffer: { type: "boolean", description: "true if the owner doesn't want an offer" },
+      businessName: { type: "string", description: "The business name the owner chose or gave (only then)" },
       resolvedWarnings: { type: "array", items: { type: "string" }, description: "Exact text of 'keep in mind' warnings the conversation already resolved: they are removed" },
       faq: { type: "array", items: { type: "object", properties: { q: { type: "string" }, a: { type: "string" } }, required: ["q", "a"] } },
       agent: {
@@ -323,20 +315,28 @@ export const LOCKED_STAGES: PlanStage[] = ["ideas_research", "research"];
 // "ok", "ya", "y ahora?", "qué pasó"… (the owner agrees or is lost).
 const LOST = /^(ok(ay|is)?|ya|listo|dale|va|s[ií]+|bueno|perfecto|y\s*ahora|ahora\s*qu[eé]|qu[eé]\s*(pas[oó]|sigue|hago|m[aá]s|ahora)|y\s*(luego|despu[eé]s|qu[eé])|no\s*entiendo|c[oó]mo\s*sigo|\?+|yes|so|what\s*now|now\s*what|what'?s\s*next|next)[\s.!?¿¡]*$/i;
 
+// A and B: the Brain decides when it knows enough (start_research). C keeps its list.
+const brainDecides = (plan: BusinessPlan) => plan.stage === "interview" && plan.mode !== "agent";
+
 function stageOf(plan: BusinessPlan): { system: string; tools: Tool[] } {
+  if (brainDecides(plan)) return { system: INTERVIEWER + GUIDE, tools: [SAVE_PROFILE, START_RESEARCH] };
   if (plan.stage === "interview" || plan.stage === "ready_check") return { system: INTERVIEWER + GUIDE, tools: [SAVE_PROFILE] };
   if (LOCKED_STAGES.includes(plan.stage)) return { system: INTERVIEWER + GUIDE, tools: [SAVE_PROFILE] };
   if (plan.stage === "choose") return { system: CHOOSER + GUIDE, tools: [CHOOSE_IDEA, MORE_IDEAS, OWN_IDEA] };
   return { system: EDITOR.replace("{TODAY}", today(plan.profile.state)) + GUIDE, tools: [UPDATE_PROPOSAL, APPROVE_BLOCKS] };
 }
 
-function state(b: BusinessRow) {
+function state(b: BusinessRow, ownerReplies = 0) {
   const p = b.plan;
   const base = {
     stage: p.stage,
     mode: p.mode === "new" ? "B: starting a new service" : p.mode === "agent" ? "C: an AI agent that delivers the service by itself" : "A: already offers a service",
     today: today(p.profile.state),
   };
+  if (brainDecides(p)) {
+    const essential = missingProfile(p);
+    return { ...base, profile: p.profile, essentialMissing: essential, canResearch: essential.length === 0, ownerReplies };
+  }
   if (p.stage === "interview" || p.stage === "ready_check") {
     const idea = p.chosenIdea !== null ? p.ideas[p.chosenIdea] : null;
     const missing = missingProfile(p);
@@ -435,7 +435,7 @@ const LIMIT_MSG = /(l[ií]mite de este mes|l[ií]mite de tu plan|investigaciones
 export async function resumeStuckResearch(b: BusinessRow, lang: Lang): Promise<BusinessRow | null> {
   const plan = b.plan;
   if (plan.stage !== "interview" && plan.stage !== "ready_check") return null;
-  if (missingProfile(plan).length) return null;
+  if (!profileComplete(plan)) return null;
   if (!(await researchWouldStart(b.userId))) return null;
   const stage: PlanStage = plan.stage === "interview" && (plan.mode === "new" || plan.mode === "agent") ? "ideas_research" : "research";
   await updateBusinessPlan(b.id, parsePlan({ ...plan, stage, runId: "" }));
@@ -525,6 +525,11 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       }
       if (typeof input.businessName === "string" && profile.businessName) await renameProject(b, profile.businessName);
       const left = missingProfile(next);
+      // A and B: the Brain decides when to research (start_research), never a list.
+      if (brainDecides(next)) {
+        await updateBusinessPlan(b.id, parsePlan(next));
+        return { out: `saved${note}. canResearch: ${left.length ? `no (still essential: ${left.join(", ")})` : "yes (call start_research as soon as more questions wouldn't change the strategy)"}` };
+      }
       if (left.length) {
         await updateBusinessPlan(b.id, parsePlan(next));
         return { out: `saved${note}. still missing: ${left.join(", ")}` };
@@ -540,13 +545,26 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       await updateBusinessPlan(b.id, parsePlan(next));
       return { out: `saved${note}. profile complete: stage moved to ${stage}. Tell the owner you will now research their area (1-2 minutes) and they will see the progress here in the chat. Do NOT ask any question now: the chat is locked during the research.`, startPipeline: true };
     }
+    case "start_research": {
+      if (!brainDecides(plan)) return { out: "error: not in the interview" };
+      const left = missingProfile(plan);
+      if (left.length) return { out: `not started: still essential: ${left.join(", ")}. Ask only that, in one line.` };
+      const next: BusinessPlan = { ...plan, profile: { ...plan.profile, researchReady: true } };
+      const stage: PlanStage = plan.mode === "new" ? "ideas_research" : "research";
+      if (!(await researchWouldStart(b.userId))) {
+        await updateBusinessPlan(b.id, parsePlan(next));
+        const msg = researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es");
+        return { out: `the research can't start now. Tell the owner kindly, with these exact facts and nothing else about plans (don't suggest upgrading unless this text does): "${msg}"` };
+      }
+      await updateBusinessPlan(b.id, parsePlan({ ...next, stage, runId: "" }));
+      return { out: `research started (stage ${stage}). Tell the owner you will now research their area (1-2 minutes) and they will see the progress here in the chat${plan.mode === "new" ? ", and then 8 to 10 service ideas, best paid first" : ""}. Do NOT ask any question now: the chat is locked during the research.`, startPipeline: true };
+    }
     case "choose_idea": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
       const i = Number(input.number) - 1;
       const idea = plan.ideas[i];
       if (!idea) return { out: "error: unknown idea" };
-      await updateBusinessPlan(b.id, parsePlan(chooseIdea(plan, i)));
-      return { out: `chosen: ${idea.title}. Now ask the remaining readiness questions (see missing).` };
+      return afterChoice(b, chooseIdea(plan, i), lang, idea.title);
     }
     case "own_idea": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
@@ -560,10 +578,9 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         await updateBusinessPlan(b.id, parsePlan({ ...requestMoreIdeas(plan, ""), ownIdea: `${title}${what ? `: ${what}` : ""}` }));
         return { out: "evaluating their idea with the same research (1-2 minutes). Tell them in one line you'll check their idea against what people pay and need, and show it here next to 2 alternatives.", startPipeline: true };
       }
-      const own = { title, why: str(input.what, 800), typicalPrice: "", startCost: "", license: "", demand: "", how: "", pros: "", cons: "", score: 0, sources: [] };
-      const ideas = [...plan.ideas.slice(0, 4), own];
-      await updateBusinessPlan(b.id, parsePlan(chooseIdea({ ...plan, ideas }, ideas.length - 1)));
-      return { out: `chosen their own idea: ${title}. Now ask the remaining readiness questions (see missing).` };
+      const own = { title, why: str(input.what, 800), typicalPrice: "", startCost: "", license: "", demand: "", how: "", pros: "", cons: "", score: 0, hourlyUsd: null, sources: [] };
+      const ideas = [...plan.ideas.slice(0, 9), own];
+      return afterChoice(b, chooseIdea({ ...plan, ideas }, ideas.length - 1), lang, `their own idea, ${title}`);
     }
     case "more_ideas": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
@@ -576,6 +593,18 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     case "update_proposal": {
       if (plan.stage !== "proposal" && plan.stage !== "approved") return { out: "error: no proposal yet" };
       const patch: Record<string, unknown> = { ...input };
+      // The name is the owner's: saved only when they wrote it or picked one we suggested.
+      let nameNote = "";
+      if (typeof input.businessName === "string") {
+        const name = str(input.businessName, 80);
+        delete patch.businessName;
+        const said = fold(lastSaid);
+        if (name && !NO_NAME.test(name) && (said.includes(fold(name)) || (fold(lastAssistant).includes(fold(name)) && lastSaid.trim().length <= 80))) {
+          patch.profile = { ...plan.profile, businessName: name };
+          await renameProject(b, name);
+          nameNote = `; business name saved: ${name}`;
+        } else nameNote = "; business name NOT saved: the owner didn't give or pick it";
+      }
       // Prices are locked: a new amount needs the owner's explicit OK.
       if (Array.isArray(input.packages)) {
         const after = parsePlan({ ...plan, packages: input.packages }).packages;
@@ -597,7 +626,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       // (their words become the offer they want). Removing one is always fine.
       let offerNote = "";
       if (input.offer && typeof input.offer === "object" && input.noOffer !== true) {
-        if (ASKS_OFFER.test(lastSaid)) patch.profile = { ...plan.profile, offerWanted: str(lastSaid, 300) };
+        if (ASKS_OFFER.test(lastSaid)) patch.profile = { ...((patch.profile as BusinessPlan["profile"] | undefined) ?? plan.profile), offerWanted: str(lastSaid, 300) };
         else if (!plan.profile.offerWanted) {
           delete patch.offer;
           delete patch.noOffer;
@@ -647,7 +676,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (next.stage === "proposal" && allApproved(next)) next = applyApprovals(next, [], lang).plan;
       await updateBusinessPlan(b.id, next);
       const gone = plan.guard.warn.length - warnLeft.length;
-      return { out: `saved. blocks that need approval again: ${[...touched].join(", ") || "none"}${gone ? `; ${gone} warning(s) removed` : ""}${g.block.length ? `; problems: ${g.block.join(" ")}` : ""}${offerNote}` };
+      return { out: `saved. blocks that need approval again: ${[...touched].join(", ") || "none"}${gone ? `; ${gone} warning(s) removed` : ""}${g.block.length ? `; problems: ${g.block.join(" ")}` : ""}${offerNote}${nameNote}` };
     }
     case "approve_blocks": {
       if (plan.stage !== "proposal") return { out: "error: nothing to approve" };
@@ -670,6 +699,19 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
     default:
       return { out: "error: unknown tool" };
   }
+}
+
+// After picking an idea (B): straight to the research when nothing essential is
+// missing; otherwise the one thing left is asked (or deduced from the idea).
+async function afterChoice(b: BusinessRow, next: BusinessPlan, lang: Lang, title: string): Promise<{ out: string; startPipeline?: boolean }> {
+  await updateBusinessPlan(b.id, parsePlan(next));
+  if (next.mode === "agent" || missingProfile(next).length) return { out: `chosen: ${title}. Now ask only what's in "missing" (deduce it from the idea and save it if it's obvious).` };
+  if (!(await researchWouldStart(b.userId))) {
+    const msg = researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es");
+    return { out: `chosen: ${title}, but the research can't start now. Tell the owner kindly, with these exact facts: "${msg}"` };
+  }
+  await updateBusinessPlan(b.id, parsePlan({ ...next, stage: "research", runId: "" }));
+  return { out: `chosen: ${title}. Research started (1-2 minutes). Tell the owner in one line you're researching prices and customers for it in their area. Do NOT ask any question now.`, startPipeline: true };
 }
 
 function repriced(plan: BusinessPlan, patch: Record<string, unknown>): Record<string, unknown> {
@@ -697,46 +739,6 @@ export function chooseIdea(plan: BusinessPlan, i: number): BusinessPlan {
     service: idea.title,
     profile: { ...plan.profile, mainService: idea.title },
   });
-}
-
-// What the owner answered but the model didn't save (so it asked again): a
-// small call pulls the one data point out of their message, with the exact
-// words that prove it. Code checks those words are really theirs and saves it
-// through the same guarded path as the model's own saves.
-const EXTRACT_ENUM: Record<string, string[]> = { direction: ["known", "new", "open"], workPlace: ["home", "out", "any"], hasVehicle: ["yes", "no"], languages: ["es", "en", "both"] };
-const EXTRACT_TEXT = ["workHistory", "askedFor", "likes", "notWant", "tools", "howGetsClients", "typicalCustomer", "differentiators", "exampleJob", "currentPrice"];
-async function extractAnswer(client: NonNullable<ReturnType<typeof getBrainModel>>, key: string, question: string, ownerReply: string): Promise<string | null> {
-  const isEnum = key in EXTRACT_ENUM;
-  const isNumber = key in OWNER_NUMBERS;
-  if (!isEnum && !isNumber && !EXTRACT_TEXT.includes(key)) return null;
-  const what = isEnum ? `exactly one of: ${EXTRACT_ENUM[key].join(", ")}` : isNumber ? "only the number (digits)" : "a short phrase with their own words";
-  try {
-    const res = await client.messages.create(
-      {
-        model: BRAIN_MODEL,
-        max_tokens: 3000,
-        output_config: { effort: "low" },
-        system: "You extract one data point from a person's message. Reply with JSON only, no other text.",
-        messages: [
-          {
-            role: "user",
-            content: `Question that was asked: ${question}\nPerson's answer: ${ownerReply}\n\nField: ${key}. If the answer states it, "value" is ${what}. "evidence" is the exact words copied from the answer that prove it. If they did not answer that question, or it is vague (for example "medio tiempo" is not a number of hours), "value" is null. Never guess.\nJSON: {"value": string|null, "evidence": string}`,
-          },
-        ],
-      },
-      { timeout: 30_000, maxRetries: 1 }
-    );
-    const d = extractJson(textOf(res.content));
-    const value = d && typeof d.value === "string" ? d.value.trim() : "";
-    const evidence = d && typeof d.evidence === "string" ? d.evidence.trim() : "";
-    const norm = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ");
-    if (!value || !evidence || !norm(ownerReply).includes(norm(evidence))) return null;
-    if (isEnum) return EXTRACT_ENUM[key].includes(value) ? value : null;
-    return value;
-  } catch (err) {
-    console.warn("[ai:brain] extractAnswer failed", key, (err as Error)?.message);
-    return null;
-  }
 }
 
 export type BrainChatResult = { reply: string; business: BusinessRow; startPipeline: boolean; debug?: string };
@@ -801,9 +803,25 @@ export async function runPlanChatTurn(opts: {
   const ownerSaid = [...mem.filter((h) => h.role === "user").map((h) => h.content), opts.message].join("\n");
   const lastAssistant = [...opts.history].reverse().find((h) => h.role === "assistant")?.content ?? "";
   const askedSomething = isQuestionTurn(opts.message);
+  const ownerReplies = mem.filter((h) => h.role === "user").length + 1;
+  // Questions the Brain already asked and the owner already answered (whole chat).
+  const answered: { q: string; a: string }[] = [];
+  mem.forEach((h, i) => {
+    if (h.role !== "assistant") return;
+    const a = mem.slice(i + 1).find((x) => x.role === "user")?.content ?? (i === mem.length - 1 ? opts.message : "");
+    if (a) for (const q of questionSentences(h.content)) if (q.length >= 12) answered.push({ q, a });
+  });
+  const repeatOf = (text: string) => {
+    for (const q of questionSentences(text)) {
+      const hit = answered.find((x) => similar(x.q, q) >= 0.5);
+      if (hit) return { q, before: hit };
+    }
+    return null;
+  };
+  let retriedRepeat = false;
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
-    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business))}\n\nOwner: ${opts.message}${nameNote}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}${askedSomething ? "\n\n(Internal note: the owner asked something or didn't understand. Answer exactly that, in simpler words, and don't ask them to approve anything in this message.)" : ""}\n\n(${lockedFacts(business.plan, mem)})\n\n${HARD_RULES}` },
+    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business, ownerReplies))}\n\nOwner: ${opts.message}${nameNote}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}${askedSomething ? "\n\n(Internal note: the owner asked something or didn't understand. Answer exactly that, in simpler words, and don't ask them to approve anything in this message.)" : ""}\n\n(${lockedFacts(business.plan, mem)})\n\n${HARD_RULES}` },
   ];
   let reply = "";
   let startPipeline = false;
@@ -827,13 +845,15 @@ export async function runPlanChatTurn(opts: {
       const system = st.system;
       // A question or "no entendí" is answered, never turned into an approval.
       const tools = askedSomething ? st.tools.filter((t) => t.name !== "approve_blocks") : st.tools;
+      // The proposal is where the money is decided: high reasoning. Talking
+      // with the person (interview, ideas) needs speed: medium.
+      const deep = business.plan.stage === "proposal" || business.plan.stage === "approved";
       const res = await client.messages.create(
         {
           model: BRAIN_MODEL,
           // Muse Spark always reasons and the reasoning counts here.
-          max_tokens: 14000,
-          // High: it thinks about where the owner is, what is already saved and what comes next.
-          output_config: { effort: "high" },
+          max_tokens: deep ? 14000 : 9000,
+          output_config: { effort: deep ? "high" : "medium" },
           system: `${system}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}.`,
           ...(tools.length ? { tools } : {}),
           messages,
@@ -856,11 +876,27 @@ export async function runPlanChatTurn(opts: {
           messages.push({
             role: "user",
             content: es
-              ? "(Sistema: no respondiste nada. Si la persona te dio datos, guárdalos con save_profile. Después respóndele en una o dos frases y haz la siguiente pregunta de \"missing\".)"
-              : "(System: you didn't reply. If the person gave you data, save it with save_profile. Then reply in one or two sentences and ask the next question from \"missing\".)",
+              ? "(Sistema: no respondiste nada. Si la persona te dio datos, guárdalos. Después respóndele en una o dos frases y sigue: la siguiente pregunta que de verdad cambie la estrategia, o start_research si ya puedes investigar.)"
+              : "(System: you didn't reply. If the person gave you data, save it. Then reply in one or two sentences and go on: the next question that really changes the strategy, or start_research if you can research now.)",
           });
           continue;
         }
+        // A question already asked and answered is never asked again: the model
+        // gets one more try with what the person answered back then.
+        const rep = !startPipeline && !askedSomething && reply && business.plan.stage !== "proposal" && business.plan.stage !== "approved" ? repeatOf(reply) : null;
+        if (rep && !retriedRepeat && Date.now() - started < 70_000) {
+          retriedRepeat = true;
+          console.warn("[ai:brain] repeated question, retrying", business.id, rep.q);
+          const kept = res.content.filter((c) => c.type === "text");
+          if (kept.length) messages.push({ role: "assistant", content: kept });
+          messages.push({
+            role: "user",
+            content: `(${es ? "Sistema" : "System"}: ${es ? `ya preguntaste esto antes: «${rep.before.q}» y la persona respondió: «${rep.before.a.slice(0, 400)}». No lo vuelvas a preguntar, ni con otras palabras. Usa esa respuesta (guárdala si sirve) y escribe de nuevo tu mensaje completo: sigue con algo que de verdad cambie la estrategia, o llama a start_research si ya puedes investigar.` : `you already asked this: "${rep.before.q}" and the person answered: "${rep.before.a.slice(0, 400)}". Don't ask it again, not even in other words. Use that answer (save it if useful) and write your whole message again: go on with something that really changes the strategy, or call start_research if you can research now.`})`,
+          });
+          reply = "";
+          continue;
+        }
+        if (rep && retriedRepeat) reply = reply.replace(rep.q, "").replace(/\s{2,}/g, " ").trim();
         break;
       }
       const results: ToolResultBlockParam[] = [];
@@ -883,47 +919,12 @@ export async function runPlanChatTurn(opts: {
       }
       // Replay only text and tool calls (Meta keeps its own reasoning).
       messages.push({ role: "assistant", content: res.content.filter((c) => c.type === "text" || c.type === "tool_use") });
-      messages.push({ role: "user", content: [...results, { type: "text", text: `Updated state (JSON):\n${JSON.stringify(state(business))}` }] });
+      messages.push({ role: "user", content: [...results, { type: "text", text: `Updated state (JSON):\n${JSON.stringify(state(business, ownerReplies))}` }] });
     }
   } catch (err) {
     logAiError("brain", err);
     debug = String((err as Error)?.message || err).slice(0, 400);
     reply = aiErrorReply(err, opts.lang === "en" ? "en" : "es");
-  }
-  // A question that was answered is never asked again: the model's repeat is
-  // taken out in code. If the owner did answer but nothing was saved, the answer
-  // is pulled out of their message (with proof) and saved; then the next missing
-  // question comes from a fixed wording, not from the model.
-  if (!startPipeline && reply) {
-    const turnHistory = [...mem, { role: "user", content: opts.message }];
-    const d = dedupeReply(reply, business.plan, mem);
-    let swap = false;
-    if (d.repeated) {
-      // Same topic as the last message and still missing: did the owner answer it?
-      const value = askedSomething ? null : await extractAnswer(client, d.repeated, lastAssistant, opts.message);
-      if (value !== null) {
-        try {
-          const r = await runTool("save_profile", { [d.repeated]: d.repeated in OWNER_NUMBERS ? Number(value) : value }, business, opts.lang, ownerSaid, opts.message, lastAssistant);
-          business = (await getBusinessById(business.id))!;
-          if (r.startPipeline) startPipeline = true;
-          swap = true;
-        } catch (err) {
-          console.error("[ai:brain] save from answer failed", d.repeated, err);
-        }
-      } else if (d.sameWords) swap = true; // not answered: a new wording with options, never the same words
-    }
-    if (d.dropped.length || swap) {
-      const original = reply;
-      reply = d.reply;
-      if (swap) reply = dropDanglingClause(reply.replace(d.repeatedQuestion, "").replace(/\s{2,}/g, " ").trim());
-      else if (d.dropped.length) reply = dropDanglingClause(reply);
-      if (!startPipeline) {
-        const q = nextQuestion(business.plan, opts.lang === "en" ? "en" : "es", turnHistory);
-        if (q) reply = `${reply ? `${reply} ` : ""}${q}`.trim();
-        // Nothing fixed to ask in its place: the model's own question stays (never a dead end).
-        else if (!/[?¿]/.test(reply)) reply = original;
-      }
-    }
   }
   if (!reply && startPipeline) {
     reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.";
@@ -958,11 +959,6 @@ export async function runPlanChatTurn(opts: {
     if (clean.leaked) {
       console.warn("[ai:brain] internal note cut from a reply", business.id);
       reply = clean.reply;
-      const stage = business.plan.stage;
-      if (!startPipeline && (stage === "interview" || stage === "ready_check") && !/[?¿]/.test(reply)) {
-        const q = nextQuestion(business.plan, opts.lang === "en" ? "en" : "es", [...mem, { role: "user", content: opts.message }]);
-        if (q) reply = `${reply} ${q}`.trim();
-      }
     }
   }
   // What the owner never wants is never suggested, not even as an example.
@@ -986,10 +982,10 @@ export function planGreeting(lang: Lang, b: BusinessRow): string {
   }
   if (p.mode === "new") {
     return es
-      ? "¡Hola! Soy el Cerebro de Sevrii. Te voy a ayudar a escoger un servicio que puedas empezar a ofrecer: algo relacionado con lo que ya sabes hacer o algo nuevo que aprendas rápido, aunque no tengas experiencia. Te hago pocas preguntas, investigo tu zona y te doy ideas; si prefieres ver ideas ya, solo dímelo. Para empezar: ¿en qué ciudad y estado vives?"
-      : "Hi! I'm Sevrii's Brain. I'll help you pick a service you can start offering: something tied to what you already know, or something new you can learn fast, even with no experience. I'll ask a few questions, research your area and give you ideas; if you'd rather see ideas right away, just say so. To start: what city and state do you live in?";
+      ? "¡Hola! Soy el Cerebro de Sevrii. Te ayudo a encontrar servicios bien pagados que puedas empezar a ofrecer, con lo que ya sabes o con algo nuevo. Con muy poco investigo tu zona y te propongo de 8 a 10 opciones; tú decides. Cuéntame un poco de ti: ¿qué sabes hacer o qué te gusta, y en qué ciudad vives?"
+      : "Hi! I'm Sevrii's Brain. I'll help you find well-paid services you can start offering, with what you already know or something new. With very little I research your area and propose 8 to 10 options; you decide. Tell me a bit about yourself: what can you do or what do you enjoy, and what city do you live in?";
   }
   return es
-    ? "¡Hola! Soy el Cerebro de Sevrii. Primero te entiendo bien, después investigo tu zona y te propongo cómo vender tu servicio: a quién, a qué precio y con qué campaña. Para empezar: ¿qué servicio quieres vender y cuál fue el último trabajo que hiciste?"
-    : "Hi! I'm Sevrii's Brain. First I'll get to know your business, then I'll research your area and propose how to sell your service: to whom, at what price and with what campaign. To start: what service do you want to sell, and what was the last job you did?";
+    ? "¡Hola! Soy el Cerebro de Sevrii. Investigo tu zona y te armo una estrategia para conseguir más clientes y cobrar mejor: a quién venderle, qué paquetes y a qué precio. Para empezar: ¿qué servicio ofreces y en qué ciudad trabajas?"
+    : "Hi! I'm Sevrii's Brain. I research your area and build you a strategy to get more customers and charge better: who to sell to, which packages and at what price. To start: what service do you offer and what city do you work in?";
 }

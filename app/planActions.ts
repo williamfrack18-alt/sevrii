@@ -133,15 +133,30 @@ export async function chooseIdeaAction(index: number, businessId?: string): Prom
   const plan = business.plan;
   if (plan.stage !== "choose" || !plan.ideas[index]) return respond(business);
   const next = chooseIdea(plan, index);
-  await updateBusinessPlan(business.id, next);
   const idea = plan.ideas[index];
-  await addChatMessage(business.id, CHANNEL, "user", lang === "es" ? `Escojo: ${idea.title}` : `I pick: ${idea.title}`);
+  const es = lang === "es";
+  await addChatMessage(business.id, CHANNEL, "user", es ? `Escojo: ${idea.title}` : `I pick: ${idea.title}`);
+  // B: nothing essential missing → straight to the research of that service.
+  if (plan.mode !== "agent" && missingProfile(next).length === 0 && (await researchWouldStart(business.userId))) {
+    await updateBusinessPlan(business.id, { ...next, stage: "research", runId: "" });
+    await addChatMessage(
+      business.id,
+      CHANNEL,
+      "ai",
+      es
+        ? `¡Buena elección! Ahora investigo precios, competencia y clientes de «${idea.title}» en tu zona (1 o 2 minutos). Verás el avance aquí mismo.`
+        : `Great choice! I'm now researching prices, competition and customers for "${idea.title}" in your area (1-2 minutes). You'll see the progress right here.`
+    );
+    revalidatePath("/dashboard");
+    return respond(business, { startPipeline: true });
+  }
+  await updateBusinessPlan(business.id, next);
   await addChatMessage(
     business.id,
     CHANNEL,
     "ai",
     plan.mode === "agent"
-      ? lang === "es"
+      ? es
         ? `¡Buena elección! Antes de investigar el mercado, definamos tu agente en dos o tres mensajes. ¿Atenderá a clientes de todo EE. UU., de un solo estado o también de otros países?`
         : `Great choice! Before I research the market, let's define your agent in two or three messages. Will it serve customers in the whole US, in one state only, or in other countries too?`
       : readyQuestion(next, lang)
@@ -155,7 +170,7 @@ export async function chooseIdeaAction(index: number, businessId?: string): Prom
 function readyQuestion(plan: BusinessPlan, lang: Lang): string {
   const es = lang === "es";
   const key = (missingProfile(plan)[0] || "").split(" ")[0];
-  const intro = es ? "¡Buena elección! Antes de investigar el mercado, unas preguntas cortas para ponerle precio." : "Great choice! Before I research the market, a few short questions to price it.";
+  const intro = es ? "¡Buena elección! Antes de investigar, una sola cosa." : "Great choice! Before I research, just one thing.";
   const q: Record<string, [string, string]> = {
     serviceMode: ["¿Lo harías en persona en tu zona o en línea?", "Would you do it in person in your area, or online?"],
     zip: ["¿Cuál es tu código postal (ZIP)?", "What's your ZIP code?"],

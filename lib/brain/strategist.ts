@@ -12,7 +12,7 @@ const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, serv
 Antes de los precios (obligatorio): la parte "servicio" es un menú. En serviceIncludes escribe 2 a 4 servicios concretos que esta persona podría ofrecer, cada uno con una razón corta de por qué le conviene (su experiencia, su ciudad, la demanda), separados por «;». Los paquetes se arman con lo que ese menú dice, nunca con servicios que no estén en él. La persona escoge qué conservar antes de aprobar precios.
 Primeros pasos (obligatorio): firstSteps son 3 a 5 pasos concretos y cortos que la persona puede hacer ya: qué hacer primero, qué tener listo (solo lo que dijo tener o lo que cuesta poco) y cómo conseguir su primer cliente. Sin inventar horas, costos ni herramientas que no dijo.
 Persona A: entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, la oferta solo si el dueño la pidió, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
-Persona B: primero entrega 5 ideas variadas (de las 6 investigadas). Cuando escoja una, entrega la misma propuesta que la persona A.
+Persona B: primero entrega de 8 a 10 ideas variadas y bien pagadas (de las investigadas), de la mejor a la peor pagada por hora. Cuando escoja una, entrega la misma propuesta que la persona A.
 Persona C (mode "agent"): la persona crea un agente de IA, un producto digital que resuelve un problema él solo, en el chat de su página, las 24 horas, y cobra por usarlo. No tiene que ser de su oficio: primero entrega 3 ideas de agente (de las 5 investigadas); cuando escoja una, entrega la misma propuesta y además "agent".
 
 Agente (solo persona C):
@@ -28,7 +28,7 @@ Agente (solo persona C):
 - Sin video ni fotos del agente: videoScript y photoIdeas son del dueño presentando su agente.
 
 Precios:
-- Parte del costo del dueño: materiales + horas × valor de su hora + traslado + permiso. Apunta a un margen de 30 % a 50 %.
+- Si el dueño dio sus horas y materiales por trabajo, parte de su costo: materiales + horas × valor de su hora + traslado + permiso, con un margen de 30 % a 50 %. Si no los dio (null), no los inventes ni los calcules: pon los precios con el rango real de la zona (market.prices) y lo que cobra hoy, y en pricingNote explica el precio con el mercado (sin horas ni costos).
 - Compáralo con el rango de la zona. Si queda fuera, explica por qué o ajústalo.
 - Paquetes básico, completo y premium. El del medio es el que más conviene vender.
 
@@ -40,7 +40,7 @@ Ideas (persona B), puntaje de 1 a 5 en cada punto:
 - Inversión inicial dentro de su dinero disponible.
 - Requisitos para arrancar: menos trámites y permisos, más puntos.
 - Rapidez para conseguir el primer cliente.
-Muestra las 5 mejores, variadas entre sí, con pros y contras, sin prometer ingresos. En message no menciones datos de la persona que no estén en el perfil. En pros y contras no hables de licencias ni de "confirmar si pide licencia", salvo que la idea investigada diga que ese servicio la exige.
+Muestra de 8 a 10, las mejor pagadas por hora primero, variadas entre sí, con pros y contras, sin prometer ingresos. Un dato del perfil en blanco no es un motivo para bajar el puntaje. En message no menciones datos de la persona que no estén en el perfil. En pros y contras no hables de licencias ni de "confirmar si pide licencia", salvo que la idea investigada diga que ese servicio la exige.
 
 Honestidad:
 - Solo hechos del expediente. Un diferenciador sin respaldo no va.
@@ -55,7 +55,7 @@ Verdad y consistencia (obligatorio, revísalo antes de responder):
 - Comparaciones con el mercado: si dices que un precio está "en el rango", "por debajo" o "por encima", compruébalo con los números exactos de market.prices. Si no lo está, dilo como es.
 - Un solo juego de números: en message, promise, pricingNote, la oferta y las preguntas frecuentes usa exactamente los nombres y precios de "packages" y los rangos de market.prices tal como están. No menciones paquetes ni montos que no existen.
 - Cada paquete dice si su precio es fijo ("$850") o mínimo ("desde $850") y qué incluye; evita precios ambiguos. Los rangos de los paquetes no se pisan entre sí.
-- Costos: usa SOLO profile.costHoursPerJob (horas por trabajo o por cliente al mes) y profile.costMaterialsUsd, tal como los dio el dueño. Nunca inventes horas para otros paquetes: si un paquete necesita más trabajo, no pongas horas, describe qué incluye de más. En pricingNote muestra la suma con esos números y comprueba que cuadre.
+- Costos: usa SOLO profile.costHoursPerJob (horas por trabajo o por cliente al mes) y profile.costMaterialsUsd, tal como los dio el dueño. Si están en null, no hay horas ni costos que mostrar: no escribas ninguno. Nunca inventes horas para otros paquetes: si un paquete necesita más trabajo, no pongas horas, describe qué incluye de más. Si los dio, en pricingNote muestra la suma con esos números y comprueba que cuadre.
 - El mercado se cita con un solo rango: el de market.prices (del más bajo al más alto). No inventes rangos parciales.
 - Escribes para el dueño y sus clientes: nada de notas internas, nombres de campos ni comentarios sobre lo que el dueño dijo o no dijo.
 - Compara con la misma unidad: un paquete contra otro paquete, o convierte el paquete a precio por hora con las horas que dura antes de compararlo con tarifas por hora.
@@ -150,7 +150,7 @@ const AGENT_PROPOSAL_SCHEMA = obj({
 const IDEAS_SCHEMA = obj({
   ideas: {
     type: "array",
-    description: "The best ideas, best first: exactly 3 for persona C (agent), exactly 5 for persona B",
+    description: "The best ideas: exactly 3 for persona C (agent), best first; 8 to 10 for persona B, best paid per hour first",
     items: obj({
       index: { type: "integer", description: "Index of the idea in the researched list" },
       fit: { type: "integer" },
@@ -282,7 +282,7 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
 export async function pickIdeas(plan: BusinessPlan, researchedIn: Idea[], lang: Lang): Promise<{ ideas: Idea[]; message: string }> {
   // B sees more options (people starting from zero want to compare); C keeps 3.
   let researched = researchedIn;
-  const count = plan.mode === "agent" ? 3 : 5;
+  const count = plan.mode === "agent" ? 3 : 10;
   // What they hate or never want again is a hard filter, applied in code:
   // those ideas never get to the model (their own idea is always kept).
   const terms = avoidTerms(plan.profile.notWant);
@@ -292,7 +292,7 @@ export async function pickIdeas(plan: BusinessPlan, researchedIn: Idea[], lang: 
   }
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
-    `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\n${plan.ownIdea ? "La idea de índice 0 es la que trajo la persona: inclúyela siempre entre las 3, con su puntaje real y sus pros y contras honestos; en message di en una línea cómo salió frente a las otras. " : ""}Escoge las ${count} mejores con su puntaje.`,
+    `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\n${plan.ownIdea ? "La idea de índice 0 es la que trajo la persona: inclúyela siempre entre las 3, con su puntaje real y sus pros y contras honestos; en message di en una línea cómo salió frente a las otras. " : ""}${plan.mode === "agent" ? `Escoge las ${count} mejores con su puntaje.` : `Escoge las mejores, entre 8 y ${count} (todas las que valgan la pena), con su puntaje: bien pagadas, con demanda real y que encajen con la persona.`}`,
     IDEAS_SCHEMA
   );
   const picked: Idea[] = [];
@@ -310,6 +310,12 @@ export async function pickIdeas(plan: BusinessPlan, researchedIn: Idea[], lang: 
   else if (own) {
     const i = picked.findIndex((p) => p.title === own.title);
     if (i > 0) picked.unshift(...picked.splice(i, 1));
+  }
+  // B: best paid per hour first (their own idea stays first).
+  if (plan.mode !== "agent") {
+    const head = own ? picked.slice(0, 1) : [];
+    const rest = (own ? picked.slice(1) : picked).sort((a, b) => (b.hourlyUsd ?? -1) - (a.hourlyUsd ?? -1));
+    picked.splice(0, picked.length, ...head, ...rest);
   }
   return { ideas: parseIdeas(picked), message: str(d.message, 1000) };
 }

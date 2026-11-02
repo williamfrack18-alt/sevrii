@@ -5,7 +5,7 @@ import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
 import { approveBlockAction, chooseIdeaAction, finishPlanAction, noOfferAction, resumePlanAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
-import { MAX_IDEA_ROUNDS, missingProfile, shownRequirements } from "@/lib/plan";
+import { MAX_IDEA_ROUNDS, missingProfile, profileComplete, shownRequirements } from "@/lib/plan";
 import type { ChatChip } from "./ChatPanel";
 
 // Quick answers for what the Brain is asking right now (one tap sends it).
@@ -140,7 +140,7 @@ export default function PlanView({
   }
 
   // A finished profile waiting on a research limit: continue if it's lifted.
-  const waiting = (plan.stage === "interview" || plan.stage === "ready_check") && missingProfile(plan).length === 0;
+  const waiting = (plan.stage === "interview" || plan.stage === "ready_check") && profileComplete(plan);
   useEffect(() => {
     if (!waiting) return;
     let off = false;
@@ -838,22 +838,52 @@ function IdeasCard({ plan, busy, live, passed = false, onChoose }: { plan: Busin
       </div>
     );
   }
+  // B gets 8 to 10 ideas, best paid first: each one short, its details open on a tap.
+  const compact = plan.mode !== "agent" && plan.ideas.length > 5;
   return (
     <div className="flex flex-col gap-3 min-w-0">
       {plan.ideas.map((idea, i) => (
-        <div key={i} className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={i === 0 ? { ...CARD, boxShadow: `0 0 0 1px ${RING}` } : CARD}>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-[16px] font-semibold text-pfg leading-snug min-w-0 break-words">
-              <span className="text-pmuted font-normal">{i + 1}. </span>
-              {idea.title}
+        <IdeaItem key={i} idea={idea} i={i} plan={plan} busy={busy} compact={compact} onChoose={onChoose} />
+      ))}
+      <p className="text-[13px] text-psub leading-relaxed">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.ideasNone}</p>
+    </div>
+  );
+}
+
+function IdeaItem({ idea, i, plan, busy, compact, onChoose }: { idea: BusinessPlan["ideas"][number]; i: number; plan: BusinessPlan; busy: boolean; compact: boolean; onChoose: (i: number) => void }) {
+  const lang = useLang();
+  const t = PLAN_TEXT[lang];
+  const L = plan.mode === "agent" ? t.ideasC : t;
+  const [open, setOpen] = useState(!compact);
+  const es = lang === "es";
+  return (
+    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={i === 0 ? { ...CARD, boxShadow: `0 0 0 1px ${RING}` } : CARD}>
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-[16px] font-semibold text-pfg leading-snug min-w-0 break-words">
+          <span className="text-pmuted font-normal">{i + 1}. </span>
+          {idea.title}
+        </span>
+        <span className="flex items-center gap-1.5 shrink-0">
+          {plan.mode !== "agent" && idea.hourlyUsd ? (
+            <span className="text-[12px] px-2 py-0.5 rounded-full font-semibold tabular-nums" style={{ background: "#0A0A0A", color: "#fff" }} title={es ? "Lo que se gana por hora de trabajo en tu zona (estimado de la investigación)" : "What it pays per hour of work in your area (estimated from the research)"}>
+              ≈ ${idea.hourlyUsd}/{es ? "hora" : "hour"}
             </span>
-            {idea.score > 0 && (
-              <span className="text-[12px] px-2 py-0.5 rounded-full shrink-0 font-medium" style={{ background: "rgba(22,163,74,0.12)", color: GREEN }}>
-                {t.fit(idea.score)}
-              </span>
-            )}
-          </div>
-          <p className="text-[13.5px] text-pfg2 leading-relaxed">{idea.why}</p>
+          ) : null}
+          {idea.score > 0 && (
+            <span className="text-[12px] px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(22,163,74,0.12)", color: GREEN }}>
+              {t.fit(idea.score)}
+            </span>
+          )}
+        </span>
+      </div>
+      <p className={`text-[13.5px] text-pfg2 leading-relaxed ${open ? "" : "line-clamp-2"}`}>{idea.why}</p>
+      {!open && idea.typicalPrice && (
+        <p className="text-[13px] text-psub">
+          {L.typicalPrice}: <span className="text-pfg font-medium">{idea.typicalPrice}</span>
+        </p>
+      )}
+      {open && (
+        <>
           <Facts
             rows={
               plan.mode === "agent"
@@ -889,12 +919,18 @@ function IdeasCard({ plan, busy, live, passed = false, onChoose }: { plan: Busin
             </div>
           )}
           <Sources list={idea.sources} />
-          <button type="button" disabled={busy} onClick={() => onChoose(i)} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={i === 0 ? BRAND_BTN : GHOST_BTN}>
-            {t.choose}
+        </>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" disabled={busy} onClick={() => onChoose(i)} className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={i === 0 ? BRAND_BTN : GHOST_BTN}>
+          {t.choose}
+        </button>
+        {compact && (
+          <button type="button" onClick={() => setOpen((v) => !v)} className="h-10 px-4 rounded-full text-[13.5px] text-psub hover:text-pfg">
+            {open ? (es ? "Ver menos" : "Show less") : es ? "Ver detalles" : "See details"}
           </button>
-        </div>
-      ))}
-      <p className="text-[13px] text-psub leading-relaxed">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.ideasNone}</p>
+        )}
+      </div>
     </div>
   );
 }
