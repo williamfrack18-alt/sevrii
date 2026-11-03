@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
-import { approveBlockAction, chooseIdeaAction, confirmProposalAction, finishPlanAction, moreIdeasAction, noOfferAction, resumePlanAction, saveCardsAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
+import { approveBlockAction, chooseIdeaAction, confirmProposalAction, finishPlanAction, moreIdeasAction, noOfferAction, otherPackagesAction, resumePlanAction, saveCardsAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
 import CardFlow from "./CardFlow";
 import { oneConfirmation } from "@/lib/brain/walk";
 import { cardTitle, unknownCards } from "@/lib/cards";
@@ -263,7 +263,14 @@ export default function PlanView({
   // Only the last ideas card in the chat can be the one they picked from;
   // earlier rounds are options they passed on.
   const lastIdeasId = [...msgs].reverse().find((m) => m.role !== "user" && m.content.includes("[[ideas]]"))?.id ?? null;
-  const summaryCard = <SummaryCard plan={plan} busy={busy} onConfirm={(prices) => act(() => confirmProposalAction(prices, bizRef.current.id))} />;
+  const summaryCard = (
+    <SummaryCard
+      plan={plan}
+      busy={busy}
+      onConfirm={(prices) => act(() => confirmProposalAction(prices, bizRef.current.id))}
+      onOther={plan.mode === "existing" ? () => act(() => otherPackagesAction(bizRef.current.id)) : undefined}
+    />
+  );
   const onMore = (why: string) => act(() => moreIdeasAction(why, bizRef.current.id));
   const renderToken = ({ kind, arg, msgId }: ChatToken) => {
     if (kind === "part" && isBlock(arg)) return msgId === liveId ? partCard(arg) : <PartRow id={arg} plan={plan} stale={arg === reviewing} />;
@@ -297,7 +304,7 @@ export default function PlanView({
     ) : inPipeline && !pipeErr ? (
       <StatusChip tone="live">{t.working}</StatusChip>
     ) : plan.stage === "proposal" ? (
-      <StatusChip>{t.approvedShort(doneCount, APPROVAL_BLOCKS.length)}</StatusChip>
+      <StatusChip>{single ? (es ? "Por confirmar" : "To confirm") : t.approvedShort(doneCount, APPROVAL_BLOCKS.length)}</StatusChip>
     ) : null;
 
   // Everything stays in the chat: while it gets to know you, your file; once
@@ -404,6 +411,7 @@ export default function PlanView({
             </>
           }
           tailKey={`${tailKey}:${notice}:${pipeErr}`}
+          composerInline={plan.mode !== "agent" && (plan.stage === "choose" || plan.stage === "proposal")}
           dock={dock}
           dockLabel={plan.stage === "approved" || plan.stage === "proposal" ? (lang === "es" ? "Tu estrategia" : "Your strategy") : lang === "es" ? "Lo que ya sé de ti" : "What I know about you"}
           onSend={async (text) => {
@@ -868,7 +876,7 @@ function IdeasCard({ plan, busy, live, passed = false, onChoose, onMore }: { pla
   // B gets 8 to 10 ideas, best paid first: each one short, its details open on a tap.
   const compact = plan.mode !== "agent" && plan.ideas.length > 5;
   return (
-    <div className="flex flex-col gap-3 min-w-0">
+    <div className={`flex flex-col min-w-0 ${plan.mode === "agent" ? "gap-3" : "gap-4"}`}>
       {plan.ideas.map((idea, i) => (
         <IdeaItem key={i} idea={idea} i={i} plan={plan} busy={busy} compact={compact} onChoose={onChoose} />
       ))}
@@ -877,9 +885,10 @@ function IdeasCard({ plan, busy, live, passed = false, onChoose, onMore }: { pla
   );
 }
 
-// "Dame otras": none of these. Optional reasons weigh on the next batch; the
-// ideas shown here are remembered as rejected and never come back.
-function MoreIdeas({ busy, onMore }: { busy: boolean; onMore: (why: string) => void }) {
+// "↻ Ver otros servicios": a new batch. Every option shown here is remembered
+// as rejected and never comes back (checked in code); the optional reasons
+// weigh on the next batch.
+function MoreIdeas({ busy, onMore, label, help }: { busy: boolean; onMore: (why: string) => void; label?: string; help?: string }) {
   const es = useLang() === "es";
   const reasons = es
     ? ["Pagan poco", "Toman mucho tiempo", "No me gustan", "Prefiero digital", "Prefiero en persona", "Cuestan mucho para empezar"]
@@ -888,19 +897,25 @@ function MoreIdeas({ busy, onMore }: { busy: boolean; onMore: (why: string) => v
   const [text, setText] = useState("");
   const toggle = (r: string) => setWhy((w) => (w.includes(r) ? w.filter((x) => x !== r) : [...w, r]));
   return (
-    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3" style={CARD}>
-      <span className="text-[14.5px] font-semibold text-pfg">{es ? "¿Ninguna te convence?" : "None of these?"}</span>
-      <span className="text-[13px] text-psub">{es ? "Dime por qué (opcional) y te traigo otras distintas. Estas no vuelven a salir." : "Tell me why (optional) and I'll bring different ones. These won't come back."}</span>
-      <div className="flex flex-wrap gap-2">
-        {reasons.map((r) => (
-          <button key={r} type="button" onClick={() => toggle(r)} aria-pressed={why.includes(r)} className="h-9 px-3.5 rounded-full text-[13px]" style={why.includes(r) ? { background: "#0A0A0A", color: "#fff" } : GHOST_BTN}>
-            {r}
-          </button>
-        ))}
+    <div className="rounded-[26px] p-5 md:p-7 flex flex-col gap-4" style={{ background: "#F5F5F2" }}>
+      <div className="flex flex-col gap-1">
+        <span className="text-[16px] font-semibold" style={{ color: "#0A0A0A" }}>{es ? "¿Ninguna te convence?" : "None of these?"}</span>
+        <span className="text-[13.5px]" style={{ color: "#52525B" }}>{help ?? (es ? "Dime por qué (opcional) y te traigo otras distintas. Ninguna de estas vuelve a salir." : "Tell me why (optional) and I'll bring different ones. None of these will come back.")}</span>
       </div>
-      <input value={text} onChange={(e) => setText(e.target.value)} placeholder={es ? "Otra razón (opcional)" : "Another reason (optional)"} className="h-11 rounded-xl px-4 text-[14px] outline-none" style={INSET} />
-      <button type="button" disabled={busy} onClick={() => onMore([...why, text.trim()].filter(Boolean).join("; "))} className="self-start h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
-        {es ? "Dame otras" : "Show me others"}
+      <div className="flex flex-wrap gap-2">
+        {reasons.map((r) => {
+          const on = why.includes(r);
+          return (
+            <button key={r} type="button" onClick={() => toggle(r)} aria-pressed={on} className="h-10 px-4 rounded-full text-[13.5px]" style={on ? { background: "#0A0A0A", color: "#fff", fontWeight: 600 } : { background: "#fff", color: "#0A0A0A", boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.1)" }}>
+              {on ? "✓ " : ""}
+              {r}
+            </button>
+          );
+        })}
+      </div>
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder={es ? "Otra razón (opcional)" : "Another reason (optional)"} className="h-12 rounded-2xl px-4 text-[14.5px] outline-none bg-white" style={{ boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.1)" }} />
+      <button type="button" disabled={busy} onClick={() => onMore([...why, text.trim()].filter(Boolean).join("; "))} className="self-start h-12 px-6 rounded-full text-[15px] font-semibold disabled:opacity-60 inline-flex items-center gap-2" style={{ background: "#0A0A0A", color: "#fff" }}>
+        <span aria-hidden="true" className="text-[17px] leading-none">↻</span> {label ?? (es ? "Ver otros servicios" : "See other services")}
       </button>
     </div>
   );
@@ -915,47 +930,58 @@ function PassedRow({ text }: { text: string }) {
   );
 }
 
-// A and B: the whole strategy on one card. A package that shows a market
-// reference can get the owner's own price right here; one button confirms
-// everything (that is the approval) and opens Store.
-function SummaryCard({ plan, busy, onConfirm }: { plan: BusinessPlan; busy: boolean; onConfirm: (prices: Record<string, string>) => void }) {
+// A and B: the strategy as its 5 parts, one card under the other and each one
+// complete (service, presentation, packages, offer, FAQ). A package that shows a
+// market reference can get the owner's own price right here; one button at the
+// end confirms everything (that is the approval) and opens Store.
+function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; busy: boolean; onConfirm: (prices: Record<string, string>) => void; onOther?: () => void }) {
   const lang = useLang();
   const t = PLAN_TEXT[lang];
   const es = lang === "es";
   const [prices, setPrices] = useState<Record<string, string>>({});
   const unknown = unknownCards(plan.mode, plan.cards);
-  const sec = (title: string, body: ReactNode) => (
-    <div className="flex flex-col gap-2.5 pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
-      <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-pmuted">{title}</span>
+  const card = (n: number, title: string, body: ReactNode) => (
+    <article className="rounded-[26px] bg-white p-5 md:p-7 flex flex-col gap-4 min-w-0" style={{ boxShadow: "0 1px 2px rgba(10,10,10,0.04), 0 16px 36px -22px rgba(10,10,10,0.22), 0 0 0 1px rgba(10,10,10,0.05)" }}>
+      <header className="flex items-center gap-3">
+        <span className="h-8 w-8 rounded-full shrink-0 flex items-center justify-center text-[14px] font-semibold" style={{ background: "#0A0A0A", color: "#fff" }}>{n}</span>
+        <h3 className="text-[18px] font-semibold" style={{ color: "#0A0A0A" }}>{title}</h3>
+      </header>
       {body}
-    </div>
+    </article>
   );
   return (
-    <div className="rounded-[24px] p-4 md:p-6 flex flex-col gap-4 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${RING}` }}>
-      <div className="flex flex-col gap-1">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: GREEN }}>{es ? "Tu estrategia" : "Your strategy"}</span>
+    <div className="flex flex-col gap-4 min-w-0">
+      <div className="flex flex-col gap-1 px-1">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: GREEN }}>{es ? "Tu estrategia · 5 partes" : "Your strategy · 5 parts"}</span>
         <span className="text-[19px] font-semibold text-pfg leading-snug">{plan.service}</span>
       </div>
-      {sec(t.blocks.service, <PartBody id="service" plan={plan} />)}
-      {plan.serviceWhy && (
-        <p className="text-[13px] text-psub leading-relaxed">
-          <span className="text-pfg2 font-medium">{es ? "Por qué te lo propongo (solo lo ves tú)" : "Why I suggest it (only you see this)"}:</span> {plan.serviceWhy}
-        </p>
+      {card(
+        1,
+        t.blocks.service,
+        <>
+          <PartBody id="service" plan={plan} />
+          {plan.serviceWhy && (
+            <p className="text-[13px] text-psub leading-relaxed rounded-2xl px-4 py-3" style={{ background: "#F5F5F2" }}>
+              <span className="text-pfg2 font-medium">{es ? "Por qué te lo propongo (solo lo ves tú)" : "Why I suggest it (only you see this)"}:</span> {plan.serviceWhy}
+            </p>
+          )}
+        </>
       )}
-      {sec(t.blocks.pitch, <PartBody id="pitch" plan={plan} />)}
-      {sec(
+      {card(2, t.blocks.pitch, <PartBody id="pitch" plan={plan} />)}
+      {card(
+        3,
         t.blocks.packages,
         <div className="flex flex-col gap-3">
           {plan.packages.map((p, i) => (
-            <div key={i} className="rounded-xl p-4 flex flex-col gap-2 min-w-0" style={INSET}>
+            <div key={i} className="rounded-2xl p-4 flex flex-col gap-2 min-w-0" style={{ background: "#F5F5F2" }}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-[14.5px] font-semibold text-pfg">{p.name}</span>
-                <span className="text-[18px] font-semibold" style={{ color: p.ref ? "#52525B" : GREEN }}>{p.price || "—"}</span>
+                <span className="text-[15px] font-semibold text-pfg">{p.name}</span>
+                <span className="text-[19px] font-semibold" style={{ color: p.ref ? "#52525B" : GREEN }}>{p.price || "—"}</span>
               </div>
-              {p.includes && <span className="text-[13px] text-pfg2 leading-relaxed">{p.includes}</span>}
+              {p.includes && <span className="text-[13.5px] text-pfg2 leading-relaxed">{p.includes}</span>}
               {p.ref ? (
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[12px] text-pmuted">
+                  <span className="text-[12.5px] text-pmuted">
                     <b className="font-semibold">{t.marketRef}</b> · {es ? "lo que se cobra en tu zona, no es tu precio. Escribe el tuyo si ya lo sabes:" : "what's charged in your area, not your price. Type yours if you know it:"}
                   </span>
                   <input
@@ -963,38 +989,158 @@ function SummaryCard({ plan, busy, onConfirm }: { plan: BusinessPlan; busy: bool
                     onChange={(e) => setPrices((x) => ({ ...x, [String(i)]: e.target.value }))}
                     placeholder={es ? "Tu precio, ej.: $40" : "Your price, e.g. $40"}
                     inputMode="decimal"
-                    className="h-10 rounded-lg px-3 text-[14px] outline-none bg-white"
-                    style={{ boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.14)" }}
+                    className="h-11 rounded-xl px-4 text-[14.5px] outline-none bg-white"
+                    style={{ boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.12)" }}
                   />
                 </div>
               ) : (
-                <span className="text-[12px]" style={{ color: GREEN }}>{es ? "Tu precio" : "Your price"}</span>
+                <span className="text-[12.5px] font-medium" style={{ color: GREEN }}>{es ? "Tu precio" : "Your price"}</span>
               )}
             </div>
           ))}
-          {plan.pricingNote && <p className="text-[13px] text-psub leading-relaxed">{plan.pricingNote}</p>}
+          {plan.pricingNote && <p className="text-[13.5px] text-psub leading-relaxed">{plan.pricingNote}</p>}
           {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
         </div>
       )}
-      {sec(t.blocks.offer, <PartBody id="offer" plan={plan} />)}
-      {plan.faq.length > 0 && sec(t.blocks.faq, <PartBody id="faq" plan={plan} />)}
+      {card(4, t.blocks.offer, <PartBody id="offer" plan={plan} />)}
+      {card(5, t.blocks.faq, plan.faq.length ? <PartBody id="faq" plan={plan} /> : <span className="text-[14px] text-psub">—</span>)}
       {unknown.length > 0 && (
-        <p className="text-[13px] leading-relaxed rounded-xl px-4 py-3" style={{ background: "rgba(245,158,11,0.07)", color: "#78350F" }}>
+        <p className="text-[13.5px] leading-relaxed rounded-2xl px-4 py-3" style={{ background: "rgba(245,158,11,0.08)", color: "#78350F" }}>
           {es ? "Contestaste «no sé» en: " : "You answered \"don't know\" on: "}
-          {unknown.map((id) => cardTitle(plan.mode, id, lang)).join(" · ")}. {es ? "No supuse nada en su lugar." : "I didn't assume anything instead."}
+          {unknown.map((id) => cardTitle(plan.mode, id, lang).replace(/[¿?]/g, "")).join(" · ")}. {es ? "No supuse nada en su lugar." : "I didn't assume anything instead."}
         </p>
       )}
-      <div className="flex flex-col gap-2 pt-1">
-        <button type="button" disabled={busy} onClick={() => onConfirm(prices)} className="self-start h-11 px-6 rounded-full text-[15px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
-          {busy ? (es ? "Confirmando…" : "Confirming…") : es ? "Confirmar y crear mi página" : "Confirm and build my page"}
-        </button>
-        <span className="text-[12.5px] text-psub">{es ? "¿Quieres cambiar algo? Escríbelo en el chat y actualizo la tarjeta." : "Want to change something? Write it in the chat and I'll update the card."}</span>
+      <div className="rounded-[26px] p-5 md:p-7 flex flex-col gap-3" style={{ background: "#F5F5F2" }}>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" disabled={busy} onClick={() => onConfirm(prices)} className="h-12 px-7 rounded-full text-[15.5px] font-semibold disabled:opacity-60" style={{ background: "#0A0A0A", color: "#fff" }}>
+            {busy ? (es ? "Confirmando…" : "Confirming…") : es ? "Confirmar y crear mi página" : "Confirm and build my page"}
+          </button>
+          {onOther && (
+            <button type="button" disabled={busy} onClick={onOther} className="h-12 px-5 rounded-full text-[14.5px] font-medium disabled:opacity-60 inline-flex items-center gap-2" style={{ background: "#fff", color: "#0A0A0A", boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.14)" }}>
+              <span aria-hidden="true" className="text-[17px] leading-none">↻</span> {es ? "Ver otros paquetes y presentación" : "See other packages and presentation"}
+            </button>
+          )}
+        </div>
+        <span className="text-[13px] text-psub">
+          {onOther
+            ? es
+              ? "«Ver otros» cambia los paquetes y la presentación; tu servicio y los precios que confirmaste se quedan igual. ¿Otro cambio? Escríbelo abajo."
+              : "\"See other\" changes the packages and the presentation; your service and the prices you confirmed stay the same. Another change? Write it below."
+            : es
+              ? "¿Quieres cambiar algo? Escríbelo abajo y actualizo las tarjetas."
+              : "Want to change something? Write it below and I'll update the cards."}
+        </span>
       </div>
     </div>
   );
 }
 
-function IdeaItem({ idea, i, plan, busy, compact, onChoose }: { idea: BusinessPlan["ideas"][number]; i: number; plan: BusinessPlan; busy: boolean; compact: boolean; onChoose: (i: number) => void }) {
+function IdeaItem(props: { idea: BusinessPlan["ideas"][number]; i: number; plan: BusinessPlan; busy: boolean; compact: boolean; onChoose: (i: number) => void }) {
+  return props.plan.mode === "agent" ? <AgentIdeaItem {...props} /> : <ServiceIdeaItem {...props} />;
+}
+
+// B: one service option per card, complete and in this order: title, what it
+// does, for whom, digital / in person / mixed, approximate pay per hour, score,
+// and the market reference (what's charged and what it costs to start).
+function ServiceIdeaItem({ idea, i, plan, busy, onChoose }: { idea: BusinessPlan["ideas"][number]; i: number; plan: BusinessPlan; busy: boolean; compact: boolean; onChoose: (i: number) => void }) {
+  const lang = useLang();
+  const t = PLAN_TEXT[lang];
+  const es = lang === "es";
+  const [open, setOpen] = useState(false);
+  const mode = idea.delivery === "digital" ? "Digital" : idea.delivery === "fisico" ? (es ? "Físico" : "In person") : idea.delivery === "ambos" ? (es ? "Mixto" : "Mixed") : "";
+  const row = (label: string, value: ReactNode) =>
+    value ? (
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="text-[11.5px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#71717A" }}>{label}</span>
+        <div className="text-[14.5px] leading-relaxed min-w-0 break-words" style={{ color: "#0A0A0A" }}>{value}</div>
+      </div>
+    ) : null;
+  return (
+    <article className="rounded-[26px] bg-white p-5 md:p-7 flex flex-col gap-5 min-w-0" style={{ boxShadow: "0 1px 2px rgba(10,10,10,0.04), 0 16px 36px -22px rgba(10,10,10,0.22), 0 0 0 1px rgba(10,10,10,0.05)" }}>
+      <header className="flex items-start gap-3">
+        <span className="h-8 w-8 rounded-full shrink-0 flex items-center justify-center text-[14px] font-semibold" style={{ background: "#0A0A0A", color: "#fff" }}>{i + 1}</span>
+        <h3 className="text-[18px] md:text-[19px] font-semibold leading-snug min-w-0 break-words pt-0.5" style={{ color: "#0A0A0A" }}>{idea.title}</h3>
+      </header>
+      <div className="flex flex-col gap-4">
+        {row(es ? "Qué hace" : "What it is", idea.what || idea.why)}
+        {row(es ? "Para quién" : "For whom", idea.forWhom)}
+        <div className="grid grid-cols-3 gap-3">
+          {row(es ? "Modalidad" : "Format", mode && <span className="inline-flex h-7 items-center px-3 rounded-full text-[13px] font-medium" style={{ background: "rgba(10,10,10,0.06)" }}>{mode}</span>)}
+          {row(es ? "Pago aprox." : "Approx. pay", idea.hourlyUsd ? <b className="font-semibold tabular-nums">≈ ${idea.hourlyUsd}/{es ? "hora" : "hour"}</b> : null)}
+          {row(es ? "Puntaje" : "Score", idea.score > 0 ? <span className="font-semibold tabular-nums" style={{ color: GREEN }}>{t.fit(idea.score)}</span> : null)}
+        </div>
+        {(idea.typicalPrice || idea.startCost) && (
+          <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "#F5F5F2" }}>
+            <span className="text-[11.5px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#71717A" }}>{t.marketRef}</span>
+            {idea.typicalPrice && (
+              <span className="text-[14px]" style={{ color: "#27272A" }}>
+                {es ? "Se cobra" : "Charged"}: <b className="font-semibold">{idea.typicalPrice}</b>
+              </span>
+            )}
+            {idea.startCost && (
+              <span className="text-[14px]" style={{ color: "#27272A" }}>
+                {es ? "Cuesta empezar" : "Cost to start"}: {idea.startCost}
+              </span>
+            )}
+          </div>
+        )}
+        {idea.usesUnknown.length > 0 && (
+          <p className="text-[13px] leading-relaxed" style={{ color: AMBER }}>
+            {es ? "Supone algo que respondiste «no sé»: " : "Relies on something you answered \"don't know\": "}
+            {idea.usesUnknown.map((id) => cardTitle(plan.mode, id, lang)).join(" · ")}
+          </p>
+        )}
+      </div>
+      {open && (
+        <div className="flex flex-col gap-4 pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+          {row(es ? "Por qué te puede servir" : "Why it may suit you", idea.what ? idea.why : "")}
+          {row(es ? "Qué necesitas para empezar" : "What you need to start", idea.needs)}
+          {row(t.license, idea.license && !/^no\b/i.test(idea.license.trim()) ? idea.license : "")}
+          {row(t.demand, idea.demand)}
+          {idea.steps.length > 0 &&
+            row(
+              es ? "Primeros pasos" : "First steps",
+              <ol className="flex flex-col gap-1.5 mt-1">
+                {idea.steps.map((x, k) => (
+                  <li key={k} className="flex gap-2.5">
+                    <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-0.5" style={{ background: "rgba(10,10,10,0.06)", color: "#52525B" }}>{k + 1}</span>
+                    <span className="min-w-0">{x}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          {(idea.pros || idea.cons) && (
+            <div className="flex flex-col gap-1.5">
+              {idea.pros && (
+                <p className="text-[13.5px] text-psub leading-relaxed flex gap-2">
+                  <span className="shrink-0 font-semibold" style={{ color: GREEN }}>+</span>
+                  <span className="min-w-0">{idea.pros}</span>
+                </p>
+              )}
+              {idea.cons && (
+                <p className="text-[13.5px] text-psub leading-relaxed flex gap-2">
+                  <span className="shrink-0 font-semibold" style={{ color: AMBER }}>−</span>
+                  <span className="min-w-0">{idea.cons}</span>
+                </p>
+              )}
+            </div>
+          )}
+          <Sources list={idea.sources} />
+        </div>
+      )}
+      <footer className="flex flex-wrap items-center gap-3">
+        <button type="button" disabled={busy} onClick={() => onChoose(i)} className="h-11 px-6 rounded-full text-[15px] font-semibold disabled:opacity-60" style={{ background: "#0A0A0A", color: "#fff" }}>
+          {t.choose}
+        </button>
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="h-11 px-3 text-[14px] underline-offset-4 hover:underline" style={{ color: "#52525B" }}>
+          {open ? (es ? "Ver menos" : "Show less") : es ? "Ver detalles" : "See details"}
+        </button>
+      </footer>
+    </article>
+  );
+}
+
+function AgentIdeaItem({ idea, i, plan, busy, compact, onChoose }: { idea: BusinessPlan["ideas"][number]; i: number; plan: BusinessPlan; busy: boolean; compact: boolean; onChoose: (i: number) => void }) {
   const lang = useLang();
   const t = PLAN_TEXT[lang];
   const L = plan.mode === "agent" ? t.ideasC : t;

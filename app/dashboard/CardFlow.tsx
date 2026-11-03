@@ -2,13 +2,23 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useLang } from "@/components/LangProvider";
-import { ACCENT, BRAND_BTN, GREEN, INK, TINT } from "@/lib/panel";
-import { cardDone, cardsFor, emptyAnswer, suggest, type CardAnswer, type CardAnswers } from "@/lib/cards";
+import { cardDone, cardsFor, emptyAnswer, type CardAnswer, type CardAnswers } from "@/lib/cards";
 
 // The Brain's interview on cards: one question per card, in order, with its
 // progress, a search box that suggests while typing, "no sé" on every card that
 // allows it, and a way back that never loses an answer. Only when every card is
-// answered does "Ver mis propuestas" send them (the server checks it again).
+// answered does the last button send them (the server checks it again).
+// Look: a light, calm screen (Sevrii's black, white and green, sans type).
+
+const INK = "#0A0A0A";
+const PAGE = "#F5F5F2"; // very light warm gray behind the card
+const SOFT = "#ECFDF3"; // light green behind the illustration
+const DEEP_GREEN = "#14532D";
+const LINE = "rgba(10,10,10,0.10)";
+
+const fold = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+const partsOf = (v: string) => v.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+
 export default function CardFlow({
   mode,
   initial,
@@ -35,17 +45,29 @@ export default function CardFlow({
   const box = useRef<HTMLTextAreaElement>(null);
 
   const set = (patch: Partial<CardAnswer>) => setAnswers((prev) => ({ ...prev, [def.id]: { ...(prev[def.id] ?? emptyAnswer()), ...patch } }));
-  const hints = useMemo(() => suggest(def, lang, a.v), [def, lang, a.v]);
   const needsPlace = def.placeAlways || (def.placeFor?.includes(a.c) ?? false);
   const ok = cardDone(def, a);
   const last = at === defs.length - 1;
 
-  function add(s: string) {
-    const parts = a.v.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+  // Chips: the ones already picked stay marked; the rest are filtered by what
+  // is being typed (the search box).
+  const picked = useMemo(() => new Set(partsOf(a.v).map(fold)), [a.v]);
+  const chips = useMemo(() => {
+    const all = def.suggestions[lang];
+    const typing = /[,;]\s*$/.test(a.v) ? "" : fold(partsOf(a.v).pop() ?? "");
+    const searching = typing && !all.some((s) => fold(s) === typing);
+    return all.filter((s) => picked.has(fold(s)) || !searching || fold(s).includes(typing)).slice(0, 14);
+  }, [def, lang, a.v, picked]);
+
+  function toggleChip(s: string) {
+    const parts = partsOf(a.v);
+    if (picked.has(fold(s))) {
+      set({ v: parts.filter((x) => fold(x) !== fold(s)).join(", "), u: false });
+      return;
+    }
     // The word being typed is replaced by the suggestion it matched.
-    const fold = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
     const typing = /[,;]\s*$/.test(a.v) ? "" : parts[parts.length - 1] ?? "";
-    if (typing && fold(s).includes(fold(typing))) parts.pop();
+    if (typing && !def.suggestions[lang].some((x) => fold(x) === fold(typing)) && fold(s).includes(fold(typing))) parts.pop();
     set({ v: [...parts, s].join(", "), u: false });
     box.current?.focus();
   }
@@ -55,44 +77,59 @@ export default function CardFlow({
     if (!last) setAt((n) => n + 1);
   }
 
+  const field = { background: "#FFFFFF", boxShadow: `inset 0 0 0 1px ${LINE}`, color: INK } as const;
+
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto px-2 md:px-4 pb-4">
-      <div className="max-w-[720px] mx-auto flex flex-col gap-4 pt-2">
-        {/* Progress */}
-        <div className="dash-on-dark flex flex-col gap-2">
-          <div className="flex items-center justify-between text-[13px]">
-            <span className="text-pfg2">
+    <div className="flex-1 min-h-0 overflow-y-auto mx-2 md:mx-4 mb-2 md:mb-4 rounded-[28px]" style={{ background: PAGE }}>
+      <div className="max-w-[680px] mx-auto px-4 md:px-6 py-6 md:py-10 flex flex-col gap-6">
+        {/* Progress: "Pregunta 1 de 8" and one dot per question */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[15px] font-semibold" style={{ color: INK }}>
               {es ? "Pregunta" : "Question"} {at + 1} {es ? "de" : "of"} {defs.length}
             </span>
-            <span className="text-pmuted">
-              {done} {es ? "contestadas" : "answered"}
+            <span className="text-[13px]" style={{ color: "#52525B" }}>
+              {done} {es ? (done === 1 ? "contestada" : "contestadas") : "answered"}
             </span>
           </div>
-          <div className="flex gap-1" aria-hidden="true">
-            {defs.map((d, i) => (
-              <button
-                key={d.id}
-                type="button"
-                tabIndex={-1}
-                onClick={() => setAt(i)}
-                className="h-1.5 flex-1 rounded-full"
-                style={{ background: cardDone(d, answers[d.id]) ? "#4ADE80" : i === at ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.22)" }}
-              />
-            ))}
+          <div className="flex items-center gap-1.5" role="list" aria-label={es ? "Progreso" : "Progress"}>
+            {defs.map((d, i) => {
+              const ready = cardDone(d, answers[d.id]);
+              const here = i === at;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  role="listitem"
+                  onClick={() => setAt(i)}
+                  aria-label={`${es ? "Pregunta" : "Question"} ${i + 1}${ready ? (es ? ", contestada" : ", answered") : ""}`}
+                  aria-current={here ? "step" : undefined}
+                  className="h-2 rounded-full transition-all"
+                  style={{ flex: here ? 2.2 : 1, background: here ? INK : ready ? "#16A34A" : "rgba(10,10,10,0.12)" }}
+                />
+              );
+            })}
           </div>
         </div>
 
         {/* The card */}
-        <div className="rounded-[24px] bg-white p-5 md:p-7 flex flex-col gap-4" style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.04), 0 30px 60px -30px rgba(0,0,0,0.85)" }}>
-          <div className="flex flex-col gap-1.5">
-            <h2 className="text-[21px] md:text-[24px] font-semibold leading-tight" style={{ color: INK }}>
-              {def.title[lang]}
-            </h2>
-            <p className="text-[14px] text-psub leading-relaxed">{def.help[lang]}</p>
+        <div className="rounded-[28px] bg-white p-6 md:p-10 flex flex-col gap-7" style={{ boxShadow: "0 1px 2px rgba(10,10,10,0.04), 0 18px 40px -22px rgba(10,10,10,0.22)" }}>
+          <div className="flex flex-col gap-4">
+            <span className="h-14 w-14 rounded-full flex items-center justify-center" style={{ background: SOFT, color: DEEP_GREEN }} aria-hidden="true">
+              <CardIcon id={def.id} />
+            </span>
+            <div className="flex flex-col gap-2">
+              <h2 className="text-[24px] md:text-[28px] font-medium leading-[1.2] tracking-[-0.01em]" style={{ color: INK }}>
+                {def.title[lang]}
+              </h2>
+              <p className="text-[15px] leading-relaxed" style={{ color: "#52525B" }}>
+                {def.help[lang]}
+              </p>
+            </div>
           </div>
 
           {def.choices && (
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={def.title[lang]}>
+            <div className="flex flex-wrap gap-2.5" role="radiogroup" aria-label={def.title[lang]}>
               {def.choices.map((c) => {
                 const on = a.c === c.id && !a.u;
                 return (
@@ -102,9 +139,10 @@ export default function CardFlow({
                     role="radio"
                     aria-checked={on}
                     onClick={() => set({ c: c.id, u: false })}
-                    className="h-11 px-5 rounded-full text-[15px] font-semibold"
-                    style={on ? { background: INK, color: "#fff" } : { background: "rgba(10,10,10,0.06)", color: INK }}
+                    className="h-12 px-6 rounded-full text-[15.5px] font-medium transition"
+                    style={on ? { background: INK, color: "#fff" } : { background: "#fff", color: INK, boxShadow: `inset 0 0 0 1px ${LINE}` }}
                   >
+                    {on ? "✓ " : ""}
                     {c.label[lang]}
                   </button>
                 );
@@ -119,8 +157,8 @@ export default function CardFlow({
               onChange={(e) => set({ v: e.target.value, u: false })}
               placeholder={def.placeholder[lang]}
               rows={2}
-              className="w-full rounded-2xl px-4 py-3 text-[16px] leading-relaxed outline-none resize-none"
-              style={{ background: "rgba(10,10,10,0.04)", boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.1)", color: INK }}
+              className="w-full rounded-2xl px-5 py-4 text-[16px] leading-relaxed outline-none resize-none focus:shadow-[inset_0_0_0_2px_#0A0A0A]"
+              style={field}
             />
           )}
 
@@ -128,57 +166,163 @@ export default function CardFlow({
             <input
               value={a.p}
               onChange={(e) => set({ p: e.target.value, u: false })}
-              placeholder={def.placeAlways ? (es ? "Ciudad y estado (ej.: Miami, FL) o «en línea»" : "City and state (e.g. Miami, FL) or \"online\"") : def.placeholder[lang]}
-              className="w-full h-12 rounded-2xl px-4 text-[16px] outline-none"
-              style={{ background: "rgba(10,10,10,0.04)", boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.1)", color: INK }}
+              placeholder={def.placeAlways ? (es ? "Ciudad y estado, o «en línea»" : "City and state, or \"online\"") : def.placeholder[lang]}
+              className="w-full h-14 rounded-2xl px-5 text-[16px] outline-none focus:shadow-[inset_0_0_0_2px_#0A0A0A]"
+              style={field}
             />
           )}
 
-          {hints.length > 0 && (
-            <div className="flex flex-wrap gap-2" aria-label={es ? "Sugerencias" : "Suggestions"}>
-              {hints.map((h) => (
-                <button key={h} type="button" onClick={() => add(h)} className="h-9 px-3.5 rounded-full text-[13.5px]" style={{ background: TINT, color: ACCENT }}>
-                  + {h}
-                </button>
-              ))}
+          {chips.length > 0 && (
+            <div className="flex flex-col gap-2.5">
+              <span className="text-[12.5px] font-medium" style={{ color: "#71717A" }}>
+                {es ? "Toca para escoger (puedes escoger varias)" : "Tap to pick (you can pick several)"}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {chips.map((h) => {
+                  const on = picked.has(fold(h));
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggleChip(h)}
+                      className="h-10 px-4 rounded-full text-[14px] transition"
+                      style={on ? { background: INK, color: "#fff", fontWeight: 600 } : { background: "#fff", color: INK, boxShadow: `inset 0 0 0 1px ${LINE}` }}
+                    >
+                      {on ? "✓ " : ""}
+                      {h}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
           {def.unknown && (
-            <button
-              type="button"
-              onClick={() => set({ u: !a.u, v: a.u ? a.v : "", c: a.u ? a.c : "", p: a.u ? a.p : "" })}
-              aria-pressed={a.u}
-              className="self-start h-10 px-4 rounded-full text-[14px] font-medium"
-              style={a.u ? { background: INK, color: "#fff" } : { background: "#fff", color: INK, boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.18)" }}
-            >
-              {a.u ? "✓ " : ""}
-              {def.unknown[lang]}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => set({ u: !a.u, v: a.u ? a.v : "", c: a.u ? a.c : "", p: a.u ? a.p : "" })}
+                aria-pressed={a.u}
+                className="self-start h-11 px-5 rounded-full text-[14.5px] font-medium transition"
+                style={a.u ? { background: DEEP_GREEN, color: "#fff" } : { background: SOFT, color: DEEP_GREEN, boxShadow: "inset 0 0 0 1px rgba(20,83,45,0.18)" }}
+              >
+                {a.u ? "✓ " : ""}
+                {def.unknown[lang]}
+              </button>
+              <span className="text-[13px]" style={{ color: "#71717A" }}>
+                {a.u
+                  ? es
+                    ? "Queda como «no sé». No voy a suponer nada en su lugar."
+                    : "Saved as \"don't know\". I won't assume anything instead."
+                  : es
+                    ? "Es una respuesta válida: si no lo sabes, tócalo."
+                    : "It's a valid answer: if you don't know, tap it."}
+              </span>
+            </div>
           )}
-          {a.u && <p className="text-[13px] text-psub">{es ? "Queda como «no sé». No voy a suponer nada en su lugar." : "Saved as \"don't know\". I won't assume anything instead."}</p>}
 
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <button type="button" disabled={at === 0} onClick={() => setAt((n) => Math.max(0, n - 1))} className="h-11 px-4 rounded-full text-[14px] text-psub disabled:opacity-30">
+          <div className="flex items-center justify-between gap-3 pt-2" style={{ borderTop: `1px solid ${LINE}` }}>
+            <button type="button" disabled={at === 0} onClick={() => setAt((n) => Math.max(0, n - 1))} className="h-11 px-2 mt-4 text-[14.5px] disabled:opacity-0" style={{ color: "#52525B" }}>
               ← {es ? "Atrás" : "Back"}
             </button>
-            <button type="button" disabled={!ok || busy || (last && !allDone)} onClick={next} className="h-11 px-6 rounded-full text-[15px] font-semibold disabled:opacity-40" style={BRAND_BTN}>
+            <button
+              type="button"
+              disabled={!ok || busy || (last && !allDone)}
+              onClick={next}
+              className="h-12 px-7 mt-4 rounded-full text-[15.5px] font-semibold transition"
+              style={ok && !busy && (!last || allDone) ? { background: INK, color: "#fff" } : { background: "rgba(10,10,10,0.08)", color: "#A1A1AA" }}
+            >
               {last ? (busy ? (es ? "Enviando…" : "Sending…") : mode === "new" ? (es ? "Ver mis propuestas" : "See my proposals") : es ? "Armar mi estrategia" : "Build my strategy") : es ? "Siguiente" : "Next"}
+              {!last && " →"}
             </button>
           </div>
           {last && !allDone && (
-            <p className="text-[13px]" style={{ color: "#B45309" }}>
-              {es ? "Te falta contestar alguna tarjeta: toca la barra de arriba para volver a ella." : "A card is still unanswered: tap the bar above to go back to it."}
+            <p className="text-[13.5px] -mt-3" style={{ color: "#B45309" }}>
+              {es ? "Te falta contestar alguna pregunta: toca los puntos de arriba para volver a ella." : "A question is still unanswered: tap the dots above to go back to it."}
             </p>
           )}
-          {notice && <p className="text-[13px]" style={{ color: "#B45309" }}>{notice}</p>}
+          {notice && <p className="text-[13.5px] -mt-3" style={{ color: "#B45309" }}>{notice}</p>}
         </div>
 
-        <p className="dash-on-dark text-[12.5px] text-pmuted text-center">
-          {es ? "Todo lo que contestes queda guardado. Puedes volver a cualquier tarjeta sin perder las demás." : "Everything you answer is saved. You can go back to any card without losing the others."}
-          <span style={{ color: GREEN }}> ●</span>
+        <p className="text-[12.5px] text-center leading-relaxed" style={{ color: "#71717A" }}>
+          {es ? "Todo lo que contestes queda guardado. Puedes volver a cualquier pregunta sin perder las demás." : "Everything you answer is saved. You can go back to any question without losing the others."}
         </p>
       </div>
     </div>
+  );
+}
+
+// A simple line illustration per question (drawn here, nothing borrowed).
+function CardIcon({ id }: { id: string }) {
+  const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const shapes: Record<string, React.ReactNode> = {
+    talent: <path {...p} d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" />,
+    experience: (
+      <>
+        <rect {...p} x="3" y="7" width="18" height="13" rx="2.5" />
+        <path {...p} d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18" />
+      </>
+    ),
+    likes: <path {...p} d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />,
+    notWant: (
+      <>
+        <circle {...p} cx="12" cy="12" r="9" />
+        <path {...p} d="M5.6 5.6l12.8 12.8" />
+      </>
+    ),
+    resources: (
+      <>
+        <rect {...p} x="3" y="8" width="18" height="12" rx="2.5" />
+        <path {...p} d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18M11 13v2h2v-2" />
+      </>
+    ),
+    time: (
+      <>
+        <circle {...p} cx="12" cy="12" r="9" />
+        <path {...p} d="M12 7v5l3 2" />
+      </>
+    ),
+    delivery: (
+      <>
+        <circle {...p} cx="12" cy="12" r="9" />
+        <path {...p} d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18" />
+      </>
+    ),
+    income: (
+      <>
+        <circle {...p} cx="12" cy="12" r="9" />
+        <path {...p} d="M15 9.2A3 3 0 0 0 12 7.8c-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.4 0 1.3-1.3 2.2-3 2.2a3 3 0 0 1-3-1.4M12 6v12" />
+      </>
+    ),
+    service: <path {...p} d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5z" />,
+    prices: (
+      <>
+        <path {...p} d="M3 12V4h8l10 10-8 8z" />
+        <circle {...p} cx="7.5" cy="8" r="1.4" />
+      </>
+    ),
+    costs: <path {...p} d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3" />,
+    clients: (
+      <>
+        <circle {...p} cx="9" cy="8" r="3" />
+        <path {...p} d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+        <circle {...p} cx="17" cy="9" r="2.4" />
+        <path {...p} d="M16.5 14.2c2.6.4 4.5 2.7 4.5 5.8" />
+      </>
+    ),
+    goal: (
+      <>
+        <circle {...p} cx="12" cy="12" r="9" />
+        <circle {...p} cx="12" cy="12" r="5" />
+        <circle {...p} cx="12" cy="12" r="1" />
+      </>
+    ),
+  };
+  const shape = shapes[id] ?? shapes[id === "hours" ? "time" : id === "assets" ? "resources" : "talent"];
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+      {shape}
+    </svg>
   );
 }

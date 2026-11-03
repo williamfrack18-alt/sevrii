@@ -98,7 +98,11 @@ export default function ChatPanel({
   context,
   pickKey,
   recover,
+  composerInline = false,
 }: {
+  // The box to write goes under the last message (inside the list), never
+  // pinned on top of cards the person is reading.
+  composerInline?: boolean;
   greeting: string;
   initialMessages: Msg[];
   texts: ChatTexts;
@@ -781,8 +785,16 @@ export default function ChatPanel({
               {slow ? (lang === "es" ? "Está tardando un poco más de lo normal; sigo trabajando y te respondo aquí." : "This is taking a bit longer than usual; I'm still working and will answer here.") : texts.thinking}
             </div>
           )}
+          {composerInline && (
+            <div className="pt-2">
+              {chipRow}
+              {composer}
+              {footnote}
+            </div>
+          )}
         </div>
       </div>
+      {!composerInline && (
       <div className="shrink-0 px-4 md:px-6 pt-1 md:pt-0 pb-3">
         <div className="max-w-[760px] mx-auto">
           {dock && (
@@ -804,6 +816,7 @@ export default function ChatPanel({
           {footnote}
         </div>
       </div>
+      )}
     </div>
 
     {/* Wide screens: the project's card stays beside the conversation */}
