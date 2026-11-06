@@ -16,6 +16,60 @@ const SOFT = "#ECFDF3"; // light green behind the illustration
 const DEEP_GREEN = "#14532D";
 const LINE = "rgba(10,10,10,0.10)";
 
+// Where each question belongs, and why it's asked (people answer better when
+// they know what an answer is for).
+const GROUP: Record<string, { es: string; en: string }> = {
+  talent: { es: "Sobre ti", en: "About you" },
+  experience: { es: "Sobre ti", en: "About you" },
+  likes: { es: "Sobre ti", en: "About you" },
+  notWant: { es: "Tus límites", en: "Your limits" },
+  resources: { es: "Tu situación", en: "Your situation" },
+  time: { es: "Tu situación", en: "Your situation" },
+  delivery: { es: "Tu situación", en: "Your situation" },
+  income: { es: "Tu meta", en: "Your goal" },
+  service: { es: "Tu negocio hoy", en: "Your business today" },
+  prices: { es: "Tu negocio hoy", en: "Your business today" },
+  costs: { es: "Tu negocio hoy", en: "Your business today" },
+  hours: { es: "Tu negocio hoy", en: "Your business today" },
+  clients: { es: "Tus clientes", en: "Your customers" },
+  assets: { es: "Tus recursos", en: "Your resources" },
+  goal: { es: "Tu meta", en: "Your goal" },
+};
+const WHY: Record<string, { es: string; en: string }> = {
+  talent: { es: "Lo que ya te sale bien es lo más rápido de cobrar.", en: "What you're already good at is the fastest to charge for." },
+  experience: { es: "Tus trabajos esconden habilidades que se pueden vender.", en: "Your jobs hide skills people pay for." },
+  likes: { es: "Un servicio que disfrutas es uno que vas a sostener.", en: "A service you enjoy is one you'll keep doing." },
+  notWant: { es: "Nada de lo que pongas aquí aparecerá en tus ideas.", en: "Nothing you put here will show up in your ideas." },
+  resources: { es: "Así busco ideas que puedas empezar con lo que ya tienes.", en: "So I look for ideas you can start with what you have." },
+  time: { es: "Así calculo cuánto podrías ganar con tus horas.", en: "So I can work out what you could earn with your hours." },
+  delivery: { es: "Así busco precios y clientes reales de tu zona.", en: "So I find real prices and customers in your area." },
+  income: { es: "Así sé qué ideas llegan a tu meta.", en: "So I know which ideas reach your goal." },
+  service: { es: "Así investigo tu mercado exacto.", en: "So I research your exact market." },
+  prices: { es: "Tus precios se respetan; nunca los cambio sin tu OK.", en: "Your prices are kept; I never change them without your OK." },
+  costs: { es: "Así sé cuánto te queda de verdad.", en: "So I know what you really keep." },
+  hours: { es: "Así calculo cuánto puedes crecer.", en: "So I can work out how much you can grow." },
+  clients: { es: "Así sé a quién venderle más.", en: "So I know who to sell more to." },
+  assets: { es: "Así aprovecho lo que ya tienes.", en: "So I make the most of what you have." },
+  goal: { es: "Toda la estrategia apunta a esto.", en: "The whole strategy aims at this." },
+};
+
+// Sevrii's mark: the logo file as a mask, painted in any colour.
+function SevriiMark({ size = 18, color = INK }: { size?: number; color?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block shrink-0"
+      style={{
+        width: size * 0.76,
+        height: size,
+        background: color,
+        WebkitMask: "url('/assets/sevrii-logo.png') center / contain no-repeat",
+        mask: "url('/assets/sevrii-logo.png') center / contain no-repeat",
+      }}
+    />
+  );
+}
+
 const fold = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 const partsOf = (v: string) => v.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
 
@@ -80,8 +134,26 @@ export default function CardFlow({
   const field = { background: "#FFFFFF", boxShadow: `inset 0 0 0 1px ${LINE}`, color: INK } as const;
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto mx-2 md:mx-4 mb-2 md:mb-4 rounded-[28px]" style={{ background: PAGE }}>
+    <div
+      className="flex-1 min-h-0 overflow-y-auto mx-2 md:mx-4 mb-2 md:mb-4 rounded-[28px]"
+      style={{ background: `radial-gradient(120% 60% at 50% 0%, #EAF7EF 0%, ${PAGE} 55%)` }}
+    >
       <div className="max-w-[680px] mx-auto px-4 md:px-6 py-6 md:py-10 flex flex-col gap-6">
+        {/* Brand line: who is asking and what for */}
+        <div className="flex items-center gap-3">
+          <span className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ background: INK }}>
+            <SevriiMark size={20} color="#FFFFFF" />
+          </span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[14.5px] font-semibold leading-tight" style={{ color: INK }}>
+              {es ? "Cerebro de Sevrii" : "Sevrii Brain"}
+            </span>
+            <span className="text-[12.5px] leading-tight" style={{ color: "#52525B" }}>
+              {mode === "new" ? (es ? "Descubramos qué servicio puedes ofrecer" : "Let's find the service you can offer") : es ? "Armemos la estrategia de tu servicio" : "Let's build your service strategy"}
+            </span>
+          </div>
+        </div>
+
         {/* Progress: "Pregunta 1 de 8" and one dot per question */}
         <div className="flex flex-col gap-3">
           <div className="flex items-baseline justify-between gap-3">
@@ -113,11 +185,33 @@ export default function CardFlow({
         </div>
 
         {/* The card */}
-        <div className="rounded-[28px] bg-white p-6 md:p-10 flex flex-col gap-7" style={{ boxShadow: "0 1px 2px rgba(10,10,10,0.04), 0 18px 40px -22px rgba(10,10,10,0.22)" }}>
+        <div
+          key={def.id}
+          className="relative overflow-hidden rounded-[28px] bg-white p-6 md:p-10 flex flex-col gap-7"
+          style={{ boxShadow: "0 1px 2px rgba(10,10,10,0.04), 0 24px 48px -26px rgba(10,10,10,0.28)", animation: "dash-fade .35s ease both" }}
+        >
+          {/* A thin green line on top: Sevrii's accent */}
+          <span aria-hidden="true" className="absolute left-0 right-0 top-0 h-1" style={{ background: "linear-gradient(90deg, #16A34A, #4ADE80)" }} />
           <div className="flex flex-col gap-4">
-            <span className="h-14 w-14 rounded-full flex items-center justify-center" style={{ background: SOFT, color: DEEP_GREEN }} aria-hidden="true">
-              <CardIcon id={def.id} />
-            </span>
+            <div className="flex items-start justify-between gap-3">
+              <span className="relative h-16 w-16 shrink-0" aria-hidden="true">
+                <span className="absolute inset-0 rounded-[20px]" style={{ background: "#BBF7D0", transform: "rotate(-9deg) translate(-3px, 2px)" }} />
+                <span className="absolute inset-0 rounded-[20px] flex items-center justify-center" style={{ background: "#FFFFFF", boxShadow: "inset 0 0 0 1px rgba(20,83,45,0.14)", color: DEEP_GREEN }}>
+                  <CardIcon id={def.id} />
+                </span>
+              </span>
+              <div className="flex flex-col items-end gap-1.5">
+                <span className="inline-flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-full text-[12px] font-semibold" style={{ background: INK, color: "#FFFFFF" }} title={es ? "Necesaria para buscar tus ideas" : "Needed to find your ideas"}>
+                  <SevriiMark size={14} color="#4ADE80" />
+                  {es ? "Necesaria" : "Needed"}
+                </span>
+                {GROUP[def.id] && (
+                  <span className="text-[11.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#71717A" }}>
+                    {GROUP[def.id][lang]}
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="flex flex-col gap-2">
               <h2 className="text-[24px] md:text-[28px] font-medium leading-[1.2] tracking-[-0.01em]" style={{ color: INK }}>
                 {def.title[lang]}
@@ -125,6 +219,17 @@ export default function CardFlow({
               <p className="text-[15px] leading-relaxed" style={{ color: "#52525B" }}>
                 {def.help[lang]}
               </p>
+              {WHY[def.id] && (
+                <p className="flex items-start gap-2 text-[13px] leading-relaxed rounded-xl px-3 py-2 mt-1" style={{ background: "#F7FBF8", color: DEEP_GREEN }}>
+                  <span aria-hidden="true" className="mt-[3px]">
+                    <SevriiMark size={13} color="#16A34A" />
+                  </span>
+                  <span>
+                    <b className="font-semibold">{es ? "Por qué te lo pregunto: " : "Why I ask: "}</b>
+                    {WHY[def.id][lang]}
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 
