@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
-import { BRAND_BTN, DEEP, GREEN as ACCENT } from "@/lib/panel";
+import { BRAND_BTN, GREEN as ACCENT } from "@/lib/panel";
 import { upgradeText, type LimitInfo } from "@/lib/upgrade";
 import { canListen, listenError, listenOnce, speakText, unlockSpeech } from "./speech";
 export type Msg = { id: string; role: string; content: string };
@@ -65,16 +65,76 @@ function Rich({ text }: { text: string }) {
   const parts = text.split(/\*\*([^*\n][^*]*?)\*\*/g);
   return (
     <>
-      {parts.map((p, i) => (i % 2 ? <strong key={i} className="font-medium text-pfg">{p}</strong> : p.replace(/(^|\s)\*([^*\n]+)\*(?=\s|$)/g, "$1$2")))}
+      {parts.map((p, i) => (i % 2 ? <strong key={i} className="font-semibold text-white">{p}</strong> : p.replace(/(^|\s)\*([^*\n]+)\*(?=\s|$)/g, "$1$2")))}
     </>
   );
 }
 
 const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mov|mp4|webm)$/i.test(f.name);
 
-// Clean chat in Sevrii's colors: light canvas, assistant text without
-// bubbles, the owner's messages in a deep green bubble, one rounded white
-// composer. Empty state = a centered question with the composer in the middle.
+// The chat lives on a dark green gradient (like an assistant side panel):
+// white text, translucent bubbles and a dark composer. Cards from the Brain,
+// Store or Marketing keep their own light surface.
+const SOFT = "rgba(255,255,255,0.92)";
+const DIM = "rgba(255,255,255,0.6)";
+const GLASS = { background: "rgba(255,255,255,0.07)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1)" } as const;
+const LIVE = "#4ADE80";
+
+// Sevrii's mark beside the assistant: still, or turning while it thinks or writes.
+function Mark({ size = 24, live = false }: { size?: number; live?: boolean }) {
+  return live ? (
+    <span className="sevrii-loader chat-mark-live" style={{ width: size, height: size }} aria-hidden="true">
+      <span className="sevrii-loader-ring" />
+      <span className="sevrii-loader-logo" />
+    </span>
+  ) : (
+    <span className="chat-mark" style={{ width: size, height: size }} aria-hidden="true" />
+  );
+}
+
+// A soft two-note sound when a reply arrives (Web Audio, no file). The
+// browser only plays it after the person has interacted (sending primes it).
+let audioCtx: AudioContext | null = null;
+function primeChime() {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    audioCtx ??= new AC();
+    if (audioCtx.state === "suspended") void audioCtx.resume();
+  } catch {
+    // No sound is fine.
+  }
+}
+function chime() {
+  const ctx = audioCtx;
+  if (!ctx || ctx.state !== "running") return;
+  try {
+    const now = ctx.currentTime;
+    for (const [freq, at] of [
+      [659.25, 0],
+      [987.77, 0.1],
+    ]) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + at);
+      gain.gain.exponentialRampToValueAtTime(0.06, now + at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.5);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + at);
+      osc.stop(now + at + 0.55);
+    }
+  } catch {
+    // No sound is fine.
+  }
+}
+
+// Sevrii's chat: a dark green gradient panel, Sevrii's mark beside each
+// reply (turning while it thinks or writes, with a soft sound when a reply
+// arrives), the owner's messages in a translucent bubble, a dark composer.
+// Empty state = the mark and a question in the middle, suggestions and the
+// composer at the bottom.
 // Used by Brain, Store and Marketing.
 export default function ChatPanel({
   greeting,
@@ -156,9 +216,11 @@ export default function ChatPanel({
   const waitingToType = (m: Msg) => !calm && !seen.current.has(m.id) && m.role !== "user" && !m.id.startsWith("local-") && m.id !== "greeting" && m.content !== greeting && !(typeof document !== "undefined" && document.hidden);
   useEffect(() => {
     const fresh: string[] = [];
+    let arrived = false;
     for (const m of messages) {
       if (seen.current.has(m.id)) continue;
       seen.current.add(m.id);
+      if (m.role !== "user" && !m.id.startsWith("local-") && m.id !== "greeting" && m.content !== greeting) arrived = true;
       // The greeting, once saved, comes back with a new id: it was already
       // on screen, so it is never written again.
       if (m.role === "user" || m.id.startsWith("local-") || m.id === "greeting" || calm || m.content === greeting) continue;
@@ -167,6 +229,7 @@ export default function ChatPanel({
       if (typeof document !== "undefined" && document.hidden) continue;
       fresh.push(m.id);
     }
+    if (arrived && typeof document !== "undefined" && !document.hidden) chime();
     if (!fresh.length) return;
     revealOrder.current.push(...fresh);
     setReveal((r) => ({ ...r, ...Object.fromEntries(fresh.map((id) => [id, 0])) }));
@@ -281,6 +344,7 @@ export default function ChatPanel({
 
   function pickChip(c: ChatChip) {
     if (busy) return;
+    primeChime();
     if (c.upload) {
       openPicker();
       return;
@@ -361,6 +425,7 @@ export default function ChatPanel({
 
   function send(text: string) {
     if (busy || !text.trim()) return;
+    primeChime();
     setInput("");
     post(text);
   }
@@ -506,16 +571,16 @@ export default function ChatPanel({
   // Shown while a photo or video uploads, also in an empty chat.
   const uploadRow = uploading && (
     <div className="flex justify-end" role="status" aria-live="polite">
-      <div className="w-[240px] max-w-[78%] rounded-3xl px-5 py-3 flex flex-col gap-2 bg-pcard" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06)" }}>
-        <div className="flex items-center justify-between gap-3 text-[14px] text-pfg2">
+      <div className="w-[240px] max-w-[78%] rounded-3xl px-5 py-3 flex flex-col gap-2" style={GLASS}>
+        <div className="flex items-center justify-between gap-3 text-[14px]" style={{ color: SOFT }}>
           <span className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full animate-pulse shrink-0" style={{ background: ACCENT }} />
             {uploading.video ? texts.uploadingVideo ?? texts.attach : texts.uploadingPhoto ?? texts.attach}
           </span>
-          {uploading.video && <span className="tabular-nums text-psub">{uploading.pct}%</span>}
+          {uploading.video && <span className="tabular-nums" style={{ color: DIM }}>{uploading.pct}%</span>}
         </div>
         {uploading.video && (
-          <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(10,10,10,0.085)" }}>
+          <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.12)" }}>
             <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${uploading.pct}%`, background: ACCENT }} />
           </div>
         )}
@@ -523,18 +588,23 @@ export default function ChatPanel({
     </div>
   );
 
+  const chipClass = "tap shrink-0 h-10 px-4 rounded-full text-[14px] text-white bg-white/[0.07] hover:bg-white/[0.14] transition disabled:opacity-40 whitespace-nowrap";
   const chipRow =
     chips && chips.length > 0 && !locked ? (
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {chips.map((c) => (
-          <button
-            key={c.label}
-            type="button"
-            disabled={busy}
-            onClick={() => pickChip(c)}
-            className="tap shrink-0 h-9 px-4 rounded-full text-[13.5px] font-medium text-pfg bg-pcard hover:bg-pfg hover:text-white transition disabled:opacity-40 whitespace-nowrap"
-            style={{ boxShadow: "0 1px 2px rgba(10,10,10,.05), 0 0 0 1px rgba(10,10,10,.08)" }}
-          >
+          <button key={c.label} type="button" disabled={busy} onClick={() => pickChip(c)} className={chipClass}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+    ) : null;
+  // Empty chat: the suggestions stacked, like an assistant's first screen.
+  const chipStack =
+    chips && chips.length > 0 && !locked ? (
+      <div className="flex flex-col items-start gap-2 pb-3">
+        {chips.slice(0, 4).map((c) => (
+          <button key={c.label} type="button" disabled={busy} onClick={() => pickChip(c)} className={chipClass}>
             {c.label}
           </button>
         ))}
@@ -544,31 +614,31 @@ export default function ChatPanel({
   const composer = locked ? (
     <div className="w-full">
       <div
-        className="flex items-start gap-3 rounded-[24px] px-5 py-4 text-[15px] text-pfg2"
-        style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.16), 0 0 0 1px rgba(10,10,10,.06)" }}
+        className="chat-surface flex items-start gap-3 text-[15px] text-pfg2"
+        style={{ padding: "16px 20px", boxShadow: "0 18px 40px -20px rgba(0,0,0,.6)" }}
       >
-        <span className="h-2.5 w-2.5 mt-[7px] rounded-full animate-pulse shrink-0" style={{ background: ACCENT }} />
+        <span className="mt-0.5"><Mark size={22} live /></span>
         {locked}
       </div>
     </div>
   ) : (
     <div className="w-full">
       {limit && <UpgradeCard limit={limit} lang={lang} onPlans={onPlans} onLater={() => setLimit(null)} />}
-      {error && <p className="text-[13px] text-red-600 mb-2 px-4">{error}</p>}
+      {error && <p className="text-[13px] mb-2 px-4" style={{ color: "#FCA5A5" }}>{error}</p>}
       {context && (
         <div className="flex mb-2">
-          <span className="inline-flex items-center gap-2 h-8 pl-3.5 pr-1.5 rounded-full bg-pcard text-[13px] text-pfg max-w-full" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.08)" }}>
-            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: ACCENT }} />
+          <span className="inline-flex items-center gap-2 h-8 pl-3.5 pr-1.5 rounded-full text-[13px] text-white max-w-full" style={GLASS}>
+            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: LIVE }} />
             <span className="truncate">{context.label}</span>
-            <button type="button" onClick={context.onClear} className="h-6 w-6 rounded-full flex items-center justify-center text-pmuted hover:bg-black/10" aria-label={lang === "es" ? "Quitar" : "Remove"}>
+            <button type="button" onClick={context.onClear} className="h-6 w-6 rounded-full flex items-center justify-center text-white/60 hover:bg-white/10" aria-label={lang === "es" ? "Quitar" : "Remove"}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </span>
         </div>
       )}
       {voice && (listening || sending) && (
-        <p className="text-[13px] text-psub mb-2 px-4 flex items-center gap-2" role="status" aria-live="polite">
-          <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: ACCENT }} />
+        <p className="text-[13px] mb-2 px-4 flex items-center gap-2" style={{ color: DIM }} role="status" aria-live="polite">
+          <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: LIVE }} />
           {listening
             ? lang === "es"
               ? "Te escucho… habla y toca el micrófono cuando termines."
@@ -579,8 +649,8 @@ export default function ChatPanel({
         </p>
       )}
       <form
-        className="flex items-end gap-1.5 rounded-[26px] md:rounded-[28px] px-2 md:px-2.5 py-2 md:py-2.5"
-        style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.18), 0 0 0 1px rgba(10,10,10,.06)" }}
+        className="chat-composer flex items-end gap-1.5 rounded-[26px] md:rounded-[28px] px-2 md:px-2.5 py-2 md:py-2.5"
+        style={{ background: "rgba(10,20,14,0.72)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1), 0 18px 40px -20px rgba(0,0,0,.7)", backdropFilter: "blur(12px)" }}
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
@@ -592,7 +662,7 @@ export default function ChatPanel({
             type="button"
             onClick={openPicker}
             disabled={busy}
-            className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-pfg2 hover:bg-black/10 active:bg-black/15 transition disabled:opacity-40"
+            className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-white/80 hover:bg-white/10 active:bg-white/15 transition disabled:opacity-40"
             title={texts.attach}
             aria-label={texts.attach}
           >
@@ -619,7 +689,7 @@ export default function ChatPanel({
           ref={inputRef}
           rows={1}
           autoFocus={empty}
-          className="flex-1 min-w-0 bg-transparent outline-none resize-none text-[16px] leading-[1.5] text-pfg placeholder:text-pmuted py-2 max-h-[200px]"
+          className="flex-1 min-w-0 bg-transparent outline-none resize-none text-[16px] leading-[1.5] text-white placeholder:text-white/45 py-2 max-h-[200px]"
           placeholder={texts.placeholder}
           value={input}
           maxLength={2000}
@@ -639,8 +709,8 @@ export default function ChatPanel({
             aria-pressed={speakOn}
             aria-label={speakLabel}
             title={speakLabel}
-            className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-full flex items-center justify-center transition hover:bg-black/10"
-            style={speakOn ? { color: ACCENT } : { color: "#71717A" }}
+            className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-full flex items-center justify-center transition hover:bg-white/10"
+            style={speakOn ? { color: LIVE } : { color: "rgba(255,255,255,0.55)" }}
           >
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M11 5 6 9H3v6h3l5 4z" />
@@ -657,7 +727,7 @@ export default function ChatPanel({
             aria-label={micLabel}
             title={micLabel}
             className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-full flex items-center justify-center transition disabled:opacity-40"
-            style={listening ? { background: ACCENT, color: "#fff" } : { color: "#3F3F46" }}
+            style={listening ? { background: LIVE, color: "#052E16" } : { color: "rgba(255,255,255,0.8)" }}
           >
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="9" y="3" width="6" height="11" rx="3" />
@@ -670,7 +740,7 @@ export default function ChatPanel({
           aria-label={lang === "es" ? "Enviar" : "Send"}
           title={lang === "es" ? "Enviar" : "Send"}
           className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition"
-          style={canSend ? BRAND_BTN : { background: "#F0F0ED", color: "#A1A1AA" }}
+          style={canSend ? { background: "#fff", color: "#0A0A0A" } : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)" }}
           disabled={!canSend}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -679,7 +749,7 @@ export default function ChatPanel({
         </button>
       </form>
       {pickHint && !uploading && (
-        <p className="text-[12.5px] text-psub px-4 pt-2" role="status" aria-live="polite">
+        <p className="text-[12.5px] px-4 pt-2" style={{ color: DIM }} role="status" aria-live="polite">
           {lang === "es" ? "Elige una foto o un video en la ventana que se abrió. Se sube aquí y lo pongo en tu página." : "Pick a photo or video in the window that opened. It uploads here and I put it on your page."}
         </p>
       )}
@@ -687,12 +757,12 @@ export default function ChatPanel({
   );
 
   const footnote = (
-    <p className="text-center text-[11.5px] md:text-[12px] text-pmuted pt-2 md:pt-2.5 px-2 md:px-4">
+    <p className="text-center text-[11.5px] md:text-[12px] pt-2 md:pt-2.5 px-2 md:px-4" style={{ color: "rgba(255,255,255,0.42)" }}>
       {texts.disclaimer}
       {texts.seeBelow && texts.seeBelowHref && (
         <>
           {" "}
-          <a href={texts.seeBelowHref} className="underline underline-offset-2 hover:text-pfg">
+          <a href={texts.seeBelowHref} className="underline underline-offset-2 hover:text-white">
             {texts.seeBelow}
           </a>
         </>
@@ -702,14 +772,18 @@ export default function ChatPanel({
 
   if (empty) {
     return (
-      <div className="dash-panel flex-1 min-h-0 flex flex-col items-center px-4 overflow-y-auto mx-2 md:mx-4 mb-2 md:mb-4">
-        <div className="w-full max-w-[760px] my-auto py-4 md:py-0 flex flex-col items-center gap-6 md:gap-8">
-          <div className="text-center flex flex-col gap-3">
-            <h1 className="text-[24px] md:text-[32px] leading-tight font-medium tracking-[-0.02em] text-pfg">{texts.emptyTitle}</h1>
-            <p className="text-[15px] text-psub max-w-[560px]">{texts.emptySub}</p>
+      <div className="dash-panel chat-dark flex-1 min-h-0 flex flex-col px-4 overflow-y-auto mx-2 md:mx-4 mb-2 md:mb-4">
+        <div className="w-full max-w-[760px] mx-auto flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-10">
+            <Mark size={52} />
+            <h1 className="text-[26px] md:text-[34px] leading-tight font-normal tracking-[-0.02em] text-white">{texts.emptyTitle}</h1>
+            <p className="text-[15px] max-w-[520px]" style={{ color: DIM }}>{texts.emptySub}</p>
           </div>
-          {uploadRow && <div className="w-full px-1">{uploadRow}</div>}
-          {composer}
+          <div className="pb-3 md:pb-4">
+            {uploadRow && <div className="w-full px-1 pb-3">{uploadRow}</div>}
+            {chipStack}
+            {composer}
+          </div>
         </div>
       </div>
     );
@@ -719,13 +793,16 @@ export default function ChatPanel({
   return (
     <div className="flex-1 min-h-0 flex">
     {/* The conversation is a white panel on the dark page */}
-    <div className="dash-panel flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden mx-2 md:ml-4 md:mr-3 mb-2 md:mb-4">
+    <div className="dash-panel chat-dark flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden mx-2 md:ml-4 md:mr-3 mb-2 md:mb-4">
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <div className="max-w-[760px] mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-10 md:pb-14 flex flex-col gap-6 md:gap-7">
-          {head}
+          {head && <div className="chat-surface">{head}</div>}
           {messages.length === 0 && greeting && (
-            <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words" style={{ color: "#0A0A0A" }}>
-              {greeting}
+            <div className="min-w-0 flex flex-col gap-2.5">
+              <Mark />
+              <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words" style={{ color: SOFT }}>
+                {greeting}
+              </div>
             </div>
           )}
           {messages.map((m, mi) => {
@@ -741,7 +818,7 @@ export default function ChatPanel({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photo[1]} alt="" className="max-w-[min(240px,85%)] md:max-w-[240px] rounded-3xl" />
                   ) : (
-                    <div className="max-w-[85%] md:max-w-[78%] rounded-3xl px-4 md:px-5 py-2.5 md:py-3 text-[15px] md:text-[15.5px] leading-[1.55] md:leading-[1.6] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ background: DEEP, color: "#fff" }}>
+                    <div className="max-w-[85%] md:max-w-[78%] rounded-3xl rounded-tr-lg px-4 md:px-5 py-2.5 md:py-3 text-[15px] md:text-[15.5px] leading-[1.55] md:leading-[1.6] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ background: "rgba(255,255,255,0.1)", color: "#fff" }}>
                       {m.content}
                     </div>
                   )}
@@ -761,27 +838,30 @@ export default function ChatPanel({
             const card = !typing && tk && renderToken ? renderToken({ kind: tk[1], arg: tk[2] ?? "", msgId: m.id }) : null;
             if (!text && !card && !typing) return null;
             return (
-              <div key={m.id} className="min-w-0 flex flex-col gap-3.5">
+              <div key={m.id} className="min-w-0 flex flex-col gap-3.5" style={typing ? { animation: "dash-fade .3s ease both" } : undefined}>
                 {(text || typing) && (
-                  <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: "#0A0A0A" }} aria-busy={typing || undefined}>
-                    <Rich text={text} />
-                    {typing && <span className="inline-block w-[7px] h-[1.05em] ml-0.5 align-[-0.15em] rounded-sm animate-pulse" style={{ background: ACCENT }} aria-hidden="true" />}
+                  <div className="min-w-0 flex flex-col gap-2.5">
+                    <Mark live={typing} />
+                    <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: SOFT }} aria-busy={typing || undefined}>
+                      <Rich text={text} />
+                      {typing && <span className="inline-block w-[7px] h-[1.05em] ml-0.5 align-[-0.15em] rounded-sm animate-pulse" style={{ background: LIVE }} aria-hidden="true" />}
+                    </div>
                   </div>
                 )}
-                {card && <div style={{ animation: "dash-fade .35s ease both" }}>{card}</div>}
+                {card && (
+                  <div className="chat-surface" style={{ animation: "dash-fade .35s ease both" }}>
+                    {card}
+                  </div>
+                )}
               </div>
             );
           })}
           {/* What follows a reply (e.g. the part to review) shows once the reply is written. */}
-          {!revealing && tail}
+          {!revealing && tail && <div className="chat-surface">{tail}</div>}
           {uploadRow}
           {waiting && (
-            <div className="flex items-center gap-2.5 min-h-6 text-[14px] text-psub" role="status" aria-live="polite">
-              <span className="flex items-center gap-1" aria-hidden="true">
-                {[0, 1, 2].map((i) => (
-                  <span key={i} className="h-2 w-2 rounded-full animate-bounce" style={{ background: ACCENT, animationDelay: `${i * 140}ms`, animationDuration: "1s" }} />
-                ))}
-              </span>
+            <div className="flex items-center gap-3 min-h-6 text-[14px]" style={{ color: DIM }} role="status" aria-live="polite">
+              <Mark size={28} live />
               {slow ? (lang === "es" ? "Está tardando un poco más de lo normal; sigo trabajando y te respondo aquí." : "This is taking a bit longer than usual; I'm still working and will answer here.") : texts.thinking}
             </div>
           )}
@@ -801,12 +881,12 @@ export default function ChatPanel({
             <button
               type="button"
               onClick={() => setDockOpen(true)}
-              className="lg:hidden w-full mb-2 h-12 px-4 rounded-full bg-pcard flex items-center gap-3 text-left"
-              style={{ boxShadow: "0 1px 2px rgba(10,10,10,.05), 0 0 0 1px rgba(10,10,10,.08)" }}
+              className="lg:hidden w-full mb-2 h-12 px-4 rounded-full flex items-center gap-3 text-left"
+              style={GLASS}
             >
-              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: ACCENT }} />
-              <span className="grow min-w-0 truncate text-[14.5px] font-medium text-pfg">{label}</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pmuted shrink-0" aria-hidden="true">
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: LIVE }} />
+              <span className="grow min-w-0 truncate text-[14.5px] font-medium text-white">{label}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/60 shrink-0" aria-hidden="true">
                 <path d="M6 15l6-6 6 6" />
               </svg>
             </button>
