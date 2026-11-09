@@ -33,7 +33,8 @@ const FILLS = [
 const TEXT = {
   es: {
     hello: (n: string) => (n ? `Hola, ${n}` : "Hola"),
-    sub: (p: string) => `Esto es lo que sigue en ${p}.`,
+    sub: "Estos son tus proyectos.",
+    nextHead: "Esto es lo que sigue.",
     continue: "Continuar",
     next: {
       chats: (n: number) => (n === 1 ? "Tienes 1 chat sin leer" : `Tienes ${n} chats sin leer`),
@@ -57,8 +58,6 @@ const TEXT = {
     views: "Visitas",
     contacts: "Contactos",
     unread: "Chats sin leer",
-    projects: "Tus proyectos",
-    projectsSub: "Cada uno es un servicio que vendes.",
     edit: "Editar",
     done: "Listo",
     open: "Abierto",
@@ -67,7 +66,8 @@ const TEXT = {
   },
   en: {
     hello: (n: string) => (n ? `Hi, ${n}` : "Hi"),
-    sub: (p: string) => `Here's what's next for ${p}.`,
+    sub: "Here are your projects.",
+    nextHead: "Here's what's next.",
     continue: "Continue",
     next: {
       chats: (n: number) => (n === 1 ? "You have 1 unread chat" : `You have ${n} unread chats`),
@@ -90,8 +90,6 @@ const TEXT = {
     views: "Visits",
     contacts: "Contacts",
     unread: "Unread chats",
-    projects: "Your projects",
-    projectsSub: "Each one is a service you sell.",
     edit: "Edit",
     done: "Done",
     open: "Open",
@@ -100,8 +98,9 @@ const TEXT = {
   },
 };
 
-// Inicio: a greeting, the one next step, how far the project is, its numbers,
-// and every project as a photo card. The tools live in the side menu.
+// Inicio: the greeting and every project first (as photo cards), then what's
+// next in the open one: its next step, how far it is and its numbers. The tools
+// live in the side menu.
 export default function ProjectsView({
   projects,
   activeId,
@@ -161,11 +160,137 @@ export default function ProjectsView({
   return (
     <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen">
       <div className="max-w-[1120px] mx-auto px-4 md:px-10 pt-5 md:pt-14 pb-12 md:pb-20 flex flex-col gap-5 md:gap-6">
-        {/* Greeting */}
-        <header className="dash-on-dark pt-1 pb-2 md:pb-4">
-          <h1 className="p-display">{tx.hello(name)}</h1>
-          <p className="p-display p-display-sub mt-0.5">{tx.sub(business.name)}</p>
+        {/* Greeting + the projects, first */}
+        <header className="flex items-end justify-between gap-3 pt-1 pb-1 md:pb-2">
+          <div className="dash-on-dark min-w-0">
+            <h1 className="p-display">{tx.hello(name)}</h1>
+            <p className="p-display p-display-sub mt-0.5">{tx.sub}</p>
+          </div>
+          {projects.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditing((e) => !e);
+                setConfirmId(null);
+              }}
+              className={`p-chip shrink-0 ${editing ? "on" : ""}`}
+            >
+              {editing ? tx.done : tx.edit}
+            </button>
+          )}
         </header>
+
+        <section className="flex flex-col gap-4">
+          {confirmId && (
+            <div className="p-card p-5 flex flex-col gap-3" role="alertdialog">
+              <span className="text-[17px] font-medium text-pfg break-words">{pt.deleteAsk(projects.find((p) => p.id === confirmId)?.name ?? "")}</span>
+              <span className="text-[14px] text-pmuted leading-relaxed break-words whitespace-normal">{pt.deleteWarn}</span>
+              {deleteError && <span className="text-[13px] text-red-600">{deleteError}</span>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() =>
+                    start(async () => {
+                      setDeleteError("");
+                      const res = await deleteProjectAction(confirmId);
+                      if (res?.error) setDeleteError(res.error === "invalid" ? pt.deleteFailed : res.error);
+                      else setConfirmId(null);
+                    })
+                  }
+                  className="p-btn sm"
+                  style={{ background: "#B42318" }}
+                >
+                  {pending ? pt.deleting : pt.deleteYes}
+                </button>
+                <button type="button" onClick={() => setConfirmId(null)} className="p-btn sm light" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.1)" }}>
+                  {pt.cancel}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className={`p-rail -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 xl:grid-cols-4 md:gap-5 md:overflow-visible md:pb-0 ${pending ? "opacity-60 pointer-events-none" : ""}`}>
+            {shown.map((p, idx) => {
+              const isOpen = p.id === activeId;
+              return (
+                <div key={p.id} className="relative w-[248px] md:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => (isOpen ? onNavigate("plan") : start(() => switchProjectAction(p.id)))}
+                    className="group relative block w-full h-[300px] md:h-[280px] rounded-[28px] overflow-hidden text-left transition hover:-translate-y-0.5"
+                    style={{ boxShadow: isOpen ? `0 0 0 2.5px ${GREEN}` : "0 10px 30px -14px rgba(10,10,10,.25)" }}
+                  >
+                    {p.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: FILLS[projects.indexOf(p) % FILLS.length] ?? FILLS[idx % FILLS.length] }}>
+                        <span className="text-[56px] font-medium tracking-[-0.04em] text-white/90">{initials(p.name)}</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.62) 100%)" }} />
+                    <span className="absolute top-4 left-4 flex gap-1.5">
+                      <Tag>{p.published ? tx.pageLive : tx.pageDraft}</Tag>
+                      {isOpen && <Tag green>{tx.open}</Tag>}
+                    </span>
+                    <span className="absolute left-5 right-5 bottom-5 flex flex-col gap-0.5 text-white">
+                      <span className="text-[13px] opacity-85 truncate">{p.planService || p.category}</span>
+                      <span className="text-[24px] leading-[1.1] font-medium tracking-[-0.02em] break-words line-clamp-2">{p.name}</span>
+                      <span className="text-[13px] opacity-85 mt-1">
+                        {`${p.pageViews} ${pt.views} · ${pt.services(p.services)}`}
+                      </span>
+                    </span>
+                  </button>
+                  {/* Every project can be deleted, the open one too (with the same confirmation). */}
+                  {editing && (
+                    <button
+                      type="button"
+                      aria-label={pt.delete}
+                      onClick={() => {
+                        setDeleteError("");
+                        setConfirmId(p.id);
+                      }}
+                      className="absolute top-3 right-3 h-9 w-9 rounded-full bg-white text-pfg flex items-center justify-center shadow"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {atLimit && projectLimit >= MAX_PROJECTS ? (
+              <div className="w-[248px] md:w-auto h-[300px] md:h-[280px] p-card p-6 flex items-center justify-center text-center text-[15px] text-pmuted">{pt.limit}</div>
+            ) : atLimit ? (
+              <button type="button" onClick={() => onNavigate("plans")} className="w-[248px] md:w-auto h-[300px] md:h-[280px] p-card p-6 flex flex-col items-center justify-center gap-3 text-center">
+                <span className="h-14 w-14 rounded-full bg-psoft flex items-center justify-center">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="9" rx="2" />
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                  </svg>
+                </span>
+                <span className="text-[18px] font-medium text-pfg">{lk.projectsLocked(projectLimit)}</span>
+                <span className="text-[14px] text-pmuted">{lk.projectsLockedSub}</span>
+                <span className="p-btn sm mt-1">{lk.seePlans}</span>
+              </button>
+            ) : (
+              <a href="/start?new=1" className="w-[248px] md:w-auto h-[300px] md:h-[280px] p-card p-6 flex flex-col items-center justify-center gap-3 text-center transition hover:-translate-y-0.5">
+                <span className="h-14 w-14 rounded-full bg-pfg text-white flex items-center justify-center text-[28px] leading-none">+</span>
+                <span className="text-[19px] font-medium text-pfg">{pt.newProject}</span>
+                <span className="text-[14px] text-pmuted px-2">{pt.newProjectSub}</span>
+              </a>
+            )}
+          </div>
+        </section>
+
+        {/* Below: what's next in the open project */}
+        <div className="dash-on-dark pt-6 md:pt-10">
+          <h2 className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfg break-words">{business.name}</h2>
+          <p className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfaint">{tx.nextHead}</p>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-5 md:gap-6">
           {/* Pick up where you left off */}
@@ -215,132 +340,6 @@ export default function ProjectsView({
           <Stat label={tx.views} value={business.pageViews} />
           <Stat label={tx.contacts} value={contacts} />
           <Stat label={tx.unread} value={unreadChats} accent={unreadChats > 0} onClick={() => onNavigate("chats")} />
-        </section>
-
-        {/* Projects */}
-        <section className="pt-6 md:pt-10 flex flex-col gap-4">
-          <div className="flex items-end justify-between gap-3">
-            <div className="dash-on-dark min-w-0">
-              <h2 className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfg">{tx.projects}</h2>
-              <p className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfaint">{tx.projectsSub}</p>
-            </div>
-            {projects.length > 1 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing((e) => !e);
-                  setConfirmId(null);
-                }}
-                className={`p-chip shrink-0 ${editing ? "on" : ""}`}
-              >
-                {editing ? tx.done : tx.edit}
-              </button>
-            )}
-          </div>
-
-          {confirmId && (
-            <div className="p-card p-5 flex flex-col gap-3" role="alertdialog">
-              <span className="text-[17px] font-medium text-pfg break-words">{pt.deleteAsk(projects.find((p) => p.id === confirmId)?.name ?? "")}</span>
-              <span className="text-[14px] text-pmuted leading-relaxed break-words whitespace-normal">{pt.deleteWarn}</span>
-              {deleteError && <span className="text-[13px] text-red-600">{deleteError}</span>}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() =>
-                    start(async () => {
-                      setDeleteError("");
-                      const res = await deleteProjectAction(confirmId);
-                      if (res?.error) setDeleteError(res.error === "invalid" ? pt.deleteFailed : res.error);
-                      else setConfirmId(null);
-                    })
-                  }
-                  className="p-btn sm"
-                  style={{ background: "#B42318" }}
-                >
-                  {pending ? pt.deleting : pt.deleteYes}
-                </button>
-                <button type="button" onClick={() => setConfirmId(null)} className="p-btn sm light" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.1)" }}>
-                  {pt.cancel}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className={`p-rail -mx-4 px-4 md:mx-0 md:px-0 ${pending ? "opacity-60 pointer-events-none" : ""}`}>
-            {shown.map((p, idx) => {
-              const isOpen = p.id === activeId;
-              return (
-                <div key={p.id} className="relative w-[248px] md:w-[280px]">
-                  <button
-                    type="button"
-                    onClick={() => (isOpen ? onNavigate("plan") : start(() => switchProjectAction(p.id)))}
-                    className="group relative block w-full h-[320px] md:h-[352px] rounded-[28px] overflow-hidden text-left transition hover:-translate-y-0.5"
-                    style={{ boxShadow: isOpen ? `0 0 0 2.5px ${GREEN}` : "0 10px 30px -14px rgba(10,10,10,.25)" }}
-                  >
-                    {p.coverUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: FILLS[projects.indexOf(p) % FILLS.length] ?? FILLS[idx % FILLS.length] }}>
-                        <span className="text-[64px] font-medium tracking-[-0.04em] text-white/90">{initials(p.name)}</span>
-                      </div>
-                    )}
-                    <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.62) 100%)" }} />
-                    <span className="absolute top-4 left-4 flex gap-1.5">
-                      <Tag>{p.published ? tx.pageLive : tx.pageDraft}</Tag>
-                      {isOpen && <Tag green>{tx.open}</Tag>}
-                    </span>
-                    <span className="absolute left-5 right-5 bottom-5 flex flex-col gap-0.5 text-white">
-                      <span className="text-[13px] opacity-85 truncate">{p.planService || p.category}</span>
-                      <span className="text-[24px] leading-[1.1] font-medium tracking-[-0.02em] break-words line-clamp-2">{p.name}</span>
-                      <span className="text-[13px] opacity-85 mt-1">
-                        {`${p.pageViews} ${pt.views} · ${pt.services(p.services)}`}
-                      </span>
-                    </span>
-                  </button>
-                  {/* Every project can be deleted, the open one too (with the same confirmation). */}
-                  {editing && (
-                    <button
-                      type="button"
-                      aria-label={pt.delete}
-                      onClick={() => {
-                        setDeleteError("");
-                        setConfirmId(p.id);
-                      }}
-                      className="absolute top-3 right-3 h-9 w-9 rounded-full bg-white text-pfg flex items-center justify-center shadow"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                        <path d="M6 6l12 12M18 6L6 18" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-
-            {atLimit && projectLimit >= MAX_PROJECTS ? (
-              <div className="w-[248px] md:w-[280px] h-[320px] md:h-[352px] p-card p-6 flex items-center justify-center text-center text-[15px] text-pmuted">{pt.limit}</div>
-            ) : atLimit ? (
-              <button type="button" onClick={() => onNavigate("plans")} className="w-[248px] md:w-[280px] h-[320px] md:h-[352px] p-card p-6 flex flex-col items-center justify-center gap-3 text-center">
-                <span className="h-14 w-14 rounded-full bg-psoft flex items-center justify-center">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="5" y="11" width="14" height="9" rx="2" />
-                    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-                  </svg>
-                </span>
-                <span className="text-[18px] font-medium text-pfg">{lk.projectsLocked(projectLimit)}</span>
-                <span className="text-[14px] text-pmuted">{lk.projectsLockedSub}</span>
-                <span className="p-btn sm mt-1">{lk.seePlans}</span>
-              </button>
-            ) : (
-              <a href="/start?new=1" className="w-[248px] md:w-[280px] h-[320px] md:h-[352px] p-card p-6 flex flex-col items-center justify-center gap-3 text-center transition hover:-translate-y-0.5">
-                <span className="h-14 w-14 rounded-full bg-pfg text-white flex items-center justify-center text-[28px] leading-none">+</span>
-                <span className="text-[19px] font-medium text-pfg">{pt.newProject}</span>
-                <span className="text-[14px] text-pmuted px-2">{pt.newProjectSub}</span>
-              </a>
-            )}
-          </div>
         </section>
 
         <p className="sr-only">
