@@ -50,7 +50,7 @@ const TEXT = {
       runningSub: "Da el OK a cada campaña antes de lanzarla y mira sus resultados.",
     },
     progress: "Tu avance",
-    progressSub: (done: number, total: number) => `${done} de ${total} pasos · van en orden: cada uno cuenta cuando el anterior está listo`,
+    progressSub: (done: number, total: number) => `${done} de ${total} pasos`,
     // The real order: strategy → page → payments (to charge) → ads.
     steps: ["Estrategia lista", "Página publicada", "Pagos conectados", "Marketing aprobado"],
     early: (prev: string) => `Pendiente: cuenta cuando completes «${prev}»`,
@@ -59,24 +59,11 @@ const TEXT = {
     unread: "Chats sin leer",
     projects: "Tus proyectos",
     projectsSub: "Cada uno es un servicio que vendes.",
-    all: "Todos",
-    live: "Publicados",
-    draft: "En borrador",
     edit: "Editar",
     done: "Listo",
     open: "Abierto",
     pageLive: "Publicada",
     pageDraft: "Borrador",
-    explore: "Explora Sevrii",
-    exploreSub: "Todo para vender tu servicio.",
-    pillars: {
-      plan: ["Cerebro", "Tu oferta y tu estrategia, en una charla."],
-      store: ["Store", "Tu página y tu agente que atiende clientes."],
-      marketing: ["Marketing", "Tus anuncios en Facebook e Instagram."],
-      payments: ["Payments", "Cobra en tu página con tarjeta."],
-      affiliates: ["Afiliados", "Otros venden tu servicio por comisión."],
-    },
-    go: "Abrir",
   },
   en: {
     hello: (n: string) => (n ? `Hi, ${n}` : "Hi"),
@@ -97,7 +84,7 @@ const TEXT = {
       runningSub: "Give your OK to each campaign before it launches and see its results.",
     },
     progress: "Your progress",
-    progressSub: (done: number, total: number) => `${done} of ${total} steps · in order: each counts once the one before is done`,
+    progressSub: (done: number, total: number) => `${done} of ${total} steps`,
     steps: ["Strategy ready", "Page live", "Payments connected", "Marketing approved"],
     early: (prev: string) => `Pending: it counts once you complete "${prev}"`,
     views: "Visits",
@@ -105,29 +92,16 @@ const TEXT = {
     unread: "Unread chats",
     projects: "Your projects",
     projectsSub: "Each one is a service you sell.",
-    all: "All",
-    live: "Live",
-    draft: "Draft",
     edit: "Edit",
     done: "Done",
     open: "Open",
     pageLive: "Live",
     pageDraft: "Draft",
-    explore: "Explore Sevrii",
-    exploreSub: "Everything to sell your service.",
-    pillars: {
-      plan: ["Brain", "Your offer and your strategy, in one chat."],
-      store: ["Store", "Your page and the agent that serves customers."],
-      marketing: ["Marketing", "Your ads on Facebook and Instagram."],
-      payments: ["Payments", "Get paid by card on your page."],
-      affiliates: ["Affiliates", "Others sell your service for a commission."],
-    },
-    go: "Open",
   },
 };
 
 // Inicio: a greeting, the one next step, how far the project is, its numbers,
-// every project as a photo card and the pillars to explore.
+// and every project as a photo card. The tools live in the side menu.
 export default function ProjectsView({
   projects,
   activeId,
@@ -150,7 +124,6 @@ export default function ProjectsView({
   const tx = TEXT[lang];
   const lk = PLANS_TEXT[lang].lock;
   const [pending, start] = useTransition();
-  const [filter, setFilter] = useState<"all" | "live" | "draft">("all");
   const [editing, setEditing] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
@@ -181,7 +154,7 @@ export default function ProjectsView({
             ? { title: tx.next.marketing, sub: tx.next.marketingSub, view: "marketing" }
             : { title: tx.next.running, sub: tx.next.runningSub, view: "marketing" };
 
-  const shown = projects.filter((p) => (filter === "live" ? p.published : filter === "draft" ? !p.published : true));
+  const shown = projects;
   const cover = business.site.coverUrl || active?.coverUrl || "";
   const contacts = business.callClicks + business.textClicks + business.whatsappClicks;
 
@@ -246,16 +219,11 @@ export default function ProjectsView({
 
         {/* Projects */}
         <section className="pt-6 md:pt-10 flex flex-col gap-4">
-          <div className="dash-on-dark">
-            <h2 className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfg">{tx.projects}</h2>
-            <p className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfaint">{tx.projectsSub}</p>
-          </div>
-          <div className="p-rail -mx-4 px-4 md:mx-0 md:px-0">
-            {(["all", "live", "draft"] as const).map((k) => (
-              <button key={k} type="button" onClick={() => setFilter(k)} className={`p-chip ${filter === k ? "on" : ""}`}>
-                {tx[k]}
-              </button>
-            ))}
+          <div className="flex items-end justify-between gap-3">
+            <div className="dash-on-dark min-w-0">
+              <h2 className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfg">{tx.projects}</h2>
+              <p className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfaint">{tx.projectsSub}</p>
+            </div>
             {projects.length > 1 && (
               <button
                 type="button"
@@ -263,7 +231,7 @@ export default function ProjectsView({
                   setEditing((e) => !e);
                   setConfirmId(null);
                 }}
-                className={`p-chip ${editing ? "on" : ""}`}
+                className={`p-chip shrink-0 ${editing ? "on" : ""}`}
               >
                 {editing ? tx.done : tx.edit}
               </button>
@@ -375,48 +343,6 @@ export default function ProjectsView({
           </div>
         </section>
 
-        {/* Explore the pillars */}
-        <section className="pt-6 md:pt-10 flex flex-col gap-4">
-          <div className="dash-on-dark">
-            <h2 className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfg">{tx.explore}</h2>
-            <p className="text-[28px] md:text-[34px] leading-[1.1] font-medium tracking-[-0.025em] text-pfaint">{tx.exploreSub}</p>
-          </div>
-          <div className="p-rail -mx-4 px-4 md:mx-0 md:px-0">
-            {(
-              [
-                ["plan", { background: DEEP, color: "#fff" }],
-                ["store", { background: "#0A0A0A", color: "#fff" }],
-                ["marketing", { background: GREEN, color: "#fff" }],
-                ["payments", { background: "#fff", color: "#0A0A0A" }],
-                ["affiliates", { background: TINT, color: DEEP }],
-              ] as const
-            ).map(([id, style]) => {
-              const [title, line] = tx.pillars[id];
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => onNavigate(id)}
-                  className="w-[220px] md:w-[248px] h-[248px] md:h-[272px] rounded-[28px] p-5 md:p-6 flex flex-col justify-between text-left transition hover:-translate-y-0.5"
-                  style={{ ...style, boxShadow: "0 10px 30px -14px rgba(10,10,10,.22)" }}
-                >
-                  <PillarIcon id={id} />
-                  <span className="flex flex-col gap-1.5">
-                    <span className="text-[26px] leading-none font-medium tracking-[-0.02em]">{title}</span>
-                    <span className="text-[14.5px] leading-snug opacity-75">{line}</span>
-                    <span className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-medium">
-                      {tx.go}
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M9 6l6 6-6 6" />
-                      </svg>
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
         <p className="sr-only">
           {PLAN_TEXT[lang].nav.projects}: {projects.length}
         </p>
@@ -472,51 +398,6 @@ function Tag({ children, green = false }: { children: React.ReactNode; green?: b
   return (
     <span className="h-7 px-3 rounded-full text-[12.5px] font-medium flex items-center" style={green ? { background: GREEN, color: "#fff" } : { background: "rgba(255,255,255,.92)", color: "#0A0A0A" }}>
       {children}
-    </span>
-  );
-}
-
-function PillarIcon({ id }: { id: "plan" | "store" | "marketing" | "payments" | "affiliates" }) {
-  const d: Record<typeof id, React.ReactNode> = {
-    plan: (
-      <>
-        <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-        <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
-        <path d="M12 5v13" />
-      </>
-    ),
-    store: (
-      <>
-        <path d="M4 9l1-5h14l1 5" />
-        <path d="M4 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0" />
-        <path d="M5 9v11h14V9" />
-      </>
-    ),
-    marketing: (
-      <>
-        <path d="M3 17l6-6 4 4 8-8" />
-        <path d="M15 7h6v6" />
-      </>
-    ),
-    payments: (
-      <>
-        <rect x="2.5" y="6" width="19" height="13" rx="2" />
-        <path d="M2.5 10h19" />
-      </>
-    ),
-    affiliates: (
-      <>
-        <circle cx="8" cy="8" r="3" />
-        <circle cx="17" cy="15" r="3" />
-        <path d="M10.4 9.8l4.2 3.4" />
-      </>
-    ),
-  };
-  return (
-    <span className="h-12 w-12 rounded-full flex items-center justify-center" style={{ boxShadow: "inset 0 0 0 1.5px currentColor" }}>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        {d[id]}
-      </svg>
     </span>
   );
 }
