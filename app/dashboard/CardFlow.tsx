@@ -1,20 +1,27 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLang } from "@/components/LangProvider";
 import { cardDone, cardsFor, emptyAnswer, type CardAnswer, type CardAnswers } from "@/lib/cards";
+import { Mark, chime, primeChime } from "./chatLook";
 
 // The Brain's interview on cards: one question per card, in order, with its
 // progress, a search box that suggests while typing, "no sé" on every card that
 // allows it, and a way back that never loses an answer. Only when every card is
 // answered does the last button send them (the server checks it again).
-// Look: a light, calm screen (Sevrii's black, white and green, sans type).
+// Look: inside the chat, like every Sevrii chat (dark green gradient): the
+// questions already answered show as the conversation (question, then the
+// answer in a bubble) and the current question is the white card at the end.
 
 const INK = "#0A0A0A";
-const PAGE = "#F5F5F2"; // very light warm gray behind the card
-const SOFT = "#ECFDF3"; // light green behind the illustration
-const DEEP_GREEN = "#14532D";
-const LINE = "rgba(10,10,10,0.10)";
+// Glass on the chat's dark green gradient: no white boxes.
+const WHITE = "#FFFFFF";
+const TEXT2 = "rgba(255,255,255,0.68)";
+const TEXT3 = "rgba(255,255,255,0.5)";
+const MINT = "#BBF7D0";
+const LINE = "rgba(255,255,255,0.12)";
+const PILL = { background: "rgba(255,255,255,0.06)", color: WHITE, boxShadow: `inset 0 0 0 1px ${LINE}` } as const;
+const PILL_ON = { background: WHITE, color: INK, fontWeight: 600 } as const;
 
 // Where each question belongs, and why it's asked (people answer better when
 // they know what an answer is for).
@@ -137,9 +144,34 @@ export default function CardFlow({
   }
   function next() {
     if (!ok) return;
+    primeChime();
     save(last);
-    if (!last) setAt((n) => n + 1);
+    if (!last) {
+      setAt((n) => n + 1);
+      chime();
+    }
   }
+  // What each answered question said, for the conversation above the card.
+  const said = (i: number) => {
+    const d = defs[i];
+    const x = answers[d.id];
+    if (!x) return "";
+    if (x.u) return d.unknown?.[lang] ?? (es ? "No sé" : "I don't know");
+    const choice = d.choices?.find((c) => c.id === x.c)?.label[lang] ?? "";
+    return [choice, x.v.trim(), x.p.trim()].filter(Boolean).join(" · ");
+  };
+  // Keep the current question in view: at the end on opening, smoothly after.
+  const scroller = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const opened = useRef(false);
+  useEffect(() => {
+    const el = scroller.current;
+    const card = cardRef.current;
+    if (!el || !card) return;
+    const top = card.offsetTop - 64;
+    el.scrollTo({ top, behavior: opened.current ? "smooth" : "auto" });
+    opened.current = true;
+  }, [at]);
   // Going back (or jumping with the dots) keeps what was typed on this card:
   // it is saved too, not only on "Siguiente", so leaving the page never loses it.
   function go(i: number) {
@@ -147,24 +179,19 @@ export default function CardFlow({
     setAt(Math.max(0, Math.min(defs.length - 1, i)));
   }
 
-  const field = { background: "#FFFFFF", boxShadow: `inset 0 0 0 1px ${LINE}`, color: INK } as const;
+  const field = { background: "rgba(0,0,0,0.28)", boxShadow: `inset 0 0 0 1px ${LINE}`, color: WHITE } as const;
 
   return (
-    <div
-      className="flex-1 min-h-0 overflow-y-auto mx-2 md:mx-4 mb-2 md:mb-4 rounded-[28px]"
-      style={{ background: `radial-gradient(120% 60% at 50% 0%, #EAF7EF 0%, ${PAGE} 55%)` }}
-    >
+    <div ref={scroller} className="dash-panel chat-dark relative flex-1 min-h-0 overflow-y-auto mx-2 md:mx-4 mb-2 md:mb-4">
       <div className="max-w-[680px] mx-auto px-4 md:px-6 py-6 md:py-10 flex flex-col gap-6">
         {/* Brand line: who is asking and what for */}
         <div className="flex items-center gap-3">
-          <span className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ background: INK }}>
-            <SevriiMark size={20} color="#FFFFFF" />
+          <span className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.08)" }}>
+            <Mark size={22} live={busy} />
           </span>
           <div className="flex flex-col min-w-0">
-            <span className="text-[14.5px] font-semibold leading-tight" style={{ color: INK }}>
-              {es ? "Cerebro de Sevrii" : "Sevrii Brain"}
-            </span>
-            <span className="text-[12.5px] leading-tight" style={{ color: "#52525B" }}>
+            <span className="text-[14.5px] font-semibold leading-tight text-white">{es ? "Cerebro de Sevrii" : "Sevrii Brain"}</span>
+            <span className="text-[12.5px] leading-tight" style={{ color: "rgba(255,255,255,0.6)" }}>
               {mode === "new" ? (es ? "Descubramos qué servicio puedes ofrecer" : "Let's find the service you can offer") : es ? "Armemos la estrategia de tu servicio" : "Let's build your service strategy"}
             </span>
           </div>
@@ -173,10 +200,10 @@ export default function CardFlow({
         {/* Progress: "Pregunta 1 de 8" and one dot per question */}
         <div className="flex flex-col gap-3">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[15px] font-semibold" style={{ color: INK }}>
+            <span className="text-[15px] font-semibold text-white">
               {es ? "Pregunta" : "Question"} {at + 1} {es ? "de" : "of"} {defs.length}
             </span>
-            <span className="text-[13px]" style={{ color: "#52525B" }}>
+            <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>
               {done} {es ? (done === 1 ? "contestada" : "contestadas") : "answered"}
             </span>
           </div>
@@ -193,52 +220,90 @@ export default function CardFlow({
                   aria-label={`${es ? "Pregunta" : "Question"} ${i + 1}${ready ? (es ? ", contestada" : ", answered") : ""}`}
                   aria-current={here ? "step" : undefined}
                   className="h-2 rounded-full transition-all"
-                  style={{ flex: here ? 2.2 : 1, background: here ? INK : ready ? "#16A34A" : "rgba(10,10,10,0.12)" }}
+                  style={{ flex: here ? 2.2 : 1, background: here ? "#FFFFFF" : ready ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.14)" }}
                 />
               );
             })}
           </div>
         </div>
 
-        {/* The card */}
+        {/* The conversation so far: each answered question, then its answer (tap to change it) */}
+        {at > 0 && (
+          <div className="flex flex-col gap-5 pt-2">
+            {defs.slice(0, at).map((d, i) => {
+              const answer = said(i);
+              return (
+                <div key={d.id} className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2">
+                    <Mark size={22} />
+                    <span className="text-[15px] leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
+                      {d.title[lang]}
+                    </span>
+                  </div>
+                  {answer && (
+                    <button
+                      type="button"
+                      onClick={() => go(i)}
+                      title={es ? "Cambiar esta respuesta" : "Change this answer"}
+                      className="self-end max-w-[85%] text-left rounded-3xl rounded-tr-lg px-4 py-2.5 text-[15px] leading-[1.55] text-white break-words hover:bg-white/[0.16] transition"
+                      style={{ background: "rgba(255,255,255,0.1)" }}
+                    >
+                      {answer}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* The current question: a card inside the chat */}
+        <div className="flex flex-col gap-2.5">
+          <Mark size={22} live={busy} />
         <div
+          ref={cardRef}
           key={def.id}
-          className="relative overflow-hidden rounded-[28px] bg-white p-6 md:p-10 flex flex-col gap-7"
-          style={{ boxShadow: "0 1px 2px rgba(10,10,10,0.04), 0 24px 48px -26px rgba(10,10,10,0.28)", animation: "dash-fade .35s ease both" }}
+          className="relative overflow-hidden rounded-[28px] p-6 md:p-9 flex flex-col gap-7"
+          style={{
+            background: "linear-gradient(160deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.035) 100%)",
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1), 0 30px 60px -30px rgba(0,0,0,0.8)",
+            backdropFilter: "blur(14px)",
+            animation: "dash-fade .35s ease both",
+          }}
         >
-          {/* A thin green line on top: Sevrii's accent */}
-          <span aria-hidden="true" className="absolute left-0 right-0 top-0 h-1" style={{ background: "linear-gradient(90deg, #16A34A, #4ADE80)" }} />
+          {/* A soft green light in the corner, like the chat's */}
+          <span aria-hidden="true" className="pointer-events-none absolute -top-24 -right-24 h-56 w-56 rounded-full" style={{ background: "radial-gradient(circle, rgba(74,222,128,0.16) 0%, rgba(74,222,128,0) 70%)" }} />
           <div className="flex flex-col gap-4">
             <div className="flex items-start justify-between gap-3">
               <span className="relative h-16 w-16 shrink-0" aria-hidden="true">
-                <span className="absolute inset-0 rounded-[20px]" style={{ background: "#BBF7D0", transform: "rotate(-9deg) translate(-3px, 2px)" }} />
-                <span className="absolute inset-0 rounded-[20px] flex items-center justify-center" style={{ background: "#FFFFFF", boxShadow: "inset 0 0 0 1px rgba(20,83,45,0.14)", color: DEEP_GREEN }}>
+                <span className="absolute inset-0 rounded-[20px]" style={{ background: "rgba(74,222,128,0.16)", transform: "rotate(-9deg) translate(-3px, 2px)" }} />
+                <span className="absolute inset-0 rounded-[20px] flex items-center justify-center" style={{ background: "rgba(10,20,14,0.9)", boxShadow: `inset 0 0 0 1px ${LINE}`, color: MINT }}>
                   <CardIcon id={def.id} />
                 </span>
               </span>
               <div className="flex flex-col items-end gap-1.5">
-                <span className="inline-flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-full text-[12px] font-semibold" style={{ background: INK, color: "#FFFFFF" }} title={mode === "new" ? (es ? "Necesaria para buscar tus ideas" : "Needed to find your ideas") : es ? "Necesaria para armar tu estrategia" : "Needed to build your strategy"}>
+                <span className="inline-flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-full text-[12px] font-semibold" style={{ background: "rgba(255,255,255,0.1)", color: WHITE }} title={mode === "new" ? (es ? "Necesaria para buscar tus ideas" : "Needed to find your ideas") : es ? "Necesaria para armar tu estrategia" : "Needed to build your strategy"}>
                   <SevriiMark size={14} color="#4ADE80" />
                   {es ? "Necesaria" : "Needed"}
                 </span>
                 {GROUP[def.id] && (
-                  <span className="text-[11.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#71717A" }}>
+                  <span className="text-[11.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: TEXT3 }}>
                     {GROUP[def.id][lang]}
                   </span>
                 )}
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <h2 className="text-[24px] md:text-[28px] font-medium leading-[1.2] tracking-[-0.01em]" style={{ color: INK }}>
+              <h2 className="text-[24px] md:text-[28px] font-medium leading-[1.2] tracking-[-0.01em]" style={{ color: WHITE }}>
                 {def.title[lang]}
               </h2>
-              <p className="text-[15px] leading-relaxed" style={{ color: "#52525B" }}>
+              <p className="text-[15px] leading-relaxed" style={{ color: TEXT2 }}>
                 {def.help[lang]}
               </p>
               {WHY[def.id] && (
-                <p className="flex items-start gap-2 text-[13px] leading-relaxed rounded-xl px-3 py-2 mt-1" style={{ background: "#F7FBF8", color: DEEP_GREEN }}>
+                <p className="flex items-start gap-2 text-[13px] leading-relaxed rounded-xl px-3 py-2 mt-1" style={{ background: "rgba(74,222,128,0.08)", color: MINT }}>
                   <span aria-hidden="true" className="mt-[3px]">
-                    <SevriiMark size={13} color="#16A34A" />
+                    <SevriiMark size={13} color="#4ADE80" />
                   </span>
                   <span>
                     <b className="font-semibold">{es ? "Por qué te lo pregunto: " : "Why I ask: "}</b>
@@ -260,8 +325,8 @@ export default function CardFlow({
                     role="radio"
                     aria-checked={on}
                     onClick={() => set({ c: c.id, u: false })}
-                    className="h-12 px-6 rounded-full text-[15.5px] font-medium transition"
-                    style={on ? { background: INK, color: "#fff" } : { background: "#fff", color: INK, boxShadow: `inset 0 0 0 1px ${LINE}` }}
+                    className="h-12 px-6 rounded-full text-[15.5px] font-medium transition hover:brightness-125"
+                    style={on ? PILL_ON : PILL}
                   >
                     {on ? "✓ " : ""}
                     {c.label[lang]}
@@ -278,7 +343,7 @@ export default function CardFlow({
               onChange={(e) => set({ v: e.target.value, u: false })}
               placeholder={def.placeholder[lang]}
               rows={2}
-              className="w-full rounded-2xl px-5 py-4 text-[16px] leading-relaxed outline-none resize-none focus:shadow-[inset_0_0_0_2px_#0A0A0A]"
+              className="w-full rounded-2xl px-5 py-4 text-[16px] leading-relaxed outline-none resize-none placeholder:text-white/40 focus:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.6)]"
               style={field}
             />
           )}
@@ -288,14 +353,14 @@ export default function CardFlow({
               value={a.p}
               onChange={(e) => set({ p: e.target.value, u: false })}
               placeholder={def.placeAlways ? (es ? "Ciudad y estado, o «en línea»" : "City and state, or \"online\"") : def.placeholder[lang]}
-              className="w-full h-14 rounded-2xl px-5 text-[16px] outline-none focus:shadow-[inset_0_0_0_2px_#0A0A0A]"
+              className="w-full h-14 rounded-2xl px-5 text-[16px] outline-none placeholder:text-white/40 focus:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.6)]"
               style={field}
             />
           )}
 
           {chips.length > 0 && (
             <div className="flex flex-col gap-2.5">
-              <span className="text-[12.5px] font-medium" style={{ color: "#71717A" }}>
+              <span className="text-[12.5px] font-medium" style={{ color: TEXT3 }}>
                 {es ? "Toca para escoger (puedes escoger varias)" : "Tap to pick (you can pick several)"}
               </span>
               <div className="flex flex-wrap gap-2">
@@ -307,8 +372,8 @@ export default function CardFlow({
                       type="button"
                       aria-pressed={on}
                       onClick={() => toggleChip(h)}
-                      className="h-10 px-4 rounded-full text-[14px] transition"
-                      style={on ? { background: INK, color: "#fff", fontWeight: 600 } : { background: "#fff", color: INK, boxShadow: `inset 0 0 0 1px ${LINE}` }}
+                      className="h-10 px-4 rounded-full text-[14px] transition hover:brightness-125"
+                      style={on ? PILL_ON : PILL}
                     >
                       {on ? "✓ " : ""}
                       {h}
@@ -326,12 +391,12 @@ export default function CardFlow({
                 onClick={() => set({ u: !a.u, v: a.u ? a.v : "", c: a.u ? a.c : "", p: a.u ? a.p : "" })}
                 aria-pressed={a.u}
                 className="self-start h-11 px-5 rounded-full text-[14.5px] font-medium transition"
-                style={a.u ? { background: DEEP_GREEN, color: "#fff" } : { background: SOFT, color: DEEP_GREEN, boxShadow: "inset 0 0 0 1px rgba(20,83,45,0.18)" }}
+                style={a.u ? { background: "#4ADE80", color: "#052E16" } : { background: "rgba(74,222,128,0.1)", color: MINT, boxShadow: "inset 0 0 0 1px rgba(74,222,128,0.25)" }}
               >
                 {a.u ? "✓ " : ""}
                 {def.unknown[lang]}
               </button>
-              <span className="text-[13px]" style={{ color: "#71717A" }}>
+              <span className="text-[13px]" style={{ color: TEXT3 }}>
                 {a.u
                   ? es
                     ? "Queda como «no sé». No voy a suponer nada en su lugar."
@@ -344,7 +409,7 @@ export default function CardFlow({
           )}
 
           <div className="flex items-center justify-between gap-3 pt-2" style={{ borderTop: `1px solid ${LINE}` }}>
-            <button type="button" disabled={at === 0} onClick={() => go(at - 1)} className="h-11 px-2 mt-4 text-[14.5px] disabled:opacity-0" style={{ color: "#52525B" }}>
+            <button type="button" disabled={at === 0} onClick={() => go(at - 1)} className="h-11 px-2 mt-4 text-[14.5px] disabled:opacity-0" style={{ color: TEXT2 }}>
               ← {es ? "Atrás" : "Back"}
             </button>
             <button
@@ -352,21 +417,22 @@ export default function CardFlow({
               disabled={!ok || busy || (last && !allDone)}
               onClick={next}
               className="h-12 px-7 mt-4 rounded-full text-[15.5px] font-semibold transition"
-              style={ok && !busy && (!last || allDone) ? { background: INK, color: "#fff" } : { background: "rgba(10,10,10,0.08)", color: "#A1A1AA" }}
+              style={ok && !busy && (!last || allDone) ? { background: WHITE, color: INK } : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)" }}
             >
               {last ? (busy ? (es ? "Enviando…" : "Sending…") : mode === "new" ? (es ? "Ver mis propuestas" : "See my proposals") : es ? "Armar mi estrategia" : "Build my strategy") : es ? "Siguiente" : "Next"}
               {!last && " →"}
             </button>
           </div>
           {last && !allDone && (
-            <p className="text-[13.5px] -mt-3" style={{ color: "#B45309" }}>
+            <p className="text-[13.5px] -mt-3" style={{ color: "#FCD34D" }}>
               {es ? "Te falta contestar alguna pregunta: toca los puntos de arriba para volver a ella." : "A question is still unanswered: tap the dots above to go back to it."}
             </p>
           )}
-          {notice && <p className="text-[13.5px] -mt-3" style={{ color: "#B45309" }}>{notice}</p>}
+          {notice && <p className="text-[13.5px] -mt-3" style={{ color: "#FCD34D" }}>{notice}</p>}
+        </div>
         </div>
 
-        <p className="text-[12.5px] text-center leading-relaxed" style={{ color: "#71717A" }}>
+        <p className="text-[12.5px] text-center leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
           {es ? "Todo lo que contestes queda guardado. Puedes volver a cualquier pregunta sin perder las demás." : "Everything you answer is saved. You can go back to any question without losing the others."}
         </p>
       </div>

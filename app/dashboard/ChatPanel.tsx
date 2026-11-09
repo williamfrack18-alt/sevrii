@@ -5,6 +5,7 @@ import { useLang } from "@/components/LangProvider";
 import { BRAND_BTN, GREEN as ACCENT } from "@/lib/panel";
 import { upgradeText, type LimitInfo } from "@/lib/upgrade";
 import { canListen, listenError, listenOnce, speakText, unlockSpeech } from "./speech";
+import { Mark, chime, primeChime } from "./chatLook";
 export type Msg = { id: string; role: string; content: string };
 
 export type ChatTexts = {
@@ -79,56 +80,6 @@ const SOFT = "rgba(255,255,255,0.92)";
 const DIM = "rgba(255,255,255,0.6)";
 const GLASS = { background: "rgba(255,255,255,0.07)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1)" } as const;
 const LIVE = "#4ADE80";
-
-// Sevrii's mark beside the assistant: still, or turning while it thinks or writes.
-function Mark({ size = 24, live = false }: { size?: number; live?: boolean }) {
-  return live ? (
-    <span className="sevrii-loader chat-mark-live" style={{ width: size, height: size }} aria-hidden="true">
-      <span className="sevrii-loader-ring" />
-      <span className="sevrii-loader-logo" />
-    </span>
-  ) : (
-    <span className="chat-mark" style={{ width: size, height: size }} aria-hidden="true" />
-  );
-}
-
-// A soft two-note sound when a reply arrives (Web Audio, no file). The
-// browser only plays it after the person has interacted (sending primes it).
-let audioCtx: AudioContext | null = null;
-function primeChime() {
-  try {
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return;
-    audioCtx ??= new AC();
-    if (audioCtx.state === "suspended") void audioCtx.resume();
-  } catch {
-    // No sound is fine.
-  }
-}
-function chime() {
-  const ctx = audioCtx;
-  if (!ctx || ctx.state !== "running") return;
-  try {
-    const now = ctx.currentTime;
-    for (const [freq, at] of [
-      [659.25, 0],
-      [987.77, 0.1],
-    ]) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, now + at);
-      gain.gain.exponentialRampToValueAtTime(0.06, now + at + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.5);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(now + at);
-      osc.stop(now + at + 0.55);
-    }
-  } catch {
-    // No sound is fine.
-  }
-}
 
 // Sevrii's chat: a dark green gradient panel, Sevrii's mark beside each
 // reply (turning while it thinks or writes, with a soft sound when a reply
@@ -614,8 +565,8 @@ export default function ChatPanel({
   const composer = locked ? (
     <div className="w-full">
       <div
-        className="chat-surface flex items-start gap-3 text-[15px] text-pfg2"
-        style={{ padding: "16px 20px", boxShadow: "0 18px 40px -20px rgba(0,0,0,.6)" }}
+        className="chat-surface flex items-start gap-3 text-[15px] rounded-[24px]"
+        style={{ ...GLASS, padding: "16px 20px", color: SOFT }}
       >
         <span className="mt-0.5"><Mark size={22} live /></span>
         {locked}
@@ -623,7 +574,11 @@ export default function ChatPanel({
     </div>
   ) : (
     <div className="w-full">
-      {limit && <UpgradeCard limit={limit} lang={lang} onPlans={onPlans} onLater={() => setLimit(null)} />}
+      {limit && (
+        <div className="chat-glass">
+          <UpgradeCard limit={limit} lang={lang} onPlans={onPlans} onLater={() => setLimit(null)} />
+        </div>
+      )}
       {error && <p className="text-[13px] mb-2 px-4" style={{ color: "#FCA5A5" }}>{error}</p>}
       {context && (
         <div className="flex mb-2">
@@ -901,7 +856,7 @@ export default function ChatPanel({
 
     {/* Wide screens: the project's card stays beside the conversation */}
     {dock && (
-      <aside className="hidden lg:block w-[400px] xl:w-[440px] shrink-0 min-h-0 overflow-y-auto px-5 pt-4 pb-6" aria-label={label}>
+      <aside className="chat-glass hidden lg:block w-[400px] xl:w-[440px] shrink-0 min-h-0 overflow-y-auto px-5 pt-4 pb-6" aria-label={label}>
         {dock}
       </aside>
     )}
@@ -910,8 +865,8 @@ export default function ChatPanel({
     {dock && dockOpen && (
       <div className="lg:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={label}>
         <button type="button" aria-label={lang === "es" ? "Cerrar" : "Close"} className="absolute inset-0 w-full bg-black/35" onClick={() => setDockOpen(false)} />
-        <div className="absolute left-0 right-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[28px] bg-pbg px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/15" />
+        <div className="chat-glass absolute left-0 right-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[28px] px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]" style={{ background: "linear-gradient(180deg, #07130c 0%, #0a2716 100%)" }}>
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
           {dock}
           <button type="button" onClick={() => setDockOpen(false)} className="p-btn full mt-4">
             {lang === "es" ? "Volver al chat" : "Back to chat"}

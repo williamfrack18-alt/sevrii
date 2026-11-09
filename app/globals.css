@@ -736,16 +736,153 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
 }
 .chat-dark .sevrii-loader-ring::before { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08); }
 .chat-mark-live { align-self: flex-start; }
-/* Cards (Brain, Store, Marketing) keep a light surface inside the dark chat */
-.chat-dark .chat-surface {
-  background: #fff;
-  border-radius: 24px;
-  padding: 10px;
-  color: #0a0a0a;
-  min-width: 0;
+
+/* Cards inside Sevrii's chats (Brain, Store, Agent, Marketing) and the card
+   beside them: glass on the dark green gradient, never a pale white box.
+   Built for a light panel, they are re-coloured here in one place. */
+.chat-dark .chat-surface, .chat-glass { color: rgba(255, 255, 255, 0.92); min-width: 0; }
+.chat-dark .chat-surface .bg-white,
+.chat-dark .chat-surface .bg-pcard,
+.chat-dark .chat-surface .p-card,
+.chat-dark .chat-surface [style*="background: rgb(255, 255, 255)"],
+.chat-dark .chat-surface [style*="background:#fff" i],
+.chat-dark .chat-surface [style*="background: #fff" i],
+.chat-dark .chat-surface [style*="background-color: rgb(255, 255, 255)"],
+.chat-glass .bg-white,
+.chat-glass .bg-pcard,
+.chat-glass .p-card,
+.chat-glass [style*="background: rgb(255, 255, 255)"],
+.chat-glass [style*="background:#fff" i],
+.chat-glass [style*="background: #fff" i],
+.chat-glass [style*="background-color: rgb(255, 255, 255)"] {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.035) 100%) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
 }
-.chat-dark .chat-surface .sevrii-loader-logo {
-  background: linear-gradient(115deg, #0A0A0A 0%, #0A0A0A 35%, #16A34A 50%, #0A0A0A 65%, #0A0A0A 100%);
+.chat-dark .chat-surface .bg-psoft,
+.chat-dark .chat-surface .bg-pbg,
+.chat-dark .chat-surface [style*="rgba(10, 10, 10, 0.034)"],
+.chat-dark .chat-surface [style*="rgba(10,10,10,0.034)"],
+.chat-dark .chat-surface [style*="background: rgb(245, 245, 242)"],
+.chat-dark .chat-surface [style*="background:#F5F5F2" i],
+.chat-dark .chat-surface [style*="background: #F5F5F2" i],
+.chat-dark .chat-surface [style*="background: rgb(240, 240, 237)"],
+.chat-dark .chat-surface [style*="background:#F0F0ED" i],
+.chat-glass .bg-psoft,
+.chat-glass .bg-pbg,
+.chat-glass [style*="rgba(10, 10, 10, 0.034)"],
+.chat-glass [style*="rgba(10,10,10,0.034)"],
+.chat-glass [style*="background: rgb(245, 245, 242)"],
+.chat-glass [style*="background:#F5F5F2" i],
+.chat-glass [style*="background: #F5F5F2" i],
+.chat-glass [style*="background: rgb(240, 240, 237)"],
+.chat-glass [style*="background:#F0F0ED" i] {
+  background: rgba(255, 255, 255, 0.06) !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+}
+.chat-dark .chat-surface .text-pfg,
+.chat-dark .chat-surface [style*="color: rgb(10, 10, 10)"],
+.chat-dark .chat-surface [style*="color:#0A0A0A" i],
+.chat-dark .chat-surface [style*="color: #0A0A0A" i],
+.chat-dark .chat-surface [style*="color: rgb(39, 39, 42)"],
+.chat-dark .chat-surface [style*="color:#27272A" i],
+.chat-glass .text-pfg,
+.chat-glass [style*="color: rgb(10, 10, 10)"],
+.chat-glass [style*="color:#0A0A0A" i],
+.chat-glass [style*="color: #0A0A0A" i],
+.chat-glass [style*="color: rgb(39, 39, 42)"],
+.chat-glass [style*="color:#27272A" i] { color: #fff !important; }
+.chat-dark .chat-surface .text-pfg2,
+.chat-dark .chat-surface [style*="color: rgb(63, 63, 70)"],
+.chat-dark .chat-surface [style*="color:#3F3F46" i],
+.chat-glass .text-pfg2,
+.chat-glass [style*="color: rgb(63, 63, 70)"],
+.chat-glass [style*="color:#3F3F46" i] { color: rgba(255, 255, 255, 0.85) !important; }
+.chat-dark .chat-surface .text-psub,
+.chat-dark .chat-surface .text-pmuted,
+.chat-dark .chat-surface [style*="color: rgb(82, 82, 91)"],
+.chat-dark .chat-surface [style*="color:#52525B" i],
+.chat-dark .chat-surface [style*="color: rgb(113, 113, 122)"],
+.chat-dark .chat-surface [style*="color:#71717A" i],
+.chat-dark .chat-surface [style*="color: rgb(91, 91, 91)"],
+.chat-dark .chat-surface [style*="color:#5b5b5b" i],
+.chat-glass .text-psub,
+.chat-glass .text-pmuted,
+.chat-glass [style*="color: rgb(82, 82, 91)"],
+.chat-glass [style*="color:#52525B" i],
+.chat-glass [style*="color: rgb(113, 113, 122)"],
+.chat-glass [style*="color:#71717A" i],
+.chat-glass [style*="color: rgb(91, 91, 91)"],
+.chat-glass [style*="color:#5b5b5b" i] { color: rgba(255, 255, 255, 0.62) !important; }
+.chat-dark .chat-surface .text-pfaint,
+.chat-dark .chat-surface [style*="color: rgb(161, 161, 170)"],
+.chat-dark .chat-surface [style*="color:#A1A1AA" i],
+.chat-glass .text-pfaint,
+.chat-glass [style*="color: rgb(161, 161, 170)"],
+.chat-glass [style*="color:#A1A1AA" i] { color: rgba(255, 255, 255, 0.45) !important; }
+.chat-dark .chat-surface [style*="color: rgb(21, 128, 61)"],
+.chat-dark .chat-surface [style*="color:#15803D" i],
+.chat-dark .chat-surface [style*="color: rgb(20, 83, 45)"],
+.chat-dark .chat-surface [style*="color:#14532D" i],
+.chat-glass [style*="color: rgb(21, 128, 61)"],
+.chat-glass [style*="color:#15803D" i],
+.chat-glass [style*="color: rgb(20, 83, 45)"],
+.chat-glass [style*="color:#14532D" i] { color: #4ADE80 !important; }
+.chat-dark .chat-surface [style*="color: rgb(120, 53, 15)"],
+.chat-dark .chat-surface [style*="color:#78350F" i],
+.chat-dark .chat-surface [style*="color: rgb(180, 83, 9)"],
+.chat-dark .chat-surface [style*="color:#B45309" i],
+.chat-glass [style*="color: rgb(120, 53, 15)"],
+.chat-glass [style*="color:#78350F" i],
+.chat-glass [style*="color: rgb(180, 83, 9)"],
+.chat-glass [style*="color:#B45309" i] { color: #FCD34D !important; }
+/* Black buttons and picked pills turn white with black text */
+.chat-dark .chat-surface [style*="background: rgb(10, 10, 10)"],
+.chat-dark .chat-surface [style*="background:#0A0A0A" i],
+.chat-dark .chat-surface [style*="background: #0A0A0A" i],
+.chat-dark .chat-surface .bg-pfg,
+.chat-glass [style*="background: rgb(10, 10, 10)"],
+.chat-glass [style*="background:#0A0A0A" i],
+.chat-glass [style*="background: #0A0A0A" i],
+.chat-glass .bg-pfg {
+  background: #fff !important;
+  color: #0a0a0a !important;
+}
+.chat-dark .chat-surface [style*="background: rgb(10, 10, 10)"] *,
+.chat-dark .chat-surface [style*="background:#0A0A0A" i] *,
+.chat-dark .chat-surface .bg-pfg *,
+.chat-glass [style*="background: rgb(10, 10, 10)"] *,
+.chat-glass [style*="background:#0A0A0A" i] *,
+.chat-glass .bg-pfg * { color: #0a0a0a !important; }
+/* Light green tints become a soft green glow */
+.chat-dark .chat-surface [style*="background: rgb(236, 253, 243)"],
+.chat-dark .chat-surface [style*="background:#ECFDF3" i],
+.chat-dark .chat-surface [style*="background: rgb(220, 252, 231)"],
+.chat-dark .chat-surface [style*="background:#DCFCE7" i],
+.chat-dark .chat-surface [style*="background: rgb(240, 253, 244)"],
+.chat-dark .chat-surface [style*="background:#F0FDF4" i],
+.chat-glass [style*="background: rgb(236, 253, 243)"],
+.chat-glass [style*="background:#ECFDF3" i],
+.chat-glass [style*="background: rgb(220, 252, 231)"],
+.chat-glass [style*="background:#DCFCE7" i],
+.chat-glass [style*="background: rgb(240, 253, 244)"],
+.chat-glass [style*="background:#F0FDF4" i] {
+  background: rgba(74, 222, 128, 0.1) !important;
+  color: #bbf7d0 !important;
+}
+/* Hairlines and inputs */
+.chat-dark .chat-surface input,
+.chat-dark .chat-surface textarea,
+.chat-dark .chat-surface select,
+.chat-glass input,
+.chat-glass textarea,
+.chat-glass select { background: rgba(0, 0, 0, 0.28) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12) !important; }
+.chat-dark .chat-surface input::placeholder,
+.chat-dark .chat-surface textarea::placeholder,
+.chat-glass input::placeholder,
+.chat-glass textarea::placeholder { color: rgba(255, 255, 255, 0.4) !important; }
+.chat-dark .chat-surface .sevrii-loader-logo,
+.chat-glass .sevrii-loader-logo {
+  background: linear-gradient(115deg, #ffffff 0%, #ffffff 35%, #3ddc84 50%, #ffffff 65%, #ffffff 100%);
   background-size: 300% 100%;
-  filter: none;
 }
+.chat-dark .chat-surface .p-btn,
+.chat-glass .p-btn { background: #fff !important; color: #0a0a0a !important; }
