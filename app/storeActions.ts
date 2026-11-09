@@ -368,21 +368,42 @@ export async function chooseStartAction(mode: string, design?: string): Promise<
   // The store opens only after the strategy is approved (same gate as the screen).
   const open = business.published || business.plan.stage === "approved";
   let ok = false;
-  if (valid && open && (await allow(`start:${business.id}`, 20, 60 * 60))) {
-    // The page is built from what was approved, if it doesn't have it yet.
-    if (planReadyForStore(business.plan) && business.site.fromPlan !== planFingerprint(business.plan)) await fillStoreFromPlan(business.id, lang);
+  // Already chosen (a second tab, a double tap): nothing is redone, so the
+  // owner's layout and texts since then are never reset.
+  if (business.site.start) ok = true;
+  else if (valid && open && (await allow(`start:${business.id}`, 20, 60 * 60))) {
+    // The page is built from what was approved, if it doesn't have it yet. A
+    // page the owner already worked on in the Store chat (an older draft) is
+    // never overwritten here: a newer plan shows the "Actualizar mi página"
+    // banner instead, so they decide.
+    if (planReadyForStore(business.plan) && business.site.fromPlan !== planFingerprint(business.plan)) {
+      const ownerWorked = (await listChatMessages(business.id, "store")).some((m) => m.role === "user");
+      await fillStoreFromPlan(business.id, lang, { onlyIfEmpty: ownerWorked, quiet: true });
+    }
     const fresh = (await getBusinessById(business.id)) ?? business;
     await mergeBusinessSite(business.id, fresh.site, startLayout(mode as "ready" | "template" | "blank", pick));
     const es = lang === "es";
-    const note =
-      mode === "blank"
+    const now = await listServices(business.id);
+    const empty = !fresh.site.headline && now.length === 0;
+    // Packages that came with a market reference have no price on the page yet.
+    const unpriced = now.filter((s) => !(s.price ?? "").trim()).length;
+    const ask = unpriced
+      ? es
+        ? ` ${unpriced === 1 ? "Un paquete todavía no tiene precio" : `${unpriced} paquetes todavía no tienen precio`}: dime cuánto cobras tú y lo pongo.`
+        : ` ${unpriced === 1 ? "One package has no price yet" : `${unpriced} packages have no price yet`}: tell me what you charge and I'll add it.`
+      : "";
+    const note = empty
+      ? es
+        ? "Tu página está creada, pero tu estrategia del Cerebro todavía no tiene lo necesario para llenarla. Dime qué servicio vendes y cuánto cobras, y la armo contigo."
+        : "Your page is created, but your Brain strategy doesn't have enough to fill it yet. Tell me what service you sell and what you charge, and I'll build it with you."
+      : mode === "blank"
         ? es
           ? "Empezamos con tu página en blanco. Dime qué quieres poner primero (por ejemplo tus paquetes y precios, cómo trabajas o tus preguntas frecuentes) y lo agrego con lo que aprobaste en el Cerebro. A la derecha ves tu página tal como va quedando."
           : "We're starting from a blank page. Tell me what to add first (for example your packages and prices, how you work or your FAQ) and I'll add it with what you approved in the Brain. On the right you see your page as it takes shape."
         : es
           ? "Tu página ya está armada con lo que aprobaste en el Cerebro. Revísala en la vista previa y dime aquí lo que quieras cambiar, o súbeme fotos y video reales de tu trabajo con el botón +."
           : "Your page is built with what you approved in the Brain. Check it in the preview and tell me here what you'd like to change, or send me real photos and video of your work with the + button.";
-    await addChatMessage(business.id, "store", "assistant", note);
+    await addChatMessage(business.id, "store", "ai", `${note}${empty ? "" : ask}`);
     ok = true;
   }
   const fresh = (await getBusinessById(business.id)) ?? business;

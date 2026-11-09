@@ -5,8 +5,10 @@
 
 // Phrases that explain WHY Sevrii chose something for the owner: they are
 // for the owner in the Brain, never for customers.
+// Word edges are letters in any language: a plain \b ends at "í", so "lo elegí"
+// or "la elegí" would slip through.
 const WHY =
-  /\b(te conviene|le conviene|les conviene|conviene porque|te sirve porque|lo eleg[ií]|la eleg[ií]|los eleg[ií]|elegimos|escogimos|te lo propongo porque|recomendad[oa]s? porque|por tu experiencia|con tu experiencia|seg[uú]n tu perfil|encaja contigo|encaja con (tu|lo que)|aprovecha(ndo)? (tu|lo que sabes)|ya que (sabes|tienes|vives|te gusta)|porque (sabes|tienes|vives|te gusta|ya haces|tu experiencia|tu zona|tu ciudad)|fits you|suits you|because you (know|have|live|like)|given your|based on your (profile|experience)|we chose|i chose)\b/i;
+  /(?<![\p{L}\p{N}_])(te conviene|le conviene|les conviene|conviene porque|te sirve porque|lo eleg[ií]|la eleg[ií]|los eleg[ií]|elegimos|escogimos|te lo propongo porque|recomendad[oa]s? porque|por tu experiencia|con tu experiencia|seg[uú]n tu perfil|encaja contigo|encaja con (tu|lo que)|aprovecha(ndo)? (tu|lo que sabes)|ya que (sabes|tienes|vives|te gusta)|porque (sabes|tienes|vives|te gusta|ya haces|tu experiencia|tu zona|tu ciudad)|fits you|suits you|because you (know|have|live|like)|given your|based on your (profile|experience)|we chose|i chose)(?![\p{L}\p{N}_])/iu;
 
 const SENT = /(?<=[.!?])\s+/;
 

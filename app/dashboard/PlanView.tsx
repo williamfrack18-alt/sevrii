@@ -212,7 +212,16 @@ export default function PlanView({
     : ["interview", "research", "proposal", "approved"];
   const current = Math.max(0, order.indexOf(plan.stage));
 
-  const act = (fn: () => Promise<PlanChatResponse>) => startAction(async () => applyAction(await fn()));
+  // A failed request (network, server) shows a notice; uncaught, it threw out
+  // of the transition and broke the whole screen.
+  const act = (fn: () => Promise<PlanChatResponse>) =>
+    startAction(async () => {
+      try {
+        applyAction(await fn());
+      } catch {
+        setNotice(t.chat.failed);
+      }
+    });
   const es = lang === "es";
   // "Cambiar" closes the map's panel and starts the request in the chat.
   const change = (block: ApprovalBlock) => {

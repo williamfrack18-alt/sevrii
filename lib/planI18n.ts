@@ -16,7 +16,8 @@ export const PLAN_TEXT = {
       failed: "No se pudo enviar. Inténtalo de nuevo.",
     },
     stagesA: ["Entrevista", "Investigación", "Propuesta", "Aprobado"],
-    stagesB: ["Tu perfil", "Ideas", "Escoges", "¿Listo?", "Investigación", "Propuesta", "Aprobado"],
+    // "¿Listo?" guessed the person's gender (the Brain never does): a neutral label.
+    stagesB: ["Tu perfil", "Ideas", "Escoges", "Últimos datos", "Investigación", "Propuesta", "Aprobado"],
     stagesC: ["Te conozco", "Ideas", "Escoges", "Tu agente", "Investigación", "Propuesta", "Aprobado"],
     lockedIdeasC: "Estoy buscando problemas que la gente paga por resolver y que un agente puede hacer. Tarda 1 a 2 minutos.",
     ideasC: { typicalPrice: "Lo que se paga hoy", startCost: "Qué necesita", license: "Lo que no puede hacer", demand: "Demanda", how: "Cómo lo hace", task: "Buscando ideas de agentes" },
@@ -175,7 +176,7 @@ export const PLAN_TEXT = {
       failed: "Couldn't send. Please try again.",
     },
     stagesA: ["Interview", "Research", "Proposal", "Approved"],
-    stagesB: ["Your profile", "Ideas", "Pick", "Ready?", "Research", "Proposal", "Approved"],
+    stagesB: ["Your profile", "Ideas", "Pick", "Last details", "Research", "Proposal", "Approved"],
     stagesC: ["About you", "Ideas", "You pick", "Your agent", "Research", "Proposal", "Approved"],
     lockedIdeasC: "I'm looking for problems people pay to solve that an agent can handle. It takes 1 to 2 minutes.",
     ideasC: { typicalPrice: "What people pay today", startCost: "What it needs", license: "What it can't do", demand: "Demand", how: "How it works", task: "Looking for agent ideas" },

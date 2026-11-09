@@ -2,7 +2,7 @@ import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from "@an
 import { BRAIN_MODEL, aiErrorReply, getBrainModel, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import { slugify } from "../ai";
-import { addChatMessage, getBusinessById, isSlugTaken, listChatMessages, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
+import { addChatMessage, getBusinessById, isSlugTaken, latestResearchRun, listChatMessages, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
 import {
   APPROVAL_BLOCKS,
   allApproved,
@@ -24,7 +24,7 @@ import { priceMoves, swapAmounts } from "../reprice";
 import { lockedFacts, questionSentences, similar } from "./asked";
 import { dropDanglingClause, groundedInOwner, neutralGender, scrubInternal, withoutAvoidedSuggestions } from "./checks";
 import { markReferencePrices, noFakeCosts, readyForPage, withoutAvoided } from "./checks";
-import { oneConfirmation } from "./walk";
+import { oneConfirmation, partName } from "./walk";
 import { unknownCards } from "../cards";
 import { unknownAmountSentences, ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
@@ -116,8 +116,8 @@ Si mode es C: el dueño revisa su propuesta aquí mismo en el chat, una parte a 
 const GUIDE = `
 
 El camino completo (úsalo para explicar dónde va la persona; nombra los pasos así):
-- Si mode es A: 1) Te conozco (muy pocas preguntas) → 2) Investigación (1 a 2 minutos, la hace Sevrii solo) → 3) Propuesta (la revisa parte por parte: servicio, presentación, paquetes, oferta y preguntas frecuentes) → 4) Aprobado. Después, en Store se arma su página y en Marketing sus anuncios.
-- Si mode es B: 1) Te conozco (muy pocas preguntas) → 2) Ideas (Sevrii investiga y propone de 8 a 10 servicios, los mejor pagados primero) → 3) Escoges una (o pides otras) → 4) Investigación de ese servicio → 5) Propuesta → 6) Aprobado.
+- Si mode es A: 1) Te conozco (unas tarjetas con preguntas) → 2) Investigación (1 a 2 minutos, la hace Sevrii solo) → 3) Propuesta (la ve completa en una sola tarjeta: servicio, presentación, paquetes, oferta y preguntas frecuentes; pide cambios en el chat y la confirma una vez con «Confirmar y crear mi página») → 4) Aprobado. Después, en Store se arma su página y en Marketing sus anuncios.
+- Si mode es B: 1) Te conozco (unas tarjetas con preguntas) → 2) Ideas (Sevrii investiga y propone de 8 a 10 servicios, los mejor pagados primero) → 3) Escoges una (o pides otras) → 4) Investigación de ese servicio → 5) Propuesta → 6) Aprobado.
 - Si mode es C: 1) Te conozco → 2) Ideas (Sevrii investiga y propone 3, 1 a 2 minutos) → 3) Escoges una → 4) Tu agente (cómo trabaja con cada cliente, sus límites, hasta dónde atiende y su nombre) → 5) Investigación → 6) Propuesta → 7) Aprobado. Después, en Store se publica el agente y en Marketing sus anuncios.
 
 Piensa antes de responder: mira el estado, lo que ya está guardado y lo que falta, y decide cuál es el siguiente paso real.
@@ -351,7 +351,7 @@ function state(b: BusinessRow, ownerReplies = 0) {
     return { ...base, missing: missing.slice(0, 1), stillToAskAfterThis: Math.max(0, missing.length - 1), profile: p.profile, ...(idea ? { chosenIdea: idea } : {}) };
   }
   if (p.stage === "choose")
-    return { ...base, ideas: p.ideas.map((i, n) => ({ number: n + 1, ...i })), rejectedBefore: p.rejectedIdeas, roundsLeft: Math.max(0, MAX_IDEA_ROUNDS - p.ideaRounds) };
+    return { ...base, ideas: p.ideas.map((i, n) => ({ number: n + 1, ...i })), rejectedBefore: p.rejectedIdeas.slice(-80), roundsLeft: Math.max(0, MAX_IDEA_ROUNDS - p.ideaRounds) };
   return {
     ...base,
     profile: p.profile,
@@ -394,7 +394,16 @@ export function applyApprovals(plan: BusinessPlan, blocks: ApprovalBlock[], lang
       continue;
     }
     // A and B confirm the whole strategy: a part with nothing in it never blocks.
-    if (!blockHasContent(next, blk) && !oneConfirmation(plan)) continue;
+    // C: an empty part can't be approved, and it says why (it used to skip in
+    // silence, so the same card came back after every "Aprobar").
+    if (!blockHasContent(next, blk) && !oneConfirmation(plan)) {
+      refused.push(
+        lang === "es"
+          ? `«${partName(blk, lang)}» todavía está vacía: dime qué debe decir (o pídeme que la arme) y luego la apruebas.`
+          : `"${partName(blk, lang)}" is still empty: tell me what it should say (or ask me to write it) and then approve it.`
+      );
+      continue;
+    }
     approvals[blk] = true;
   }
   next = { ...next, approvals };
@@ -714,7 +723,8 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         await updateBusinessPlan(b.id, done);
         if (done.stage !== "approved") return { out: `not approved yet: ${no.join(" ") || "try again"}` };
         turn.approved = true;
-        const filled = (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true })).filled;
+        // The approval is saved: a page that can't be built now is built from Store.
+        const filled = (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true }).catch(() => ({ filled: false }))).filled;
         return { out: `all approved: ${filled ? "the store page was built from it" : "the owner can build the page in Store"}. Tell them in one line that Store is open to create their page.` };
       }
       let blocks = (Array.isArray(input.blocks) ? input.blocks : []).filter((x): x is ApprovalBlock => APPROVAL_BLOCKS.includes(x as ApprovalBlock));
@@ -728,7 +738,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       const { plan: next, refused } = applyApprovals(plan, blocks, lang);
       if (!refused.length) turn.approved = true;
       await updateBusinessPlan(b.id, next);
-      const built = next.stage === "approved" ? (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true })).filled : false;
+      const built = next.stage === "approved" ? (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true }).catch(() => ({ filled: false }))).filled : false;
       return { out: `${next.stage === "approved" ? (built ? "all approved: the store page was built from the expediente automatically; tell the owner to open Store to see it" : "all approved: the expediente is ready; the owner can update the page from Store") : "approved"}${refused.length ? `; not approved: ${refused.join(" ")}` : ""}` };
     }
     default:
@@ -767,12 +777,16 @@ function repriced(plan: BusinessPlan, patch: Record<string, unknown>): Record<st
 
 export function chooseIdea(plan: BusinessPlan, i: number): BusinessPlan {
   const idea = plan.ideas[i];
+  // B: a clearly digital or in-person idea says how it's delivered. Without
+  // this, someone who answered "digital" on the cards and then picked an
+  // in-person idea was researched nationwide, as an online service.
+  const serviceMode = plan.mode === "new" && idea.delivery === "digital" ? "remote" : plan.mode === "new" && idea.delivery === "fisico" ? "local" : plan.profile.serviceMode;
   return parsePlan({
     ...plan,
     chosenIdea: i,
     stage: "ready_check",
     service: idea.title,
-    profile: { ...plan.profile, mainService: idea.title },
+    profile: { ...plan.profile, mainService: idea.title, serviceMode },
   });
 }
 
@@ -789,6 +803,24 @@ export async function runPlanChatTurn(opts: {
   let business = opts.business;
   const es = opts.lang === "es";
   if (LOCKED_STAGES.includes(business.plan.stage)) {
+    // "Estoy investigando" only while it really is: a research that stopped
+    // (a failed step) or that the plan's limit won't let start says so.
+    const p = business.plan;
+    const jobs = await latestResearchRun(business.id).catch(() => []);
+    const current = jobs.length > 0 && jobs[0].runId === p.runId;
+    const stopped = current && jobs.some((j) => j.status === "failed" && (j.kind === "ideas_pick" || j.kind === "strategy" || j.kind === "guard"));
+    const blocked = !current && !(await researchWouldStart(business.userId, { budgetOnly: p.stage === "ideas_research" && p.ideaRounds > 0 }).catch(() => true));
+    if (stopped || blocked) {
+      return {
+        reply: stopped
+          ? es
+            ? "La investigación se detuvo por un error de nuestro lado. Toca «Reintentar» y la sigo donde quedó."
+            : "The research stopped because of an error on our side. Tap \"Retry\" and I'll pick it up where it left off."
+          : researchLimitText(await researchUsage(business.userId), es ? "es" : "en"),
+        business,
+        startPipeline: false,
+      };
+    }
     return {
       reply: es ? "Estoy investigando tu zona. En un momento te muestro lo que encontré." : "I'm researching your area. I'll show you what I found in a moment.",
       business,
@@ -796,8 +828,9 @@ export async function runPlanChatTurn(opts: {
     };
   }
   // A and B answer the interview on cards: the chat never asks or researches
-  // in their place (the cards are the gate, in code).
-  if (business.plan.stage === "interview" && business.plan.mode !== "agent") {
+  // in their place (the cards are the gate, in code). An older project with
+  // no mode has no cards: its interview still runs in the chat.
+  if (business.plan.stage === "interview" && (business.plan.mode === "new" || business.plan.mode === "existing")) {
     return {
       reply: es
         ? "Para armarte algo que de verdad sirva, primero contesta las tarjetas de arriba (puedes poner «no sé» en cualquiera). Con todas completas investigo y te muestro las propuestas."

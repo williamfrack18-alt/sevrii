@@ -18,7 +18,7 @@ import {
 } from "./db";
 import { HIDEABLE, LIMITS, PAGE_DESIGNS, PAGE_SECTIONS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, sectionOrder, type Hideable, type PageDesign, type PageSection, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
-import { planFingerprint } from "./planToStore";
+import { planFingerprint, planReadyForStore, refPriceUnconfirmed } from "./planToStore";
 import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, offerTarget, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
 
 // The Store tab is one chat. This agent interviews the owner for exactly the
@@ -254,7 +254,7 @@ How to think (always):
 - Facts in the state are the truth: "published", "alertsOn", "ownerDeclined", "realPhotos", "hasVideo", "languages". Never ask for what's already done (alertsOn true = alerts are on) or what they declined. When they say no to something (video, publishing, reviews…), save it with set_layout.declined and never suggest it again.
 - Publish (or unpublish) ONLY when the owner asks for it in their message ("publícala"). Don't keep asking "¿la publico?".
 - Languages: only "languages" in the state. Never say they serve in English (or Spanish) if it isn't there.
-- Button names on screen: the page opens with «Ver mi página» (top of this screen and in the page summary under the chat).
+- Button names on screen: the live preview of the page is right beside this chat; «Ver mi página» (above the preview; «Abrir página publicada» once it's published) opens it in a new tab, and «Editar mi página» edits it in place. There is no page summary under the chat.
 - Sevrii, so you can guide them (a button to each section appears under your reply when it applies): Cerebro = their strategy; Store = this page; Conversaciones = customer chats and «Avisos» (notifications); Payments = card payment links for their services (Stripe; 5% per payment, everything included; they connect Stripe there once); Marketing = their strategy and ads on Facebook and Instagram with their own account, and AI videos; Planes = plans. After the page is ready and published, the next step is Marketing, and Payments to charge by card.
 - If the owner is upset or insults you: one short, calm line that answers or does what they asked. No apology lists, no repeating the page status, no new suggestions.`;
 
@@ -412,7 +412,15 @@ async function runTool(
     }
     case "save_service": {
       const nameV = clip(input.name, LIMITS.serviceName);
-      const price = clip(input.price, LIMITS.servicePrice) || null;
+      let price = clip(input.price, LIMITS.servicePrice) || null;
+      // A market reference from the Brain (ref) is never shown as the owner's
+      // price: it goes on the page only once the owner said that amount (or
+      // said yes when asked about it).
+      let refNote = "";
+      if (price && refPriceUnconfirmed(price, b.plan.packages, { ...ctx, yes: YES.test(ctx.ownerLast ?? "") })) {
+        refNote = `; saved WITHOUT a price: ${price} is the Brain's market reference, not the owner's price. Ask the owner what they charge (one question) and save their answer`;
+        price = null;
+      }
       const description = clip(input.description, LIMITS.serviceDescription) || null;
       const featured = Boolean(input.featured);
       const tag = featured ? clip(input.tag, 30) || null : null;
@@ -427,7 +435,7 @@ async function runTool(
         const created = fresh[fresh.length - 1];
         if (created && (featured || tag)) await updateService(created.id, { featured, tag });
       }
-      return "saved";
+      return `saved${refNote}`;
     }
     case "delete_service": {
       if (typeof input.id !== "string" || !ctx.services.some((s) => s.id === input.id)) return "error: unknown service id";
@@ -764,19 +772,21 @@ export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number):
       ? `¡Hola! Ya armé el primer borrador de tu agente, "${b.serviceAgent.name}", con tu estrategia del Cerebro. Para que trabaje bien necesita tu conocimiento: pégame aquí tus apuntes, reglas o respuestas a las preguntas que más te hacen, y lo dejo listo para probarlo.`
       : `Hi! I built the first draft of your agent, "${b.serviceAgent.name}", from your Brain strategy. To work well it needs your knowledge: paste your notes, rules or answers to the questions you get most, and I'll get it ready to test.`;
   }
-  if (b.plan.service && b.plan.packages.length > 0 && b.site.fromPlan !== planFingerprint(b.plan)) {
+  // This chat has no tool to rebuild the page from the plan: the button above
+  // the preview does it, so the greeting points there (never "¿La armo así?").
+  if (planReadyForStore(b.plan) && b.site.fromPlan !== planFingerprint(b.plan)) {
     return es
-      ? `¡Hola! Ya tengo la estrategia que armaste en el Cerebro para "${b.plan.service}". Con eso armo la página de ${b.name}: título, puntos clave y tus paquetes con precio. ¿La armo así y luego la revisamos juntos?`
-      : `Hi! I have the strategy you built in the Brain for "${b.plan.service}". I'll use it for ${b.name}'s page: headline, key points and your priced packages. Shall I build it that way and then we review it together?`;
+      ? `¡Hola! Ya tengo la estrategia que aprobaste en el Cerebro para "${b.plan.service}". Toca «${b.site.fromPlan ? "Actualizar mi página" : "Armar mi página"}» arriba de la vista previa y la armo con eso: título, puntos clave y tus paquetes. Luego la revisamos juntos aquí.`
+      : `Hi! I have the strategy you approved in the Brain for "${b.plan.service}". Tap "${b.site.fromPlan ? "Update my page" : "Build my page"}" above the preview and I'll build it from that: headline, key points and your packages. Then we review it together here.`;
   }
   if (serviceCount > 0 || b.site.headline) {
     if (b.plan.mode === "agent" && b.serviceAgent.name)
       return es
-        ? `Tu agente y su página ya están armados con lo que aprobamos. Aquí abajo tienes el resumen de la página, y con «Ver mi página» la ves completa. Aquí puedo cambiar el título, la oferta o los precios, y agregar fotos o un video. El agente se configura en «Agente», justo debajo de Store. ¿Qué quieres cambiar?`
-        : `Your agent and its page are built from what we approved. The page summary is right below, and "See my page" shows it in full. Here I can change the headline, the offer or the prices, and add photos or a video. The agent itself is set up in "Agent", right below Store. What do you want to change?`;
+        ? `Tu agente y su página ya están armados con lo que aprobamos. A la derecha ves la página tal como está (en el teléfono, toca «Vista previa»). Aquí puedo cambiar el título, la oferta o los precios, y agregar fotos o un video. El agente se configura en «Agente», justo debajo de Store. ¿Qué quieres cambiar?`
+        : `Your agent and its page are built from what we approved. On the right you see the page as it is (on a phone, tap "Preview"). Here I can change the headline, the offer or the prices, and add photos or a video. The agent itself is set up in "Agent", right below Store. What do you want to change?`;
     return es
-      ? `Tu página ya está armada con lo que aprobamos. Aquí abajo tienes el resumen, y con «Ver mi página» la ves completa. Aquí puedo agregar fotos o un video, cambiar el título, la oferta o los precios. ¿Qué quieres cambiar?`
-      : `Your page is built from what we approved. The summary is right below, and "See my page" shows it in full. Here I can add photos or a video, change the headline, the offer or the prices. What do you want to change?`;
+      ? `Tu página ya está armada con lo que aprobamos. A la derecha la ves tal como está (en el teléfono, toca «Vista previa»). Aquí puedo agregar fotos o un video, cambiar el título, la oferta o los precios. ¿Qué quieres cambiar?`
+      : `Your page is built from what we approved. On the right you see it as it is (on a phone, tap "Preview"). Here I can add photos or a video, change the headline, the offer or the prices. What do you want to change?`;
   }
   return es
     ? `¡Hola! Voy a armar contigo la página de ${b.name} para que más clientes te escriban. Para empezar: ¿qué servicio quieres vender y cuánto cuesta?`

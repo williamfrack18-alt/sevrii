@@ -570,7 +570,7 @@ export default async function PublicBusinessPage({
 
           <div className="buybox">
             {onTop("intro") && (site.licenseNumber || site.insured || site.spanish) && (
-              <div className="badge-row">
+              <div className={`badge-row${ghostTop("intro") ? " mt-ghost" : ""}`}>
                 {site.licenseNumber && <span className="badge">✓ {t.license} #{site.licenseNumber}</span>}
                 {site.insured && <span className="badge soft">{t.insured}</span>}
                 {site.spanish && <span className="badge soft">{langBadge}</span>}
@@ -579,7 +579,7 @@ export default async function PublicBusinessPage({
 
             {onTop("intro") && offer && (
               <UntilOfferEnds endsAt={offer.endsAt}>
-              <div className="deal">
+              <div className={`deal${ghostTop("intro") ? " mt-ghost" : ""}`}>
                 <span className="deal-dot" />
                 <span>
                   <strong>{t.offer}</strong> · {offer.label}

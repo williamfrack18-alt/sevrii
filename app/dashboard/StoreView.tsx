@@ -612,7 +612,10 @@ export function StrategyGate({ area, business, lang, onBrain }: { area: "store" 
         ? es ? "El Cerebro está investigando tu zona. En 1 o 2 minutos te muestra tu propuesta." : "The Brain is researching your area. In 1-2 minutes it shows you your proposal."
         : p.stage === "choose"
           ? es ? "Escoge una de las propuestas del Cerebro (o pide otras)." : "Pick one of the Brain's proposals (or ask for others)."
-          : es ? `Te falta aprobar en el Cerebro: ${pending.map((k) => parts[k]).join(", ")}.` : `Still to approve in the Brain: ${pending.map((k) => parts[k]).join(", ")}.`;
+          : pending.length
+            ? es ? `Te falta aprobar en el Cerebro: ${pending.map((k) => parts[k]).join(", ")}.` : `Still to approve in the Brain: ${pending.map((k) => parts[k]).join(", ")}.`
+            : // Every part is approved but the strategy isn't closed yet (a final check stopped it).
+              es ? "Ya aprobaste todas las partes: entra al Cerebro para terminar de confirmar tu estrategia." : "You approved every part: open the Brain to finish confirming your strategy.";
   return (
     <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen flex items-center justify-center px-4">
       <div className="max-w-[520px] w-full rounded-[24px] bg-white p-6 md:p-8 flex flex-col gap-4" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.06), 0 10px 30px -14px rgba(10,10,10,.16)" }}>

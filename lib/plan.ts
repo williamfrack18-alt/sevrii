@@ -590,7 +590,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
     agent: parsePlanAgent(o.agent),
     approvals,
     guard: { block: list(g.block, 8, 400), warn: list(g.warn, 8, 400) },
-    rejectedIdeas: list(o.rejectedIdeas, 80, 120),
+    rejectedIdeas: list(o.rejectedIdeas, MAX_REJECTED, 120),
     ideaPrefs: typeof o.ideaPrefs === "string" ? o.ideaPrefs.trim().slice(0, 600) : "",
     ownIdea: typeof o.ownIdea === "string" ? o.ownIdea.trim().slice(0, 400) : "",
     cards: cleanAnswers(o.mode === "new" ? "new" : "existing", o.cards),
@@ -627,14 +627,18 @@ export function missingProfile(plan: BusinessPlan): string[] {
     // before anything is researched or proposed.
     for (const id of pendingCards(plan.mode, plan.cards)) out.push(`card:${id}`);
   } else if (plan.stage === "ready_check" && plan.mode === "agent") {
-    need(!p.agentTask, "agentTask (the complete task the agent DOES for each customer end to end — result left done, official pages it operates, sensitive data the customer types and when, how it proves it's done: propose it yourself from the chosen idea and ask them to confirm or adjust)");
+    // The reach goes first: picking an idea already asks it (chooseIdeaAction),
+    // so the quick answers under the chat match that question.
     need(!p.remoteScope, "remoteScope (customers in the whole US = us, only one state = state, other countries too = world)");
     need(p.remoteScope === "state" && !p.state, "state (the one state whose customers it serves)");
+    need(!p.agentTask, "agentTask (the complete task the agent DOES for each customer end to end — result left done, official pages it operates, sensitive data the customer types and when, how it proves it's done: propose it yourself from the chosen idea and ask them to confirm or adjust)");
     need(!p.agentLimits, "agentLimits (what it must never do and when the creator steps in: propose sensible limits for this idea and ask them to confirm)");
     need(!p.businessName, "businessName (last: suggest 2 short brand names for the agent)");
   } else if (plan.stage === "ready_check") {
     // B after picking an idea: only how it's delivered, if it isn't obvious.
     need(!p.serviceMode, "serviceMode (the chosen service: in person in an area = local, or remote/online = remote)");
+    // In person needs the area (someone who said "digital" on the cards never gave one).
+    need(p.serviceMode === "local" && !p.city, "city (city and state where they would offer the chosen service in person)");
   }
   return out;
 }
@@ -723,11 +727,14 @@ export function codeChecks(p: BusinessPlan, today: string, final = true): { bloc
 // ---------- B: "show me other ideas" ----------
 // "Dame otras" has no limit of its own (the plan's AI budget still applies).
 export const MAX_IDEA_ROUNDS = 999;
+// Every rejected idea is remembered (B sees ~10 per round): with a cap of 80
+// the oldest ones were forgotten after 8 rounds and could come back.
+export const MAX_REJECTED = 400;
 
 // Sends the person back to idea research, remembering what they turned down
 // and what they said they'd prefer, so the next ideas are different.
 export function requestMoreIdeas(plan: BusinessPlan, feedback: string): BusinessPlan {
-  const rejected = [...new Set([...plan.rejectedIdeas, ...plan.ideas.map((i) => i.title)])].slice(-80);
+  const rejected = [...new Set([...plan.rejectedIdeas, ...plan.ideas.map((i) => i.title)])].slice(-MAX_REJECTED);
   const note = feedback.trim().replace(/\s+/g, " ").slice(0, 300);
   // What the rejected batch says by itself: all in person → lean digital, and so on.
   const kinds = plan.ideas.map((i) => i.delivery).filter(Boolean);

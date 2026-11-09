@@ -198,7 +198,9 @@ export function emptyAnswer(): CardAnswer {
   return { v: "", u: false, c: "", p: "" };
 }
 
-const ONLINE = /^(en\s*l[ií]nea|online|remot[oa]|remote|internet|virtual)$/i;
+// "en línea", but also "en línea, todo EE. UU." or "online (US)": an answer
+// that starts by saying online is online, not a city named "online, …".
+const ONLINE = /^(en\s*l[ií]nea|online|remot[oa]|remote|por\s+internet|internet|virtual)(?![\p{L}\d])/iu;
 export const isOnlinePlace = (p: string) => ONLINE.test(p.trim());
 
 // A card counts as answered with text, a pick, or an explicit "no sé".

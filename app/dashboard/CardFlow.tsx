@@ -90,8 +90,12 @@ export default function CardFlow({
   const es = lang === "es";
   const defs = cardsFor(mode);
   const [answers, setAnswers] = useState<CardAnswers>(() => ({ ...initial }));
-  // Start on the first card still to answer.
-  const [at, setAt] = useState(() => Math.max(0, defs.findIndex((d) => !cardDone(d, initial[d.id]))));
+  // Start on the first card still to answer (all answered: on the last one,
+  // where the send button is, not back on the first).
+  const [at, setAt] = useState(() => {
+    const i = defs.findIndex((d) => !cardDone(d, initial[d.id]));
+    return i < 0 ? defs.length - 1 : i;
+  });
   const def = defs[Math.min(at, defs.length - 1)];
   const a: CardAnswer = answers[def.id] ?? emptyAnswer();
   const done = defs.filter((d) => cardDone(d, answers[d.id])).length;
@@ -125,10 +129,22 @@ export default function CardFlow({
     set({ v: [...parts, s].join(", "), u: false });
     box.current?.focus();
   }
+  // What the server already has, so moving between cards saves only changes.
+  const saved = useRef(JSON.stringify(initial));
+  function save(submit: boolean) {
+    saved.current = JSON.stringify(answers);
+    onSave(answers, submit);
+  }
   function next() {
     if (!ok) return;
-    onSave(answers, last);
+    save(last);
     if (!last) setAt((n) => n + 1);
+  }
+  // Going back (or jumping with the dots) keeps what was typed on this card:
+  // it is saved too, not only on "Siguiente", so leaving the page never loses it.
+  function go(i: number) {
+    if (!busy && JSON.stringify(answers) !== saved.current) save(false);
+    setAt(Math.max(0, Math.min(defs.length - 1, i)));
   }
 
   const field = { background: "#FFFFFF", boxShadow: `inset 0 0 0 1px ${LINE}`, color: INK } as const;
@@ -173,7 +189,7 @@ export default function CardFlow({
                   key={d.id}
                   type="button"
                   role="listitem"
-                  onClick={() => setAt(i)}
+                  onClick={() => go(i)}
                   aria-label={`${es ? "Pregunta" : "Question"} ${i + 1}${ready ? (es ? ", contestada" : ", answered") : ""}`}
                   aria-current={here ? "step" : undefined}
                   className="h-2 rounded-full transition-all"
@@ -201,7 +217,7 @@ export default function CardFlow({
                 </span>
               </span>
               <div className="flex flex-col items-end gap-1.5">
-                <span className="inline-flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-full text-[12px] font-semibold" style={{ background: INK, color: "#FFFFFF" }} title={es ? "Necesaria para buscar tus ideas" : "Needed to find your ideas"}>
+                <span className="inline-flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-full text-[12px] font-semibold" style={{ background: INK, color: "#FFFFFF" }} title={mode === "new" ? (es ? "Necesaria para buscar tus ideas" : "Needed to find your ideas") : es ? "Necesaria para armar tu estrategia" : "Needed to build your strategy"}>
                   <SevriiMark size={14} color="#4ADE80" />
                   {es ? "Necesaria" : "Needed"}
                 </span>
@@ -328,7 +344,7 @@ export default function CardFlow({
           )}
 
           <div className="flex items-center justify-between gap-3 pt-2" style={{ borderTop: `1px solid ${LINE}` }}>
-            <button type="button" disabled={at === 0} onClick={() => setAt((n) => Math.max(0, n - 1))} className="h-11 px-2 mt-4 text-[14.5px] disabled:opacity-0" style={{ color: "#52525B" }}>
+            <button type="button" disabled={at === 0} onClick={() => go(at - 1)} className="h-11 px-2 mt-4 text-[14.5px] disabled:opacity-0" style={{ color: "#52525B" }}>
               ← {es ? "Atrás" : "Back"}
             </button>
             <button

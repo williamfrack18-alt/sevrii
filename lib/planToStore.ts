@@ -91,8 +91,11 @@ export function planFingerprint(plan: BusinessPlan): string {
   return (h >>> 0).toString(36);
 }
 
+// An approved strategy can have no packages (the Brain's single confirmation
+// lets an empty part through): its headline, texts and FAQ still build the page,
+// and the Store chat asks for the packages, instead of leaving it empty.
 export function planReadyForStore(plan: BusinessPlan): boolean {
-  return plan.stage === "approved" && Boolean(plan.service) && plan.packages.length > 0;
+  return plan.stage === "approved" && Boolean(plan.service);
 }
 
 export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraft {
@@ -102,12 +105,16 @@ export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraf
   // Reasoning meant for the owner ("te conviene porque…") never reaches customers.
   const plan: BusinessPlan = {
     ...planIn,
+    // The service title and package names reach the page too (headline,
+    // category, cards), so they lose their reasoning like the texts do.
+    service: stripReasoning(planIn.service),
     promise: stripReasoning(planIn.promise),
     serviceIncludes: stripReasoning(planIn.serviceIncludes),
     steps: planIn.steps.map(stripReasoning).filter(Boolean),
     differentiators: planIn.differentiators.map(stripReasoning).filter(Boolean),
     faq: planIn.faq.map((f) => ({ q: f.q, a: stripReasoning(f.a) })).filter((f) => f.a),
-    packages: planIn.packages.map((k) => ({ ...k, includes: stripReasoning(k.includes) })),
+    packages: planIn.packages.map((k) => ({ ...k, name: stripReasoning(k.name), includes: stripReasoning(k.includes) })),
+    offer: planIn.offer ? { ...planIn.offer, label: stripReasoning(planIn.offer.label) } : null,
   };
   const p = plan.profile;
   const es = lang === "es";
@@ -183,4 +190,24 @@ export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraf
         description: cut(k.includes, LIMITS.serviceDescription),
       })),
   };
+}
+
+// The amounts in a price ("$1,200 – $1,500" → ["1200", "1500"]).
+const amounts = (x: string) => (x.match(/\d[\d,]*(?:\.\d+)?/g) ?? []).map((n) => n.replace(/,/g, ""));
+
+// The Store chat is about to save a price equal to a package's market
+// reference (ref) that the owner never gave: not in anything they wrote in the
+// chat, nor a plain yes ("yes") right after the assistant asked about it.
+export function refPriceUnconfirmed(
+  price: string,
+  packages: BusinessPlan["packages"],
+  said: { ownerSaid?: string; lastAssistant?: string; yes?: boolean }
+): boolean {
+  const nums = amounts(price);
+  if (!nums.length) return false;
+  if (!packages.some((k) => k.ref && nums.every((n) => amounts(k.price).includes(n)))) return false;
+  // Links (uploaded photos) carry digits that are no price.
+  const owner = amounts((said.ownerSaid ?? "").replace(/https?:\/\/\S+/g, " "));
+  if (nums.every((n) => owner.includes(n))) return false;
+  return !(said.yes && nums.every((n) => amounts(said.lastAssistant ?? "").includes(n)));
 }

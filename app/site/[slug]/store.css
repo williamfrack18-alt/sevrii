@@ -600,6 +600,8 @@
 .mt-sectools-btns button:disabled { opacity: 0.35; cursor: default; }
 .mt-ghost > :not(.mt-sectools) { opacity: 0.4; filter: grayscale(0.6); }
 .mt-ghost { outline: 2px dashed rgba(150, 110, 20, 0.5); outline-offset: -2px; }
+/* The offer strip paints its own background: it is grayed too while hidden. */
+.mt .deal.mt-ghost { filter: grayscale(0.9); opacity: 0.6; }
 
 /* Parts of the first screen that can be hidden (pitch + key points). Outside
    edit mode the wrapper doesn't exist for the layout. */

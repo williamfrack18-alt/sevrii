@@ -165,7 +165,8 @@ const IDEAS_SCHEMA = obj({
       cons: S("Cons, one line"),
     }),
   },
-  message: S("3-4 short lines for the person: you found 3 options, explain briefly how you chose, do not describe each idea (they are shown in a card right after this message)"),
+  // No fixed count here: B gets 8 to 10 options and C 3, and a "found 3" text under 10 cards was wrong.
+  message: S("3-4 short lines for the person: you found these options (don't say how many: the card shows them), explain briefly how you chose, do not describe each idea (they are shown in a card right after this message)"),
 });
 
 function langLine(lang: Lang) {
@@ -322,9 +323,12 @@ export async function pickIdeas(plan: BusinessPlan, researchedIn: Idea[], lang: 
   // What they hate or never want again is a hard filter, applied in code:
   // those ideas never get to the model (their own idea is always kept).
   researched = filterIdeas(plan, researched);
+  // Nothing left after the filters (all rejected or off-limits): no model call;
+  // the pipeline then researches new ideas instead of re-picking from none.
+  if (!researched.length) return { ideas: [], message: "" };
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
-    `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas)}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\n${plan.ownIdea ? "La idea de índice 0 es la que trajo la persona: inclúyela siempre entre las 3, con su puntaje real y sus pros y contras honestos; en message di en una línea cómo salió frente a las otras. " : ""}${plan.mode === "agent" ? `Escoge las ${count} mejores con su puntaje.` : `Escoge las mejores, entre 8 y ${count} (todas las que valgan la pena), con su puntaje: bien pagadas, con demanda real y que encajen con la persona.`}`,
+    `${plan.mode === "agent" ? "Persona C: son ideas de agente de IA; usa los puntajes de \"Ideas de agente\".\n\n" : ""}Perfil (JSON):\n${JSON.stringify(plan.profile)}${plan.rejectedIdeas.length ? `\n\nIdeas que ya rechazó (no las repitas ni propongas variantes): ${JSON.stringify(plan.rejectedIdeas.slice(-80))}` : ""}${plan.ideaPrefs ? `\n\nLo que dijo que prefiere o no le gustó: ${plan.ideaPrefs}` : ""}\n\nIdeas investigadas (JSON, con índice):\n${JSON.stringify(researched.map((r, index) => ({ index, ...r })))}\n\n${plan.ownIdea ? "La idea de índice 0 es la que trajo la persona: inclúyela siempre entre las 3, con su puntaje real y sus pros y contras honestos; en message di en una línea cómo salió frente a las otras. " : ""}${plan.mode === "agent" ? `Escoge las ${count} mejores con su puntaje.` : `Escoge las mejores, entre 8 y ${count} (todas las que valgan la pena), con su puntaje: bien pagadas, con demanda real y que encajen con la persona.`}`,
     IDEAS_SCHEMA
   );
   const picked: Idea[] = [];

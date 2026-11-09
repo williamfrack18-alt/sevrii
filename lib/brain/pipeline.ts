@@ -131,9 +131,14 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
 
   if (step === "ideas_pick") {
     const researched = parseIdeas(resultOf(jobs, "ideas").data?.ideas);
-    if (researched.length === 0) throw new Error("no ideas researched");
-    const { ideas, message } = await pickIdeas(plan, researched, lang);
-    if (ideas.length === 0) throw new Error("no ideas picked");
+    const { ideas, message } = researched.length ? await pickIdeas(plan, researched, lang) : { ideas: [], message: "" };
+    if (ideas.length === 0) {
+      // Retry re-queues only failed jobs: the search itself is marked failed
+      // too, so "Reintentar" looks for new ideas instead of re-picking from the
+      // same ones (all rejected or off-limits) forever.
+      await setResearchJob(plan.runId, "ideas", "failed", undefined, "no usable ideas");
+      throw new Error("no ideas picked");
+    }
     plan = { ...plan, ideas, chosenIdea: null, stage: "choose", ownIdea: "" };
     await savePlan(businessId, plan);
     await addChatMessage(

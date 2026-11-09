@@ -64,7 +64,14 @@ export function codeGuard(plan: BusinessPlan, lang: Lang, final = true): { block
   const raw = codeChecks(plan, today(plan.profile.state), final);
   // Only the version being approved counts, and a note that quotes a phrase
   // blocks only if that exact phrase is in it (never a ghost of an old version).
-  const corpus = JSON.stringify([plan.service, plan.serviceIncludes, plan.promise, plan.differentiators, plan.packages, plan.offer, plan.faq, plan.steps, plan.agent]).toLowerCase();
+  // The checks quote some texts joined ("name includes", "q a"): those joins are
+  // in the corpus too, or a real claim in a package or an answer never blocked.
+  const joined = [
+    ...plan.packages.flatMap((x) => [`${x.name} ${x.includes}`, `${x.name} ${x.includes} ${x.note}`]),
+    ...plan.faq.map((f) => `${f.q} ${f.a}`),
+    ...(plan.agent?.edge ?? []).map((e) => `${e.title} ${e.text}`),
+  ];
+  const corpus = JSON.stringify([plan.service, plan.serviceIncludes, plan.promise, plan.differentiators, plan.packages, plan.offer, plan.faq, plan.steps, plan.agent, joined]).toLowerCase();
   const backed = raw.block.filter((b) => {
     const q = /"([^"]{6,})"/.exec(b);
     if (!q) return true; // structural checks (an offer date, a restricted service) read the plan itself

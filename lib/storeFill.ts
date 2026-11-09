@@ -11,7 +11,8 @@ export type FillResult = { filled: boolean; business?: BusinessRow };
 
 // onlyIfEmpty: used right after the expediente is approved. It never touches a
 // page the owner already started; the Store tab offers the update instead.
-export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { onlyIfEmpty?: boolean } = {}): Promise<FillResult> {
+// quiet: the caller writes its own chat message (choosing how to start).
+export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { onlyIfEmpty?: boolean; quiet?: boolean } = {}): Promise<FillResult> {
   const b = await getBusinessById(businessId);
   if (!b || !planReadyForStore(b.plan)) return { filled: false };
   // C: the agent the strategy proposed becomes the first draft of the agent
@@ -81,17 +82,22 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
   });
 
   if (draft.services.length) {
+    // A package the plan still shows as a market reference has no price here;
+    // the price the owner already gave it in Store is theirs and stays.
+    const key = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const ownPrice = new Map(services.filter((s) => (s.price ?? "").trim()).map((s) => [key(s.name), s.price as string]));
     for (const s of services) await deleteService(s.id);
     let i = 0;
-    for (const s of draft.services) await addService(b.id, s.name, s.price, s.description, i++);
+    for (const s of draft.services) await addService(b.id, s.name, s.price || ownPrice.get(key(s.name)) || "", s.description, i++);
   }
 
   const fresh = (await getBusinessById(b.id))!;
-  await addChatMessage(b.id, "store", "ai", doneMessage(lang, fresh, draft.services.length));
+  const priced = (await listServices(b.id)).filter((s) => (s.price ?? "").trim()).length;
+  if (!opts.quiet) await addChatMessage(b.id, "store", "ai", doneMessage(lang, fresh, draft.services.length, priced));
   return { filled: true, business: fresh };
 }
 
-function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
+function doneMessage(lang: Lang, b: BusinessRow, packages: number, priced: number): string {
   const es = lang === "es";
   if (b.plan.mode === "agent" && b.serviceAgent.name) {
     return es
@@ -104,9 +110,18 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number): string {
   if (s.gallery.length === 0 && !s.coverUrl) missing.push(es ? "fotos de tus trabajos" : "photos of your work");
   if (!s.hours) missing.push(es ? "tu horario" : "your hours");
   if (!s.videoUrl) missing.push(es ? "un video corto tuyo" : "a short video of you");
+  // Packages with a market reference go on the page without a price: never
+  // call them "priced", and say the owner's own price is still needed.
+  const unpriced = packages - priced;
+  const pk = !packages
+    ? ""
+    : es
+      ? ` y tus ${packages} paquetes${unpriced === 0 ? " con precio" : priced ? ` (${unpriced} todavía sin precio)` : " (todavía sin precio)"}`
+      : ` and your ${packages} packages${unpriced === 0 ? " with prices" : priced ? ` (${unpriced} still without a price)` : " (still without prices)"}`;
   const built = es
-    ? `¡Listo! Armé tu página con tu expediente: título, puntos clave, cómo trabajas, preguntas frecuentes${packages ? ` y tus ${packages} paquetes con precio` : ""}. Toca «Ver mi página» en la tarjeta para verla completa.`
-    : `Done! I built your page from your expediente: headline, key points, how you work, FAQ${packages ? ` and your ${packages} priced packages` : ""}. Tap "See my page" on the card to see it in full.`;
+    ? `¡Listo! Armé tu página con tu expediente: título, puntos clave, cómo trabajas, preguntas frecuentes${pk}. A la derecha ves tu página tal como queda (en el teléfono, toca «Vista previa»).`
+    : `Done! I built your page from your expediente: headline, key points, how you work, FAQ${pk}. On the right you see your page as it looks (on a phone, tap "Preview").`;
+  if (packages && unpriced > 0) missing.unshift(es ? "tu precio para cada paquete que todavía no lo tiene" : "your price for each package that doesn't have one yet");
   if (!s.reachMode) missing.unshift(es ? "dónde atiendes (en persona en tu zona o en línea)" : "where you serve (in person in your area, or online)");
   const media = s.gallery.length === 0 && !s.coverUrl || !s.videoUrl;
   if (!missing.length) return `${built} ${es ? "Si quieres cambiar algo, dímelo aquí." : "If you want to change anything, tell me here."}`;
@@ -193,8 +208,9 @@ export function agentFromPlan(plan: BusinessPlan): ServiceAgent {
     edge: a?.edge ?? [],
     // What it does end to end, as the strategy defined it.
     task: a?.task,
-    offers: plan.packages.map(offerFromPackage).filter(Boolean),
+    // A market reference (ref) is not the owner's price: no one is charged it.
+    offers: plan.packages.filter((k) => !k.ref).map(offerFromPackage).filter(Boolean),
     // The welcome offer the strategy proposed ("15% off your first month").
-    ...welcomeFromPlan(plan),
+    ...welcomeFromPlan({ ...plan, packages: plan.packages.filter((k) => !k.ref) }),
   });
 }

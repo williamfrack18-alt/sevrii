@@ -43,6 +43,15 @@ async function requireBusiness(businessId?: string): Promise<BusinessRow> {
   return user.business;
 }
 
+// Everything the owner wrote in this chat (prices they gave there count as
+// theirs, the same as in the chat's own edits).
+async function ownerChat(businessId: string): Promise<string> {
+  return (await listChatMessages(businessId, CHANNEL))
+    .filter((m) => m.role === "user")
+    .map((m) => m.content)
+    .join("\n");
+}
+
 async function respond(b: BusinessRow, extra: Partial<PlanChatResponse> = {}): Promise<PlanChatResponse> {
   const fresh = (await getBusinessById(b.id)) ?? b;
   return {
@@ -153,6 +162,15 @@ export async function chooseIdeaAction(index: number, businessId?: string): Prom
     return respond(business, { startPipeline: true });
   }
   await updateBusinessPlan(business.id, next);
+  // Nothing left to ask, but the plan's limit won't let the research start:
+  // say so (it used to say "una sola cosa" and ask nothing). The screen
+  // resumes by itself once the limit allows it.
+  if (plan.mode !== "agent" && missingProfile(next).length === 0) {
+    const limit = researchLimitText(await researchUsage(business.userId), es ? "es" : "en");
+    await addChatMessage(business.id, CHANNEL, "ai", `${es ? "¡Buena elección! Ya tengo todo para investigar este servicio." : "Great choice! I have everything to research this service."} ${limit}`);
+    revalidatePath("/dashboard");
+    return respond(business);
+  }
   await addChatMessage(
     business.id,
     CHANNEL,
@@ -175,6 +193,7 @@ function readyQuestion(plan: BusinessPlan, lang: Lang): string {
   const intro = es ? "¡Buena elección! Antes de investigar, una sola cosa." : "Great choice! Before I research, just one thing.";
   const q: Record<string, [string, string]> = {
     serviceMode: ["¿Lo harías en persona en tu zona o en línea?", "Would you do it in person in your area, or online?"],
+    city: ["¿En qué ciudad y estado lo ofrecerías?", "In what city and state would you offer it?"],
     zip: ["¿Cuál es tu código postal (ZIP)?", "What's your ZIP code?"],
     radiusMiles: ["¿Hasta cuántas millas te moverías para atender a un cliente?", "How many miles would you travel to serve a customer?"],
     remoteScope: ["¿Atenderías clientes de todo EE. UU. (te lo recomiendo), solo de tu estado o también de otros países?", "Would you serve customers in the whole US (my recommendation), only your state, or other countries too?"],
@@ -232,7 +251,12 @@ async function walkOn(business: BusinessRow, next: BusinessPlan, refused: string
 // The last approval (from a card, "no offer" or "finish"): build the page
 // and tell the owner, always the same way.
 async function afterApproved(business: BusinessRow, lang: Lang) {
-  const { filled } = await fillStoreFromPlan(business.id, lang, { onlyIfEmpty: true });
+  // The approval is already saved: if the page can't be built right now, the
+  // owner still gets the next steps (and builds it from Store), never a dead end.
+  const { filled } = await fillStoreFromPlan(business.id, lang, { onlyIfEmpty: true }).catch((err) => {
+    console.error("[brain] could not build the page after approval", business.id, err);
+    return { filled: false };
+  });
   // "Ya armé tu página" whenever the page has content now (it may have been
   // built a moment earlier, in the same approval, by the chat).
   const built = filled || (await listServices(business.id)).length > 0;
@@ -308,7 +332,13 @@ async function profileFromCards(plan: BusinessPlan, cards: CardAnswers): Promise
   };
   const place = (raw: string) => {
     if (!raw.trim() || isOnlinePlace(raw)) return null;
-    return lookupPlace(raw);
+    const hit = lookupPlace(raw);
+    if (hit) return hit;
+    // A place our list doesn't know (a small town, a typo) is still where they
+    // work: kept as they wrote it, so the research isn't left without a city.
+    const parts = raw.split(",").map((x) => x.trim()).filter(Boolean);
+    const st = /^[A-Za-z]{2}$/.test(parts[parts.length - 1] ?? "") && parts.length > 1 ? parts[parts.length - 1].toUpperCase() : "";
+    return { city: (st ? parts.slice(0, -1).join(", ") : raw.trim()).slice(0, 80), state: st };
   };
   const p = { ...plan.profile };
   if (plan.mode === "new") {
@@ -323,7 +353,9 @@ async function profileFromCards(plan: BusinessPlan, cards: CardAnswers): Promise
     p.direction = "open";
     if (d && !d.u) {
       p.workPlace = d.c === "digital" ? "home" : d.c === "fisico" ? "out" : "any";
-      if (d.c === "digital") p.serviceMode = "remote";
+      // Only digital decides it now; otherwise the chosen idea does (an
+      // earlier "digital" answer never sticks once it was changed).
+      p.serviceMode = d.c === "digital" ? "remote" : "";
       const where = place(d.p);
       if (where) Object.assign(p, { city: where.city, state: where.state });
     } else p.workPlace = "any";
@@ -334,11 +366,13 @@ async function profileFromCards(plan: BusinessPlan, cards: CardAnswers): Promise
     else {
       const where = s ? place(s.p) : null;
       if (where) Object.assign(p, { city: where.city, state: where.state });
-      if (!p.serviceMode) p.serviceMode = "local";
+      // A city means in person (an earlier "en línea" answer doesn't stick).
+      p.serviceMode = "local";
     }
     p.currentPrice = said("prices");
     p.costs = said("costs");
-    p.costMaterialsUsd = num(/\$\s?(\d+)\s*(?:de|en)?\s*materiales?\b/i, said("costs"));
+    // "$8 de materiales", "$8 en material", "$8 of materials".
+    p.costMaterialsUsd = num(/\$\s?(\d+)\s*(?:de|en|of|in)?\s*materia(?:l|les|ls)\b/i, said("costs"));
     p.hoursPerWeek = num(/(\d{1,3})\s*(?:h\b|hrs?|horas|hours)\s*(?:a la|por|per|a)\s*(?:semana|week)/i, said("hours"));
     p.costHoursPerJob = num(/(\d{1,2}(?:\.\d)?)\s*(?:h\b|hrs?|horas?|hours?)\s*(?:por|per|each|cada)\s*(?:trabajo|par|cliente|visita|job|pair|client|visit)/i, said("hours"));
     p.typicalCustomer = cards.clients?.u ? "todavía no tiene clientes" : said("clients");
@@ -363,6 +397,10 @@ export async function saveCardsAction(cards: unknown, submit: boolean, businessI
   const answers = cleanAnswers(plan.mode, cards);
   let next: BusinessPlan = { ...plan, cards: answers };
   if (!submit) {
+    // Already sent once (a research limit stopped it): the saved profile
+    // follows the edited cards, so the research that resumes by itself
+    // never uses the old answers.
+    if (plan.profile.researchReady) next = { ...next, profile: { ...(await profileFromCards(next, answers)), researchReady: pendingCards(plan.mode, answers).length === 0 } };
     await updateBusinessPlan(business.id, next);
     return respond(business);
   }
@@ -371,7 +409,11 @@ export async function saveCardsAction(cards: unknown, submit: boolean, businessI
     await updateBusinessPlan(business.id, next);
     return respond(business, { notice: `${es ? "Te falta contestar:" : "Still to answer:"} ${left.map((id) => cardTitle(plan.mode, id, lang)).join(" · ")}` });
   }
-  if (!(await allow(`brain:cards:${business.id}`, 20, 60 * 60))) return respond(business, { notice: getDict(lang).auth.errTooMany });
+  if (!(await allow(`brain:cards:${business.id}`, 20, 60 * 60))) {
+    // The answers are kept even when the send has to wait.
+    await updateBusinessPlan(business.id, next);
+    return respond(business, { notice: getDict(lang).auth.errTooMany });
+  }
   const profile = await profileFromCards(next, answers);
   next = { ...next, profile: { ...profile, researchReady: true }, flowLang: lang };
   if (!(await researchWouldStart(business.userId))) {
@@ -405,8 +447,9 @@ export async function confirmProposalAction(prices: Record<string, string>, busi
   const es = lang === "es";
   let plan = business.plan;
   if (plan.stage !== "proposal" || plan.mode === "agent") return respond(business);
-  if (!(await allow(`brain:approve:${business.id}`, 60, 10 * 60))) return respond(business);
+  if (!(await allow(`brain:approve:${business.id}`, 60, 10 * 60))) return respond(business, { notice: getDict(lang).auth.errTooMany });
   // A price typed here is the owner's own: it replaces the reference.
+  const said = await ownerChat(business.id);
   const typed: string[] = [];
   const packages = plan.packages.map((k, i) => {
     const raw = String(prices?.[String(i)] ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
@@ -415,7 +458,9 @@ export async function confirmProposalAction(prices: Record<string, string>, busi
     typed.push(`${k.name}: ${price}`);
     return { ...k, price, ref: false };
   });
-  plan = markReferencePrices({ ...plan, packages }, typed.join(" "));
+  // A price the owner gave earlier in the chat stays theirs (only the typed
+  // ones were read here before, so those turned back into references).
+  plan = markReferencePrices({ ...plan, packages }, `${said}\n${typed.join(" ")}`);
   if (typed.length) await addChatMessage(business.id, CHANNEL, "user", `${es ? "Mis precios" : "My prices"}: ${typed.join(" · ")}`);
   await addChatMessage(business.id, CHANNEL, "user", es ? "Confirmo mi estrategia." : "I confirm my strategy.");
   const { plan: next, refused } = applyApprovals(readyForPage(plan), APPROVAL_BLOCKS, lang);
@@ -453,6 +498,9 @@ export async function otherPackagesAction(businessId?: string): Promise<PlanChat
     return respond(business, { notice: es ? "No pude traer otra versión ahora. Inténtalo de nuevo en un momento." : "I couldn't get another version right now. Try again in a moment." });
   }
   const added = (fresh.packages ?? []).filter((k) => k.name && !own.some((o) => fold(o.name) === fold(k.name)) && !shown.some((s) => fold(s) === fold(k.name)));
+  // Nothing new came back (all repeated): keep what they have instead of
+  // leaving the strategy without packages.
+  if (!added.length && !own.length) return respond(business, { notice: es ? "No pude traer otra versión ahora. Inténtalo de nuevo en un momento." : "I couldn't get another version right now. Try again in a moment." });
   let next: BusinessPlan = {
     ...plan,
     promise: fresh.promise || plan.promise,
@@ -461,7 +509,8 @@ export async function otherPackagesAction(businessId?: string): Promise<PlanChat
     pricingNote: fresh.pricingNote || plan.pricingNote,
     approvals: {},
   };
-  next = withoutAvoided(noFakeCosts(markReferencePrices(next)));
+  // The owner's prices (card or chat) stay theirs; the new ones are references.
+  next = withoutAvoided(noFakeCosts(markReferencePrices(next, await ownerChat(business.id))));
   if (!next.profile.offerWanted) next = withoutDiscounts(next);
   await updateBusinessPlan(business.id, next);
   await addChatMessage(business.id, CHANNEL, "user", es ? "Ver otros paquetes y presentación" : "See other packages and presentation");
