@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { myUsageAction } from "@/app/accountActions";
 import type { UsageSummary } from "@/lib/usage";
-import { GREEN } from "@/lib/panel";
 
 // What's left of the plan, always in view: messages today and this month and
 // research runs this month. It refreshes after every chat message.
@@ -45,7 +44,7 @@ export default function UsageMeter({ lang, onPlans }: { lang: "es" | "en"; onPla
               </span>
             </span>
             <span className="dash-meter-track h-1 rounded-full overflow-hidden" style={{ background: "rgba(10,10,10,0.08)" }}>
-              <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: pct <= 10 ? "#D97706" : GREEN }} />
+              <span className="dash-meter-fill block h-full rounded-full" style={{ width: `${pct}%`, background: pct <= 10 ? "#D97706" : undefined }} />
             </span>
           </span>
         );

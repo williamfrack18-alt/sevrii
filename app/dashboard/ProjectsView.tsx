@@ -6,7 +6,7 @@ import { PLAN_TEXT, PROJECTS_TEXT } from "@/lib/planI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { deleteProjectAction, switchProjectAction } from "@/app/actions";
 import type { ClientBusiness, ClientProject, DashboardView } from "./types";
-import { DEEP, GREEN, TINT } from "@/lib/panel";
+import { GREEN } from "@/lib/panel";
 
 const MAX_PROJECTS = 10;
 
@@ -22,12 +22,11 @@ function firstName(owner: string): string {
   return owner.trim().split(/\s+/)[0] || "";
 }
 
-// Photo-less project cards: Sevrii's colors, a different one per card.
+// Photo-less project cards: black and graphite, never a washed-out green.
 const FILLS = [
-  `linear-gradient(160deg, ${GREEN} 0%, ${DEEP} 72%)`,
   "linear-gradient(160deg, #262626 0%, #0A0A0A 70%)",
-  `linear-gradient(160deg, #0B4A24 0%, ${DEEP} 70%)`,
-  `linear-gradient(160deg, #22C55E 0%, ${GREEN} 70%)`,
+  "linear-gradient(160deg, #303030 0%, #141414 70%)",
+  "linear-gradient(160deg, #1C1C1C 0%, #050505 70%)",
 ];
 
 const TEXT = {
@@ -225,7 +224,7 @@ export default function ProjectsView({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: FILLS[projects.indexOf(p) % FILLS.length] ?? FILLS[idx % FILLS.length] }}>
+                      <div className="absolute inset-0 flex items-center justify-center pb-[96px]" style={{ background: FILLS[projects.indexOf(p) % FILLS.length] ?? FILLS[idx % FILLS.length] }}>
                         <span className="text-[56px] font-medium tracking-[-0.04em] text-white/90">{initials(p.name)}</span>
                       </div>
                     )}
@@ -355,7 +354,7 @@ function Thumb({ src, label, size }: { src: string; label: string; size: number 
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt="" className="rounded-[20px] object-cover shrink-0" style={{ width: size, height: size }} />
   ) : (
-    <span className="rounded-[20px] shrink-0 flex items-center justify-center text-white text-[26px] font-medium" style={{ width: size, height: size, background: `linear-gradient(150deg, ${GREEN} 0%, ${DEEP} 75%)` }}>
+    <span className="rounded-[20px] shrink-0 flex items-center justify-center text-white text-[26px] font-medium" style={{ width: size, height: size, background: "linear-gradient(150deg, #262626 0%, #0A0A0A 75%)" }}>
       {initials(label)}
     </span>
   );

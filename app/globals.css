@@ -623,6 +623,9 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
 .dash-dark .dash-rail .lang-toggle .lt-opt.on { background: #fff; color: #0A0A0A; }
 .dash-dark .dash-rail .dash-rail-cta { background: #fff !important; color: #0A0A0A !important; }
 .dash-dark .dash-rail .dash-meter-track { background: rgba(255, 255, 255, 0.14) !important; }
+/* Usage bars: black on light, soft white on the dark rail (no bright green). */
+.dash-meter-fill { background: #0A0A0A; }
+.dash-dark .dash-rail .dash-meter-fill { background: rgba(255, 255, 255, 0.85); }
 .dash-dark .dash-topbar { background: rgba(4, 16, 10, 0.9); }
 .dash-dark .dash-topbar .text-pfg { color: #fff; }
 .dash-dark .dash-topbar .text-pfaint { color: rgba(255, 255, 255, 0.5); }
