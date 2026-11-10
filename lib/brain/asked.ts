@@ -21,7 +21,7 @@ export const TOPICS: Record<string, RegExp> = {
   hoursPerWeek: /(horas (a la |por )?semana|hours (a|per) week)/,
   startBudgetUsd: /(presupuesto|cu[aa]nto (dinero|puedes)|dinero (para|disponible)|budget|how much (money|can you))/,
   languages: /(idiomas?|languages?)/,
-  city: /(qu[eé] ciudad|ciudad y estado|what city|city and state)/,
+  city: /(qu[eé] ciudad|ciudad y (estado|pa[ií]s)|en qu[eé] pa[ií]s|what city|city and (state|country))/,
   currentPrice: /(cu[aa]nto cobras|what do you charge)/,
   howGetsClients: /(c[oó]mo consigues|c[oó]mo (te )?llegan (tus )?clientes|how do you get (your )?(customers|clients))/,
   typicalCustomer: /(qui[eé]nes? (es|son) tus? cliente|who (is|are) your (typical )?(customer|client))/,
@@ -145,8 +145,8 @@ const ASK: Record<string, { es: [string, string]; en: [string, string] }> = {
     en: ["How many miles will you travel to serve a customer? Give me a number.", "Give me an approximate number of miles from your city, for example 10, 20 or 30."],
   },
   city: {
-    es: ["¿En qué ciudad y estado vives?", "Dime la ciudad y el estado donde vives, por ejemplo «Miami, FL»."],
-    en: ["What city and state do you live in?", "Tell me the city and state where you live, for example \"Miami, FL\"."],
+    es: ["¿En qué ciudad trabajas (y en qué país)? Si es en línea, dímelo.", "Dime tu ciudad y tu país, por ejemplo «Medellín, Colombia» o «Miami, EE. UU.», o si trabajas en línea."],
+    en: ["What city do you work in (and what country)? If it's online, tell me.", "Tell me your city and country, for example \"Toronto, Canada\" or \"Miami, US\", or whether you work online."],
   },
 };
 

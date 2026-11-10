@@ -63,7 +63,18 @@ async function respond(b: BusinessRow, extra: Partial<PlanChatResponse> = {}): P
 }
 
 export async function sendPlanChatAction(message: string, businessId?: string): Promise<PlanChatResponse> {
-  const business = await requireBusiness(businessId);
+  let business = await requireBusiness(businessId);
+  // A project that was halfway through the old interview cards: what it
+  // already answered is kept (the chat never asks it again).
+  {
+    const pl = business.plan;
+    const p = pl.profile;
+    if (pl.stage === "interview" && (pl.mode === "new" || pl.mode === "existing") && Object.keys(pl.cards).length && !p.mainService && !p.workHistory && !p.likes) {
+      const profile = await profileFromCards(pl, pl.cards);
+      await updateBusinessPlan(business.id, { ...pl, profile: { ...profile, researchReady: false } });
+      business = (await getBusinessById(business.id)) ?? business;
+    }
+  }
   const lang = await getLang();
   const t = getDict(lang).dashboard;
   const text = String(message || "").trim();
@@ -193,7 +204,7 @@ function readyQuestion(plan: BusinessPlan, lang: Lang): string {
   const intro = es ? "¡Buena elección! Antes de investigar, una sola cosa." : "Great choice! Before I research, just one thing.";
   const q: Record<string, [string, string]> = {
     serviceMode: ["¿Lo harías en persona en tu zona o en línea?", "Would you do it in person in your area, or online?"],
-    city: ["¿En qué ciudad y estado lo ofrecerías?", "In what city and state would you offer it?"],
+    city: ["¿En qué ciudad lo ofrecerías (y en qué país)?", "In what city would you offer it (and in what country)?"],
     zip: ["¿Cuál es tu código postal (ZIP)?", "What's your ZIP code?"],
     radiusMiles: ["¿Hasta cuántas millas te moverías para atender a un cliente?", "How many miles would you travel to serve a customer?"],
     remoteScope: ["¿Atenderías clientes de todo EE. UU. (te lo recomiendo), solo de tu estado o también de otros países?", "Would you serve customers in the whole US (my recommendation), only your state, or other countries too?"],

@@ -8,12 +8,12 @@ import { extractJson, textOf } from "./common";
 // The Strategist (the most capable model): turns the expediente into a
 // commercial proposal, or picks the 3 best ideas for someone starting out.
 
-const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, servicio, cliente, mercado y requisitos) armas la propuesta comercial de un servicio en EE. UU. (local, o en línea si serviceMode es "remote").
+const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, servicio, cliente, mercado y requisitos) armas la propuesta comercial de un servicio en el país de la persona (profile.country, con su región y su ciudad; local, o en línea si serviceMode es "remote"). Moneda, leyes, competencia y costumbres son las de ese país: nunca supongas que es Estados Unidos si profile.country dice otra cosa. Los precios van en la moneda local con su símbolo o código.
 
 Antes de los precios (obligatorio): la parte "servicio" es un menú. En serviceIncludes escribe 2 a 4 servicios concretos que esta persona podría ofrecer, solo sus nombres y qué incluyen, separados por «;» (este texto va a su página, para sus clientes). Por qué le conviene cada uno va APARTE, en serviceWhy (eso solo lo lee el dueño, nunca sale en la página). Ningún texto que va a la página (servicio, promesa, diferenciadores, pasos, paquetes, preguntas) explica por qué se eligió algo ni dice «te conviene», «encaja contigo» o «por tu experiencia». Los paquetes se arman con lo que ese menú dice, nunca con servicios que no estén en él. La persona escoge qué conservar antes de aprobar precios.
 Primeros pasos (obligatorio): firstSteps son 3 a 5 pasos concretos y cortos que la persona puede hacer ya: qué hacer primero, qué tener listo (solo lo que dijo tener o lo que cuesta poco) y cómo conseguir su primer cliente. Sin inventar horas, costos ni herramientas que no dijo.
 Precios del dueño: profile.currentPrice (y cardAnswers.prices) es lo único que es SU precio. Si está vacío o es "no sé", todos los precios de los paquetes salen de market.prices y son referencia de mercado: nunca escribas "tu precio", "tus costos" ni "cobras" sobre ellos. Si cardAnswers dice "no sé" en costos, horas o clientes, no los supongas ni calcules con ellos.
-Persona A: entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, la oferta solo si el dueño la pidió, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
+Persona A (MÁS CLIENTES, lo más importante): la persona ya tiene su servicio y quiere más clientes. No le rediseñes el servicio: el menú y los paquetes son los que ya ofrece (profile.mainService, su forma de trabajar y su precio de hoy si lo dio). Lo central es "growth": diagnosis (por qué hoy no le llegan más clientes, en 2 o 3 frases, deducido de cómo le llegan hoy —profile.howGetsClients— y de la investigación), idealClient (a quién venderle primero y por qué), priceVsMarket (su precio frente al rango de market.prices, con honestidad y sin cambiarlo; si no dio precio, el rango de la zona como referencia) y actions (exactamente 3 acciones concretas para esta semana, gratis o baratas, que salen de su caso). "channels" son por dónde llegarle a ese cliente, en orden. Además entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, la oferta solo si el dueño la pidió, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
 Persona B: primero entrega de 8 a 10 ideas variadas y bien pagadas (de las investigadas), de la mejor a la peor pagada por hora. Cuando escoja una, entrega la misma propuesta que la persona A.
 Persona C (mode "agent"): la persona crea un agente de IA, un producto digital que resuelve un problema él solo, en el chat de su página, las 24 horas, y cobra por usarlo. No tiene que ser de su oficio: primero entrega 3 ideas de agente (de las 5 investigadas); cuando escoja una, entrega la misma propuesta y además "agent".
 
@@ -88,7 +88,7 @@ Su cara vende (es un servicio, no un producto):
 - videoScript: guion de 30 a 60 segundos, en primera persona, para grabarlo con el celular mirando a la cámara: quién es, qué hace y dónde, por qué elegirlo (solo hechos del expediente), la oferta solo si existe, y que le escriban por el chat de su página. Frases cortas y naturales. Usa [tu nombre] donde va su nombre.
 - photoIdeas: 4 a 6 fotos concretas que puede tomarse con el celular para su servicio (por ejemplo: retrato sonriendo con ropa de trabajo, trabajando, sus herramientas, el antes y después). Si apenas empieza, fotos practicando o preparando su equipo.
 
-Tipo de campaña: los anuncios llevan a la página del dueño en Sevrii, donde el cliente escribe por el chat. Facebook e Instagram con el botón "Más información" o "Enviar mensaje" hacia la página, para servicios locales; Google Search cuando la gente busca el servicio y el presupuesto llega a unos $15 al día. Suma los canales gratis: referidos siempre, y perfil de Google Business solo si atiende en persona en una zona (no para servicios en línea). Servicios en línea (remote): campañas a todo EE. UU. (al mundo si remoteScope es "world"; solo a su estado si remoteScope es "state"), no a una ciudad.`;
+Tipo de campaña: los anuncios llevan a la página del dueño en Sevrii, donde el cliente escribe por el chat. Facebook e Instagram con el botón "Más información" o "Enviar mensaje" hacia la página, para servicios locales; Google Search cuando la gente busca el servicio y el presupuesto llega a unos $15 al día. Suma los canales gratis: referidos siempre, y perfil de Google Business solo si atiende en persona en una zona (no para servicios en línea). Servicios en línea (remote): campañas a todo su país (al mundo si remoteScope es "world"; solo a su estado o región si remoteScope es "state"), no a una ciudad.`;
 
 const S = (description: string) => ({ type: "string", description });
 const obj = (properties: Record<string, unknown>) => ({ type: "object", additionalProperties: false, properties, required: Object.keys(properties) });
@@ -118,6 +118,12 @@ const PROPOSAL_PROPS = {
   }),
   campaignType: S("Recommended campaign in one line"),
   channels: { type: "array", items: obj({ channel: S("Channel"), why: S("Why, one line") }), description: "Up to 4 channels in priority order, include free ones" },
+  growth: obj({
+    diagnosis: S("Persona A: why more clients don't come yet, 2-3 sentences from howGetsClients and the research. Persona B or C: empty"),
+    idealClient: S("Persona A: who to sell to first and why, one or two sentences. Persona B or C: empty"),
+    priceVsMarket: S("Persona A: their price against the market range, honest, without changing it (or the range as a reference if they gave no price). Persona B or C: empty"),
+    actions: { type: "array", items: { type: "string" }, description: "Exactly 3 concrete, free or cheap actions for this week (A: to get more clients; B or C: to get the first client)" },
+  }),
   faq: { type: "array", items: obj({ q: S("Question"), a: S("Answer, honest, max 300 chars") }), description: "6 FAQs for the page" },
   videoScript: S("30-60 second first-person video script to record with a phone, using [tu nombre]/[your name] for the name"),
   photoIdeas: { type: "array", items: { type: "string" }, description: "4-6 concrete photos of the owner and their work to take with a phone" },
@@ -170,7 +176,7 @@ const IDEAS_SCHEMA = obj({
 });
 
 function langLine(lang: Lang) {
-  return lang === "es" ? "Escribe todos los textos en español neutro (EE. UU., tutea)." : "Write all text in plain US English.";
+  return lang === "es" ? "Escribe todos los textos en español neutro (tutea)." : "Write all text in plain English.";
 }
 
 async function ask(system: string, user: string, schema: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -272,6 +278,15 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
     videoScript: typeof d.videoScript === "string" ? d.videoScript.trim().slice(0, 1200) : "",
     photoIdeas: (Array.isArray(d.photoIdeas) ? d.photoIdeas : []).map((x) => str(x, 400)).filter(Boolean).slice(0, 6),
     campaignType: str(d.campaignType, 400),
+    growth: (() => {
+      const g = (d.growth ?? {}) as Record<string, unknown>;
+      return {
+        diagnosis: plan.mode === "existing" ? str(g.diagnosis, 600) : "",
+        idealClient: plan.mode === "existing" ? str(g.idealClient, 400) : "",
+        priceVsMarket: plan.mode === "existing" ? str(g.priceVsMarket, 500) : "",
+        actions: (Array.isArray(g.actions) ? g.actions : []).map((x) => str(x, 300)).filter(Boolean).slice(0, 3),
+      };
+    })(),
     channels: (Array.isArray(d.channels) ? d.channels : []).slice(0, 4).map((x) => {
       const c = (x ?? {}) as Record<string, unknown>;
       return { channel: str(c.channel, 120), why: str(c.why, 400) };

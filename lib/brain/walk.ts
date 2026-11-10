@@ -59,8 +59,8 @@ export function nextPartMessage(p: BusinessPlan, lang: Lang): string | null {
     if (p.stage !== "proposal") return null;
     return `${
       lang === "es"
-        ? "Aquí está tu estrategia completa. Revísala: los precios marcados «Referencia de mercado» son lo que se cobra en tu zona, no tus precios; escribe los tuyos en la tarjeta si quieres. Si algo no te gusta, dímelo aquí y lo cambio. Cuando esté bien, confírmala y paso a crear tu página."
-        : "Here's your complete strategy. Review it: prices marked \"Market reference\" are what's charged in your area, not your prices; type yours on the card if you like. If something's off, tell me here and I'll change it. When it's right, confirm it and I'll move on to building your page."
+        ? (p.mode === "existing" ? "Aquí está tu plan para conseguir más clientes, con tu página lista para venderlo." : "Aquí está tu estrategia completa.") + " Revísala: los precios marcados «Referencia de mercado» son lo que se cobra en tu zona, no tus precios; escribe los tuyos en la tarjeta si quieres. Si algo no te gusta, dímelo aquí y lo cambio. Cuando esté bien, confírmala y paso a crear tu página."
+        : (p.mode === "existing" ? "Here's your plan to get more clients, with your page ready to sell it." : "Here's your complete strategy.") + " Review it: prices marked \"Market reference\" are what's charged in your area, not your prices; type yours on the card if you like. If something's off, tell me here and I'll change it. When it's right, confirm it and I'll move on to building your page."
     }\n\n${SUMMARY_TOKEN}`;
   }
   const b = firstPending(p);
@@ -91,7 +91,9 @@ export function cardAfterTurn(before: BusinessPlan, after: BusinessPlan, lang: L
   if (oneConfirmation(after)) {
     if (after.stage !== "proposal") return null;
     if (before.stage !== "proposal") return SUMMARY_TOKEN;
-    return APPROVAL_BLOCKS.some((b) => partSignature(before, b) !== partSignature(after, b)) ? SUMMARY_TOKEN : null;
+    // A's plan for more clients is part of the card too: a change there shows it again.
+    const growthChanged = JSON.stringify([before.growth, before.channels]) !== JSON.stringify([after.growth, after.channels]);
+    return growthChanged || APPROVAL_BLOCKS.some((b) => partSignature(before, b) !== partSignature(after, b)) ? SUMMARY_TOKEN : null;
   }
   const now = firstPending(after);
   if (!now) return null;

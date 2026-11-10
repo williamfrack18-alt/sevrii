@@ -25,34 +25,50 @@ Reglas:
 
 Responde SOLO con un bloque \`\`\`json con la forma que pide tu tarea. Nada más.`;
 
+// "ES" → "España": the country's name in Spanish (the prompts are Spanish).
+export function countryName(code: string): string {
+  if (!/^[A-Z]{2}$/.test(code || "")) return "";
+  try {
+    return new Intl.DisplayNames(["es"], { type: "region" }).of(code) || "";
+  } catch {
+    return "";
+  }
+}
+
 function task(kind: ResearchKind, plan: BusinessPlan, lang: Lang): string {
   const p = plan.profile;
   const service = plan.service || p.mainService || "";
   const remote = p.serviceMode === "remote";
-  // Remote services compete nationally (online), local ones in their city.
-  const oneState = remote && p.remoteScope === "state" && p.state;
+  // Sevrii works in any country: the place, the market and the laws are the
+  // owner's own (never assumed to be the US).
+  const us = p.country === "US" || (!p.country && Boolean(p.state));
+  const nation = countryName(p.country) || (us ? "EE. UU." : "");
+  const area = p.state || p.region;
+  // Remote services compete across their country (online), local ones in their city.
+  const oneState = remote && p.remoteScope === "state" && area;
   const place = remote
     ? p.remoteScope === "world"
-      ? "línea (clientes de EE. UU. y de otros países)"
+      ? `línea (clientes de ${nation || "su país"} y de otros países)`
       : oneState
-        ? `línea, solo para clientes de ${p.state} (el servicio depende de las reglas de ese estado)`
-        : "línea, para clientes de todo EE. UU."
-    : [p.city, p.state].filter(Boolean).join(", ");
-  // No city yet (B answered "no sé" on the place): never "en , EE. UU.".
-  const where = remote ? `en ${place}` : place ? `en ${place}, EE. UU.` : "en EE. UU. (la persona no dio su ciudad: piensa en lo que funciona en cualquier ciudad)";
-  // Permits and registration depend on the owner's state even for online work.
-  const reqWhere = remote ? `en ${p.state || "su estado"}, EE. UU. (servicio en línea)` : where;
-  const out = lang === "es" ? "Escribe los textos en español neutro." : "Write the text fields in English.";
+        ? `línea, solo para clientes de ${area}${nation ? `, ${nation}` : ""} (el servicio depende de las reglas de ese lugar)`
+        : `línea, para clientes de todo ${nation || "su país"}`
+    : [p.city, area, nation].filter(Boolean).join(", ");
+  // No city yet: never "en , EE. UU.".
+  const where = remote ? `en ${place}` : place ? `en ${place}` : `en ${nation || "su país"} (la persona no dio su ciudad: piensa en lo que funciona en cualquier ciudad)`;
+  // Permits and registration depend on where the owner is, even for online work.
+  const reqWhere = remote ? `en ${[area, nation || "su país"].filter(Boolean).join(", ")} (servicio en línea)` : where;
+  const money = us || !p.country ? "" : ` Los precios van en la moneda de ${nation || "ese país"}, con su símbolo o código (por ejemplo € o COP), nunca en dólares si no es la moneda local.`;
+  const out = (lang === "es" ? "Escribe los textos en español neutro." : "Write the text fields in English.") + money;
   switch (kind) {
     case "prices":
       return `Tarea: PRECIOS de "${service}" ${where}.
-${remote ? "Es un servicio que se hace a distancia: busca precios en plataformas y sitios que venden ese servicio en línea en EE. UU. (Fiverr, Upwork, Thumbtack, agencias y freelancers con precios publicados)." : "Busca guías de costos (HomeGuide, Angi, Thumbtack, Fixr) y precios publicados por negocios locales."}
+${remote ? `Es un servicio que se hace a distancia: busca precios en plataformas y sitios que venden ese servicio en línea${nation ? ` en ${nation}` : ""} (Fiverr, Upwork, agencias y freelancers con precios publicados).` : us ? "Busca guías de costos (HomeGuide, Angi, Thumbtack, Fixr) y precios publicados por negocios locales." : "Busca guías de precios de ese país y precios publicados por negocios o profesionales locales."}
 Forma: {"low":"$…","mid":"$…","high":"$…","includes":"qué suele incluir ese precio","note":"unidad (por trabajo, por hora, por pie²) y diferencias entre fuentes","sources":[{"title":"…","url":"…"}]}
-"low", "mid" y "high" son solo el rango corto con su unidad, por ejemplo "$90–$130 por visita" (máximo 35 caracteres). Las explicaciones van en "note".
+"low", "mid" y "high" son solo el rango corto con su moneda y su unidad, por ejemplo "$90–$130 por visita" o "40–60 € por hora" (máximo 35 caracteres). Las explicaciones van en "note".
 ${out}`;
     case "competitors":
       return `Tarea: COMPETENCIA de "${service}" ${where}.
-${plan.mode === "agent" ? `Es un agente de IA que hace este servicio solo. Busca 3 a 5 competidores reales: quienes venden ese servicio en línea (personas o negocios) y apps o agentes de IA que ya lo hacen, con su precio. Incluye siempre qué tan bien lo resuelve gratis un chat general como ChatGPT o una plantilla gratis (price "gratis"). En "gaps" pon lo que los chats gratis y las apps hacen mal para este cliente (reglas locales, acompañamiento, revisión humana, casos reales…).\n` : ""}${remote ? `Busca los 3 a 5 negocios o freelancers que aparecen primero para ese servicio en línea${oneState ? ` para clientes de ${p.state}` : " en EE. UU."} (no directorios). Lee sus páginas.` : "Busca los 3 a 5 negocios que aparecen primero para ese servicio en esa ciudad (no directorios). Lee sus páginas."}
+${plan.mode === "agent" ? `Es un agente de IA que hace este servicio solo. Busca 3 a 5 competidores reales: quienes venden ese servicio en línea (personas o negocios) y apps o agentes de IA que ya lo hacen, con su precio. Incluye siempre qué tan bien lo resuelve gratis un chat general como ChatGPT o una plantilla gratis (price "gratis"). En "gaps" pon lo que los chats gratis y las apps hacen mal para este cliente (reglas locales, acompañamiento, revisión humana, casos reales…).\n` : ""}${remote ? `Busca los 3 a 5 negocios o freelancers que aparecen primero para ese servicio en línea${oneState ? ` para clientes de ${area}` : nation ? ` en ${nation}` : ""} (no directorios). Lee sus páginas.` : "Busca los 3 a 5 negocios que aparecen primero para ese servicio en esa ciudad (no directorios). Lee sus páginas."}
 Forma: {"competitors":[{"name":"…","url":"…","offer":"qué ofrecen, en una línea","price":"precio publicado o 'no publica'","guarantee":"garantía que anuncian o 'no menciona'","languages":"idiomas que anuncian"}],"gaps":["algo que ninguno ofrece o comunica bien"],"sources":[{"title":"…","url":"…"}]}
 ${out}`;
     case "requirements":
@@ -65,13 +81,13 @@ Un agente de IA va a guiar a sus clientes con esto, así que debe ser exacto: lo
 Forma: {"requirements":[{"item":"paso, documento o tarifa, corto","applies":"yes|check","link":"…","note":"en una línea, qué hay que hacer exactamente"}],"sources":[{"title":"…","url":"…"}]}
 ${out}`;
       return `Tarea: REQUISITOS para ofrecer "${service}" ${reqWhere}.
-Revisa SOLO lo indispensable para operar: registro del negocio (ciudad, condado o estado) y permisos que la ley exige para ese trabajo. Un seguro va solo si la ley lo exige o si el trabajo se hace en casa o local del cliente; para servicios 100 % en línea no incluyas seguros. Nada que sea una recomendación opcional. Muchos servicios NO necesitan licencia: menciona una licencia solo si una fuente oficial dice que ese servicio la exige en ese estado; si no, no la incluyas.
+Revisa SOLO lo indispensable para operar según las leyes de ese país (y de su estado, región o ciudad): registro del negocio y permisos que la ley exige para ese trabajo. Un seguro va solo si la ley lo exige o si el trabajo se hace en casa o local del cliente; para servicios 100 % en línea no incluyas seguros. Nada que sea una recomendación opcional. Muchos servicios NO necesitan licencia: menciona una licencia solo si una fuente oficial dice que ese servicio la exige en ese lugar; si no, no la incluyas.
 "applies": "yes" solo si una fuente oficial lo dice; "no" si una fuente oficial dice que no aplica; si no estás seguro, "check".
 "link": la página oficial que lo dice (o la más confiable que encontraste).
 Forma: {"requirements":[{"item":"…","applies":"yes|no|check","link":"…","note":"en una línea, qué hay que hacer"}],"sources":[{"title":"…","url":"…"}]}
 ${out}`;
     case "faq":
-      return `Tarea: PREGUNTAS de los clientes antes de contratar "${service}" en EE. UU.
+      return `Tarea: PREGUNTAS de los clientes antes de contratar "${service}" ${where}.
 Busca dudas y miedos típicos (precio, tiempo, garantía, permisos, limpieza, confianza).
 Las respuestas son una base general y honesta; no prometas nada en nombre del dueño.
 Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en una línea","sources":[{"title":"…","url":"…"}]}
@@ -81,11 +97,11 @@ Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en
       return `Tarea: IDEAS de servicio para alguien que quiere independizarse ${where}.
 Perfil: quiere ${p.direction === "known" ? "algo relacionado con lo que ya sabe hacer" : p.direction === "new" ? "probar algo nuevo: NO importa su experiencia, todo se puede aprender" : "algo de lo que ya sabe o algo nuevo, le da igual"}; dónde quiere trabajar: ${p.workPlace === "home" ? "desde casa (en línea)" : p.workPlace === "out" ? "en persona, fuera de casa" : "le da igual"}; trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; le gusta: ${p.likes || "?"}; ODIA o NUNCA quiere volver a hacer (filtro duro: no lo propongas, ni parecido, ni como ejemplo; solo excluye): ${p.notWant || "-"}; meta: ${p.goal || "?"}; cuánto quiere ganar: ${p.incomeGoal || "?"}. ("?" = no lo sabemos todavía: no lo supongas.)
 Sus respuestas en las tarjetas, tal cual (u = respondió "no sé"): ${JSON.stringify(plan.cards)}.
-Propón 12 servicios BIEN PAGADOS (locales en su ciudad o que se puedan hacer en línea desde casa; di cuál es cuál en "why") que encajen con lo que sabe, le gusta y tiene${p.direction === "known" ? ", aprovechando lo que ya sabe hacer" : ", o que pueda aprender rápido (en pocas semanas) aunque nunca lo haya hecho"}. Prioriza lo que mejor paga por hora en su zona y tiene demanda real. Que sean variados: tipos de trabajo distintos entre sí (no 3 versiones de lo mismo). Si un dato del perfil es "?", no lo uses para descartar ideas. Evita trabajos que la IA ya hace sola y casi gratis (transcribir, traducir, redactar textos simples), salvo que la persona los pida. Busca para cada uno el precio típico en su zona, cuánto se gana por hora de trabajo (hourlyUsd: un número en dólares, estimado del precio y del tiempo típico de un trabajo) y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
+Propón 12 servicios BIEN PAGADOS (locales en su ciudad o que se puedan hacer en línea desde casa; di cuál es cuál en "why") que encajen con lo que sabe, le gusta y tiene${p.direction === "known" ? ", aprovechando lo que ya sabe hacer" : ", o que pueda aprender rápido (en pocas semanas) aunque nunca lo haya hecho"}. Prioriza lo que mejor paga por hora en su zona y tiene demanda real. Que sean variados: tipos de trabajo distintos entre sí (no 3 versiones de lo mismo). Si un dato del perfil es "?", no lo uses para descartar ideas. Evita trabajos que la IA ya hace sola y casi gratis (transcribir, traducir, redactar textos simples), salvo que la persona los pida. Busca para cada uno el precio típico en su zona, cuánto se gana por hora de trabajo (hourlyUsd: un número en dólares estadounidenses, estimado del precio y del tiempo típico de un trabajo; si la moneda local es otra, conviértelo solo para este número) y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
 Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.slice(-80).join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
 Lo que dijo que prefiere o no quiere: ${plan.ideaPrefs}. Respétalo.` : ""}
 No propongas: reparación de crédito, asesoría legal o migratoria, préstamos ni servicios de salud.
-Forma: {"ideas":[{"title":"…","why":"por qué encaja con esta persona (con lo que quiere, sus herramientas y su tiempo)","typicalPrice":"rango corto, ej. '$15–$25 por hora' (máx. 40 caracteres)","hourlyUsd":35,"what":"qué hace, en una frase","forWhom":"para quién es","delivery":"digital | fisico | ambos","needs":"qué necesita la persona para empezar","steps":["3 pasos concretos para empezar"],"usesUnknown":["ids de las tarjetas que respondió 'no sé' y que esta idea supone (por ejemplo time, resources)"],"startCost":"monto y en qué, en una frase corta (máx. 100 caracteres)","license":"No (solo si una fuente oficial dice que ese servicio exige licencia en el estado, escribe cuál)","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
+Forma: {"ideas":[{"title":"…","why":"por qué encaja con esta persona (con lo que quiere, sus herramientas y su tiempo)","typicalPrice":"rango corto, ej. '$15–$25 por hora' (máx. 40 caracteres)","hourlyUsd":35,"what":"qué hace, en una frase","forWhom":"para quién es","delivery":"digital | fisico | ambos","needs":"qué necesita la persona para empezar","steps":["3 pasos concretos para empezar"],"usesUnknown":["ids de las tarjetas que respondió 'no sé' y que esta idea supone (por ejemplo time, resources)"],"startCost":"monto y en qué, en una frase corta (máx. 100 caracteres)","license":"No (solo si una fuente oficial dice que ese servicio exige licencia en ese lugar, escribe cuál)","demand":"evidencia de demanda en su ciudad","sources":[{"title":"…","url":"…"}]}]}
 ${out}`;
   }
 }
@@ -118,8 +134,8 @@ export async function runResearch(kind: ResearchKind, plan: BusinessPlan, lang: 
   const local = p.serviceMode !== "remote";
   const location =
     local && p.city
-      ? { type: "approximate" as const, city: p.city.slice(0, 60), ...(p.state ? { region: p.state } : {}), country: "US" }
-      : { type: "approximate" as const, ...(!local && p.state && (kind === "requirements" || p.remoteScope === "state") ? { region: p.state } : {}), country: "US" };
+      ? { type: "approximate" as const, city: p.city.slice(0, 60), ...(p.state || p.region ? { region: (p.state || p.region).slice(0, 60) } : {}), ...(p.country ? { country: p.country } : {}) }
+      : { type: "approximate" as const, ...(!local && (p.state || p.region) && (kind === "requirements" || p.remoteScope === "state") ? { region: (p.state || p.region).slice(0, 60) } : {}), ...(p.country ? { country: p.country } : {}) };
   // Meta's web search accepts only the location (no max_uses or domain lists)
   // and there is no page-fetch tool: the research reads what search returns.
   const search = { type: "web_search_20260318", name: "web_search", user_location: location } as unknown as ToolUnion;

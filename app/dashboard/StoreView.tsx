@@ -9,7 +9,7 @@ import { PLANS_TEXT } from "@/lib/plansI18n";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
 import { chooseStartAction, fillStoreFromPlanAction, loadStoreAction, previewLinkAction, setPublishedAction } from "@/app/storeActions";
 import { planFingerprint, planReadyForStore } from "@/lib/planToStore";
-import { cardsFor, pendingCards } from "@/lib/cards";
+import { cardsFor } from "@/lib/cards";
 import type { PageDesign, PublishGap } from "@/lib/site";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
 import { ACCENT, BRAND_BTN, GREEN, INK, TINT } from "@/lib/panel";
@@ -585,7 +585,8 @@ export function StrategyGate({ area, business, lang, onBrain }: { area: "store" 
     ? { service: "tu servicio", pitch: "cómo te presentas", packages: "tus paquetes y precios", offer: "tu oferta de bienvenida", faq: "tus preguntas frecuentes" }
     : { service: "your service", pitch: "how you present yourself", packages: "your packages and prices", offer: "your welcome offer", faq: "your FAQ" };
   const pending = (Object.keys(parts) as (keyof typeof parts)[]).filter((k) => !p.approvals[k]);
-  const cardsLeft = p.stage === "interview" && p.mode !== "agent" ? pendingCards(p.mode, p.cards).length : 0;
+  // The interview is a chat now: no cards left to count.
+  const cardsLeft = 0;
   const cardsTotal = p.mode !== "agent" ? cardsFor(p.mode).length : 0;
   const where =
     cardsLeft > 0

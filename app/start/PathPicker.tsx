@@ -6,14 +6,15 @@ import { startProjectAction } from "@/app/actions";
 import SevriiLoader from "@/components/SevriiLoader";
 
 export default function PathPicker({ newProject = false, initial = null }: { newProject?: boolean; initial?: "existing" | "new" | "agent" | null }) {
-  const [selected, setSelected] = useState<"existing" | "new" | "agent" | null>(initial);
+  // AI agents and robots are coming soon: only the two service paths start a project.
+  const [selected, setSelected] = useState<"existing" | "new" | null>(initial === "agent" ? null : initial);
   const [pending, start] = useTransition();
   // Why the project wasn't created (shown under the button, never a silent return).
   const [error, setError] = useState("");
   const t = useT();
   const es = useLang() === "es";
 
-  function go(mode: "existing" | "new" | "agent") {
+  function go(mode: "existing" | "new") {
     setError("");
     start(async () => {
       try {
@@ -36,8 +37,8 @@ export default function PathPicker({ newProject = false, initial = null }: { new
   return (
     <div className="flex flex-col items-center gap-7">
       {/* From the choice to the dashboard: Sevrii's logo loading */}
-      {pending && <SevriiLoader full label={selected === "agent" ? (es ? "Preparando tu agente…" : "Getting your agent ready…") : es ? "Preparando tu proyecto…" : "Getting your project ready…"} />}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-[1040px]">
+      {pending && <SevriiLoader full label={es ? "Preparando tu proyecto…" : "Getting your project ready…"} />}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-[820px]">
         <button type="button" onClick={() => setSelected("existing")} className={cardStyle(selected === "existing")}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#122118" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="7" width="18" height="13" rx="2" />
@@ -59,19 +60,22 @@ export default function PathPicker({ newProject = false, initial = null }: { new
             <p className="text-[14px] text-muted leading-relaxed">{newProject ? t.start.newProjectNewText : t.start.newText}</p>
           </div>
         </button>
-        <button type="button" onClick={() => setSelected("agent")} className={cardStyle(selected === "agent")}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#122118" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="4" y="8" width="16" height="12" rx="3" />
-            <path d="M12 8V4M9 4h6" />
-            <circle cx="9" cy="14" r="1.2" />
-            <circle cx="15" cy="14" r="1.2" />
-            <path d="M2 13v3M22 13v3" />
-          </svg>
-          <div className="flex flex-col gap-1.5">
-            <h3 className="text-[18px] font-semibold">{t.start.agentTitle}</h3>
-            <p className="text-[14px] text-muted leading-relaxed">{t.start.agentText}</p>
+      </div>
+
+      {/* Coming soon: shown, not usable yet */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-[820px]">
+        {[
+          [es ? "Agente de IA" : "AI agent", es ? "Un agente que hace el servicio por ti, las 24 horas." : "An agent that does the service for you, 24/7."],
+          [es ? "Robots" : "Robots", es ? "Robots que trabajan en tu negocio de servicios." : "Robots that work in your service business."],
+        ].map(([title, text]) => (
+          <div key={title} aria-disabled="true" className="rounded-2xl px-5 py-4 flex items-center gap-4 border border-border bg-white opacity-70">
+            <div className="flex flex-col gap-0.5 min-w-0 grow">
+              <span className="text-[15px] font-semibold">{title}</span>
+              <span className="text-[13px] text-muted leading-snug">{text}</span>
+            </div>
+            <span className="shrink-0 text-[12px] font-semibold px-3 py-1 rounded-full bg-mint">{es ? "Próximamente" : "Coming soon"}</span>
           </div>
-        </button>
+        ))}
       </div>
 
       <p className="text-[13px] text-mutedLight italic">{t.start.note}</p>

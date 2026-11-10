@@ -1,4 +1,4 @@
-import { cleanAnswers, pendingCards, type CardAnswers } from "./cards";
+import { cleanAnswers, type CardAnswers } from "./cards";
 import { parseTask, type AgentTask } from "./serviceAgentConfig";
 // The "expediente" of one project: everything the Brain learns and decides
 // about the one service it sells. Store and Marketing only read it. Pure data
@@ -21,6 +21,10 @@ export type Profile = {
   city: string;
   zip: string; // 5-digit US ZIP, for local services
   state: string; // 2-letter US state
+  // Sevrii works in any country: ISO 3166 two-letter code ("US", "ES", "CO", "MX")
+  // and, outside the US, the state, province or region as they said it.
+  country: string;
+  region: string;
   radiusMiles: number | null;
   // In person in an area (cleaning, moving) or remote/online (video editing, design).
   serviceMode: "local" | "remote" | "";
@@ -147,6 +151,9 @@ export type Idea = {
 export type ApprovalBlock = "service" | "pitch" | "packages" | "offer" | "faq";
 export const APPROVAL_BLOCKS: ApprovalBlock[] = ["service", "pitch", "packages", "offer", "faq"];
 
+export type PlanGrowth = { diagnosis: string; idealClient: string; priceVsMarket: string; actions: string[] };
+export const EMPTY_GROWTH: PlanGrowth = { diagnosis: "", idealClient: "", priceVsMarket: "", actions: [] };
+
 export type BusinessPlan = {
   mode: "existing" | "new" | "agent" | "";
   stage: PlanStage;
@@ -175,6 +182,10 @@ export type BusinessPlan = {
   noOffer: boolean;
   campaignType: string;
   channels: PlanChannel[];
+  // A ("más clientes"): why more clients don't come yet, who to sell to first,
+  // their price against the market (never changed without them) and three
+  // things to do this week. B: the actions to get the first client.
+  growth: PlanGrowth;
   faq: Faq[];
   agent: PlanAgent | null; // C only
   approvals: Partial<Record<ApprovalBlock, boolean>>;
@@ -211,6 +222,8 @@ export const EMPTY_PROFILE: Profile = {
   city: "",
   zip: "",
   state: "",
+  country: "",
+  region: "",
   radiusMiles: null,
   serviceMode: "",
   remoteScope: "",
@@ -279,6 +292,7 @@ export const EMPTY_PLAN: BusinessPlan = {
   noOffer: false,
   campaignType: "",
   channels: [],
+  growth: EMPTY_GROWTH,
   faq: [],
   agent: null,
   approvals: {},
@@ -373,12 +387,16 @@ const US_STATES = new Set(
 export function parseProfile(raw: unknown): Profile {
   const p = obj(raw);
   const state = str(p.state, 2).toUpperCase();
+  const country = str(p.country, 2).toUpperCase();
   return {
     businessName: str(p.businessName, 80),
     ownerName: str(p.ownerName, 60),
     city: str(p.city, 80),
     zip: /^\d{5}$/.test(String(p.zip ?? "").trim()) ? String(p.zip).trim() : "",
     state: US_STATES.has(state) ? state : "",
+    // A US state means the US; otherwise the country they said (two letters).
+    country: /^[A-Z]{2}$/.test(country) ? country : US_STATES.has(state) ? "US" : "",
+    region: str(p.region, 60),
     radiusMiles: num(p.radiusMiles, 1, 150),
     serviceMode: oneOf(p.serviceMode, ["local", "remote"] as const),
     remoteScope: oneOf(p.remoteScope, ["us", "state", "world"] as const),
@@ -586,6 +604,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
       })
       .filter((c) => c.channel)
       .slice(0, 4),
+    growth: parseGrowth(o.growth),
     faq: parseFaq(o.faq),
     agent: parsePlanAgent(o.agent),
     approvals,
@@ -610,6 +629,11 @@ export function parsePlan(raw: unknown): BusinessPlan {
   };
 }
 
+function parseGrowth(raw: unknown): PlanGrowth {
+  const g = obj(raw);
+  return { diagnosis: str(g.diagnosis, 600), idealClient: str(g.idealClient, 400), priceVsMarket: str(g.priceVsMarket, 500), actions: list(g.actions, 3, 300) };
+}
+
 // ---------- what the interviewer still needs, in order ----------
 export function missingProfile(plan: BusinessPlan): string[] {
   const p = plan.profile;
@@ -622,10 +646,18 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(!p.agentInterest, "agentInterest (topics, problems or markets they'd like their agent to solve; 'open to any idea' is a valid answer)");
     need(!p.typicalCustomer, "typicalCustomer (who they'd like the agent to help; 'anyone' is a valid answer)");
     need(!p.languages, "languages (the language(s) the agent will talk to customers in: es, en or both)");
+  } else if (plan.stage === "interview" && plan.mode === "existing") {
+    // A ("más clientes"): a conversation, not a form. Only what the research
+    // and the plan can't do without, most important first; the rest is
+    // deduced or asked only when it changes the plan.
+    need(!p.mainService, "mainService (the service they offer, in their words)");
+    need(p.serviceMode !== "remote" && !p.city, "city (where they work: city and country; or that they work online)");
+    need(!p.howGetsClients, "howGetsClients (how customers find them today: walk-ins, referrals, social media, nothing yet…)");
   } else if (plan.stage === "interview") {
-    // A and B: the cards. Every one needs an answer or an explicit "no sé"
-    // before anything is researched or proposed.
-    for (const id of pendingCards(plan.mode, plan.cards)) out.push(`card:${id}`);
+    // B ("descubre tu servicio"): what they know, where, and what they're after.
+    need(!p.workHistory && !p.likes, "workHistory (what they know how to do, or jobs they've had)");
+    need(p.serviceMode !== "remote" && p.workPlace !== "home" && !p.city, "city (where they live: city and country; or that they want to work online)");
+    need(!p.goal, "goal (extra income, or to live from it: extra / fulltime)");
   } else if (plan.stage === "ready_check" && plan.mode === "agent") {
     // The reach goes first: picking an idea already asks it (chooseIdeaAction),
     // so the quick answers under the chat match that question.
@@ -638,7 +670,7 @@ export function missingProfile(plan: BusinessPlan): string[] {
     // B after picking an idea: only how it's delivered, if it isn't obvious.
     need(!p.serviceMode, "serviceMode (the chosen service: in person in an area = local, or remote/online = remote)");
     // In person needs the area (someone who said "digital" on the cards never gave one).
-    need(p.serviceMode === "local" && !p.city, "city (city and state where they would offer the chosen service in person)");
+    need(p.serviceMode === "local" && !p.city, "city (city and country where they would offer the chosen service in person)");
   }
   return out;
 }

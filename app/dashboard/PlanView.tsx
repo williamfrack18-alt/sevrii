@@ -12,13 +12,17 @@ import { MAX_IDEA_ROUNDS, isRestrictedService, missingProfile, profileComplete, 
 import type { ChatChip } from "./ChatPanel";
 
 // Quick answers for what the Brain is asking right now (one tap sends it).
+// The hourly figure is in US dollars (to rank ideas the same way everywhere):
+// outside the US it says so ("US$").
+const usd = (plan: BusinessPlan) => (plan.profile.country && plan.profile.country !== "US" ? "US$" : "$");
+
 function answerChips(plan: BusinessPlan, es: boolean): ChatChip[] {
   if (plan.stage !== "interview" && plan.stage !== "ready_check") return [];
   const next = missingProfile(plan)[0]?.split(" ")[0] ?? "";
   const s = (label: string, en: string): ChatChip => ({ label: es ? label : en, send: true });
   switch (next) {
     case "remoteScope":
-      return [s("Todo EE. UU.", "The whole US"), s("Solo un estado", "Only one state"), s("También otros países", "Other countries too")];
+      return [s("Todo mi país", "My whole country"), s("Solo mi estado o región", "Only my state or region"), s("También otros países", "Other countries too")];
     case "languages":
       return [s("Español", "Spanish"), s("Inglés", "English"), s("Los dos", "Both")];
     case "typicalCustomer":
@@ -35,7 +39,12 @@ function answerChips(plan: BusinessPlan, es: boolean): ChatChip[] {
     case "toolsReady":
       return [s("Sí", "Yes"), s("No", "No")];
     case "goal":
-      return [s("Ingreso extra", "Extra income"), s("Tiempo completo", "Full time")];
+      return [s("Un ingreso extra", "Extra income"), s("Vivir de esto", "To live from it")];
+    // Quick answers, never required: the person can always write freely.
+    case "howGetsClients":
+      return [s("Pasan por mi local", "They walk by my place"), s("Por recomendación", "Word of mouth"), s("Por redes sociales", "Social media"), s("Todavía casi no tengo clientes", "I barely have clients yet")];
+    case "city":
+      return [s(plan.mode === "new" ? "Quiero trabajar en línea" : "Trabajo en línea", plan.mode === "new" ? "I want to work online" : "I work online")];
     default:
       return [];
   }
@@ -252,7 +261,9 @@ export default function PlanView({
   // not approved yet, and only the latest card for it has buttons.
   // A and B see the whole strategy on one card and confirm once; C goes part by part.
   const single = oneConfirmation(plan);
-  const cardsMode = plan.stage === "interview" && (plan.mode === "new" || plan.mode === "existing");
+  // The interview is a conversation now (no mandatory cards): the Brain asks
+  // only what changes the plan (lib/plan.ts missingProfile, interviewer).
+  const cardsMode = false;
   const reviewing: ApprovalBlock | null = plan.stage === "proposal" && !single ? (APPROVAL_BLOCKS.find((b) => !plan.approvals[b]) ?? null) : null;
   // A strategy for a service Sevrii doesn't publish: its way forward replaces the confirmation.
   const restricted = plan.stage === "proposal" && isRestrictedService(plan);
@@ -919,6 +930,9 @@ function DoneCard({ live, onNavigate, payReady }: { live: boolean; onNavigate: (
 // The ideas (new-service path), inside the chat.
 function IdeasCard({ plan, busy, live, passed = false, onChoose, onMore }: { plan: BusinessPlan; busy: boolean; live: boolean; passed?: boolean; onChoose: (i: number) => void; onMore?: (why: string) => void }) {
   const t = PLAN_TEXT[useLang()];
+  const es = useLang() === "es";
+  // B: the 3 best first, the rest one tap away (people compare better with few).
+  const [all, setAll] = useState(false);
   const chosen = !passed && plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea] : null;
   const L = plan.mode === "agent" ? t.ideasC : t;
   if (!live) {
@@ -929,13 +943,20 @@ function IdeasCard({ plan, busy, live, passed = false, onChoose, onMore }: { pla
       </div>
     );
   }
-  // B gets 8 to 10 ideas, best paid first: each one short, its details open on a tap.
-  const compact = plan.mode !== "agent" && plan.ideas.length > 5;
+  // B: the 3 best first, complete; "Ver más ideas" shows the rest, each short
+  // with its details a tap away.
+  const top = plan.mode === "new" ? 3 : plan.ideas.length;
+  const hidden = all ? 0 : Math.max(0, plan.ideas.length - top);
   return (
     <div className={`flex flex-col min-w-0 ${plan.mode === "agent" ? "gap-3" : "gap-4"}`}>
-      {plan.ideas.map((idea, i) => (
-        <IdeaItem key={i} idea={idea} i={i} plan={plan} busy={busy} compact={compact} onChoose={onChoose} />
+      {plan.ideas.slice(0, plan.ideas.length - hidden).map((idea, i) => (
+        <IdeaItem key={i} idea={idea} i={i} plan={plan} busy={busy} compact={plan.mode !== "agent" && i >= top} onChoose={onChoose} />
       ))}
+      {hidden > 0 && (
+        <button type="button" onClick={() => setAll(true)} className="self-start h-10 px-5 rounded-full text-[14px] font-medium" style={GHOST_BTN}>
+          {es ? `Ver ${hidden} ideas más` : `See ${hidden} more ideas`}
+        </button>
+      )}
       {plan.mode === "new" && onMore ? <MoreIdeas busy={busy} onMore={onMore} /> : <p className="text-[13px] text-psub leading-relaxed">{plan.ideaRounds >= MAX_IDEA_ROUNDS ? t.moreNoLeft : t.ideasNone}</p>}
     </div>
   );
@@ -1005,14 +1026,56 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
       {body}
     </article>
   );
+  // A ("más clientes"): the plan to get more clients comes first; it's what
+  // this person came for.
+  const g = plan.growth;
+  const growthOn = plan.mode === "existing" && Boolean(g.diagnosis || g.idealClient || g.actions.length || plan.channels.length);
+  const o = growthOn ? 1 : 0;
+  const row = (label: string, body: ReactNode) => (
+    <div className="flex flex-col gap-1">
+      <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-pmuted">{label}</span>
+      <div className="text-[14.5px] text-pfg2 leading-relaxed">{body}</div>
+    </div>
+  );
   return (
     <div className="flex flex-col gap-4 min-w-0">
       <div className="flex flex-col gap-1 px-1">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: GREEN }}>{es ? "Tu estrategia · 5 partes" : "Your strategy · 5 parts"}</span>
+        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: GREEN }}>{growthOn ? (es ? "Tu plan para más clientes · 6 partes" : "Your plan for more clients · 6 parts") : es ? "Tu estrategia · 5 partes" : "Your strategy · 5 parts"}</span>
         <span className="text-[19px] font-semibold text-pfg leading-snug">{plan.service}</span>
       </div>
+      {growthOn &&
+        card(
+          1,
+          es ? "Cómo conseguir más clientes" : "How to get more clients",
+          <div className="flex flex-col gap-4">
+            {g.diagnosis && row(es ? "Por qué hoy no te llegan más" : "Why more don't come today", g.diagnosis)}
+            {g.idealClient && row(es ? "A quién venderle primero" : "Who to sell to first", g.idealClient)}
+            {g.priceVsMarket && row(es ? "Tu precio frente al mercado" : "Your price vs. the market", g.priceVsMarket)}
+            {plan.channels.length > 0 &&
+              row(
+                es ? "Por dónde llegarles" : "Where to reach them",
+                <ul className="flex flex-col gap-1.5">
+                  {plan.channels.map((c, i) => (
+                    <li key={i}>
+                      <b className="font-semibold text-pfg">{c.channel}</b>
+                      {c.why ? ` — ${c.why}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            {g.actions.length > 0 &&
+              row(
+                es ? "Tres cosas para esta semana" : "Three things for this week",
+                <ol className="flex flex-col gap-1.5 list-decimal pl-5">
+                  {g.actions.map((a, i) => (
+                    <li key={i}>{a}</li>
+                  ))}
+                </ol>
+              )}
+          </div>
+        )}
       {card(
-        1,
+        1 + o,
         t.blocks.service,
         <>
           <PartBody id="service" plan={plan} />
@@ -1023,9 +1086,9 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
           )}
         </>
       )}
-      {card(2, t.blocks.pitch, <PartBody id="pitch" plan={plan} />)}
+      {card(2 + o, t.blocks.pitch, <PartBody id="pitch" plan={plan} />)}
       {card(
-        3,
+        3 + o,
         t.blocks.packages,
         <div className="flex flex-col gap-3">
           {plan.packages.map((p, i) => (
@@ -1043,7 +1106,7 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
                   <input
                     value={prices[String(i)] ?? ""}
                     onChange={(e) => setPrices((x) => ({ ...x, [String(i)]: e.target.value }))}
-                    placeholder={es ? "Tu precio, ej.: $40" : "Your price, e.g. $40"}
+                    placeholder={es ? "Tu precio, con tu moneda" : "Your price, with your currency"}
                     inputMode="decimal"
                     className="h-11 rounded-xl px-4 text-[14.5px] outline-none bg-white"
                     style={{ boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.12)" }}
@@ -1058,8 +1121,8 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
           {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
         </div>
       )}
-      {card(4, t.blocks.offer, <PartBody id="offer" plan={plan} />)}
-      {card(5, t.blocks.faq, plan.faq.length ? <PartBody id="faq" plan={plan} /> : <span className="text-[14px] text-psub">—</span>)}
+      {card(4 + o, t.blocks.offer, <PartBody id="offer" plan={plan} />)}
+      {card(5 + o, t.blocks.faq, plan.faq.length ? <PartBody id="faq" plan={plan} /> : <span className="text-[14px] text-psub">—</span>)}
       {unknown.length > 0 && (
         <p className="text-[13.5px] leading-relaxed rounded-2xl px-4 py-3" style={{ background: "rgba(245,158,11,0.08)", color: "#78350F" }}>
           {es ? "Contestaste «no sé» en: " : "You answered \"don't know\" on: "}
@@ -1122,7 +1185,7 @@ function ServiceIdeaItem({ idea, i, plan, busy, onChoose }: { idea: BusinessPlan
         {row(es ? "Para quién" : "For whom", idea.forWhom)}
         <div className="grid grid-cols-3 gap-3">
           {row(es ? "Modalidad" : "Format", mode && <span className="inline-flex h-7 items-center px-3 rounded-full text-[13px] font-medium" style={{ background: "rgba(10,10,10,0.06)" }}>{mode}</span>)}
-          {row(es ? "Pago aprox." : "Approx. pay", idea.hourlyUsd ? <b className="font-semibold tabular-nums">≈ ${idea.hourlyUsd}/{es ? "hora" : "hour"}</b> : null)}
+          {row(es ? "Pago aprox." : "Approx. pay", idea.hourlyUsd ? <b className="font-semibold tabular-nums">≈ {usd(plan)}{idea.hourlyUsd}/{es ? "hora" : "hour"}</b> : null)}
           {row(es ? "Puntaje" : "Score", idea.score > 0 ? <span className="font-semibold tabular-nums" style={{ color: GREEN }}>{t.fit(idea.score)}</span> : null)}
         </div>
         {(idea.typicalPrice || idea.startCost) && (
@@ -1212,7 +1275,7 @@ function AgentIdeaItem({ idea, i, plan, busy, compact, onChoose }: { idea: Busin
         <span className="flex items-center gap-1.5 shrink-0">
           {plan.mode !== "agent" && idea.hourlyUsd ? (
             <span className="text-[12px] px-2 py-0.5 rounded-full font-semibold tabular-nums" style={{ background: "#0A0A0A", color: "#fff" }} title={es ? "Lo que se gana por hora de trabajo en tu zona (estimado de la investigación)" : "What it pays per hour of work in your area (estimated from the research)"}>
-              ≈ ${idea.hourlyUsd}/{es ? "hora" : "hour"}
+              ≈ {usd(plan)}{idea.hourlyUsd}/{es ? "hora" : "hour"}
             </span>
           ) : null}
           {idea.score > 0 && (

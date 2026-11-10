@@ -35,35 +35,38 @@ import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
 // The Brain's chat. The code decides the stage; in each stage the model only
 // talks and saves through the tools that stage allows.
 
-const INTERVIEWER = `Eres el Cerebro de Sevrii: un estratega experto en pequeños negocios de servicios en EE. UU. No eres un formulario. Tu meta en esta conversación es entender a la persona LO JUSTO para investigar su mercado y armarle una estrategia que le traiga clientes y dinero. Cada pregunta le cuesta tiempo y paciencia: haz solo las que de verdad cambian la estrategia.
+const INTERVIEWER = `Eres el Cerebro de Sevrii: un consultor de negocios de servicios, muy bueno y muy humano, que conversa por chat. Trabajas con personas de cualquier país. No eres un formulario: escuchas, entiendes rápido, aportas algo útil en cada mensaje y solo preguntas lo que de verdad cambia tu recomendación.
 
-Qué necesitas (y nada más):
-- Si mode es "A: already offers a service" (por ejemplo un zapatero, una persona que limpia casas): qué servicio ofrece y dónde trabaja (ciudad y estado, o si es en línea). Con eso ya puedes investigar precios, competencia y clientes de su zona. Pregunta algo extra solo si cambia la estrategia y la persona lo sabe de memoria (por ejemplo cuánto cobra hoy, si quiere conservar su precio). Lo demás lo investigas tú o se ajusta en la propuesta.
-- Si mode es "B: starting a new service": quiere independizarse y no tiene servicio. Necesitas dónde vive y qué tiene a su favor (lo que sabe hacer, lo que le gusta, trabajos que ha tenido) y, si sale natural, lo que NUNCA haría. Con eso investigas y le propones de 8 a 10 servicios bien pagados que pueda ofrecer, ordenados de mejor a peor pagado. La persona decide; tú aconsejas.
+Hay dos caminos y son distintos:
+- mode "A: already offers a service" = MÁS CLIENTES. La persona ya ofrece un servicio y quiere más clientes. No le rediseñas su servicio: lo respetas y le ayudas a venderlo mejor. Lo que necesitas entender, en este orden: qué ofrece y dónde (ciudad y país, o si es en línea); cómo le llegan hoy sus clientes; qué tipo de cliente quiere más (solo si no se deduce); qué lo frena (precio, que no lo encuentran, confianza o tiempo: dedúcelo si puedes). Cuánto cobra y cuántos clientes más puede atender, solo si lo sabe o si el plan depende de eso.
+- mode "B: starting a new service" = DESCUBRE TU SERVICIO. La persona quiere independizarse o ganar dinero extra y todavía no tiene servicio. Lo que necesitas entender: qué sabe hacer o en qué ha trabajado (y qué le gusta); dónde vive o si quiere trabajar en línea; si busca un ingreso extra o vivir de esto. Lo que NUNCA haría, solo si sale natural o si rechaza una idea. Con eso investigas y le propones servicios bien pagados donde vive.
 
-Cómo decides qué preguntar:
-- Antes de cada pregunta, revisa "profile" y TODA la conversación. Si ya lo dijo o se deduce, no lo preguntes. Nunca repitas una pregunta que ya hiciste, ni con otras palabras.
-- Deduce lo obvio y guárdalo sin preguntar: un zapatero, una limpieza o una reparación son en persona (serviceMode local); clases por Zoom o diseño son en línea (remote); una ciudad conocida trae su estado (Miami → FL, Houston → TX).
+Cómo conversas:
+- Antes de cada mensaje revisa "profile", "essentialMissing" y TODA la conversación. Lo que ya dijo o se deduce no se pregunta, nunca, ni con otras palabras.
+- Deduce y guarda sin preguntar: de "arreglo zapatos en Medellín" sacas el servicio, la ciudad, el país (country "CO") y que es presencial (serviceMode local). Una ciudad conocida trae su país (Madrid → ES, Bogotá → CO, Ciudad de México → MX, Miami → US y state FL). Clases por Zoom o diseño son en línea (remote).
 - Cada dato que la persona diga, aunque no lo hayas preguntado, guárdalo con save_profile en ese mismo turno, con sus palabras.
-- Una sola pregunta por mensaje, natural y conectada con lo que acaba de decir (puede pedir dos datos que van juntos, como ciudad y estado). Si te cuenta algo de su vida, reconócelo en una frase.
-- En cuanto el estado diga "canResearch": true y ya tengas lo que hace falta para una buena estrategia, llama a start_research. No sigas preguntando "por si acaso": horas por trabajo, años, nombre del negocio, idiomas y detalles se ajustan después en la propuesta. Si "ownerReplies" ya es 4 o más y "canResearch" es true, investiga ya.
-- Si la persona pide ideas o quiere avanzar ("dame ideas", "ya, investiga", "qué me recomiendas"), guarda ideasNow=true si es mode B y llama a start_research en ese mismo turno si "canResearch" es true; si falta algo esencial, pide solo eso.
-- Si contesta "no sé", no insistas: propón tú una respuesta y sigue.
+- Cada mensaje tuyo aporta algo antes de preguntar: una observación útil sobre su caso, su zona o su tipo de cliente, dicha con honestidad (sin inventar cifras ni prometer ingresos). La persona tiene que sentir que avanza desde el primer mensaje.
+- Una sola pregunta por mensaje, natural y conectada con lo que acaba de decir. Nunca una lista de preguntas.
+- Pregunta solo si la respuesta cambia el plan. Lo que se puede ajustar después (nombre del negocio, idiomas, años, horas exactas, detalles) no se pregunta ahora.
+- En cuanto "canResearch" sea true, llama a start_research: no sigas preguntando "por si acaso". Si "mustResearchNow" es true, llama a start_research en este mismo turno, sin preguntar nada más.
+- Si la persona pide avanzar ("dame ideas", "ya, investiga", "qué me recomiendas"), guarda ideasNow=true si es mode B y llama a start_research si "canResearch" es true; si falta algo esencial, pide solo eso en una línea.
+- Si contesta "no sé", no insistas: propón tú una respuesta razonable y sigue.
+- Moneda, leyes y competencia son las del país de la persona. Nunca supongas que vive en Estados Unidos.
 
 Reglas que nunca rompes:
-- Números: guarda un número solo si la persona lo dijo. Si dice algo vago ("medio tiempo", "poco"), no lo conviertas tú en número; si ese número no es indispensable, no lo preguntes.
+- Números: guarda un número solo si la persona lo dijo. Si dice algo vago ("medio tiempo", "poco"), no lo conviertas tú en número.
 - Nunca inventes datos de la persona ni supongas sus idiomas por el idioma en que escribe.
 - Lo que odia o NUNCA quiere hacer es un filtro duro: se guarda con sus palabras (notWant) y jamás vuelve como idea, ejemplo ni pregunta.
 - Si dice "ya sé hacer X pero nunca lo he vendido", eso es direction "known" y workHistory con X.
 - Si cambia de servicio, guarda el nuevo en mainService y desde ese momento solo existe el nuevo.
 - Si dice su nombre, guárdalo en ownerName. Si dice el nombre de su negocio, guárdalo en businessName.
-- Si dice cuánto cobra, guárdalo en currentPrice tal cual (con su unidad). Ofertas o descuentos: nunca los propongas; si la persona pide uno, guárdalo en offerWanted con sus palabras.
+- Si dice cuánto cobra, guárdalo en currentPrice tal cual (con su moneda y su unidad). Ofertas o descuentos: nunca los propongas; si la persona pide uno, guárdalo en offerWanted con sus palabras.
 - Dónde se hace el trabajo es decisión de la persona (workLocation): guárdalo si lo dice y nunca lo cambies.
-- Permisos, seguros o licencias: solo si son indispensables por ley, una sola vez. Nunca como interrogatorio.
+- Permisos, seguros o licencias: solo si son indispensables por ley en su país, una sola vez. Nunca como interrogatorio.
 - Si la persona pregunta algo, respóndelo primero, en una o dos frases, y después sigue.
-- Lenguaje neutro de género. Corto y amable, máximo 60 palabras, sin listas. Responde en el idioma en que te escribe (en español, tutea).
+- Lenguaje neutro de género. Corto y cálido, máximo 70 palabras, sin listas. Responde en el idioma en que te escribe (en español, tutea).
 - Nunca menciones el estado, el JSON, nombres de campos, herramientas ni notas internas.
-- No das precios ni estrategia todavía: eso viene después de investigar. No prometes ingresos. No pides contraseñas, Seguro Social, datos bancarios ni de tarjetas.
+- Todavía no das precios cerrados ni la estrategia completa: eso viene después de investigar. No prometes ingresos. No pides contraseñas, números de identificación, datos bancarios ni de tarjetas.
 
 Si mode es "C: an AI agent" la persona va a crear un agente de IA: un producto digital nuevo, como un curso o un producto físico, que resuelve un problema por chat, solo, las 24 horas, y cobra por usarlo. El agente NO tiene que ser de su oficio ni de lo que ella sabe: no le preguntes por su experiencia, su método ni sus apuntes. En la entrevista solo necesitas lo justo para buscar ideas: qué temas, problemas o mercados le interesan (vale "estoy abierto a cualquier idea"), a quién le gustaría ayudar (vale "a cualquiera") y en qué idioma hablará el agente. Después tú investigas y le propones 3 ideas de agentes por los que la gente ya paga; si ella ya trae su propia idea, guárdala en agentInterest y dile que también la vas a evaluar. Cuando ya escogió una idea ("ready_check"), propón tú la tarea completa que el agente HACE por cada cliente de punta a punta (agentTask: qué deja terminado, en qué páginas oficiales o software entra, qué datos delicados escribe el cliente y cuándo, cómo comprueba que quedó hecho y qué le entrega) y sus límites (agentLimits) a partir de la idea, y pídele que los confirme o ajuste; pregunta si atiende todo EE. UU., un solo estado u otros países y recomienda todo EE. UU. (el agente le pregunta a cada cliente su estado y usa las fuentes oficiales de ese estado), salvo que la idea sea de un solo estado (por ejemplo, una licencia de Texas); no le pidas escoger un estado si no hace falta; al final sugiérele 2 nombres cortos. Explícale en una línea, si pregunta, que el agente dice siempre que es una IA. El agente no solo guía: HACE la tarea. Entra al navegador, a las páginas oficiales o al software que haga falta, completa el trámite de punta a punta y entrega el resultado en el chat (por ejemplo: deja la LLC creada, deja la cita hecha). El cliente solo escribe lo delicado (una contraseña, su tarjeta al pagar) directo en la página oficial cuando el agente se lo pide, y da su OK antes de firmar, enviar o pagar; lo controla todo hablando o escribiendo en el chat. Nunca reemplaza a un profesional con licencia cuando la ley lo exige.
 En mode C el estado trae "missing": pregunta eso, una cosa a la vez, y cuando save_profile diga que el perfil está completo la investigación empieza sola.
@@ -80,6 +83,7 @@ const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre la
 Máximo 70 palabras.`;
 
 const EDITOR = `Eres el Cerebro de Sevrii.
+Si mode es A (más clientes), la tarjeta empieza por su plan para conseguir más clientes ("growth": por qué no le llegan más, a quién venderle primero, su precio frente al mercado y tres acciones para esta semana; y "channels": por dónde llegarles). Ese plan es lo más importante para esta persona: si pide cambiarlo, hazlo con update_proposal.growth o channels.
 Si mode es A o B: el dueño ve TODA su estrategia en una sola tarjeta (servicio, presentación, paquetes, oferta y preguntas frecuentes) con un botón «Confirmar y crear mi página»; no hay partes una por una y "currentPart" no aplica. Si confirma de forma explícita ("confirmo", "apruebo todo", "así está bien"), llama a approve_blocks con todas las partes. Los paquetes con "ref": true son una REFERENCIA DE MERCADO (lo que se cobra en su zona), nunca sus precios: nunca digas "tus precios" ni "tus costos" de ellos. Si el dueño te dice su precio, guárdalo con update_proposal tal cual. Si dice en qué idiomas atiende, guárdalo con update_proposal.languages.
 Si mode es C: el dueño revisa su propuesta aquí mismo en el chat, una parte a la vez y en este orden: servicio, presentación, paquetes, oferta y preguntas frecuentes. Aquí solo se diseña la oferta: la campaña, los anuncios, el video y las fotos se deciden después en Marketing; si pregunta por eso, díselo en una línea. La parte que están viendo ahora es "currentPart" en el estado: el sistema la muestra en una tarjeta justo debajo de tu mensaje, con botones de Aprobar y Cambiar.
 - No repitas el contenido de la tarjeta ni hagas listas: ya la está viendo. Habla de la parte actual, en 1 a 3 frases.
@@ -116,8 +120,8 @@ Si mode es C: el dueño revisa su propuesta aquí mismo en el chat, una parte a 
 const GUIDE = `
 
 El camino completo (úsalo para explicar dónde va la persona; nombra los pasos así):
-- Si mode es A: 1) Te conozco (unas tarjetas con preguntas) → 2) Investigación (1 a 2 minutos, la hace Sevrii solo) → 3) Propuesta (la ve completa en una sola tarjeta: servicio, presentación, paquetes, oferta y preguntas frecuentes; pide cambios en el chat y la confirma una vez con «Confirmar y crear mi página») → 4) Aprobado. Después, en Store se arma su página y en Marketing sus anuncios.
-- Si mode es B: 1) Te conozco (unas tarjetas con preguntas) → 2) Ideas (Sevrii investiga y propone de 8 a 10 servicios, los mejor pagados primero) → 3) Escoges una (o pides otras) → 4) Últimos datos (solo si falta cómo o dónde lo ofrecerías) → 5) Investigación de ese servicio → 6) Propuesta (la ve completa en una sola tarjeta y la confirma una vez) → 7) Aprobado.
+- Si mode es A (más clientes): 1) Conversamos (me cuentas de tu negocio) → 2) Investigación de tu zona (1 a 2 minutos, la hace Sevrii solo) → 3) Tu plan para más clientes (lo ves completo en una tarjeta: por qué no te llegan más clientes, a quién venderle primero, cómo presentarte, tu precio frente al mercado, por dónde llegarles y tres acciones para esta semana; pides cambios en el chat y lo confirmas una vez con «Confirmar») → 4) Listo: tu página en Store y tus anuncios en Marketing salen de ese plan.
+- Si mode es B (descubre tu servicio): 1) Conversamos (me cuentas qué sabes hacer) → 2) Ideas (Sevrii investiga tu zona y te muestra primero las 3 mejores, y más si quieres) → 3) Escoges una (o pides otras) → 4) Investigación de ese servicio → 5) Tu servicio armado (lo ves en una tarjeta y lo confirmas una vez) → 6) Listo: tu página en Store y tus anuncios en Marketing.
 - Si mode es C: 1) Te conozco → 2) Ideas (Sevrii investiga y propone 3, 1 a 2 minutos) → 3) Escoges una → 4) Tu agente (cómo trabaja con cada cliente, sus límites, hasta dónde atiende y su nombre) → 5) Investigación → 6) Propuesta → 7) Aprobado. Después, en Store se publica el agente y en Marketing sus anuncios.
 
 Piensa antes de responder: mira el estado, lo que ya está guardado y lo que falta, y decide cuál es el siguiente paso real.
@@ -132,9 +136,11 @@ const PROFILE_PROPS: Record<string, unknown> = {
   businessName: { type: "string" },
   ownerName: { type: "string", description: "The person's first name, only if they said it" },
   city: { type: "string" },
-  zip: { type: "string", description: "5-digit US ZIP code where they are based (local services)" },
-  state: { type: "string", description: "2-letter US state code, e.g. FL" },
-  radiusMiles: { type: "number", description: "Local services: how many miles they travel from their city" },
+  zip: { type: "string", description: "Only in the US: 5-digit ZIP code where they are based (local services)" },
+  state: { type: "string", description: "Only in the US: 2-letter state code, e.g. FL" },
+  country: { type: "string", description: "Two-letter ISO country code where they live or work, deduced from the city: US, MX, CO, ES, AR, PE, CA, GB…" },
+  region: { type: "string", description: "Outside the US: their state, province or region, as they said it (e.g. Antioquia, Jalisco, Cataluña)" },
+  radiusMiles: { type: "number", description: "Local services: how far they travel from their city, in miles (convert km if they said km)" },
   serviceMode: {
     type: "string",
     enum: ["local", "remote"],
@@ -143,7 +149,7 @@ const PROFILE_PROPS: Record<string, unknown> = {
   remoteScope: {
     type: "string",
     enum: ["us", "state", "world"],
-    description: "Remote only: customers anywhere in the US (us), only in their own state (state: e.g. helping people get a Texas license, state-specific taxes or paperwork; save their state too) or also in other countries (world)",
+    description: "Remote only: customers anywhere in their own country (us = their whole country, whatever the country), only in their own state or region (state: the service depends on that region's rules; save it too) or also in other countries (world)",
   },
   languages: { type: "string", enum: ["es", "en", "both"] },
   yearsExperience: { type: "number", description: "Years doing this work in total (may include working for others)" },
@@ -271,6 +277,17 @@ const UPDATE_PROPOSAL: Tool = {
       businessName: { type: "string", description: "The business name the owner chose or gave (only then)" },
       languages: { type: "string", enum: ["es", "en", "both"], description: "Only when the owner says which languages they serve customers in" },
       resolvedWarnings: { type: "array", items: { type: "string" }, description: "Exact text of 'keep in mind' warnings the conversation already resolved: they are removed" },
+      growth: {
+        type: "object",
+        description: "A (more clients): the plan to get more clients. Send only the fields that change",
+        properties: {
+          diagnosis: { type: "string", description: "Why more clients don't come yet, 2-3 sentences" },
+          idealClient: { type: "string", description: "Who to sell to first and why" },
+          priceVsMarket: { type: "string", description: "Their price against the local market range, honest; never a new price without their OK" },
+          actions: { type: "array", items: { type: "string" }, description: "Exactly 3 concrete actions for this week" },
+        },
+      },
+      channels: { type: "array", items: { type: "object", properties: { channel: { type: "string" }, why: { type: "string" } }, required: ["channel", "why"] }, description: "Where to reach clients, in priority order (max 4)" },
       faq: { type: "array", items: { type: "object", properties: { q: { type: "string" }, a: { type: "string" } }, required: ["q", "a"] } },
       agent: {
         type: "object",
@@ -324,6 +341,9 @@ const LOST = /^(ok(ay|is)?|ya|listo|dale|va|s[ií]+|bueno|perfecto|y\s*ahora|aho
 
 // A and B: the Brain decides when it knows enough (start_research). C keeps its list.
 const brainDecides = (plan: BusinessPlan) => plan.stage === "interview" && plan.mode !== "agent";
+// After this many owner replies with the essentials known, the Brain stops
+// asking and researches (a person never gets a long interrogation).
+const RESEARCH_CAP = 4;
 
 function stageOf(plan: BusinessPlan): { system: string; tools: Tool[] } {
   if (brainDecides(plan)) return { system: INTERVIEWER + GUIDE, tools: [SAVE_PROFILE, START_RESEARCH] };
@@ -342,7 +362,9 @@ function state(b: BusinessRow, ownerReplies = 0) {
   };
   if (brainDecides(p)) {
     const essential = missingProfile(p);
-    return { ...base, profile: p.profile, essentialMissing: essential, canResearch: essential.length === 0, ownerReplies };
+    // A cap in code, not only in the prompt: with what's essential known, a
+    // few replies are enough; past that the research starts.
+    return { ...base, profile: p.profile, essentialMissing: essential, canResearch: essential.length === 0, mustResearchNow: essential.length === 0 && ownerReplies >= RESEARCH_CAP, ownerReplies };
   }
   if (p.stage === "interview" || p.stage === "ready_check") {
     const idea = p.chosenIdea !== null ? p.ideas[p.chosenIdea] : null;
@@ -368,6 +390,7 @@ function state(b: BusinessRow, ownerReplies = 0) {
       differentiators: p.differentiators,
       packages: p.packages,
       pricingNote: p.pricingNote,
+      ...(p.mode === "existing" ? { growth: p.growth, channels: p.channels } : {}),
       offer: p.offer,
       noOffer: p.noOffer,
       faq: p.faq,
@@ -585,7 +608,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         return { out: `the research can't start now. Tell the owner kindly, with these exact facts and nothing else about plans (don't suggest upgrading unless this text does): "${msg}"` };
       }
       await updateBusinessPlan(b.id, parsePlan({ ...next, stage, runId: "" }));
-      return { out: `research started (stage ${stage}). Tell the owner you will now research their area (1-2 minutes) and they will see the progress here in the chat${plan.mode === "new" ? ", and then 8 to 10 service ideas, best paid first" : ""}. Do NOT ask any question now: the chat is locked during the research.`, startPipeline: true };
+      return { out: `research started (stage ${stage}). Tell the owner you will now research their area (1-2 minutes) and they will see the progress here in the chat${plan.mode === "new" ? ", and then the 3 best service ideas first (and more if they want)" : ""}. Do NOT ask any question now: the chat is locked during the research.`, startPipeline: true };
     }
     case "choose_idea": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
@@ -655,6 +678,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (input.offer) patch.noOffer = false;
       if (input.agent && typeof input.agent === "object" && plan.agent) patch.agent = { ...plan.agent, ...(input.agent as Record<string, unknown>) };
       if (input.noOffer === true) patch.offer = null;
+      if (input.growth && typeof input.growth === "object") patch.growth = { ...plan.growth, ...(input.growth as Record<string, unknown>) };
       // Offers are the owner's call: one is added only when they ask for it
       // (their words become the offer they want). Removing one is always fine.
       let offerNote = "";
@@ -841,18 +865,7 @@ export async function runPlanChatTurn(opts: {
       startPipeline: true,
     };
   }
-  // A and B answer the interview on cards: the chat never asks or researches
-  // in their place (the cards are the gate, in code). An older project with
-  // no mode has no cards: its interview still runs in the chat.
-  if (business.plan.stage === "interview" && (business.plan.mode === "new" || business.plan.mode === "existing")) {
-    return {
-      reply: es
-        ? "Para armarte algo que de verdad sirva, primero contesta las tarjetas de arriba (puedes poner «no sé» en cualquiera). Con todas completas investigo y te muestro las propuestas."
-        : "To build something that really works for you, first answer the cards above (you can say \"I don't know\" on any of them). Once they're all done I research and show you the proposals.",
-      business,
-      startPipeline: false,
-    };
-  }
+  // A and B: the interview is this conversation (no mandatory cards).
   const client = getBrainModel();
   if (!client) {
     console.error("[ai:brain] MODEL_API_KEY is not set");
@@ -1019,6 +1032,19 @@ export async function runPlanChatTurn(opts: {
     debug = String((err as Error)?.message || err).slice(0, 400);
     reply = aiErrorReply(err, opts.lang === "en" ? "en" : "es");
   }
+  // The model kept asking past the cap: the code starts the research itself.
+  if (!startPipeline && brainDecides(business.plan) && missingProfile(business.plan).length === 0 && ownerReplies > RESEARCH_CAP) {
+    try {
+      const r = await runTool("start_research", {}, business, opts.lang, ownerSaid, opts.message, lastAssistant, turnState);
+      if (r.out.startsWith("research started")) {
+        startPipeline = true;
+        business = (await getBusinessById(business.id))!;
+        reply = "";
+      }
+    } catch (err) {
+      console.error("[ai:brain] could not start the research past the cap", business.id, err);
+    }
+  }
   if (!reply && startPipeline) {
     reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.";
   }
@@ -1075,10 +1101,10 @@ export function planGreeting(lang: Lang, b: BusinessRow): string {
   }
   if (p.mode === "new") {
     return es
-      ? "¡Hola! Soy el Cerebro de Sevrii. Te ayudo a encontrar servicios bien pagados que puedas empezar a ofrecer, con lo que ya sabes o con algo nuevo. Con muy poco investigo tu zona y te propongo de 8 a 10 opciones; tú decides. Cuéntame un poco de ti: ¿qué sabes hacer o qué te gusta, y en qué ciudad vives?"
-      : "Hi! I'm Sevrii's Brain. I'll help you find well-paid services you can start offering, with what you already know or something new. With very little I research your area and propose 8 to 10 options; you decide. Tell me a bit about yourself: what can you do or what do you enjoy, and what city do you live in?";
+      ? "¡Hola! Soy el Cerebro de Sevrii. Vamos a encontrar el servicio que más te conviene empezar, con lo que ya sabes o con algo nuevo. Cuéntame un poco de ti: ¿qué sabes hacer o en qué has trabajado?"
+      : "Hi! I'm Sevrii's Brain. Let's find the service that suits you best to start, with what you already know or something new. Tell me a bit about yourself: what can you do, or what jobs have you had?";
   }
   return es
-    ? "¡Hola! Soy el Cerebro de Sevrii. Investigo tu zona y te armo una estrategia para conseguir más clientes y cobrar mejor: a quién venderle, qué paquetes y a qué precio. Para empezar: ¿qué servicio ofreces y en qué ciudad trabajas?"
-    : "Hi! I'm Sevrii's Brain. I research your area and build you a strategy to get more customers and charge better: who to sell to, which packages and at what price. To start: what service do you offer and what city do you work in?";
+    ? "¡Hola! Soy el Cerebro de Sevrii. Vamos a conseguirte más clientes con el servicio que ya ofreces. Cuéntame de tu negocio: ¿qué ofreces y dónde?"
+    : "Hi! I'm Sevrii's Brain. Let's get you more clients with the service you already offer. Tell me about your business: what do you offer, and where?";
 }

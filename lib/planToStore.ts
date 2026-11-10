@@ -118,13 +118,17 @@ export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraf
   };
   const p = plan.profile;
   const es = lang === "es";
-  const city = [p.city, p.state].filter(Boolean).join(", ");
+  // Any country: the US state, or the region outside the US.
+  const region = p.state || p.region;
+  const us = !p.country || p.country === "US";
+  const nation = us ? (es ? "EE. UU." : "the US") : countryLabel(p.country, lang);
+  const city = [p.city, region].filter(Boolean).join(", ");
   const area = p.serviceMode === "remote"
     ? p.remoteScope === "world"
-      ? es ? "En línea · EE. UU. y otros países" : "Online · US and other countries"
-      : p.remoteScope === "state" && p.state
-        ? es ? `En línea · solo ${p.state}` : `Online · ${p.state} only`
-        : es ? "En línea · todo EE. UU." : "Online · all of the US"
+      ? es ? `En línea · ${nation} y otros países` : `Online · ${nation} and other countries`
+      : p.remoteScope === "state" && region
+        ? es ? `En línea · solo ${region}` : `Online · ${region} only`
+        : es ? `En línea · todo ${nation}` : `Online · all of ${nation}`
     : city
     ? p.radiusMiles
       ? es
@@ -210,4 +214,13 @@ export function refPriceUnconfirmed(
   const owner = amounts((said.ownerSaid ?? "").replace(/https?:\/\/\S+/g, " "));
   if (nums.every((n) => owner.includes(n))) return false;
   return !(said.yes && nums.every((n) => amounts(said.lastAssistant ?? "").includes(n)));
+}
+
+// "CO" → "Colombia" in the page's language.
+function countryLabel(code: string, lang: "es" | "en"): string {
+  try {
+    return new Intl.DisplayNames([lang], { type: "region" }).of(code) || code;
+  } catch {
+    return code;
+  }
 }
