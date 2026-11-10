@@ -102,7 +102,9 @@ export function knownAmounts(plan: BusinessPlan, packages: Package[] = plan.pack
   const p = plan.profile;
   const own = [p.currentPrice, p.costs, `$${p.startBudgetUsd ?? ""}`, `$${p.costMaterialsUsd ?? ""}`].join(" ");
   const pk = packages.flatMap((k) => dollars(`${k.price} ${k.includes} ${k.note}`));
-  const base = new Set<number>([...pk, ...dollars(JSON.stringify(plan.market.prices ?? {})), ...dollars(JSON.stringify(plan.market.competitors ?? [])), ...dollars(own)]);
+  // The price card answered without "$" ("35 la suela") is still their price.
+  const priceCard = plan.cards.prices && !plan.cards.prices.u ? plan.cards.prices.v : "";
+  const base = new Set<number>([...pk, ...dollars(JSON.stringify(plan.market.prices ?? {})), ...dollars(JSON.stringify(plan.market.competitors ?? [])), ...dollars(own), ...priceNumbers(`${p.currentPrice} ${priceCard}`)]);
   // Discounted prices of the offer ("10 % → $135") are fine too.
   const pct = Number(/(\d{1,2})\s*%/.exec(`${plan.offer?.label ?? ""} ${plan.offer?.detail ?? ""}`)?.[1] ?? 0);
   if (pct) for (const n of pk) base.add(Math.round(n * (100 - pct)) / 100), base.add(Math.round((n * (100 - pct)) / 100));
@@ -314,16 +316,56 @@ export function dropDanglingClause(text: string): string {
 // ---------- the owner's prices vs. market references ----------
 const dollarAmounts = (t: string) => [...(t || "").matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/g)].map((m) => Number(m[1].replace(/,/g, "")));
 
+// Plain numbers that are amounts of money ("35 la suela", "déjalo en 45"):
+// not hours, percentages, miles, years or people.
+const NOT_MONEY_UNIT = /^\s*(%|h\b|hrs?\b|horas?\b|hours?\b|min\b|minutos?\b|minutes?\b|millas?\b|miles?\b|a[nñ]os?\b|years?\b|personas?\b|people\b|clientes?\b|customers?\b|d[ií]as?\b|days?\b|semanas?\b|weeks?\b|meses\b|months?\b|veces\b|times\b|pares\b|pairs\b|x\b)/i;
+function plainAmounts(t: string): number[] {
+  const out: number[] = [];
+  for (const m of (t || "").matchAll(/(?<![\d.,$])(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?(?![\d,])/g)) {
+    if (NOT_MONEY_UNIT.test(t.slice((m.index ?? 0) + m[0].length))) continue;
+    out.push(Number(m[1].replace(/,/g, "")));
+  }
+  return out;
+}
+// Every amount in an answer that is ABOUT prices (the price card, the price
+// the owner said they charge): "$35" and also "35 la suela".
+export function priceNumbers(t: string): number[] {
+  return [...dollarAmounts(t), ...plainAmounts(t)];
+}
+
+// Amounts in the chat that are about someone else's money or the owner's
+// costs and income, never a price they set: "la competencia cobra $80",
+// "gasto $45 en materiales", "quiero ganar $3,000 al mes".
+const NOT_OWN_PRICE = /(competen|competidor|competitor|others|otros (negocios|lugares|cobran)|they charge|ellos|cobran\b|vecino|en (mi|la|tu|su) zona|in (my|the|your) area|mercado|market|referencia|reference|gast[oaé]|gastos|spend|material|costo|costs?\b|renta\b|rent\b|gasolina|\bgas\b|seguro\b|insurance|presupuesto|budget|invert|invest|ahorr|saving|ganar|gano\b|ganancia|ganarme|earn|income|ingreso|sueldo|salario|salary|deuda|debt|tengo \$|i have \$|para empezar|to start)/;
+// A sentence that sets or states a price ("cobro…", "mi precio…", "ponlo en…").
+const PRICE_CUE = /(^\s*\d[\d,]*(\.\d{1,2})?\s*$|dolares|dollars|\busd\b|cobr|precio|price|charge|cuesta|cuestan|vale\b|valen\b|tarifa|rate\b|fee\b|\bpon\b|ponlo|ponla|ponle|ponles|ponlos|d[eé]jalo|d[eé]jala|d[eé]jalos|deja el|deja la|cambia|cambiar|c[aá]mbialo|sube|s[uú]belo|baja\b|b[aá]jalo|que sea|que quede|make it|set it|change|lower|raise|\ba\s+\$?\d|\ben\s+\$?\d)/;
+// Questions and refusals never set a price ("¿por qué está en $80?", "no quiero $80").
+const NOT_A_STATEMENT = /[?¿]|\b(no|nunca|jamas|not|never|dont|don't|isn't)\b/;
+
+// The amounts the owner gave in the chat as THEIR price. Only these make a
+// package "tu precio": any other number they typed (a competitor's price, a
+// cost, an income goal, a question about a reference) stays a reference.
+export function ownerPriceAmounts(said: string): number[] {
+  const out: number[] = [];
+  for (const raw of (said || "").split(/\n+|(?<=[.!?;])\s+|,\s+/)) {
+    const clause = fold(raw).trim();
+    if (!clause || NOT_A_STATEMENT.test(clause) || NOT_OWN_PRICE.test(clause)) continue;
+    out.push(...dollarAmounts(clause));
+    if (PRICE_CUE.test(clause)) out.push(...plainAmounts(clause.replace(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g, " ")));
+  }
+  return out;
+}
+
 // A package price is the owner's only when every amount in it is one they
-// gave (on the price card, in the chat, or typed on the confirmation card).
-// Anything else is a market reference and is shown as such. Checked in code
-// on every proposal and every edit: the model can't present a researched
-// number as "your price".
-export function markReferencePrices(plan: BusinessPlan, ownerSaid = ""): BusinessPlan {
+// gave (on the price card, as a price in the chat, or typed on the
+// confirmation card: `typed` always counts). Anything else is a market
+// reference and is shown as such. Checked in code on every proposal and every
+// edit: the model can't present a researched number as "your price".
+export function markReferencePrices(plan: BusinessPlan, ownerSaid = "", typed = ""): BusinessPlan {
   // C's access prices are the Brain's proposal, approved part by part.
   if (plan.mode === "agent") return plan;
   const priceCard = plan.cards.prices && !plan.cards.prices.u ? plan.cards.prices.v : "";
-  const own = new Set(dollarAmounts(`${plan.profile.currentPrice} ${priceCard} ${ownerSaid}`));
+  const own = new Set([...priceNumbers(`${plan.profile.currentPrice} ${priceCard} ${typed}`), ...ownerPriceAmounts(ownerSaid)]);
   return {
     ...plan,
     packages: plan.packages.map((k) => {

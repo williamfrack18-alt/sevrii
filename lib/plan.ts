@@ -719,9 +719,21 @@ export function codeChecks(p: BusinessPlan, today: string, final = true): { bloc
   if (langs === "en") for (const t of langTexts) if (t && SAYS_ES.test(t)) { block.push(`lang: "${t.slice(0, 80)}" says Spanish/bilingual but the owner serves only in English`); break; }
   if (final && p.offer && !p.offer.endsAt && !p.offer.forNewClients) block.push("offer: the offer needs a real end date");
   if (final && p.offer && p.offer.endsAt && p.offer.endsAt < today) block.push("offer: the end date already passed");
-  if (/\b(credit repair|reparaci[oó]n de cr[eé]dito|notari|immigration|inmigraci[oó]n|migratori|loan|pr[eé]stamo)/i.test(`${p.service} ${p.profile.mainService}`))
-    block.push("restricted: this kind of service needs a manual review by Sevrii before publishing");
+  if (isRestrictedService(p)) block.push("restricted: Sevrii doesn't publish this kind of service (regulated by law)");
   return { block, warn };
+}
+
+// ---------- Services Sevrii doesn't publish ----------
+// Notary, immigration paperwork, loans and credit repair are heavily
+// regulated (and "notario" fraud hurts Latino families): Sevrii doesn't publish
+// them for now. Checked on everything that names the service, including what
+// the owner wrote on the card and the idea they chose, so renaming the
+// strategy never gets around it.
+export const RESTRICTED_SERVICE = /\b(credit repair|reparaci[oó]n de cr[eé]dito|notari|notary|immigration|inmigraci[oó]n|migratori|loan|pr[eé]stamo)/i;
+export function isRestrictedService(p: Pick<BusinessPlan, "service" | "profile" | "cards" | "ideas" | "chosenIdea" | "ownIdea">): boolean {
+  const idea = p.chosenIdea !== null && p.chosenIdea !== undefined ? p.ideas[p.chosenIdea]?.title ?? "" : "";
+  const card = p.cards?.service && !p.cards.service.u ? p.cards.service.v : "";
+  return RESTRICTED_SERVICE.test([p.service, p.profile.mainService, card, idea, p.ownIdea].join(" "));
 }
 
 // ---------- B: "show me other ideas" ----------
@@ -734,7 +746,7 @@ export const MAX_REJECTED = 400;
 // Sends the person back to idea research, remembering what they turned down
 // and what they said they'd prefer, so the next ideas are different.
 export function requestMoreIdeas(plan: BusinessPlan, feedback: string): BusinessPlan {
-  const rejected = [...new Set([...plan.rejectedIdeas, ...plan.ideas.map((i) => i.title)])].slice(-MAX_REJECTED);
+  const rejected = [...new Set([...plan.rejectedIdeas, ...plan.ideas.map((i) => i.title), ...(plan.service ? [plan.service] : [])])].slice(-MAX_REJECTED);
   const note = feedback.trim().replace(/\s+/g, " ").slice(0, 300);
   // What the rejected batch says by itself: all in person → lean digital, and so on.
   const kinds = plan.ideas.map((i) => i.delivery).filter(Boolean);

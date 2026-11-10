@@ -13,10 +13,10 @@ import type { Lang } from "@/lib/i18n";
 import { allow, LIMITS } from "@/lib/guard";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
-import { APPROVAL_BLOCKS, MAX_IDEA_ROUNDS, allApproved, missingProfile, requestMoreIdeas, type ApprovalBlock } from "@/lib/plan";
+import { APPROVAL_BLOCKS, MAX_IDEA_ROUNDS, allApproved, isRestrictedService, missingProfile, requestMoreIdeas, type ApprovalBlock } from "@/lib/plan";
 import { PLAN_TEXT } from "@/lib/planI18n";
 import { applyApprovals, chooseIdea, planGreeting, resumeStuckResearch, runPlanChatTurn } from "@/lib/brain/interviewer";
-import { DONE_TOKEN, cardAfterTurn, forModel, nextPartMessage } from "@/lib/brain/walk";
+import { DONE_TOKEN, cardAfterTurn, forModel, nextPartMessage, nextSteps, pageState } from "@/lib/brain/walk";
 import type { BusinessPlan } from "@/lib/plan";
 
 const CHANNEL = "plan";
@@ -234,6 +234,21 @@ export async function approveBlockAction(block: string, approved: boolean, busin
 // close the expediente (build the page and tell the owner).
 async function walkOn(business: BusinessRow, next: BusinessPlan, refused: string[], lang: Lang) {
   const es = lang === "es";
+  // A service Sevrii doesn't publish: nothing to "fix" in the text, so no
+  // "tell me how to change it" (that only invited renaming it). Say it
+  // plainly and give the way forward: other ideas (B, C) or another project (A).
+  if (refused.length && isRestrictedService(next)) {
+    const ideas = next.mode === "new" || next.mode === "agent";
+    await addChatMessage(
+      business.id,
+      CHANNEL,
+      "ai",
+      es
+        ? `Por ahora Sevrii no publica servicios de notario, trámites de inmigración, préstamos ni reparación de crédito. La ley los regula mucho y piden licencias especiales, así que no es algo que se arregle cambiando palabras.\n\n${ideas ? "Te busco otras ideas de servicio con lo que ya me contaste." : "Si ofreces otro servicio, crea un proyecto nuevo con él y lo armamos juntos."}[[restricted]]`
+        : `For now Sevrii doesn't publish notary, immigration paperwork, loan or credit repair services. They're heavily regulated and need special licenses, so it isn't something that changing words can fix.\n\n${ideas ? "I'll look for other service ideas with what you already told me." : "If you offer another service, create a new project with it and we'll build it together."}[[restricted]]`
+    );
+    return;
+  }
   if (refused.length) {
     await addChatMessage(
       business.id,
@@ -257,18 +272,12 @@ async function afterApproved(business: BusinessRow, lang: Lang) {
     console.error("[brain] could not build the page after approval", business.id, err);
     return { filled: false };
   });
-  // "Ya armé tu página" whenever the page has content now (it may have been
-  // built a moment earlier, in the same approval, by the chat).
-  const built = filled || (await listServices(business.id)).length > 0;
-  await addChatMessage(business.id, CHANNEL, "ai", `${nextSteps(lang, built)}\n\n${DONE_TOKEN}`);
-}
-
-// What comes after the Brain, said every time the strategy is approved: the
-// owner never has to guess the next step.
-function nextSteps(lang: Lang, filled: boolean): string {
-  return lang === "es"
-    ? `¡Listo, tu estrategia está aprobada! Esto es lo que sigue, paso a paso:\n1. Store (ya abierto): ${filled ? "ya armé tu página con lo que aprobamos" : "ahí se arma tu página con lo que aprobamos"}: tu servicio, tus precios, tu oferta y tus preguntas. Revísala, agrega fotos tuyas y de tu trabajo, y cambia lo que quieras.\n2. Publicar: cuando te guste, la publicas en sevrii.com y tus clientes te escriben por su chat.\n3. Pagos (opcional): conecta tu cuenta en Payments para que tus clientes paguen con tarjeta. Puedes publicar sin esto y conectarlo cuando quieras.\n4. Marketing: después armamos tus anuncios y videos para que te encuentren.\nToca «Armar mi página en Store» para empezar.`
-    : `Done, your strategy is approved! Here's what comes next, step by step:\n1. Store (now open): ${filled ? "I already built your page from what we approved" : "your page is built there from what we approved"}: your service, prices, offer and FAQ. Review it, add photos of you and your work, and change anything you like.\n2. Publish: when you like it, publish it on sevrii.com and customers message you through its chat.\n3. Payments (optional): connect your account in Payments so customers can pay by card. You can publish without it and connect it whenever you want.\n4. Marketing: then we build your ads and videos so people find you.\nTap "Build my page in Store" to start.`;
+  // What the page really has now: built in this approval (or a moment earlier
+  // by the chat, from this same plan), still showing an earlier version (a
+  // reopened strategy never rewrites a page the owner already has), or none.
+  const fresh = await getBusinessById(business.id);
+  const hasPage = (await listServices(business.id)).length > 0 || Boolean(fresh?.site.headline);
+  await addChatMessage(business.id, CHANNEL, "ai", `${nextSteps(lang, pageState(filled, hasPage, fresh))}\n\n${DONE_TOKEN}`);
 }
 
 // Every block is approved but the plan is still open (a final check stopped
@@ -305,14 +314,18 @@ export async function moreIdeasAction(feedback: string, businessId?: string): Pr
   const lang = await getLang();
   const t = PLAN_TEXT[lang];
   const plan = business.plan;
-  if (plan.stage !== "choose") return respond(business);
+  // From the ideas, or from a strategy Sevrii can't publish (restricted service).
+  const restrictedOut = plan.stage === "proposal" && (plan.mode === "new" || plan.mode === "agent") && isRestrictedService(plan);
+  if (plan.stage !== "choose" && !restrictedOut) return respond(business);
   if (plan.ideaRounds >= MAX_IDEA_ROUNDS) return respond(business, { notice: t.moreNoLeft });
   if (!(await allow(`brain:more:${business.id}`, 30, 60 * 60))) return respond(business, { notice: getDict(lang).auth.errTooMany });
   // Checked before anything changes: over the budget, the 3 ideas stay.
   if (!(await researchWouldStart(business.userId, { budgetOnly: true }))) return respond(business, { notice: getDict(lang).dashboard.aiMonthlyLimit });
   const note = String(feedback || "").trim().replace(/\s+/g, " ").slice(0, 300);
-  await updateBusinessPlan(business.id, requestMoreIdeas(plan, note));
-  await addChatMessage(business.id, CHANNEL, "user", t.moreUser(note));
+  const more = requestMoreIdeas(plan, note);
+  // Leaving a blocked strategy: nothing of it stays approved or half-built.
+  await updateBusinessPlan(business.id, restrictedOut ? { ...more, service: "", approvals: {}, guard: { block: [], warn: [] } } : more);
+  await addChatMessage(business.id, CHANNEL, "user", restrictedOut ? (lang === "es" ? "Muéstrame otras ideas de servicio." : "Show me other service ideas.") : t.moreUser(note));
   await addChatMessage(business.id, CHANNEL, "ai", t.moreAi);
   revalidatePath("/dashboard");
   return respond(business, { startPipeline: true });
@@ -460,7 +473,9 @@ export async function confirmProposalAction(prices: Record<string, string>, busi
   });
   // A price the owner gave earlier in the chat stays theirs (only the typed
   // ones were read here before, so those turned back into references).
-  plan = markReferencePrices({ ...plan, packages }, `${said}\n${typed.join(" ")}`);
+  // (The chat counts only amounts said as their price: a competitor's price
+  // or a cost they mentioned there never turns a reference into "tu precio".)
+  plan = markReferencePrices({ ...plan, packages }, said, typed.join(" "));
   if (typed.length) await addChatMessage(business.id, CHANNEL, "user", `${es ? "Mis precios" : "My prices"}: ${typed.join(" · ")}`);
   await addChatMessage(business.id, CHANNEL, "user", es ? "Confirmo mi estrategia." : "I confirm my strategy.");
   const { plan: next, refused } = applyApprovals(readyForPage(plan), APPROVAL_BLOCKS, lang);

@@ -8,8 +8,6 @@ import type { ClientBusiness, ClientService } from "./types";
 import { ACCENT, TINT } from "@/lib/panel";
 
 const CARD = { background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" } as const;
-const INK = "#0A0A0A";
-const GREEN = "#16A34A";
 
 const TEXT = {
   es: {
@@ -163,9 +161,11 @@ function AgentLook({ business }: { business: ClientBusiness }) {
           {t.open} ↗
         </a>
       </div>
-      <div className="rounded-[18px] overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 0 0 1px rgba(10,10,10,.08)" }} aria-hidden>
-        <div className="flex items-center gap-2.5 px-3.5 py-3" style={{ borderBottom: "1px solid rgba(10,10,10,.07)" }}>
-          <span className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[13px] font-semibold shrink-0" style={{ background: INK, color: "#fff", boxShadow: `0 0 0 2px #fff, 0 0 0 3.5px ${GREEN}` }}>
+      {/* Always white, like the real chat: the dark chat panel's glass colours
+          (globals.css) never reach it, its colours live in .agent-look classes. */}
+      <div className="agent-look rounded-[18px] overflow-hidden" aria-hidden>
+        <div className="al-head flex items-center gap-2.5 px-3.5 py-3">
+          <span className="al-avatar w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[13px] font-semibold shrink-0">
             {logo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logo} alt="" className="w-full h-full object-cover" />
@@ -174,21 +174,21 @@ function AgentLook({ business }: { business: ClientBusiness }) {
             )}
           </span>
           <span className="min-w-0 flex flex-col">
-            <span className="text-[13.5px] font-semibold truncate" style={{ color: INK }}>{name}</span>
-            <span className="text-[11px] truncate flex items-center gap-1.5" style={{ color: "#52525B" }}>
-              <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: GREEN }} />
+            <span className="al-ink text-[13.5px] font-semibold truncate">{name}</span>
+            <span className="al-status text-[11px] truncate flex items-center gap-1.5">
+              <span className="al-dot h-1.5 w-1.5 rounded-full shrink-0" />
               {t.lookStatus(business.name)}
             </span>
           </span>
         </div>
         <div className="px-3.5 py-3 flex flex-col gap-2.5">
-          <p className="text-[12.5px] leading-relaxed line-clamp-4" style={{ color: INK }}>{hello}</p>
-          <span className="self-end text-[12.5px] px-3 py-1.5 rounded-[16px]" style={{ background: INK, color: "#fff" }}>{t.lookUser}</span>
+          <p className="al-ink text-[12.5px] leading-relaxed line-clamp-4">{hello}</p>
+          <span className="al-dark self-end text-[12.5px] px-3 py-1.5 rounded-[16px]">{t.lookUser}</span>
         </div>
         <div className="px-3 pb-3">
-          <div className="flex items-center gap-2 h-10 pl-3.5 pr-1 rounded-full" style={{ boxShadow: "0 0 0 1px rgba(10,10,10,.12)" }}>
-            <span className="grow text-[12px]" style={{ color: "#A1A1AA" }}>{t.lookPlaceholder}</span>
-            <span className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: INK, color: "#fff" }}>
+          <div className="al-input flex items-center gap-2 h-10 pl-3.5 pr-1 rounded-full">
+            <span className="al-ph grow text-[12px]">{t.lookPlaceholder}</span>
+            <span className="al-dark w-8 h-8 rounded-full flex items-center justify-center">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>

@@ -12,6 +12,7 @@ import {
 } from "../db";
 import type { Lang } from "../i18n";
 import { countAiUnit, researchGate, runForUser } from "../usage";
+import { allow, clear } from "../guard";
 import { IDEAS_TOKEN, MARKET_TOKEN, nextPartMessage } from "./walk";
 import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanSource, type PlanStage } from "../plan";
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
@@ -34,6 +35,13 @@ const STEPS: Record<"ideas_research" | "research", { parallel: ResearchKind[]; t
 };
 
 // Research runs per account per month and the AI budget come from the plan (lib/usage.ts).
+
+// The lock that lets one request start the run of a stage (per project,
+// stage and round of ideas: "Dame otras" is a new round, so a new run).
+export const NEW_RUN_LOCK_SECONDS = 60;
+export function newRunLock(businessId: string, plan: Pick<BusinessPlan, "stage" | "ideaRounds">): string {
+  return `brain:newrun:${businessId}:${plan.stage}:${plan.ideaRounds}`;
+}
 
 export type AdvanceResult = { more: boolean; error?: "limit" | "failed" | "busy" };
 
@@ -64,14 +72,22 @@ async function advanceStep(b: NonNullable<Awaited<ReturnType<typeof getBusinessB
 
   let jobs = await latestResearchRun(businessId);
   if (!plan.runId || jobs.length === 0 || jobs[0].runId !== plan.runId) {
+    // Only one request starts the run of this stage: two tabs (or a reload)
+    // used to start two paid runs at once, both counted against the plan.
+    // The other one waits ("busy") and then follows the run this one saved.
+    if (!(await allow(newRunLock(businessId, plan), 1, NEW_RUN_LOCK_SECONDS))) return { more: true, error: "busy" };
     // Each new run counts against the plan's monthly runs and AI budget.
-    if (await researchGate(userId, undefined, { budgetOnly: ideaRefresh })) return { more: false, error: "limit" };
+    if (await researchGate(userId, undefined, { budgetOnly: ideaRefresh })) {
+      await clear(newRunLock(businessId, plan));
+      return { more: false, error: "limit" };
+    }
     const runId = await createResearchRun(businessId, [...spec.parallel, ...spec.then]);
     plan = { ...plan, runId };
     await savePlan(businessId, plan);
     jobs = await latestResearchRun(businessId);
-  } else if (retry) {
-    // A retry re-runs paid research, so it counts like a new run.
+  } else if (retry && jobs.some((j) => j.status === "failed")) {
+    // A retry re-runs paid research, so it counts like a new run (only when
+    // something really failed: a retry of a run still going costs nothing).
     if (await researchGate(userId, undefined, { budgetOnly: ideaRefresh })) return { more: false, error: "limit" };
     await requeueFailedJobs(plan.runId);
     jobs = await latestResearchRun(businessId);

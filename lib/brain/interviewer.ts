@@ -2,7 +2,7 @@ import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from "@an
 import { BRAIN_MODEL, aiErrorReply, getBrainModel, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import { slugify } from "../ai";
-import { addChatMessage, getBusinessById, isSlugTaken, latestResearchRun, listChatMessages, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
+import { addChatMessage, getBusinessById, isSlugTaken, latestResearchRun, listChatMessages, listServices, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
 import {
   APPROVAL_BLOCKS,
   allApproved,
@@ -24,7 +24,7 @@ import { priceMoves, swapAmounts } from "../reprice";
 import { lockedFacts, questionSentences, similar } from "./asked";
 import { dropDanglingClause, groundedInOwner, neutralGender, scrubInternal, withoutAvoidedSuggestions } from "./checks";
 import { markReferencePrices, noFakeCosts, readyForPage, withoutAvoided } from "./checks";
-import { oneConfirmation, partName } from "./walk";
+import { oneConfirmation, pageState, partName } from "./walk";
 import { unknownCards } from "../cards";
 import { unknownAmountSentences, ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
@@ -117,7 +117,7 @@ const GUIDE = `
 
 El camino completo (úsalo para explicar dónde va la persona; nombra los pasos así):
 - Si mode es A: 1) Te conozco (unas tarjetas con preguntas) → 2) Investigación (1 a 2 minutos, la hace Sevrii solo) → 3) Propuesta (la ve completa en una sola tarjeta: servicio, presentación, paquetes, oferta y preguntas frecuentes; pide cambios en el chat y la confirma una vez con «Confirmar y crear mi página») → 4) Aprobado. Después, en Store se arma su página y en Marketing sus anuncios.
-- Si mode es B: 1) Te conozco (unas tarjetas con preguntas) → 2) Ideas (Sevrii investiga y propone de 8 a 10 servicios, los mejor pagados primero) → 3) Escoges una (o pides otras) → 4) Investigación de ese servicio → 5) Propuesta → 6) Aprobado.
+- Si mode es B: 1) Te conozco (unas tarjetas con preguntas) → 2) Ideas (Sevrii investiga y propone de 8 a 10 servicios, los mejor pagados primero) → 3) Escoges una (o pides otras) → 4) Últimos datos (solo si falta cómo o dónde lo ofrecerías) → 5) Investigación de ese servicio → 6) Propuesta (la ve completa en una sola tarjeta y la confirma una vez) → 7) Aprobado.
 - Si mode es C: 1) Te conozco → 2) Ideas (Sevrii investiga y propone 3, 1 a 2 minutos) → 3) Escoges una → 4) Tu agente (cómo trabaja con cada cliente, sus límites, hasta dónde atiende y su nombre) → 5) Investigación → 6) Propuesta → 7) Aprobado. Después, en Store se publica el agente y en Marketing sus anuncios.
 
 Piensa antes de responder: mira el estado, lo que ya está guardado y lo que falta, y decide cuál es el siguiente paso real.
@@ -725,7 +725,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         turn.approved = true;
         // The approval is saved: a page that can't be built now is built from Store.
         const filled = (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true }).catch(() => ({ filled: false }))).filled;
-        return { out: `all approved: ${filled ? "the store page was built from it" : "the owner can build the page in Store"}. Tell them in one line that Store is open to create their page.` };
+        return { out: `all approved: ${await pageNote(b.id, filled)}` };
       }
       let blocks = (Array.isArray(input.blocks) ? input.blocks : []).filter((x): x is ApprovalBlock => APPROVAL_BLOCKS.includes(x as ApprovalBlock));
       // One OK approves the part being reviewed, nothing more, unless they say "todo".
@@ -739,11 +739,25 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (!refused.length) turn.approved = true;
       await updateBusinessPlan(b.id, next);
       const built = next.stage === "approved" ? (await fillStoreFromPlan(b.id, lang, { onlyIfEmpty: true }).catch(() => ({ filled: false }))).filled : false;
-      return { out: `${next.stage === "approved" ? (built ? "all approved: the store page was built from the expediente automatically; tell the owner to open Store to see it" : "all approved: the expediente is ready; the owner can update the page from Store") : "approved"}${refused.length ? `; not approved: ${refused.join(" ")}` : ""}` };
+      return { out: `${next.stage === "approved" ? `all approved: ${await pageNote(b.id, built)}` : "approved"}${refused.length ? `; not approved: ${refused.join(" ")}` : ""}` };
     }
     default:
       return { out: "error: unknown tool" };
   }
+}
+
+// What the page really has after an approval, said to the model so it never
+// claims a rebuild that didn't happen (a page the owner already had is never
+// rewritten: Store offers «Actualizar mi página»).
+async function pageNote(businessId: string, filled: boolean): Promise<string> {
+  const fresh = await getBusinessById(businessId);
+  const hasPage = (await listServices(businessId).catch(() => [])).length > 0 || Boolean(fresh?.site.headline);
+  const st = pageState(filled, hasPage, fresh);
+  return st === "built"
+    ? "the store page has exactly what was approved. Tell them in one line that Store is open to review it."
+    : st === "stale"
+      ? "their page already existed and was NOT changed: it still shows the earlier version. Tell them in one line to open Store and tap \"Actualizar mi página\" to bring in the changes. Never say the page was rebuilt."
+      : "the page isn't built yet. Tell them in one line that Store is open to create their page.";
 }
 
 // After picking an idea (B): straight to the research when nothing essential is

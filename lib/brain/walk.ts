@@ -1,5 +1,6 @@
 import type { Lang } from "../i18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan } from "../plan";
+import { planFingerprint } from "../planToStore";
 
 // The proposal is reviewed inside the Brain chat, one part at a time. A chat
 // message carries a token at its end and the chat draws the matching card:
@@ -113,4 +114,42 @@ export function forModel(content: string, lang: Lang): string {
     if (kind === "market") return lang === "es" ? "\n(Tarjeta mostrada: lo que encontré en el mercado)" : "\n(Card shown: what I found in the market)";
     return lang === "es" ? "\n(Tarjeta mostrada: expediente aprobado)" : "\n(Card shown: plan approved)";
   });
+}
+
+// ---------- after the approval: what the page really has ----------
+export type PageState = "built" | "stale" | "todo";
+// "built": the page has what was just approved. "stale": a page exists but
+// was made from an earlier version (Store offers «Actualizar mi página»).
+// "todo": no page yet.
+export function pageState(filled: boolean, hasPage: boolean, b: { plan: BusinessPlan; site: { fromPlan: string } } | undefined): PageState {
+  if (filled) return "built";
+  if (!hasPage) return "todo";
+  return b && b.site.fromPlan === planFingerprint(b.plan) ? "built" : "stale";
+}
+
+// What comes after the Brain, said every time the strategy is approved: the
+// owner never has to guess the next step.
+export function nextSteps(lang: Lang, page: PageState): string {
+  const es = lang === "es";
+  const store = es
+    ? page === "built"
+      ? "ya armé tu página con lo que aprobamos: tu servicio, tus precios, tu oferta y tus preguntas. Revísala, agrega fotos tuyas y de tu trabajo, y cambia lo que quieras."
+      : page === "stale"
+        ? "tu página todavía muestra la versión anterior: no la cambié sin tu permiso, porque ya la habías armado. Ahí toca «Actualizar mi página» para pasarle lo que acabamos de aprobar, y revisa tus fotos y textos."
+        : "ahí se arma tu página con lo que aprobamos: tu servicio, tus precios, tu oferta y tus preguntas. Revísala, agrega fotos tuyas y de tu trabajo, y cambia lo que quieras."
+    : page === "built"
+      ? "I already built your page from what we approved: your service, prices, offer and FAQ. Review it, add photos of you and your work, and change anything you like."
+      : page === "stale"
+        ? "your page still shows the earlier version: I didn't change it without your OK, since you had already built it. Tap \"Update my page\" there to bring in what we just approved, and check your photos and texts."
+        : "your page is built there from what we approved: your service, prices, offer and FAQ. Review it, add photos of you and your work, and change anything you like.";
+  const tap = es
+    ? page === "stale"
+      ? "Toca «Armar mi página en Store» y luego «Actualizar mi página»."
+      : "Toca «Armar mi página en Store» para empezar."
+    : page === "stale"
+      ? "Tap \"Build my page in Store\", then \"Update my page\"."
+      : "Tap \"Build my page in Store\" to start.";
+  return es
+    ? `¡Listo, tu estrategia está aprobada! Esto es lo que sigue, paso a paso:\n1. Store (ya abierto): ${store}\n2. Publicar: cuando te guste, la publicas en sevrii.com y tus clientes te escriben por su chat.\n3. Pagos (opcional): conecta tu cuenta en Payments para que tus clientes paguen con tarjeta. Puedes publicar sin esto y conectarlo cuando quieras.\n4. Marketing: después armamos tus anuncios y videos para que te encuentren.\n${tap}`
+    : `Done, your strategy is approved! Here's what comes next, step by step:\n1. Store (now open): ${store}\n2. Publish: when you like it, publish it on sevrii.com and customers message you through its chat.\n3. Payments (optional): connect your account in Payments so customers can pay by card. You can publish without it and connect it whenever you want.\n4. Marketing: then we build your ads and videos so people find you.\n${tap}`;
 }

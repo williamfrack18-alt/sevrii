@@ -8,7 +8,7 @@ import { approveBlockAction, chooseIdeaAction, confirmProposalAction, finishPlan
 import CardFlow from "./CardFlow";
 import { oneConfirmation } from "@/lib/brain/walk";
 import { cardTitle, unknownCards } from "@/lib/cards";
-import { MAX_IDEA_ROUNDS, missingProfile, profileComplete, shownRequirements } from "@/lib/plan";
+import { MAX_IDEA_ROUNDS, isRestrictedService, missingProfile, profileComplete, shownRequirements } from "@/lib/plan";
 import type { ChatChip } from "./ChatPanel";
 
 // Quick answers for what the Brain is asking right now (one tap sends it).
@@ -170,10 +170,18 @@ export default function PlanView({
       } catch {}
     };
     const drive = async () => {
-      for (let i = 0; i < 20 && !stop; i++) {
+      // "busy" means another request (another tab, or the one from before a
+      // reload) is running a step right now: waiting for it is not a failure,
+      // so it doesn't use up the attempts. A step can take ~2.5 minutes, and
+      // 20 quick "busy" answers used to show "Algo falló" (and a paid retry)
+      // while the research was still going fine.
+      const until = Date.now() + 10 * 60_000;
+      let retry = retryKey > 0;
+      for (let i = 0; i < 20 && !stop && Date.now() < until; i++) {
         let s: Snapshot;
         try {
-          const r = await fetch(`/api/brain?b=${bizRef.current.id}${i === 0 && retryKey ? "&retry=1" : ""}`, { method: "POST" });
+          const r = await fetch(`/api/brain?b=${bizRef.current.id}${retry ? "&retry=1" : ""}`, { method: "POST" });
+          retry = false;
           if (!r.ok) throw new Error(String(r.status));
           s = (await r.json()) as Snapshot;
         } catch {
@@ -187,8 +195,11 @@ export default function PlanView({
           setPipeErr(s.error);
           return;
         }
-        if (s.error === "busy") await new Promise((ok) => setTimeout(ok, 5000));
         if (!s.more || (s.plan && !PIPELINE.includes(s.plan.stage))) return;
+        if (s.error === "busy") {
+          await new Promise((ok) => setTimeout(ok, 5000));
+          i--;
+        }
       }
       // Ran out of attempts while still researching: show the retry button instead of waiting forever.
       if (!stop) setPipeErr("failed");
@@ -243,11 +254,13 @@ export default function PlanView({
   const single = oneConfirmation(plan);
   const cardsMode = plan.stage === "interview" && (plan.mode === "new" || plan.mode === "existing");
   const reviewing: ApprovalBlock | null = plan.stage === "proposal" && !single ? (APPROVAL_BLOCKS.find((b) => !plan.approvals[b]) ?? null) : null;
+  // A strategy for a service Sevrii doesn't publish: its way forward replaces the confirmation.
+  const restricted = plan.stage === "proposal" && isRestrictedService(plan);
   const lastCard = [...msgs].reverse().find((m) => m.role !== "user" && TOKEN.test(m.content));
   const lastTok = lastCard ? TOKEN.exec(lastCard.content) : null;
   const liveId =
     lastCard && lastTok
-      ? (reviewing && lastTok[1] === "part" && lastTok[2] === reviewing) || (plan.stage === "choose" && lastTok[1] === "ideas") || (plan.stage === "approved" && lastTok[1] === "done") || (single && plan.stage === "proposal" && lastTok[1] === "summary")
+      ? (reviewing && lastTok[1] === "part" && lastTok[2] === reviewing) || (plan.stage === "choose" && lastTok[1] === "ideas") || (plan.stage === "approved" && lastTok[1] === "done") || (restricted && lastTok[1] === "restricted") || (!restricted && single && plan.stage === "proposal" && lastTok[1] === "summary")
         ? lastCard.id
         : null
       : null;
@@ -286,14 +299,18 @@ export default function PlanView({
     if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} passed={msgId !== lastIdeasId} onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} onMore={onMore} /> : null;
     if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} payReady={business.payReady} />;
     if (kind === "market") return <MarketInChat plan={plan} />;
+    if (kind === "restricted") return msgId === liveId ? restrictedCard : <PassedRow text={es ? "Servicio que Sevrii no publica" : "A service Sevrii doesn't publish"} />;
     if (kind === "summary") return msgId === liveId ? summaryCard : <PassedRow text={es ? "Tu estrategia (versión anterior)" : "Your strategy (earlier version)"} />;
     return null;
   };
   // No live card in the chat yet (an older chat, or a final check stopped
   // the plan): show what's next after the last message.
+  const restrictedCard = <RestrictedCard ideas={plan.mode === "new" || plan.mode === "agent"} busy={busy} onMore={() => onMore("")} onNavigate={onNavigate} />;
   const tail = liveId
     ? null
-    : single && plan.stage === "proposal"
+    : restricted
+      ? restrictedCard
+      : single && plan.stage === "proposal"
       ? summaryCard
       : reviewing
       ? partCard(reviewing)
@@ -835,6 +852,36 @@ function FinishCard({ plan, busy, onFinish }: { plan: BusinessPlan; busy: boolea
 }
 
 // The plan is approved: where to go next.
+// A service Sevrii doesn't publish (notary, immigration, loans, credit
+// repair): no dead end. B and C look for other ideas; A starts another project.
+function RestrictedCard({ ideas, busy, onMore, onNavigate }: { ideas: boolean; busy: boolean; onMore: () => void; onNavigate: (v: DashboardView) => void }) {
+  const es = useLang() === "es";
+  return (
+    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={CARD}>
+      <span className="text-[16px] font-semibold text-pfg">{es ? "Este servicio no se puede publicar en Sevrii" : "This service can't be published on Sevrii"}</span>
+      <p className="text-[13.5px] text-psub leading-relaxed">
+        {es
+          ? "Notario, trámites de inmigración, préstamos y reparación de crédito están muy regulados por la ley. Lo que ya me contaste sirve para encontrar otro servicio."
+          : "Notary, immigration paperwork, loans and credit repair are heavily regulated by law. What you already told me helps find another service."}
+      </p>
+      <div className="flex flex-col sm:flex-row gap-2">
+        {ideas ? (
+          <button type="button" disabled={busy} onClick={onMore} className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-50" style={BRAND_BTN}>
+            ↻ {es ? "Ver otros servicios" : "See other services"}
+          </button>
+        ) : (
+          <a href="/start?new=1" className="h-10 px-5 rounded-full text-[14px] font-semibold inline-flex items-center justify-center" style={BRAND_BTN}>
+            {es ? "Crear un proyecto nuevo" : "Create a new project"}
+          </a>
+        )}
+        <button type="button" onClick={() => onNavigate("projects")} className="h-10 px-5 rounded-full text-[14px] font-medium" style={GHOST_BTN}>
+          {es ? "Ir a Inicio" : "Go to Home"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DoneCard({ live, onNavigate, payReady }: { live: boolean; onNavigate: (v: DashboardView) => void; payReady: boolean }) {
   const t = PLAN_TEXT[useLang()];
   if (!live) {

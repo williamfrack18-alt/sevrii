@@ -4,6 +4,7 @@ import { EMPTY_AGENT, offerTarget, parseServiceAgent, periodHours, type AgentOff
 import type { BusinessPlan } from "./plan";
 import { normalizePhone, type SiteData } from "./site";
 import { planFingerprint, planReadyForStore, storeFromPlan } from "./planToStore";
+import { stripReasoning } from "./pageText";
 
 type Lang = "es" | "en";
 
@@ -97,7 +98,7 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
   return { filled: true, business: fresh };
 }
 
-function doneMessage(lang: Lang, b: BusinessRow, packages: number, priced: number): string {
+export function doneMessage(lang: Lang, b: BusinessRow, packages: number, priced: number): string {
   const es = lang === "es";
   if (b.plan.mode === "agent" && b.serviceAgent.name) {
     return es
@@ -118,9 +119,24 @@ function doneMessage(lang: Lang, b: BusinessRow, packages: number, priced: numbe
     : es
       ? ` y tus ${packages} paquetes${unpriced === 0 ? " con precio" : priced ? ` (${unpriced} todavía sin precio)` : " (todavía sin precio)"}`
       : ` and your ${packages} packages${unpriced === 0 ? " with prices" : priced ? ` (${unpriced} still without a price)` : " (still without prices)"}`;
+  // Only the parts the page really got (never "preguntas frecuentes" when the
+  // strategy had none), in the owner's words, not the internal "expediente".
+  const parts = [
+    es ? "título" : "headline",
+    s.keyPoints.length ? (es ? "puntos clave" : "key points") : "",
+    s.steps.length ? (es ? "cómo trabajas" : "how you work") : "",
+    s.faq.length ? (es ? "preguntas frecuentes" : "FAQ") : "",
+  ].filter(Boolean);
+  const partList = pk ? parts.join(", ") : parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} ${es ? "y" : "and"} ${parts[parts.length - 1]}`;
+  // Parts the owner hid (or a page started blank) stay hidden after a rebuild.
+  const hiddenNote = s.hidden.length
+    ? es
+      ? " Las partes que tienes ocultas siguen ocultas: pídeme mostrar la que quieras."
+      : " The parts you hid stay hidden: ask me to show any of them."
+    : "";
   const built = es
-    ? `¡Listo! Armé tu página con tu expediente: título, puntos clave, cómo trabajas, preguntas frecuentes${pk}. A la derecha ves tu página tal como queda (en el teléfono, toca «Vista previa»).`
-    : `Done! I built your page from your expediente: headline, key points, how you work, FAQ${pk}. On the right you see your page as it looks (on a phone, tap "Preview").`;
+    ? `¡Listo! Armé tu página con lo que aprobaste en el Cerebro: ${partList}${pk}. A la derecha ves tu página tal como queda (en el teléfono, toca «Vista previa»).${hiddenNote}`
+    : `Done! I built your page from what you approved in the Brain: ${partList}${pk}. On the right you see your page as it looks (on a phone, tap "Preview").${hiddenNote}`;
   if (packages && unpriced > 0) missing.unshift(es ? "tu precio para cada paquete que todavía no lo tiene" : "your price for each package that doesn't have one yet");
   if (!s.reachMode) missing.unshift(es ? "dónde atiendes (en persona en tu zona o en línea)" : "where you serve (in person in your area, or online)");
   const media = s.gallery.length === 0 && !s.coverUrl || !s.videoUrl;
@@ -198,18 +214,23 @@ export function agentFromPlan(plan: BusinessPlan): ServiceAgent {
     .join("\n\n");
   return parseServiceAgent({
     ...EMPTY_AGENT,
-    name: a?.name || plan.service,
-    role: a?.role || plan.serviceIncludes,
+    // Name, role and offers show on the customer's page: no internal reasoning.
+    name: stripReasoning(a?.name || plan.service),
+    role: stripReasoning(a?.role || plan.serviceIncludes),
     instructions,
     knowledge: [p.agentKnowledge, knowledgeFromMarket(plan)].filter(Boolean).join("\n\n"),
     limits: a?.limits.length ? a.limits : p.agentLimits ? [p.agentLimits] : [],
     greeting: a?.greeting || "",
     creator: a?.creator || "",
-    edge: a?.edge ?? [],
+    edge: (a?.edge ?? []).map((e) => ({ ...e, text: stripReasoning(e.text) })).filter((e) => e.title || e.text),
     // What it does end to end, as the strategy defined it.
     task: a?.task,
     // A market reference (ref) is not the owner's price: no one is charged it.
-    offers: plan.packages.filter((k) => !k.ref).map(offerFromPackage).filter(Boolean),
+    offers: plan.packages
+      .filter((k) => !k.ref)
+      .map((k) => ({ ...k, name: stripReasoning(k.name), includes: stripReasoning(k.includes) }))
+      .map(offerFromPackage)
+      .filter(Boolean),
     // The welcome offer the strategy proposed ("15% off your first month").
     ...welcomeFromPlan({ ...plan, packages: plan.packages.filter((k) => !k.ref) }),
   });

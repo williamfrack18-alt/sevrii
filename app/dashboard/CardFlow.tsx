@@ -147,8 +147,14 @@ export default function CardFlow({
     primeChime();
     save(last);
     if (!last) {
-      setAt((n) => n + 1);
-      chime();
+      // After changing an earlier answer (tapping its bubble), go on to the
+      // first question still unanswered (or the last one, where the send
+      // button is), not through every answered card again: the answers in
+      // between stay in the conversation above.
+      const pending = defs.findIndex((d, j) => j > at && !cardDone(d, answers[d.id]));
+      setAt(pending < 0 ? defs.length - 1 : pending);
+      // The sound context may still be waking up on the first tap (Safari).
+      window.setTimeout(chime, 60);
     }
   }
   // What each answered question said, for the conversation above the card.
@@ -342,6 +348,7 @@ export default function CardFlow({
               value={a.v}
               onChange={(e) => set({ v: e.target.value, u: false })}
               placeholder={def.placeholder[lang]}
+              maxLength={400}
               rows={2}
               className="w-full rounded-2xl px-5 py-4 text-[16px] leading-relaxed outline-none resize-none placeholder:text-white/40 focus:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.6)]"
               style={field}
@@ -352,6 +359,7 @@ export default function CardFlow({
             <input
               value={a.p}
               onChange={(e) => set({ p: e.target.value, u: false })}
+              maxLength={80}
               placeholder={def.placeAlways ? (es ? "Ciudad y estado, o «en línea»" : "City and state, or \"online\"") : def.placeholder[lang]}
               className="w-full h-14 rounded-2xl px-5 text-[16px] outline-none placeholder:text-white/40 focus:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.6)]"
               style={field}

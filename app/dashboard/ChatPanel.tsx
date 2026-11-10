@@ -171,7 +171,8 @@ export default function ChatPanel({
     for (const m of messages) {
       if (seen.current.has(m.id)) continue;
       seen.current.add(m.id);
-      if (m.role !== "user" && !m.id.startsWith("local-") && m.id !== "greeting" && m.content !== greeting) arrived = true;
+      // An error note that is never shown makes no sound either.
+      if (m.role !== "user" && !m.id.startsWith("local-") && m.id !== "greeting" && m.content !== greeting && !hiddenError(m.content, true)) arrived = true;
       // The greeting, once saved, comes back with a new id: it was already
       // on screen, so it is never written again.
       if (m.role === "user" || m.id.startsWith("local-") || m.id === "greeting" || calm || m.content === greeting) continue;
@@ -275,6 +276,8 @@ export default function ChatPanel({
   // so a short line under the box says what to do (and that it opened).
   const [pickHint, setPickHint] = useState(false);
   const openPicker = () => {
+    // The reply to an upload chimes too (the tap on "+" unlocks the sound).
+    primeChime();
     setPickHint(true);
     setTimeout(() => setPickHint(false), 6000);
     fileRef.current?.click();
@@ -644,7 +647,7 @@ export default function ChatPanel({
           ref={inputRef}
           rows={1}
           autoFocus={empty}
-          className="flex-1 min-w-0 bg-transparent outline-none resize-none text-[16px] leading-[1.5] text-white placeholder:text-white/45 py-2 max-h-[200px]"
+          className="flex-1 min-w-0 bg-transparent outline-none resize-none text-[16px] leading-[1.5] text-white placeholder:text-white/45 chat-input py-2 max-h-[200px]"
           placeholder={texts.placeholder}
           value={input}
           maxLength={2000}

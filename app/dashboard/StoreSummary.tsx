@@ -71,7 +71,7 @@ const TEXT = {
     missing: "To sell more it still needs:",
     mediaHow: "Pages with real photos and video of the work get many more messages. Upload them with the chat's + button and I'll place them.",
     addMedia: "Upload photos or video",
-    items: { photos: "photos of your work", photo: "your photo (so people see who made it)", video: "a short video of you", hours: "your hours", owner: "your name (shown in the chat)" },
+    items: { photos: "photos of your work", photo: "your photo (so people see who made it)", video: "a short video of you", hours: "your hours", owner: "your name (shown in «Created by» and in the chat)" },
     planNew: "Your strategy is approved and your page doesn't have it yet.",
     planChanged: "There's a newer version of your page with what you approved in the Brain (full texts, nothing cut). Update it to see it.",
     build: "Build my page",

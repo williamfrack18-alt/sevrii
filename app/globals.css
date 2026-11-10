@@ -886,3 +886,26 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
 }
 .chat-dark .chat-surface .p-btn,
 .chat-glass .p-btn { background: #fff !important; color: #0a0a0a !important; }
+/* Soft grey pills and chips (rgba black ~5–7%) would vanish on the dark glass */
+.chat-dark .chat-surface [style*="background: rgba(10, 10, 10, 0.068)"],
+.chat-dark .chat-surface [style*="background:rgba(10,10,10,0.068)"],
+.chat-dark .chat-surface [style*="background: rgba(10, 10, 10, 0.051)"],
+.chat-dark .chat-surface [style*="background:rgba(10,10,10,0.051)"],
+.chat-glass [style*="background: rgba(10, 10, 10, 0.068)"],
+.chat-glass [style*="background:rgba(10,10,10,0.068)"],
+.chat-glass [style*="background: rgba(10, 10, 10, 0.051)"],
+.chat-glass [style*="background:rgba(10,10,10,0.051)"] { background: rgba(255, 255, 255, 0.1) !important; }
+/* The composer's hint stays on one line in the narrow Store chat (never cut in half) */
+.chat-input::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* "Así lo ve tu cliente" (Agente): a picture of the customer's white chat, kept
+   white inside the dark chat's glass (only classes here, no inline colours the
+   glass rules above would repaint). */
+.agent-look { background: #fff; color: #0a0a0a; box-shadow: 0 0 0 1px rgba(10, 10, 10, 0.08); }
+.agent-look .al-head { border-bottom: 1px solid rgba(10, 10, 10, 0.07); }
+.agent-look .al-avatar { background: #0a0a0a; color: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #16a34a; }
+.agent-look .al-ink { color: #0a0a0a; }
+.agent-look .al-status { color: #52525b; }
+.agent-look .al-dot { background: #16a34a; }
+.agent-look .al-dark { background: #0a0a0a; color: #fff; }
+.agent-look .al-input { box-shadow: 0 0 0 1px rgba(10, 10, 10, 0.12); }
+.agent-look .al-ph { color: #a1a1aa; }

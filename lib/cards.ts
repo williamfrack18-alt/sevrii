@@ -203,6 +203,9 @@ export function emptyAnswer(): CardAnswer {
 const ONLINE = /^(en\s*l[ií]nea|online|remot[oa]|remote|por\s+internet|internet|virtual)(?![\p{L}\d])/iu;
 export const isOnlinePlace = (p: string) => ONLINE.test(p.trim());
 
+// A typed "I don't know" (the whole answer, nothing else).
+const DONT_KNOW = /^\s*(no\s+(lo\s+)?s[eé]( todav[ií]a| a[uú]n)?|no\s+tengo\s+idea|ni\s+idea|n\/a|i\s+don'?t\s+know( yet)?|not\s+sure|idk)\s*[.!]*\s*$/i;
+
 // A card counts as answered with text, a pick, or an explicit "no sé".
 export function cardDone(def: CardDef, a: CardAnswer | undefined): boolean {
   if (!a) return false;
@@ -211,7 +214,7 @@ export function cardDone(def: CardDef, a: CardAnswer | undefined): boolean {
   const needsPlace = def.placeAlways || (def.placeFor?.includes(a.c) ?? false);
   // In person (or either) needs the city to research the area; the service
   // card always needs where (a city, or "en línea").
-  if (needsPlace && !a.p.trim()) return false;
+  if (needsPlace && (!a.p.trim() || DONT_KNOW.test(a.p))) return false;
   if (def.choices && def.choiceIsEnough) return true;
   return a.v.trim().length > 0;
 }
@@ -243,11 +246,17 @@ export function cleanAnswers(mode: string, raw: unknown): CardAnswers {
     const o = a as Record<string, unknown>;
     const txt = (x: unknown, n: number) => (typeof x === "string" ? x.replace(/\s+/g, " ").trim().slice(0, n) : "");
     const c = txt(o.c, 20);
+    const v = txt(o.v, 400);
+    // "no sé" typed in the box is the same as the "No sé" button: it stays
+    // unknown (it used to be saved as their price, their limit… or, in the
+    // place box, as a city called "no sé" that the research searched).
+    const typedUnknown = Boolean(d.unknown) && DONT_KNOW.test(v) && !c;
+    const p = txt(o.p, 80);
     out[d.id] = {
-      v: txt(o.v, 400),
-      u: Boolean(d.unknown) && o.u === true,
+      v: typedUnknown ? "" : v,
+      u: Boolean(d.unknown) && (o.u === true || typedUnknown),
       c: d.choices?.some((x) => x.id === c) ? c : "",
-      p: txt(o.p, 80),
+      p: DONT_KNOW.test(p) ? "" : p,
     };
   }
   return out;

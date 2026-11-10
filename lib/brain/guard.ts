@@ -55,7 +55,7 @@ const CODE_TEXT: Record<string, { es: string; en: string }> = {
   claim: { es: "Hay una afirmación que necesita prueba (garantizado, el mejor, número de clientes o reseñas).", en: "A claim needs proof (guaranteed, the best, customer or review counts)." },
   offer: { es: "La oferta necesita una fecha de fin real y que no haya pasado.", en: "The offer needs a real end date that hasn't passed." },
   license: { es: "Este oficio pide licencia estatal y todavía no la tienes.", en: "This trade needs a state license you don't have yet." },
-  restricted: { es: "Este tipo de servicio necesita una revisión de Sevrii antes de publicarse.", en: "This kind of service needs a Sevrii review before publishing." },
+  restricted: { es: "Por ahora Sevrii no publica servicios de notario, trámites de inmigración, préstamos ni reparación de crédito: la ley los regula y piden licencias especiales.", en: "For now Sevrii doesn't publish notary, immigration paperwork, loan or credit repair services: they're regulated by law and need special licenses." },
   promise: { es: "Hay una frase que promete un resultado que nadie puede asegurar.", en: "A sentence promises a result nobody can guarantee." },
   lang: { es: "La propuesta dice que atiendes en un idioma que no me dijiste. Debe usar solo el idioma (o los idiomas) en que atiendes.", en: "The proposal says you serve in a language you didn't tell me. It must use only the language(s) you serve in." },
 };

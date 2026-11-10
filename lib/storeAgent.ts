@@ -86,7 +86,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: "save_service",
-    description: "Add a service (no id) or update one (with its id from the page state).",
+    description: "Add a service (no id) or update one (with its id from the page state). When updating, send only the fields that change (omitted fields keep their value); send price \"\" only to remove a price.",
     input_schema: {
       type: "object",
       properties: {
@@ -240,7 +240,7 @@ How to work:
 - When the essentials are done (services with prices, the owner's name, photos or not, key points), tell them the page is ready, give a one-line summary, and ask ONCE if they want to publish. Call publish_page only when they explicitly ask for it. If publishing fails, tell them what's missing.
 - If the owner asks for something the page can't do, say so briefly.
 - "brainPlan" is the strategy the owner already made with Sevrii's Brain (service, customer, promise, differentiators, packages with prices, offer). Use it: propose the headline from the promise, key points from the differentiators and services from the packages, and confirm with the owner instead of asking from scratch. If the plan offer has forNewClients=true, use it without a date. Otherwise, if it has no endsAt, ask for a real end date before adding it to the page; if it has one, use that date.
-- Service agent ("agent" in the state, when the owner is creating one): the page chat becomes their AI agent that delivers the service by itself and charges for access. An agent is a digital product that doesn't depend on what the owner knows: its knowledge base already comes from the Brain's official research. Help them finish it before publishing: its name and one-line role; its method step by step (instructions); if they WANT to add their own material, rules or answers, save it with knowledgeAdd in their own words (optional, never a requirement, never invent facts); its limits (always: it says it's an AI, never promises results, the owner handles refunds and cases outside the service); its greeting; how many free replies (3 is a good start); and what customers buy (set_agent_offers: one-time access for N days and/or monthly, each $15 or more). A welcome offer for new customers is set with update_agent welcomePercent (and welcomeOn): it applies only to a customer's first purchase and never takes a price under $15. If "agent.paymentsReady" is false, tell them once that to charge they must connect Payments (left menu) — until then the agent only gives the free replies and then passes the chat to them. Then ask if they want to switch it on (update_agent enabled=true) and suggest testing it themselves on "Ver borrador" (as the owner they can chat for free). The page itself still needs a headline, a photo of the owner and publishing like any page. An agent's page is different from a normal service page: it shows "AI agent · 24/7", the free trial, the chat first, who created it (creator + the owner's photo), why it's worth paying for instead of a free AI chat (edge), its access prices and its limits. So for an agent don't ask for hours, service area, license or years in business; don't ask for photos of their work; their photo is optional (it shows next to "created by", with their name only), and make sure edge is true and concrete. 
+- Service agent ("agent" in the state, when the owner is creating one): the page chat becomes their AI agent that delivers the service by itself and charges for access. An agent is a digital product that doesn't depend on what the owner knows: its knowledge base already comes from the Brain's official research. Help them finish it before publishing: its name and one-line role; its method step by step (instructions); if they WANT to add their own material, rules or answers, save it with knowledgeAdd in their own words (optional, never a requirement, never invent facts); its limits (always: it says it's an AI, never promises results, the owner handles refunds and cases outside the service); its greeting; how many free replies (3 is a good start); and what customers buy (set_agent_offers: one-time access for N days and/or monthly, each $15 or more). A welcome offer for new customers is set with update_agent welcomePercent (and welcomeOn): it applies only to a customer's first purchase and never takes a price under $15. If "agent.paymentsReady" is false, tell them once that to charge they must connect Payments (left menu) — until then the agent only gives the free replies and then passes the chat to them. Then ask if they want to switch it on (update_agent enabled=true) and suggest testing it themselves with «Ver mi página» above the preview, or «Abrir su chat» in Agente (as the owner they can chat for free). The page itself still needs a headline, a photo of the owner and publishing like any page. An agent's page is different from a normal service page: it shows "AI agent · 24/7", the free trial, the chat first, who created it (creator + the owner's photo), why it's worth paying for instead of a free AI chat (edge), its access prices and its limits. So for an agent don't ask for hours, service area, license or years in business; don't ask for photos of their work; their photo is optional (it shows next to "created by", with their name only), and make sure edge is true and concrete. 
 - The agent DOES the task, it doesn't just guide (the new Sevrii model). Before switching it on, define with the owner, in plain words and one question at a time, the complete task with set_agent_task: (1) what it finishes end to end (the result the customer gets, e.g. "deja la LLC creada", "deja la cita hecha"); (2) which official pages or software it operates (https links, official sources first); (3) which ordinary data it asks in the chat; (4) which sensitive data the customer types themselves on the official page and at what moment (passwords, card when paying a fee) — never in the chat, never stored; (5) which steps need the customer's OK (signing, submitting, paying); (6) how it proves it's done (confirmation number, document, official record) — if it can't be verified it stays pending; (7) what the customer receives in the chat; (8) reminders afterwards, if any. If "agent.taskMissing" isn't empty, it can't be switched on: say what's missing. It never replaces a licensed professional when the law requires one, never signs or pays without the customer's explicit OK, and never promises an outcome that depends on the office.
 - Keep every reply under 70 words. No markdown headings, no bullet lists longer than 4 items.
 
@@ -318,6 +318,36 @@ function pageState(b: BusinessRow, services: ServiceRow[], extra: { alertsOn?: b
 
 function clip(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
+}
+
+// What save_service writes. A new service gets every field (empty = none).
+// Updating one changes only the fields that were sent (undefined = keep), so
+// "change the price" never wipes its description, featured mark or tag; an
+// explicit empty price or description clears it.
+export function serviceFields(
+  input: Record<string, unknown>,
+  isUpdate: boolean
+): { name?: string; price?: string | null; description?: string | null; featured?: boolean; tag?: string | null } {
+  const sent = (k: string) => input[k] !== undefined && input[k] !== null;
+  const name = clip(input.name, LIMITS.serviceName);
+  if (!isUpdate) {
+    const featured = Boolean(input.featured);
+    return {
+      name,
+      price: clip(input.price, LIMITS.servicePrice) || null,
+      description: clip(input.description, LIMITS.serviceDescription) || null,
+      featured,
+      tag: featured ? clip(input.tag, 30) || null : null,
+    };
+  }
+  const featured = sent("featured") ? Boolean(input.featured) : undefined;
+  return {
+    name: name || undefined,
+    price: sent("price") ? clip(input.price, LIMITS.servicePrice) || null : undefined,
+    description: sent("description") ? clip(input.description, LIMITS.serviceDescription) || null : undefined,
+    featured,
+    tag: featured === false ? null : sent("tag") ? clip(input.tag, 30) || null : undefined,
+  };
 }
 
 async function runTool(
@@ -411,23 +441,25 @@ async function runTool(
       return `${problems.length ? `saved, with problems: ${problems.join("; ")}` : "saved"}${info.length ? `; ${info.join("; ")}` : ""}`;
     }
     case "save_service": {
-      const nameV = clip(input.name, LIMITS.serviceName);
-      let price = clip(input.price, LIMITS.servicePrice) || null;
+      const isUpdate = typeof input.id === "string" && Boolean(input.id);
+      const f = serviceFields(input, isUpdate);
+      const nameV = f.name ?? "";
+      let price = f.price;
       // A market reference from the Brain (ref) is never shown as the owner's
       // price: it goes on the page only once the owner said that amount (or
-      // said yes when asked about it).
+      // said yes when asked about it). An existing service keeps its price.
       let refNote = "";
       if (price && refPriceUnconfirmed(price, b.plan.packages, { ...ctx, yes: YES.test(ctx.ownerLast ?? "") })) {
-        refNote = `; saved WITHOUT a price: ${price} is the Brain's market reference, not the owner's price. Ask the owner what they charge (one question) and save their answer`;
-        price = null;
+        refNote = `; ${isUpdate ? "its price was NOT changed" : "saved WITHOUT a price"}: ${price} is the Brain's market reference, not the owner's price. Ask the owner what they charge (one question) and save their answer`;
+        price = isUpdate ? undefined : null;
       }
-      const description = clip(input.description, LIMITS.serviceDescription) || null;
-      const featured = Boolean(input.featured);
-      const tag = featured ? clip(input.tag, 30) || null : null;
-      if (!nameV) return "error: name required";
-      if (typeof input.id === "string" && input.id) {
+      const { description, featured, tag } = f;
+      if (!nameV && !isUpdate) return "error: name required";
+      if (isUpdate) {
         if (!ctx.services.some((s) => s.id === input.id)) return "error: unknown service id";
-        await updateService(input.id, { name: nameV, price, description, featured, tag });
+        // Only what the AI sent changes: a new price never erases the
+        // description (or the other way round), nor the featured mark.
+        await updateService(input.id as string, { name: nameV || undefined, price, description, featured, tag });
       } else {
         if (ctx.services.length >= 30) return "error: too many services";
         await addService(b.id, nameV, price ?? undefined, description ?? undefined, ctx.services.length);
