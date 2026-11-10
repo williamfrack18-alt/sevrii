@@ -420,7 +420,7 @@ export default function MarketingView({
   return (
     <div className="overflow-x-clip">
       {/* 1. The strategist: the chat comes first, full height */}
-      <section ref={chatRef} className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
+      <section ref={chatRef} className="chat-screen h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
         <div className="dash-head shrink-0 h-12 md:h-14 px-4 md:px-6 flex items-center justify-between gap-3">
           <span className="dash-title min-w-0 truncate text-[16px] md:text-[17px] font-semibold text-pfg">
             {business.name} <span className="text-pmuted font-normal">· {t.flow.title}</span>

@@ -205,21 +205,11 @@ export default function StoreView({
   const category = business.marketCategory ? (es ? business.marketCategory : MARKET_CATEGORY_EN[business.marketCategory as MarketCategory] ?? business.marketCategory) : "";
 
   return (
-    <div className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
-      {/* Top line, on the dark page */}
-      <div className="dash-on-dark shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3">
-        <span className="text-[17px] font-semibold text-pfg truncate min-w-0">
-          {business.name} <span className="text-pmuted font-normal">· Store</span>
-        </span>
-        {business.site.chat && onChats && (
-          <button type="button" onClick={onChats} className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium" style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}>
-            {es ? "Conversaciones" : "Conversations"}
-          </button>
-        )}
-      </div>
-
+    <div className="chat-screen h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
+      {/* No title line: the chat fills the screen beside the preview (the
+          project and the section are already in the side menu). */}
       {/* Phones: one button switches between the chat and the preview */}
-      <div className="md:hidden shrink-0 px-2 pb-2">
+      <div className="md:hidden shrink-0 px-2 pt-2 pb-2">
         <div className="grid grid-cols-2 p-1 rounded-full bg-white" role="tablist" aria-label={es ? "Chat o vista previa" : "Chat or preview"}>
           {(["chat", "preview"] as const).map((k) => (
             <button
@@ -262,7 +252,7 @@ export default function StoreView({
         </section>
 
         {/* The page itself, big, as it is right now */}
-        <section className={`${pane === "preview" ? "flex" : "hidden"} md:flex flex-1 min-w-0 min-h-0 flex-col px-2 md:pl-0 md:pr-4 pb-2 md:pb-4`} aria-label={es ? "Vista previa de tu página" : "Preview of your page"}>
+        <section className={`${pane === "preview" ? "flex" : "hidden"} md:flex flex-1 min-w-0 min-h-0 flex-col px-2 md:pl-0 md:pr-4 md:pt-4 pb-2 md:pb-4`} aria-label={es ? "Vista previa de tu página" : "Preview of your page"}>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-[24px] bg-white" style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.04), 0 30px 60px -30px rgba(0,0,0,0.85)" }}>
             <div className="shrink-0 px-3 md:px-4 py-2.5 flex flex-wrap items-center gap-2" style={{ borderBottom: "1px solid rgba(10,10,10,0.068)" }}>
               <span

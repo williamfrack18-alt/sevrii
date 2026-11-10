@@ -383,7 +383,7 @@ export default function PlanView({
 
   return (
     <div className="overflow-x-clip">
-      <section className="h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
+      <section className="chat-screen h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
         <div className="dash-head shrink-0 px-4 md:px-6 pt-2.5 md:pt-3 pb-2.5 flex flex-col gap-2" style={{ borderBottom: `1px solid ${HAIR}` }}>
           <div className="flex items-center justify-between gap-3 min-w-0">
             <span className="dash-title text-[16px] md:text-[17px] font-semibold text-pfg truncate min-w-0">
@@ -1463,7 +1463,7 @@ function StageBar({ labels, current }: { labels: string[]; current: number }) {
 // Compact stepper for phones and narrow screens: "Paso 3 de 4 · Propuesta".
 function StageSteps({ labels, current, t }: { labels: string[]; current: number; t: T }) {
   return (
-    <div className="lg:hidden flex items-center gap-3 min-w-0">
+    <div className="dash-steps lg:hidden flex items-center gap-3 min-w-0">
       <span className="text-[12px] truncate min-w-0 flex-1">
         <span className="text-pmuted">{t.step(current + 1, labels.length)} · </span>
         <span className="text-pfg font-medium">{labels[current]}</span>
