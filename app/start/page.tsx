@@ -29,7 +29,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   const lang = await getLang();
   const t = getDict(lang);
   // Where they are in the whole road, said in words (not only bars).
-  const STEPS = lang === "es" ? ["Tu cuenta", "Qué vas a crear", "El Cerebro te entrevista", "Tu página y tus anuncios"] : ["Your account", "What you'll create", "The Brain interviews you", "Your page and your ads"];
+  const STEPS = lang === "es" ? ["Tu cuenta", "Qué vas a crear", "Conversas con el Cerebro", "Tu página y tus anuncios"] : ["Your account", "What you'll create", "You talk with the Brain", "Your page and your ads"];
 
   return (
     <div className="theme-dark bg-cream flex flex-col items-center py-14 px-6">

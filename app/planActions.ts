@@ -5,8 +5,9 @@ import { fillStoreFromPlan } from "@/lib/storeFill";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { budgetUsed, chatGate, gateLimit, gateMessage, month, researchLimitText, researchUsage, researchWouldStart, runForUser } from "@/lib/usage";
-import { cleanAnswers, isOnlinePlace, pendingCards, cardTitle, type CardAnswers } from "@/lib/cards";
-import { markReferencePrices, readyForPage } from "@/lib/brain/checks";
+import { cleanAnswers, pendingCards, cardTitle, type CardAnswers } from "@/lib/cards";
+import { markReferencePrices, readyForPage, withCurrency } from "@/lib/brain/checks";
+import { cardsToProfile } from "@/lib/brain/legacy";
 import type { LimitInfo } from "@/lib/upgrade";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
 import type { Lang } from "@/lib/i18n";
@@ -206,11 +207,12 @@ function readyQuestion(plan: BusinessPlan, lang: Lang): string {
     serviceMode: ["¿Lo harías en persona en tu zona o en línea?", "Would you do it in person in your area, or online?"],
     city: ["¿En qué ciudad lo ofrecerías (y en qué país)?", "In what city would you offer it (and in what country)?"],
     zip: ["¿Cuál es tu código postal (ZIP)?", "What's your ZIP code?"],
-    radiusMiles: ["¿Hasta cuántas millas te moverías para atender a un cliente?", "How many miles would you travel to serve a customer?"],
-    remoteScope: ["¿Atenderías clientes de todo EE. UU. (te lo recomiendo), solo de tu estado o también de otros países?", "Would you serve customers in the whole US (my recommendation), only your state, or other countries too?"],
+    radiusMiles: ["¿Hasta qué distancia te moverías para atender a un cliente (en km o en millas)?", "How far would you travel to serve a customer (in km or miles)?"],
+    remoteScope: ["¿Atenderías clientes de todo tu país (te lo recomiendo), solo de tu estado o región, o también de otros países?", "Would you serve customers in your whole country (my recommendation), only your state or region, or other countries too?"],
+    country: ["¿En qué país vives? Cambia la moneda, las leyes y el mercado.", "What country do you live in? It changes the currency, the laws and the market."],
     toolsReady: ["¿Ya tienes lo que necesitas para hacerlo, o te falta algo?", "Do you already have what you need to do it, or is something missing?"],
     costHoursPerJob: ["¿Cuántas horas crees que te tomaría cada trabajo? Si nunca lo has hecho, te doy un número típico.", "How many hours would each job take you? If you've never done it, I'll give you a typical number."],
-    costMaterialsUsd: ["¿Cuánto gastarías en materiales o herramientas por trabajo? Puede ser $0.", "How much would you spend on materials or tools per job? It can be $0."],
+    costMaterialsUsd: ["¿Cuánto gastarías en materiales o herramientas por trabajo? Puede ser cero.", "How much would you spend on materials or tools per job? It can be zero."],
     businessName: ["¿Cómo se llamará tu negocio? Si no tienes nombre, te propongo algunos.", "What will your business be called? If you have no name yet, I'll suggest some."],
   };
   const ask = q[key];
@@ -326,7 +328,7 @@ export async function moreIdeasAction(feedback: string, businessId?: string): Pr
   const t = PLAN_TEXT[lang];
   const plan = business.plan;
   // From the ideas, or from a strategy Sevrii can't publish (restricted service).
-  const restrictedOut = plan.stage === "proposal" && (plan.mode === "new" || plan.mode === "agent") && isRestrictedService(plan);
+  const restrictedOut = (plan.stage === "proposal" || plan.stage === "ready_check") && (plan.mode === "new" || plan.mode === "agent") && isRestrictedService(plan);
   if (plan.stage !== "choose" && !restrictedOut) return respond(business);
   if (plan.ideaRounds >= MAX_IDEA_ROUNDS) return respond(business, { notice: t.moreNoLeft });
   if (!(await allow(`brain:more:${business.id}`, 30, 60 * 60))) return respond(business, { notice: getDict(lang).auth.errTooMany });
@@ -345,68 +347,11 @@ export async function moreIdeasAction(feedback: string, businessId?: string): Pr
 
 // ---------- The interview cards (A and B) ----------
 
-// The cards as profile facts the research and the Strategist already read.
-// Only what the person wrote: a "no sé" stays unknown, never a guess.
+// The cards as profile facts (lib/brain/legacy.ts), with the US city list
+// for places that show no sign of another country.
 async function profileFromCards(plan: BusinessPlan, cards: CardAnswers): Promise<BusinessPlan["profile"]> {
   const { lookupPlace } = await import("@/lib/geo");
-  const said = (id: string) => (cards[id] && !cards[id].u ? cards[id].v.trim() : "");
-  const num = (re: RegExp, text: string) => {
-    const m = re.exec(text);
-    return m ? Number(m[1].replace(/,/g, "")) : null;
-  };
-  const place = (raw: string) => {
-    if (!raw.trim() || isOnlinePlace(raw)) return null;
-    const hit = lookupPlace(raw);
-    if (hit) return hit;
-    // A place our list doesn't know (a small town, a typo) is still where they
-    // work: kept as they wrote it, so the research isn't left without a city.
-    const parts = raw.split(",").map((x) => x.trim()).filter(Boolean);
-    const st = /^[A-Za-z]{2}$/.test(parts[parts.length - 1] ?? "") && parts.length > 1 ? parts[parts.length - 1].toUpperCase() : "";
-    return { city: (st ? parts.slice(0, -1).join(", ") : raw.trim()).slice(0, 80), state: st };
-  };
-  const p = { ...plan.profile };
-  if (plan.mode === "new") {
-    const d = cards.delivery;
-    p.likes = [said("talent"), said("likes")].filter(Boolean).join("; ");
-    p.workHistory = cards.experience?.u ? "ninguna" : said("experience");
-    p.notWant = cards.notWant?.u ? "nada en especial" : said("notWant");
-    p.tools = cards.resources?.u ? "nada de eso" : said("resources");
-    p.hoursPerWeek = num(/(\d{1,3})\s*(?:h\b|hrs?|horas|hours)/i, said("time"));
-    p.startBudgetUsd = num(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)/, said("resources"));
-    p.incomeGoal = said("income");
-    p.direction = "open";
-    if (d && !d.u) {
-      p.workPlace = d.c === "digital" ? "home" : d.c === "fisico" ? "out" : "any";
-      // Only digital decides it now; otherwise the chosen idea does (an
-      // earlier "digital" answer never sticks once it was changed).
-      p.serviceMode = d.c === "digital" ? "remote" : "";
-      const where = place(d.p);
-      if (where) Object.assign(p, { city: where.city, state: where.state });
-    } else p.workPlace = "any";
-  } else {
-    const s = cards.service;
-    p.mainService = said("service");
-    if (s && isOnlinePlace(s.p)) p.serviceMode = "remote";
-    else {
-      const where = s ? place(s.p) : null;
-      if (where) Object.assign(p, { city: where.city, state: where.state });
-      // A city means in person (an earlier "en línea" answer doesn't stick).
-      p.serviceMode = "local";
-    }
-    p.currentPrice = said("prices");
-    p.costs = said("costs");
-    // "$8 de materiales", "$8 en material", "$8 of materials".
-    p.costMaterialsUsd = num(/\$\s?(\d+)\s*(?:de|en|of|in)?\s*materia(?:l|les|ls)\b/i, said("costs"));
-    p.hoursPerWeek = num(/(\d{1,3})\s*(?:h\b|hrs?|horas|hours)\s*(?:a la|por|per|a)\s*(?:semana|week)/i, said("hours"));
-    p.costHoursPerJob = num(/(\d{1,2}(?:\.\d)?)\s*(?:h\b|hrs?|horas?|hours?)\s*(?:por|per|each|cada)\s*(?:trabajo|par|cliente|visita|job|pair|client|visit)/i, said("hours"));
-    p.typicalCustomer = cards.clients?.u ? "todavía no tiene clientes" : said("clients");
-    p.howGetsClients = said("clients");
-    p.tools = said("assets");
-    const g = cards.goal;
-    const goals: Record<string, string> = { clients: "más clientes", price: "cobrar mejor", hours: "trabajar más horas", new: "ofrecer algo nuevo" };
-    p.ownerGoal = g && !g.u ? [goals[g.c] ?? "", g.v].filter(Boolean).join(": ") : "";
-  }
-  return p;
+  return cardsToProfile(plan, cards, lookupPlace);
 }
 
 // Saves the cards as they go (back and forth never loses one). With submit,
@@ -478,7 +423,8 @@ export async function confirmProposalAction(prices: Record<string, string>, busi
   const packages = plan.packages.map((k, i) => {
     const raw = String(prices?.[String(i)] ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
     if (!raw || !/\d/.test(raw)) return k;
-    const price = /\$/.test(raw) ? raw : `$${raw}`;
+    // In their currency: "45000" next to "$40.000 COP" is "$45000", next to "40 €" it's "45 €".
+    const price = withCurrency(raw, k.price, plan.profile.country);
     typed.push(`${k.name}: ${price}`);
     return { ...k, price, ref: false };
   });

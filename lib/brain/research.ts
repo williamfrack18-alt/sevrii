@@ -9,11 +9,11 @@ import { RESTRICTED, SeenPages, extractJson, runWithServerTools, today } from ".
 
 export type ResearchKind = "prices" | "competitors" | "requirements" | "faq" | "ideas";
 
-const RESEARCHER = `Eres el Investigador de Sevrii. Recibes una tarea (precios, competencia, requisitos, preguntas de clientes o ideas), el servicio, la ciudad y el estado. Buscas en internet y devuelves datos que se puedan verificar.
+const RESEARCHER = `Eres el Investigador de Sevrii. Recibes una tarea (precios, competencia, requisitos, preguntas de clientes o ideas), el servicio y el lugar (ciudad, región y país, o en línea). La persona puede vivir en cualquier país: no supongas que es Estados Unidos. Buscas en internet y devuelves datos que se puedan verificar.
 
 Reglas:
 - Máximo 3 búsquedas y 4 páginas leídas. Prefiere fuentes de los últimos 2 años y de la zona.
-- Para requisitos, prioriza sitios oficiales (.gov) de la ciudad, el condado o el estado.
+- Para requisitos, prioriza sitios oficiales del gobierno de ese país (en EE. UU., .gov de la ciudad, el condado o el estado; en otros países, los dominios oficiales de su gobierno, su región o su municipio).
 - Cada dato lleva su fuente (URL exacta de una página que encontraste) y, si existe, la fecha de la página.
 - Da rangos, no un solo número. Si las fuentes no coinciden, dilo.
 - Rangos de precio que no se pisan: el máximo de "low" es menor que el mínimo de "mid", y el de "mid" menor que el de "high". Todos en la misma unidad (por trabajo, por hora…), dicha en cada uno.
@@ -33,6 +33,11 @@ export function countryName(code: string): string {
   } catch {
     return "";
   }
+}
+
+// The task text for one research job (exported for the checks in tests).
+export function researchTask(kind: ResearchKind, plan: BusinessPlan, lang: Lang): string {
+  return task(kind, plan, lang);
 }
 
 function task(kind: ResearchKind, plan: BusinessPlan, lang: Lang): string {
@@ -63,7 +68,7 @@ function task(kind: ResearchKind, plan: BusinessPlan, lang: Lang): string {
     case "prices":
       return `Tarea: PRECIOS de "${service}" ${where}.
 ${remote ? `Es un servicio que se hace a distancia: busca precios en plataformas y sitios que venden ese servicio en línea${nation ? ` en ${nation}` : ""} (Fiverr, Upwork, agencias y freelancers con precios publicados).` : us ? "Busca guías de costos (HomeGuide, Angi, Thumbtack, Fixr) y precios publicados por negocios locales." : "Busca guías de precios de ese país y precios publicados por negocios o profesionales locales."}
-Forma: {"low":"$…","mid":"$…","high":"$…","includes":"qué suele incluir ese precio","note":"unidad (por trabajo, por hora, por pie²) y diferencias entre fuentes","sources":[{"title":"…","url":"…"}]}
+Forma: {"low":"…","mid":"…","high":"…","includes":"qué suele incluir ese precio","note":"unidad (por trabajo, por hora, por pie²) y diferencias entre fuentes","sources":[{"title":"…","url":"…"}]}
 "low", "mid" y "high" son solo el rango corto con su moneda y su unidad, por ejemplo "$90–$130 por visita" o "40–60 € por hora" (máximo 35 caracteres). Las explicaciones van en "note".
 ${out}`;
     case "competitors":
@@ -95,7 +100,7 @@ Forma: {"faq":[{"q":"…","a":"…"}],"fears":"los 2 o 3 miedos más comunes, en
     case "ideas":
       if (plan.mode === "agent") return agentIdeasTask(plan, out);
       return `Tarea: IDEAS de servicio para alguien que quiere independizarse ${where}.
-Perfil: quiere ${p.direction === "known" ? "algo relacionado con lo que ya sabe hacer" : p.direction === "new" ? "probar algo nuevo: NO importa su experiencia, todo se puede aprender" : "algo de lo que ya sabe o algo nuevo, le da igual"}; dónde quiere trabajar: ${p.workPlace === "home" ? "desde casa (en línea)" : p.workPlace === "out" ? "en persona, fuera de casa" : "le da igual"}; trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: $${p.startBudgetUsd ?? "?"}; idiomas: ${p.languages || "?"}; le gusta: ${p.likes || "?"}; ODIA o NUNCA quiere volver a hacer (filtro duro: no lo propongas, ni parecido, ni como ejemplo; solo excluye): ${p.notWant || "-"}; meta: ${p.goal || "?"}; cuánto quiere ganar: ${p.incomeGoal || "?"}. ("?" = no lo sabemos todavía: no lo supongas.)
+Perfil: quiere ${p.direction === "known" ? "algo relacionado con lo que ya sabe hacer" : p.direction === "new" ? "probar algo nuevo: NO importa su experiencia, todo se puede aprender" : "algo de lo que ya sabe o algo nuevo, le da igual"}; dónde quiere trabajar: ${p.workPlace === "home" ? "desde casa (en línea)" : p.workPlace === "out" ? "en persona, fuera de casa" : "le da igual"}; trabajos anteriores: ${p.workHistory || "?"}; le piden ayuda con: ${p.askedFor || "?"}; herramientas: ${p.tools || "?"}; vehículo: ${p.hasVehicle || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; dinero para empezar: ${p.startBudgetUsd === null ? "?" : us || !p.country ? `$${p.startBudgetUsd}` : `${p.startBudgetUsd} (en su moneda)`}; idiomas: ${p.languages || "?"}; le gusta: ${p.likes || "?"}; ODIA o NUNCA quiere volver a hacer (filtro duro: no lo propongas, ni parecido, ni como ejemplo; solo excluye): ${p.notWant || "-"}; meta: ${p.goal || "?"}; cuánto quiere ganar: ${p.incomeGoal || "?"}. ("?" = no lo sabemos todavía: no lo supongas.)
 Sus respuestas en las tarjetas, tal cual (u = respondió "no sé"): ${JSON.stringify(plan.cards)}.
 Propón 12 servicios BIEN PAGADOS (locales en su ciudad o que se puedan hacer en línea desde casa; di cuál es cuál en "why") que encajen con lo que sabe, le gusta y tiene${p.direction === "known" ? ", aprovechando lo que ya sabe hacer" : ", o que pueda aprender rápido (en pocas semanas) aunque nunca lo haya hecho"}. Prioriza lo que mejor paga por hora en su zona y tiene demanda real. Que sean variados: tipos de trabajo distintos entre sí (no 3 versiones de lo mismo). Si un dato del perfil es "?", no lo uses para descartar ideas. Evita trabajos que la IA ya hace sola y casi gratis (transcribir, traducir, redactar textos simples), salvo que la persona los pida. Busca para cada uno el precio típico en su zona, cuánto se gana por hora de trabajo (hourlyUsd: un número en dólares estadounidenses, estimado del precio y del tiempo típico de un trabajo; si la moneda local es otra, conviértelo solo para este número) y cuánto cuesta arrancar.${plan.rejectedIdeas.length ? `
 Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.slice(-80).join("; ")}. No las repitas ni propongas variantes parecidas.` : ""}${plan.ideaPrefs ? `
@@ -149,7 +154,7 @@ export async function runResearch(kind: ResearchKind, plan: BusinessPlan, lang: 
       model: BRAIN_MODEL,
       max_tokens: 12000,
       output_config: { effort: "medium" },
-      system: `${RESEARCHER}\n\nHoy es ${today(p.state)}.`,
+      system: `${RESEARCHER}\n\nHoy es ${today(p.state, p.country)}.`,
     },
     [{ role: "user", content: task(kind, plan, lang) }],
     [[search], [searchPlain], []],

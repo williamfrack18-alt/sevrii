@@ -363,14 +363,34 @@ export function missingForSales(opts: {
 }
 
 // ---------- Phones ----------
-// US-first: a 10-digit number gets +1; "+..." keeps its own country code.
-export function normalizePhone(input: string | null | undefined): string | null {
+// Calling codes of the countries Sevrii owners are in most (NANP = "1").
+const DIAL_CODES: Record<string, string> = {
+  US: "1", CA: "1", PR: "1", DO: "1", MX: "52", CO: "57", ES: "34", AR: "54", PE: "51", CL: "56", VE: "58", EC: "593",
+  GT: "502", SV: "503", HN: "504", NI: "505", CR: "506", PA: "507", CU: "53", BO: "591", PY: "595", UY: "598", BR: "55",
+  GB: "44", FR: "33", DE: "49", IT: "39", PT: "351", NL: "31", BE: "32", CH: "41", IE: "353", AU: "61", NZ: "64",
+};
+
+// US-first: a 10-digit number gets +1; "+..." (or "00...") keeps its own
+// country code. With the owner's country (ISO-2) outside North America, a
+// national number gets that country's code instead: "300 123 4567" in
+// Colombia is +573001234567, never a US number.
+export function normalizePhone(input: string | null | undefined, country?: string): string | null {
   if (!input) return null;
   const raw = input.trim();
   const digits = raw.replace(/\D/g, "");
   if (!digits) return null;
   if (raw.startsWith("+")) {
     return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null;
+  }
+  const cc = country ? DIAL_CODES[country.toUpperCase()] : undefined;
+  if (cc && cc !== "1") {
+    if (digits.startsWith("00")) {
+      const intl = digits.slice(2);
+      return intl.length >= 8 && intl.length <= 15 ? `+${intl}` : null;
+    }
+    const national = digits.replace(/^0+/, "");
+    const full = national.startsWith(cc) && national.length >= cc.length + 8 ? national : `${cc}${national}`;
+    return national.length >= 6 && full.length <= 15 ? `+${full}` : null;
   }
   if (digits.length === 10) return `+1${digits}`;
   if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;

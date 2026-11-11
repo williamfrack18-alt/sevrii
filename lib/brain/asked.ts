@@ -4,6 +4,7 @@
 // never asked again and a data point that is missing is never skipped.
 
 import { missingProfile, type BusinessPlan } from "../plan";
+import { dropDanglingClause } from "./checks";
 
 const fold = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -11,7 +12,7 @@ const fold = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 // matches none of these is not checked (the model may ask it).
 export const TOPICS: Record<string, RegExp> = {
   direction: /(ya sabes|lo que (ya )?sabes|relacionad\w+ con lo que|algo nuevo|aprender algo|probar algo|something (new|tied)|what you (already )?know|learn something)/,
-  workHistory: /(trabajos que has|qu[eé] sabes hacer|jobs you|what you know how)/,
+  workHistory: /(trabajos (que )?has|en qu[eé] has trabajado|qu[eé] sabes hacer|jobs (have )?you|what you know how|what can you do)/,
   askedFor: /(te piden|piden que (los |les )?ayudes|people ask you)/,
   likes: /(qu[eé] te gusta|te gusta m[aa]s|disfrutas|prefieres trabajar con|what do you enjoy|you enjoy)/,
   notWant: /(odi(as|es)|detestas|no quieres volver|no volver[ií]as|nunca (quieres|m[aa]s)|never want|you hate|hate doing)/,
@@ -21,8 +22,11 @@ export const TOPICS: Record<string, RegExp> = {
   hoursPerWeek: /(horas (a la |por )?semana|hours (a|per) week)/,
   startBudgetUsd: /(presupuesto|cu[aa]nto (dinero|puedes)|dinero (para|disponible)|budget|how much (money|can you))/,
   languages: /(idiomas?|languages?)/,
-  city: /(qu[eé] ciudad|ciudad y (estado|pa[ií]s)|en qu[eé] pa[ií]s|what city|city and (state|country))/,
+  city: /(qu[eé] ciudad|ciudad y (estado|pa[ií]s)|what city|city and (state|country))/,
+  country: /(en qu[eé] pa[ií]s|qu[eé] pa[ií]s|desde qu[eé] pa[ií]s|what country|which country)/,
   currentPrice: /(cu[aa]nto cobras|what do you charge)/,
+  goal: /(ingreso extra|dinero extra|vivir de (esto|ello|eso)|extra income|side income|live (from|off) (it|this))/,
+  mainService: /(qu[eé] servicio ofreces|what service do you offer)/,
   howGetsClients: /(c[oó]mo consigues|c[oó]mo (te )?llegan (tus )?clientes|how do you get (your )?(customers|clients))/,
   typicalCustomer: /(qui[eé]nes? (es|son) tus? cliente|who (is|are) your (typical )?(customer|client))/,
   exampleJob: /([uú]ltimo trabajo|trabajo reciente|last job)/,
@@ -105,8 +109,8 @@ const ASK: Record<string, { es: [string, string]; en: [string, string] }> = {
     en: ["How many hours a week could you give it? Give me an approximate number.", "Give me an approximate number of hours per week, for example 10, 20 or 30. If you're not sure, tell me which seems possible."],
   },
   startBudgetUsd: {
-    es: ["¿Cuánto dinero tienes disponible para empezar? Si es cero, dímelo, también sirve.", "Dime una cifra en dólares con lo que podrías invertir al inicio. Cero también es una respuesta válida."],
-    en: ["How much money do you have available to start? If it's zero, say so, that works too.", "Give me a dollar amount you could put in at the start. Zero is also a valid answer."],
+    es: ["¿Cuánto dinero tienes disponible para empezar? Si es cero, dímelo, también sirve.", "Dime una cifra aproximada, en tu moneda, de lo que podrías invertir al inicio. Cero también es una respuesta válida."],
+    en: ["How much money do you have available to start? If it's zero, say so, that works too.", "Give me a rough amount, in your currency, that you could put in at the start. Zero is also a valid answer."],
   },
   languages: {
     es: ["¿Atenderías en español, en inglés o en los dos idiomas?", "Elige una: 1) solo español, 2) solo inglés, 3) los dos."],
@@ -125,8 +129,8 @@ const ASK: Record<string, { es: [string, string]; en: [string, string] }> = {
     en: ["How do you get customers today?", "How did your last customer find you: a referral, social media, an ad or something else?"],
   },
   currentPrice: {
-    es: ["¿Cuánto cobras hoy por tu servicio? Dime el precio y por qué unidad (por visita, por hora, por mes…).", "Dime un precio real que hayas cobrado y por qué: por ejemplo «$50 por visita»."],
-    en: ["What do you charge today for your service? Give me the price and the unit (per visit, per hour, per month…).", "Give me a real price you've charged and for what: for example \"$50 per visit\"."],
+    es: ["¿Cuánto cobras hoy por tu servicio? Dime el precio, en tu moneda, y por qué unidad (por visita, por hora, por mes…).", "Dime un precio real que hayas cobrado y por qué, en tu moneda: por ejemplo «50 por visita»."],
+    en: ["What do you charge today for your service? Give me the price, in your currency, and the unit (per visit, per hour, per month…).", "Give me a real price you've charged and for what, in your currency: for example \"50 per visit\"."],
   },
   differentiators: {
     es: ["¿Qué te hace diferente de otras personas que hacen lo mismo?", "Si un cliente te eligió a ti y no a otra persona, ¿por qué crees que fue?"],
@@ -141,8 +145,20 @@ const ASK: Record<string, { es: [string, string]; en: [string, string] }> = {
     en: ["What is your 5-digit ZIP code? I use it to place you on the map.", "Just the 5 digits of your ZIP code, for example 33101."],
   },
   radiusMiles: {
-    es: ["¿Hasta cuántas millas te mueves para atender a un cliente? Dime un número.", "Dime un número aproximado de millas desde tu ciudad, por ejemplo 10, 20 o 30."],
-    en: ["How many miles will you travel to serve a customer? Give me a number.", "Give me an approximate number of miles from your city, for example 10, 20 or 30."],
+    es: ["¿Hasta qué distancia te mueves para atender a un cliente? Dime los kilómetros o las millas.", "Dime una distancia aproximada desde tu ciudad, en kilómetros o millas, por ejemplo 10, 20 o 30."],
+    en: ["How far will you travel to serve a customer? Give me the miles or kilometers.", "Give me an approximate distance from your city, in miles or kilometers, for example 10, 20 or 30."],
+  },
+  mainService: {
+    es: ["¿Qué servicio ofreces hoy?", "Cuéntame en pocas palabras qué servicio ofreces, por ejemplo «arreglo de zapatos» o «clases de inglés»."],
+    en: ["What service do you offer today?", "Tell me in a few words what service you offer, for example \"shoe repair\" or \"English lessons\"."],
+  },
+  goal: {
+    es: ["¿Buscas un ingreso extra o vivir de esto?", "Para proponerte lo justo: ¿lo quieres como ingreso extra o para vivir de esto?"],
+    en: ["Are you after extra income, or to live from this?", "So I suggest the right thing: do you want it as extra income, or to live from it?"],
+  },
+  country: {
+    es: ["¿En qué país vives? Cambia la moneda, las leyes y el mercado.", "Dime solo el país donde vives y trabajas, por ejemplo «Colombia» o «España»."],
+    en: ["What country do you live in? It changes the currency, the laws and the market.", "Just tell me the country where you live and work, for example \"Canada\" or \"Mexico\"."],
   },
   city: {
     es: ["¿En qué ciudad trabajas (y en qué país)? Si es en línea, dímelo.", "Dime tu ciudad y tu país, por ejemplo «Medellín, Colombia» o «Miami, EE. UU.», o si trabajas en línea."],
@@ -163,7 +179,8 @@ export function nextQuestion(plan: BusinessPlan, lang: "es" | "en", history: { r
 // this interview is not "answered": a question about it is left alone.)
 function filled(plan: BusinessPlan, key: string): boolean {
   const v = (plan.profile as unknown as Record<string, unknown>)[key];
-  if (key === "city") return Boolean(plan.profile.city && plan.profile.state);
+  // Any country: a city is enough (outside the US there is no "state").
+  if (key === "city") return Boolean(plan.profile.city);
   return v !== "" && v !== null && v !== undefined;
 }
 
@@ -234,7 +251,9 @@ export function lockedFacts(plan: BusinessPlan, history: { role: string; content
     if (v !== "" && v !== null && v !== undefined) bits.push(`${label}: ${v}`);
   };
   add("servicio", p.mainService || plan.service);
-  add("ciudad", [p.city, p.state].filter(Boolean).join(", "));
+  add("ciudad", [p.city, p.state || p.region].filter(Boolean).join(", "));
+  add("país (ISO)", p.country);
+  if (p.serviceMode) add("cómo atiende", p.serviceMode === "remote" ? "en línea" : "en persona");
   add("modelo del servicio", p.workLocation);
   add("precio que cobra hoy", p.currentPrice);
   add("horas por trabajo", p.costHoursPerJob);
@@ -248,4 +267,17 @@ export function lockedFacts(plan: BusinessPlan, history: { role: string; content
   const topics = [...new Set(askedTopics(history).map((a) => a.topic))];
   const done = Object.keys(TOPICS).filter((k) => !(plan.stage === "interview" || plan.stage === "ready_check" ? missingProfile(plan).map(keyOf) : []).includes(k) && topics.includes(k));
   return `Datos ya confirmados (no los cambies sin permiso): ${bits.join(" | ")}.${done.length ? ` Ya contestadas, no las vuelvas a preguntar: ${done.join(", ")}.` : ""}`;
+}
+
+// In the live chat: a question whose answer is already saved is taken out; if
+// no question is left and something essential is missing, the code asks it.
+export function withoutAnsweredQuestions(reply: string, plan: BusinessPlan, history: { role: string; content: string }[], lang: "es" | "en"): { reply: string; dropped: string[] } {
+  const d = dedupeReply(reply, plan, history);
+  if (!d.dropped.length) return { reply, dropped: [] };
+  let out = dropDanglingClause(d.reply) || d.reply;
+  if (!/[?¿]/.test(out)) {
+    const q = nextQuestion(plan, lang, history);
+    if (q) out = `${out} ${q}`.trim();
+  }
+  return { reply: out, dropped: d.dropped };
 }

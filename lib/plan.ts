@@ -386,13 +386,17 @@ const US_STATES = new Set(
 
 export function parseProfile(raw: unknown): Profile {
   const p = obj(raw);
-  const state = str(p.state, 2).toUpperCase();
-  const country = str(p.country, 2).toUpperCase();
+  const rawCountry = str(p.country, 2).toUpperCase();
+  // A US state and a ZIP only exist in the US (and Puerto Rico): "CO" next to
+  // country "CO" is Colombia, never Colorado.
+  const abroad = /^[A-Z]{2}$/.test(rawCountry) && rawCountry !== "US" && rawCountry !== "PR";
+  const state = abroad ? "" : str(p.state, 2).toUpperCase();
+  const country = rawCountry;
   return {
     businessName: str(p.businessName, 80),
     ownerName: str(p.ownerName, 60),
     city: str(p.city, 80),
-    zip: /^\d{5}$/.test(String(p.zip ?? "").trim()) ? String(p.zip).trim() : "",
+    zip: !abroad && /^\d{5}$/.test(String(p.zip ?? "").trim()) ? String(p.zip).trim() : "",
     state: US_STATES.has(state) ? state : "",
     // A US state means the US; otherwise the country they said (two letters).
     country: /^[A-Z]{2}$/.test(country) ? country : US_STATES.has(state) ? "US" : "",
@@ -652,11 +656,14 @@ export function missingProfile(plan: BusinessPlan): string[] {
     // deduced or asked only when it changes the plan.
     need(!p.mainService, "mainService (the service they offer, in their words)");
     need(p.serviceMode !== "remote" && !p.city, "city (where they work: city and country; or that they work online)");
+    // Online with no city: the country still sets the currency, the laws and the market.
+    need(p.serviceMode === "remote" && !p.city && !p.country, "country (the country they live and work in: prices, currency and laws depend on it)");
     need(!p.howGetsClients, "howGetsClients (how customers find them today: walk-ins, referrals, social media, nothing yet…)");
   } else if (plan.stage === "interview") {
     // B ("descubre tu servicio"): what they know, where, and what they're after.
     need(!p.workHistory && !p.likes, "workHistory (what they know how to do, or jobs they've had)");
     need(p.serviceMode !== "remote" && p.workPlace !== "home" && !p.city, "city (where they live: city and country; or that they want to work online)");
+    need((p.serviceMode === "remote" || p.workPlace === "home") && !p.city && !p.country, "country (the country they live in: prices, currency and laws depend on it)");
     need(!p.goal, "goal (extra income, or to live from it: extra / fulltime)");
   } else if (plan.stage === "ready_check" && plan.mode === "agent") {
     // The reach goes first: picking an idea already asks it (chooseIdeaAction),
@@ -761,7 +768,8 @@ export function codeChecks(p: BusinessPlan, today: string, final = true): { bloc
 // them for now. Checked on everything that names the service, including what
 // the owner wrote on the card and the idea they chose, so renaming the
 // strategy never gets around it.
-export const RESTRICTED_SERVICE = /\b(credit repair|reparaci[oó]n de cr[eé]dito|notari|notary|immigration|inmigraci[oó]n|migratori|loan|pr[eé]stamo)/i;
+// ("notaría" with its accent too: "notari" alone let it through.)
+export const RESTRICTED_SERVICE = /\b(credit repair|reparaci[oó]n de cr[eé]dito|notar[ií]|notary|immigration|inmigraci[oó]n|migratori|loan|pr[eé]stamo)/i;
 export function isRestrictedService(p: Pick<BusinessPlan, "service" | "profile" | "cards" | "ideas" | "chosenIdea" | "ownIdea">): boolean {
   const idea = p.chosenIdea !== null && p.chosenIdea !== undefined ? p.ideas[p.chosenIdea]?.title ?? "" : "";
   const card = p.cards?.service && !p.cards.service.u ? p.cards.service.v : "";

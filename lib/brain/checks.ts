@@ -57,12 +57,12 @@ export function ownerStated(n: number, ownerText: string, zeroOk = false): boole
 // Profile fields that are numbers: saved only if the owner said them.
 export const OWNER_NUMBERS: Record<string, { zeroOk: boolean; ask: string }> = {
   hoursPerWeek: { zeroOk: false, ask: "how many hours a week (a number)" },
-  startBudgetUsd: { zeroOk: true, ask: "how much money they have to start (a number, 0 is fine)" },
-  radiusMiles: { zeroOk: false, ask: "how many miles they travel (a number)" },
+  startBudgetUsd: { zeroOk: true, ask: "how much money they have to start (a number in their currency, 0 is fine)" },
+  radiusMiles: { zeroOk: false, ask: "how far they travel (a number, in km or miles as they prefer)" },
   yearsExperience: { zeroOk: true, ask: "how many years doing this work (a number)" },
   yearsOwnBusiness: { zeroOk: true, ask: "how many of those years on their own (a number, 0 if starting)" },
   costHoursPerJob: { zeroOk: false, ask: "how many hours one job (or one client a month) takes them" },
-  costMaterialsUsd: { zeroOk: true, ask: "how many dollars of materials or tools per job (0 is fine if they said free)" },
+  costMaterialsUsd: { zeroOk: true, ask: "how much money of materials or tools per job, in their currency (0 is fine if they said free)" },
 };
 
 // ---------- what may reach the owner's screen ----------
@@ -74,6 +74,61 @@ export function hasJargon(text: string, customerFacing = false): boolean {
   return JARGON.test(text || "") || (customerFacing && /\bexpediente\b/i.test(text || ""));
 }
 
+// ---------- money in any currency ----------
+// Sevrii works in any country: "$45", "US$45", "45 €", "€45", "45.000 COP",
+// "S/ 120", "1.200 pesos" are all amounts. A number counts as money only next
+// to a currency mark. Thousands may use "," or "." ("45.000", "1,500"); the
+// value kept is the whole amount without cents (as every check compares).
+const NUM = String.raw`\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?`;
+const PRE = String.raw`US\$|R\$|S\/\.?|\$|€|£|¥|₡|₲|Bs\.?\s|(?:USD|EUR|COP|MXN|ARS|CLP|PEN|GBP|CAD|AUD|BRL|UYU|BOB|PYG|DOP|GTQ|CRC|HNL|NIO|PAB|VES)\s?`;
+const SUF = String.raw`€|£|euros?\b|EUR\b|USD\b|COP\b|MXN\b|ARS\b|CLP\b|PEN\b|GBP\b|CAD\b|AUD\b|BRL\b|UYU\b|BOB\b|PYG\b|DOP\b|GTQ\b|CRC\b|HNL\b|NIO\b|PAB\b|VES\b|pesos?\b|d[oó]lares\b|dollars?\b|soles?\b|bolivianos?\b|quetzales?\b|colones?\b|reales?\b|lempiras?\b|c[oó]rdobas?\b`;
+// "$45" (mark before) | "40–60 €" (a range with the mark after: both count) | "45 €".
+const MONEY = new RegExp(String.raw`(?:${PRE})\s?(${NUM})|(${NUM})(?:\s?[–-]\s?(${NUM}))?\s?(?:${SUF})`, "gi");
+export function amountValue(raw: string): number {
+  const m = /^(\d{1,3}(?:([.,])\d{3})*)(?:([.,])\d{1,2})?$/.exec(raw);
+  // "45.000" / "1,500" / "1.200,50" → thousands; "35.50" / "35,5" → 35.
+  if (m && m[2]) return Number(m[1].replace(/[.,]/g, ""));
+  return Number(raw.split(/[.,]/)[0]);
+}
+export type MoneyToken = { value: number; text: string; end: number };
+export function moneyTokens(t: string): MoneyToken[] {
+  const out: MoneyToken[] = [];
+  for (const m of (t || "").matchAll(MONEY)) {
+    const end = (m.index ?? 0) + m[0].length;
+    if (m[1] !== undefined) out.push({ value: amountValue(m[1]), text: m[0].trim(), end });
+    else {
+      const mark = m[0].slice(m[0].lastIndexOf(m[3] ?? m[2]) + (m[3] ?? m[2]).length).trim();
+      if (m[3] !== undefined) out.push({ value: amountValue(m[2]), text: `${m[2]} ${mark}`, end });
+      out.push({ value: amountValue(m[3] ?? m[2]), text: `${m[3] ?? m[2]} ${mark}`, end });
+    }
+  }
+  return out;
+}
+// Every amount of money in a text, in any currency.
+export const moneyAmounts = (t: string) => moneyTokens(t).map((x) => x.value);
+
+// A price the owner typed without a currency ("45000") takes the currency of
+// the price it replaces ("$45.000 COP" → "$45000", "40 €" → "45 €"); with no
+// reference, the dollar sign (US, and most of Latin America) or the euro in
+// euro countries. A price that already has its currency stays as typed.
+const EURO = new Set("ES FR DE IT PT IE NL BE AT FI GR LU SK SI EE LV LT CY MT HR".split(" "));
+export function withCurrency(raw: string, reference = "", country = ""): string {
+  const v = raw.replace(/\s+/g, " ").trim();
+  if (!v || moneyTokens(v).length) return v;
+  const ref = moneyTokens(reference)[0];
+  if (ref) {
+    const t = ref.text;
+    const num = /\d[\d.,]*/.exec(t)?.[0] ?? "";
+    const at = t.indexOf(num);
+    if (num && at > 0) return `${t.slice(0, at).trim()}${/[a-z]$/i.test(t.slice(0, at).trim()) ? " " : ""}${v}`;
+    if (num) return `${v} ${t.slice(at + num.length).trim()}`;
+  }
+  if (EURO.has(country)) return `${v} €`;
+  if (country === "GB") return `£${v}`;
+  if (country === "PE") return `S/ ${v}`;
+  return `$${v}`;
+}
+
 // The one market range the owner ever sees ("de $300 a $7,000+ por mes"):
 // from the lowest price to the highest, never a range of ranges.
 export function marketRangeText(p: PriceRange | null, lang: "es" | "en"): string {
@@ -82,20 +137,23 @@ export function marketRangeText(p: PriceRange | null, lang: "es" | "en"): string
   const lo = p.low || p.mid || "";
   const hi = p.high || p.mid || "";
   if (!lo || !hi || lo === hi) return lo || hi;
-  const AMT = /\$\s?[\d,.]+\+?/g;
-  const first = lo.match(AMT)?.[0];
-  const all = hi.match(AMT);
-  const last = all?.[all.length - 1];
-  if (!first || !last) return pair(lo, hi);
-  const unitOf = (x: string, amt: string) => x.slice(x.lastIndexOf(amt) + amt.length).replace(/^[\s+]+/, "").trim();
-  const unit = unitOf(hi, last);
-  const loAll = lo.match(AMT) ?? [];
-  const loUnit = unitOf(lo, loAll[loAll.length - 1] ?? first);
+  const loT = moneyTokens(lo);
+  const hiT = moneyTokens(hi);
+  if (!loT.length || !hiT.length) return pair(lo, hi);
+  const plus = (x: string, tok: MoneyToken) => (x.slice(tok.end).trimStart().startsWith("+") ? "+" : "");
+  const first = loT[0].text;
+  const lastTok = hiT[hiT.length - 1];
+  const last = `${lastTok.text}${plus(hi, lastTok)}`;
+  const unitOf = (x: string, tok: MoneyToken) => x.slice(tok.end).replace(/^[\s+]+/, "").trim();
+  const unit = unitOf(hi, lastTok);
+  const loUnit = unitOf(lo, loT[loT.length - 1]);
   if (loUnit && unit && loUnit !== unit) return pair(`${first} ${loUnit}`, `${last} ${unit}`);
   return `${pair(first, last)}${unit ? ` ${unit}` : ""}`;
 }
 
-const dollars = (t: string) => [...(t || "").matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/g)].map((m) => Number(m[1].replace(/,/g, "")));
+const dollars = moneyAmounts;
+// A's plan for more clients (older saved plans may not have it).
+const G = (p: BusinessPlan) => p.growth ?? { diagnosis: "", idealClient: "", priceVsMarket: "", actions: [] };
 
 // Amounts the proposal may quote: its packages, the research and the owner's own numbers.
 export function knownAmounts(plan: BusinessPlan, packages: Package[] = plan.packages): Set<number> {
@@ -143,6 +201,17 @@ export function silentProposalIssues(plan: BusinessPlan, ownerSaid = ""): string
     ...plan.packages.map((k, i): [string, string] => [`packages[${i}]`, `${k.includes} ${k.note}`]),
     ...plan.faq.map((f, i): [string, string] => [`faq[${i}]`, `${f.q} ${f.a}`]),
     ["offer", `${plan.offer?.label ?? ""} ${plan.offer?.detail ?? ""}`],
+    // A's plan for more clients: the owner acts on it, so no invented amounts or
+    // hours either. (B never sees it: no rewrite is spent on it.)
+    ...(plan.mode === "existing"
+      ? [
+          ["growth.diagnosis", G(plan).diagnosis] as [string, string],
+          ["growth.idealClient", G(plan).idealClient] as [string, string],
+          ["growth.priceVsMarket", G(plan).priceVsMarket] as [string, string],
+          ...G(plan).actions.map((x, i): [string, string] => [`growth.actions[${i}]`, x]),
+          ...(plan.channels ?? []).map((c, i): [string, string] => [`channels[${i}]`, `${c.channel} ${c.why}`]),
+        ]
+      : []),
   ];
   for (const [where, t] of texts) {
     if (!t) continue;
@@ -181,6 +250,9 @@ export function withoutDiscounts(plan: BusinessPlan): BusinessPlan {
     differentiators: plan.differentiators.map(cut).filter(Boolean),
     packages: plan.packages.map((k) => ({ ...k, includes: cut(k.includes), note: cut(k.note) })),
     faq: plan.faq.filter((f) => !mentionsDiscount(`${f.q} ${f.a}`)),
+    // "Ofrece 10 % a tus vecinos" is a discount too: A's plan never suggests one.
+    growth: { ...G(plan), diagnosis: cut(G(plan).diagnosis), idealClient: cut(G(plan).idealClient), priceVsMarket: cut(G(plan).priceVsMarket), actions: G(plan).actions.filter((a) => !mentionsDiscount(a)) },
+    channels: (plan.channels ?? []).filter((c) => !mentionsDiscount(`${c.channel} ${c.why}`)),
   };
 }
 // The owner asking for one, in their own words.
@@ -314,16 +386,16 @@ export function dropDanglingClause(text: string): string {
 }
 
 // ---------- the owner's prices vs. market references ----------
-const dollarAmounts = (t: string) => [...(t || "").matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/g)].map((m) => Number(m[1].replace(/,/g, "")));
+const dollarAmounts = moneyAmounts;
 
-// Plain numbers that are amounts of money ("35 la suela", "déjalo en 45"):
-// not hours, percentages, miles, years or people.
-const NOT_MONEY_UNIT = /^\s*(%|h\b|hrs?\b|horas?\b|hours?\b|min\b|minutos?\b|minutes?\b|millas?\b|miles?\b|a[nñ]os?\b|years?\b|personas?\b|people\b|clientes?\b|customers?\b|d[ií]as?\b|days?\b|semanas?\b|weeks?\b|meses\b|months?\b|veces\b|times\b|pares\b|pairs\b|x\b)/i;
+// Plain numbers that are amounts of money ("35 la suela", "déjalo en 45",
+// "45.000 el corte"): not hours, percentages, miles, km, years or people.
+const NOT_MONEY_UNIT = /^\s*(%|h\b|hrs?\b|horas?\b|hours?\b|min\b|minutos?\b|minutes?\b|millas?\b|miles?\b|km\b|kil[oó]metros?\b|kilometers?\b|a[nñ]os?\b|years?\b|personas?\b|people\b|clientes?\b|customers?\b|d[ií]as?\b|days?\b|semanas?\b|weeks?\b|meses\b|months?\b|veces\b|times\b|pares\b|pairs\b|x\b)/i;
 function plainAmounts(t: string): number[] {
   const out: number[] = [];
-  for (const m of (t || "").matchAll(/(?<![\d.,$])(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?(?![\d,])/g)) {
+  for (const m of (t || "").matchAll(/(?<![\d.,$€£\/])(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![\d,.]*\d)/g)) {
     if (NOT_MONEY_UNIT.test(t.slice((m.index ?? 0) + m[0].length))) continue;
-    out.push(Number(m[1].replace(/,/g, "")));
+    out.push(amountValue(m[1]));
   }
   return out;
 }
@@ -389,6 +461,7 @@ export function noFakeCosts(plan: BusinessPlan): BusinessPlan {
     differentiators: plan.differentiators.map(cut).filter(Boolean),
     packages: plan.packages.map((k) => ({ ...k, includes: cut(k.includes), note: cut(k.note) })),
     faq: plan.faq.map((f) => ({ q: f.q, a: cut(f.a) })).filter((f) => f.a),
+    growth: { ...G(plan), diagnosis: cut(G(plan).diagnosis), priceVsMarket: cut(G(plan).priceVsMarket), actions: G(plan).actions.map(cut).filter(Boolean) },
   };
 }
 
@@ -415,7 +488,7 @@ export function readyForPage(plan: BusinessPlan): BusinessPlan {
 // service, a package, a step or an answer. Found → the Strategist redoes it;
 // still there → it's cut by code.
 function proposalTexts(p: BusinessPlan): string[] {
-  return [p.service, p.serviceIncludes, p.promise, p.customer, ...p.steps, ...p.firstSteps, ...p.differentiators, ...p.packages.map((k) => `${k.name} ${k.includes} ${k.note}`), ...p.faq.map((f) => `${f.q} ${f.a}`)];
+  return [p.service, p.serviceIncludes, p.promise, p.customer, ...p.steps, ...p.firstSteps, ...p.differentiators, ...p.packages.map((k) => `${k.name} ${k.includes} ${k.note}`), ...p.faq.map((f) => `${f.q} ${f.a}`), ...G(p).actions, ...(p.channels ?? []).map((c) => `${c.channel} ${c.why}`)];
 }
 export function avoidedIssue(plan: BusinessPlan): string | null {
   const terms = avoidTerms(plan.profile.notWant);
@@ -437,5 +510,7 @@ export function withoutAvoided(plan: BusinessPlan): BusinessPlan {
     differentiators: plan.differentiators.map(cut).filter(Boolean),
     packages: plan.packages.filter((k) => !touchesAvoid(`${k.name} ${k.includes}`, terms)).map((k) => ({ ...k, note: cut(k.note) })),
     faq: plan.faq.filter((f) => !touchesAvoid(`${f.q} ${f.a}`, terms)),
+    growth: { ...G(plan), actions: G(plan).actions.filter((a) => !touchesAvoid(a, terms)) },
+    channels: (plan.channels ?? []).filter((c) => !touchesAvoid(`${c.channel} ${c.why}`, terms)),
   };
 }

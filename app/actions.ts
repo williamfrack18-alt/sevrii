@@ -193,6 +193,9 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
         ...EMPTY_PLAN,
         mode: m,
         stage: "interview",
+        // The language this flow runs in: the research, the proposal and the
+        // page's fixed labels follow it (the old cards used to set it).
+        flowLang: lang,
         // Same person: the languages they speak carry over. Where they work is
         // asked again (a new service may be in another city, or online).
         profile: {

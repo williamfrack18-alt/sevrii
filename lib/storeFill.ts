@@ -49,7 +49,15 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
     fromPlan: planFingerprint(b.plan),
   };
   // Where they work, from the Brain profile (only if the page doesn't say yet).
-  if (!cur.reachMode) {
+  // The place finder only knows US cities ("Madrid" would land in Madrid, Iowa;
+  // "Toronto" in Ohio): outside the US the page keeps the city as they said it.
+  const abroad = Boolean(b.plan.profile.country) && b.plan.profile.country !== "US";
+  if (!cur.reachMode && abroad) {
+    const p = b.plan.profile;
+    if (p.serviceMode === "remote") Object.assign(site, { reachMode: "remote", reachScope: p.remoteScope === "world" ? "world" : "us", baseState: "" });
+    else if (p.city) Object.assign(site, { reachMode: "local", reachRadius: p.radiusMiles || 25, baseCity: p.city.slice(0, 60), baseState: "", baseLat: null, baseLon: null, baseZip: "" });
+  }
+  else if (!cur.reachMode) {
     const p = b.plan.profile;
     if (p.serviceMode === "remote") {
       const { stateCode } = await import("./geo");
@@ -63,7 +71,7 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
       if (where) Object.assign(site, { reachMode: "local", reachRadius: p.radiusMiles || 25, baseCity: where.city, baseState: where.state, baseLat: where.lat, baseLon: where.lon, baseZip: p.zip || "" });
     }
   }
-  else if (cur.reachMode === "local" && b.plan.profile.zip && !cur.baseZip) {
+  else if (!abroad && cur.reachMode === "local" && b.plan.profile.zip && !cur.baseZip) {
     const { lookupPlace } = await import("./geo");
     const where = lookupPlace(b.plan.profile.zip);
     if (where) Object.assign(site, { baseZip: b.plan.profile.zip, baseCity: where.city, baseState: where.state, baseLat: where.lat, baseLon: where.lon });

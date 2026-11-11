@@ -18,7 +18,7 @@ import {
 } from "./db";
 import { HIDEABLE, LIMITS, PAGE_DESIGNS, PAGE_SECTIONS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, sectionOrder, type Hideable, type PageDesign, type PageSection, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
-import { planFingerprint, planReadyForStore, refPriceUnconfirmed } from "./planToStore";
+import { ownerPricedPackages, pageMatchesPlan, planReadyForStore, refPriceUnconfirmed } from "./planToStore";
 import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, offerTarget, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
 
 // The Store tab is one chat. This agent interviews the owner for exactly the
@@ -48,9 +48,9 @@ const TOOLS: Tool[] = [
         serviceArea: { type: "string", description: "e.g. 'Miami-Dade and Broward'" },
         hours: { type: "string", description: "e.g. 'Mon–Sat 8am–6pm'" },
         reachMode: { type: "string", enum: ["local", "remote"], description: "local = done in person in an area (needs reachCity + reachRadiusMiles); remote = done online from anywhere" },
-        reachCity: { type: "string", description: "Local: base city with state, or a 5-digit ZIP, e.g. 'Miami, FL' or '33172'" },
-        reachRadiusMiles: { type: "number", description: "Local: how many miles they travel (1-300)" },
-        reachScope: { type: "string", enum: ["us", "state", "world"], description: "Remote: customers in the whole US (us), only in one state (state, with reachState) or also other countries (world)" },
+        reachCity: { type: "string", description: "Local: base city with state, or a 5-digit ZIP, e.g. 'Miami, FL' or '33172'. Outside the US: the city as the owner says it, e.g. 'Madrid' (no ZIP)" },
+        reachRadiusMiles: { type: "number", description: "Local: how many miles they travel (1-300). If they said km, convert (km ÷ 1.609)" },
+        reachScope: { type: "string", enum: ["us", "state", "world"], description: "Remote: customers in their whole country (us; the whole US for US owners), only in one US state (state, with reachState) or also other countries (world)" },
         reachState: { type: "string", description: "Remote with reachScope=state: the US state, e.g. 'TX' or 'Texas'" },
         ownerName: { type: "string", description: "The owner's first name (or how they want to be called). Customers see it in the page chat when the owner answers personally." },
         licenseNumber: { type: "string", description: "ONLY a number the owner typed" },
@@ -92,7 +92,7 @@ const TOOLS: Tool[] = [
       properties: {
         id: { type: "string" },
         name: { type: "string" },
-        price: { type: "string", description: "Exactly as the owner said, e.g. 'From $149', '$99', '$80/hour'. Empty if they gave none." },
+        price: { type: "string", description: "Exactly as the owner said, in their own currency, e.g. 'From $149', '$99', '$80/hour', '18 €', '$80.000 COP'. Empty if they gave none." },
         description: { type: "string", description: "One sentence" },
         featured: { type: "boolean", description: "Main / most important service (highlighted)" },
         tag: { type: "string", description: "Short label for a featured service, e.g. 'Most requested' — only if true" },
@@ -220,7 +220,7 @@ const TOOLS: Tool[] = [
   },
 ];
 
-const SYSTEM = `You are Sevrii's store builder. In this chat you build the owner's sales page — a one-page "product page" for a US service business, designed to turn visitors into chat messages and bookings (title, price, photos, offer, service options, selling points, how it works, FAQ).
+const SYSTEM = `You are Sevrii's store builder. In this chat you build the owner's sales page — a one-page "product page" for a service business (in the US or any other country), designed to turn visitors into chat messages and bookings (title, price, photos, offer, service options, selling points, how it works, FAQ).
 
 How to work:
 - Interview the owner like a friendly expert: ask ONE thing at a time (two only if tightly related), in plain short sentences. Follow the "missing" list in the page state, in that order. Explain in a few words why each thing sells ("los precios claros traen más clientes").
@@ -231,7 +231,7 @@ How to work:
 - Photos: it's a service, so people buy the PERSON. Ask first for a clear photo of the owner (smiling, work clothes, good light) and then photos of them working and of their work. If "brainPlan.photoIdeas" exists, suggest those exact shots. Ask them to send the photos right here in the chat with the + button next to the message box ("Súbeme aquí con el botón + …"), then place each one yourself with set_photo. When a photo is uploaded you SEE it (it's attached to the message). Say in a few words what it shows, then use set_photo: a clear photo of the person = cover, and also set_photo role=owner (customers see it next to their name when they answer chats) if "page.ownerPhotoUrl" is empty; their work or tools = gallery (or cover if there's no good photo of the person yet). If it has nothing to do with the service (a landscape, a random object, a meme), say so kindly, leave it out of the cover (keep it in the gallery only if the owner wants) and ask for the right kind of photo. Always tell the owner what you see in a photo they just uploaded. Never suggest stock photos.
 - Video: if "page.videoUrl" is empty, recommend a short video of the owner talking about the service (30-60 s, phone, looking at the camera) — it builds the most trust and shows first in the gallery. They send it right here with the + button (it goes on the page automatically, first in the gallery). If "brainPlan.videoScript" exists, give them the script in a few short lines. To remove the video use remove_video. Don't push the video more than once per conversation.
 - Contact: customers talk to the business through the chat on the page (it sits next to the price; an AI answers instantly with the page info, collects their name and phone, and alerts the owner, who can answer in "Conversaciones"/"Conversations"). The page has no call or text buttons, so don't ask for a phone or WhatsApp for the page. Never ask what the Brain interview already has ("brainPlan.profile": name, city, ZIP, radius, languages, years): use it. If "page.ownerName" is empty and "brainPlan.profile.ownerName" exists, save it as ownerName with update_page right away without asking; only if neither has it, ask the owner's first name once and save it as ownerName: when they answer a chat personally, customers see their name and photo, so they know they're talking with the real person. If "alertsOn" is false, remind them once to turn on alerts ("Avisos" in Conversaciones); never again after that.
-- Service area: work it out yourself from what they say and save it with update_page — never show forms. If "page.reachMode" is empty: a service done at the customer's place (cleaning, moving, repairs, beauty at home…) is local → if you know their city (page, brainPlan or the chat), save reachMode=local with reachCity and ask only how many miles they travel (default 25 if they don't care); work that can be delivered online (video editing, design, bookkeeping, classes by video…) is remote → ask in one short question if they take customers in the whole US, only in their state (e.g. a state license or state paperwork) or other countries too, and save reachMode=remote with reachScope (and reachState for one state). If unsure, ask one plain question ("¿Lo haces en persona en tu zona o en línea?"). The marketplace only shows them to customers they can really serve.
+- Service area: work it out yourself from what they say and save it with update_page — never show forms. If "page.reachMode" is empty: a service done at the customer's place (cleaning, moving, repairs, beauty at home…) is local → if you know their city (page, brainPlan or the chat), save reachMode=local with reachCity and ask only how many miles they travel (default 25 if they don't care); work that can be delivered online (video editing, design, bookkeeping, classes by video…) is remote → ask in one short question if they take customers in their whole country, only in their state (e.g. a state license or state paperwork) or other countries too, and save reachMode=remote with reachScope (and reachState for one state). If unsure, ask one plain question ("¿Lo haces en persona en tu zona o en línea?"). The marketplace only shows them to customers they can really serve.
 - Licenses: do NOT ask about licenses — most services don't need one. Only if the owner mentions a license number on their own, save it (licenseNumber, licenseState) so it shows on the page.
 - NEVER invent facts: no license numbers, insurance, years, reviews, ratings, guarantees, certifications, prices or response times the owner didn't give. If something is unknown, ask.
 - The page and its FAQ use ONLY what the owner approved in the Brain plan (brainPlan) and what they tell you in this chat. Never add taxes, fees, surcharges, deposits, refund or cancellation policies, guarantees or anything the owner didn't approve. Never offer or suggest what the owner excluded (a language, a service, an area).
@@ -282,11 +282,13 @@ const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").t
 
 export type StoreChatResult = { reply: string; business: BusinessRow; services: ServiceRow[] };
 
-function pageState(b: BusinessRow, services: ServiceRow[], extra: { alertsOn?: boolean } = {}) {
+export function pageState(b: BusinessRow, services: ServiceRow[], extra: { alertsOn?: boolean } = {}) {
   const priced = services.filter((s) => (s.price ?? "").trim()).length;
   return {
     business: { name: b.name, category: b.category, city: b.city, pitch: b.pitch, whatsapp: b.whatsapp, accentColor: b.accentColor, published: Boolean(b.published) },
-    brainPlan: b.plan.service ? { profile: { ownerName: b.plan.profile.ownerName, city: b.plan.profile.city, state: b.plan.profile.state, zip: b.plan.profile.zip, radiusMiles: b.plan.profile.radiusMiles, languages: b.plan.profile.languages, yearsExperience: b.plan.profile.yearsExperience, yearsOwnBusiness: b.plan.profile.yearsOwnBusiness, currentPrice: b.plan.profile.currentPrice }, neverWants: b.plan.profile.notWant, rejectedIdeas: b.plan.rejectedIdeas, flowLanguage: b.plan.flowLang || null, cardAnswers: b.plan.cards, service: b.plan.service, customer: b.plan.customer, problem: b.plan.problem, promise: b.plan.promise, differentiators: b.plan.differentiators, packages: b.plan.packages, offer: b.plan.offer, photoIdeas: b.plan.photoIdeas, videoScript: b.plan.videoScript ? "ready" : "" } : null,
+    // The owner's own service and price, where they are (any country) and how
+    // they deliver it. Packages priced at what they charge today are theirs.
+    brainPlan: b.plan.service ? { profile: { ownerName: b.plan.profile.ownerName, mainService: b.plan.profile.mainService, country: b.plan.profile.country || "US", region: b.plan.profile.region, city: b.plan.profile.city, state: b.plan.profile.state, zip: b.plan.profile.zip, radiusMiles: b.plan.profile.radiusMiles, serviceMode: b.plan.profile.serviceMode, remoteScope: b.plan.profile.remoteScope, languages: b.plan.profile.languages, yearsExperience: b.plan.profile.yearsExperience, yearsOwnBusiness: b.plan.profile.yearsOwnBusiness, currentPrice: b.plan.profile.currentPrice }, neverWants: b.plan.profile.notWant, rejectedIdeas: b.plan.rejectedIdeas, flowLanguage: b.plan.flowLang || null, cardAnswers: b.plan.cards, service: b.plan.service, customer: b.plan.customer, problem: b.plan.problem, promise: b.plan.promise, differentiators: b.plan.differentiators, packages: ownerPricedPackages(b.plan), offer: b.plan.offer, photoIdeas: b.plan.photoIdeas, videoScript: b.plan.videoScript ? "ready" : "" } : null,
     page: b.site,
     services: services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description, featured: Boolean(s.featured), tag: s.tag ?? null })),
     missing: missingForSales({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length, pricedServices: priced }).filter((m) => !b.site.declined.some((d) => m.toLowerCase().includes(d))),
@@ -389,7 +391,16 @@ async function runTool(
       ]) {
         if (input[k] !== undefined) patch[k] = input[k];
       }
-      if (input.reachMode === "remote") {
+      // Outside the US there are no states, ZIPs or US cities to look up.
+      const abroad = Boolean(b.plan.profile.country) && b.plan.profile.country !== "US";
+      if (abroad && (input.reachMode === "remote" || input.reachMode === "local" || typeof input.reachCity === "string" || typeof input.reachRadiusMiles === "number")) {
+        if (input.reachMode === "remote") Object.assign(patch, { reachMode: "remote", reachScope: input.reachScope === "world" ? "world" : "us", baseState: "" });
+        else {
+          patch.reachMode = "local";
+          if (typeof input.reachCity === "string" && input.reachCity.trim()) Object.assign(patch, { baseCity: clip(input.reachCity, 60), baseState: "", baseLat: null, baseLon: null, baseZip: "" });
+          if (typeof input.reachRadiusMiles === "number") patch.reachRadius = Math.max(1, Math.min(300, Math.round(input.reachRadiusMiles)));
+        }
+      } else if (input.reachMode === "remote") {
         patch.reachMode = "remote";
         const { stateCode } = await import("./geo");
         const st = stateCode(String(input.reachState || "")) || stateCode(b.site.baseState || "") || stateCode(b.plan.profile.state || "");
@@ -449,7 +460,7 @@ async function runTool(
       // price: it goes on the page only once the owner said that amount (or
       // said yes when asked about it). An existing service keeps its price.
       let refNote = "";
-      if (price && refPriceUnconfirmed(price, b.plan.packages, { ...ctx, yes: YES.test(ctx.ownerLast ?? "") })) {
+      if (price && refPriceUnconfirmed(price, ownerPricedPackages(b.plan), { ...ctx, yes: YES.test(ctx.ownerLast ?? "") })) {
         refNote = `; ${isUpdate ? "its price was NOT changed" : "saved WITHOUT a price"}: ${price} is the Brain's market reference, not the owner's price. Ask the owner what they charge (one question) and save their answer`;
         price = isUpdate ? undefined : null;
       }
@@ -673,7 +684,7 @@ export async function runStoreChatTurn(opts: {
       : isAgentProject
         ? `\n\nTHIS CHAT IS STORE: the sales page. The agent itself (what it does, its method, limits, greeting, knowledge, on/off) is set up in the Agente area, right below Store in the panel: if the owner asks here to change the agent, say in one line that it's done in Agente and don't change it. Access offers and prices can be changed here too.`
         : "";
-  const system = `${SYSTEM}${areaNote}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}. Page text goes in the page's language (page.lang) unless the owner asks otherwise.`;
+  const system = `${SYSTEM}${areaNote}${storeLocaleNote(business.plan)}\n\nReply in ${es ? "Spanish (neutral, 'tú')" : "English"}. Page text goes in the page's language (page.lang) unless the owner asks otherwise.`;
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
     {
@@ -787,6 +798,21 @@ function cleanStoreReply(reply: string, b: BusinessRow, o: { alertsOn: boolean; 
   return parts.join(" ").replace(/\s{2,}/g, " ").trim();
 }
 
+// Outside the US: the owner's country, currency and units, so the Store chat
+// never asks for a ZIP or miles, never says "EE. UU." and never adds "$".
+export function storeLocaleNote(plan: BusinessRow["plan"]): string {
+  const p = plan.profile;
+  if (!p.country || p.country === "US") return "";
+  let name = p.country;
+  try {
+    name = new Intl.DisplayNames(["en"], { type: "region" }).of(p.country) || p.country;
+  } catch {
+    // keep the code
+  }
+  const where = [p.city, p.region, name].filter(Boolean).join(", ");
+  return `\n\nTHE OWNER IS IN ${name.toUpperCase()} (${where}), NOT IN THE US. Prices go in the local currency exactly as the owner says them: never add "$" or "USD" they didn't write and never convert. Distances in km: write serviceArea in km (e.g. "${p.city || "Madrid"} y 30 km a la redonda"); reachRadiusMiles is stored in miles, so convert (km ÷ 1.609). Never mention the US, US states, ZIP codes, miles or US licenses. Service area: local = reachMode=local with reachCity = their city as they say it (never ask for a ZIP); remote: reachScope "us" means their whole country (${name}), "world" = other countries too; for one region only, say it in serviceArea ("En línea · solo ${p.region || "su región"}"). If they give a phone, keep it with their country code.`;
+}
+
 // First message of the Agente area (no AI call needed).
 export function agentAreaGreeting(lang: Lang, b: BusinessRow): string {
   const es = lang === "es";
@@ -806,7 +832,7 @@ export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number):
   }
   // This chat has no tool to rebuild the page from the plan: the button above
   // the preview does it, so the greeting points there (never "¿La armo así?").
-  if (planReadyForStore(b.plan) && b.site.fromPlan !== planFingerprint(b.plan)) {
+  if (planReadyForStore(b.plan) && !pageMatchesPlan(b.site.fromPlan, b.plan)) {
     return es
       ? `¡Hola! Ya tengo la estrategia que aprobaste en el Cerebro para "${b.plan.service}". Toca «${b.site.fromPlan ? "Actualizar mi página" : "Armar mi página"}» arriba de la vista previa y la armo con eso: título, puntos clave y tus paquetes. Luego la revisamos juntos aquí.`
       : `Hi! I have the strategy you approved in the Brain for "${b.plan.service}". Tap "${b.site.fromPlan ? "Update my page" : "Build my page"}" above the preview and I'll build it from that: headline, key points and your packages. Then we review it together here.`;

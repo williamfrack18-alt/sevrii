@@ -209,7 +209,7 @@ export function SectionTools({ slug, section, peers, hidden, ui, fixed = false }
     });
   }
   return (
-    <div className={`mt-sectools ${fixed ? "fixed" : "wrap"}`}>
+    <div className={`mt-sectools ${fixed ? "pinned" : "wrap"}`}>
       <span className="mt-sectools-name">
         {t.sections[section]}
         {hidden && <em> · {t.hiddenTag}</em>}

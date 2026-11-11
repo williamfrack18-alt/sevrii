@@ -21,7 +21,8 @@ export type MediaItem =
 // same); compact (the small squares) shows it as "$850+".
 const FROM = /^\s*(desde|a partir de|from|starting at)\b/i;
 function shortPrice(p: string, lang: Lang, compact = false): string {
-  const m = /\$\s?\d[\d,]*(?:\.\d+)?(?:\s?[kK]\b)?/.exec(p);
+  // Letters stuck to the "$" are the currency ("CA$25", "US$40", "MX$450"): kept.
+  const m = /(?<![A-Za-z])(?:[A-Z]{1,3})?\$\s?\d[\d,]*(?:\.\d+)?(?:\s?[kK]\b)?/.exec(p);
   if (m) {
     const amt = m[0].replace(/\s/g, "");
     const from = FROM.exec(p.slice(0, m.index));

@@ -2,7 +2,7 @@ import { BRAIN_MODEL, getBrainModel } from "../claude";
 import type { Lang } from "../i18n";
 import { parseIdeas, parsePlanAgent, str, type BusinessPlan, type Idea } from "../plan";
 import { similar } from "./asked";
-import { avoidTerms, touchesAvoid } from "./checks";
+import { avoidTerms, moneyAmounts, touchesAvoid } from "./checks";
 import { extractJson, textOf } from "./common";
 
 // The Strategist (the most capable model): turns the expediente into a
@@ -88,7 +88,7 @@ Su cara vende (es un servicio, no un producto):
 - videoScript: guion de 30 a 60 segundos, en primera persona, para grabarlo con el celular mirando a la cámara: quién es, qué hace y dónde, por qué elegirlo (solo hechos del expediente), la oferta solo si existe, y que le escriban por el chat de su página. Frases cortas y naturales. Usa [tu nombre] donde va su nombre.
 - photoIdeas: 4 a 6 fotos concretas que puede tomarse con el celular para su servicio (por ejemplo: retrato sonriendo con ropa de trabajo, trabajando, sus herramientas, el antes y después). Si apenas empieza, fotos practicando o preparando su equipo.
 
-Tipo de campaña: los anuncios llevan a la página del dueño en Sevrii, donde el cliente escribe por el chat. Facebook e Instagram con el botón "Más información" o "Enviar mensaje" hacia la página, para servicios locales; Google Search cuando la gente busca el servicio y el presupuesto llega a unos $15 al día. Suma los canales gratis: referidos siempre, y perfil de Google Business solo si atiende en persona en una zona (no para servicios en línea). Servicios en línea (remote): campañas a todo su país (al mundo si remoteScope es "world"; solo a su estado o región si remoteScope es "state"), no a una ciudad.`;
+Tipo de campaña: los anuncios llevan a la página del dueño en Sevrii, donde el cliente escribe por el chat. Facebook e Instagram con el botón "Más información" o "Enviar mensaje" hacia la página, para servicios locales; Google Search cuando la gente busca el servicio y el presupuesto llega a unos 15 dólares al día (o su equivalente en la moneda local). Suma los canales gratis: referidos siempre, y perfil de Google Business solo si atiende en persona en una zona (no para servicios en línea). Servicios en línea (remote): campañas a todo su país (al mundo si remoteScope es "world"; solo a su estado o región si remoteScope es "state"), no a una ciudad.`;
 
 const S = (description: string) => ({ type: "string", description });
 const obj = (properties: Record<string, unknown>) => ({ type: "object", additionalProperties: false, properties, required: Object.keys(properties) });
@@ -218,10 +218,8 @@ function expediente(plan: BusinessPlan) {
   };
 }
 
-// Every "$123" in a text, as plain numbers.
-function amounts(text: string): number[] {
-  return [...text.matchAll(/\$\s?(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g)].map((m) => Number(m[1].replace(/,/g, "")));
-}
+// Every amount of money in a text ("$123", "40 €", "45.000 COP"), as plain numbers.
+const amounts = moneyAmounts;
 
 // The summary the owner reads first must not quote prices that aren't in the
 // proposal or the research. If it does, it's rewritten from the packages.

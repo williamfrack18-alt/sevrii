@@ -28,7 +28,7 @@ export const PLAN_TEXT = {
     tasks: {
       prices: (city: string) => `Buscando precios${city ? ` en ${city}` : ""}`,
       competitors: "Revisando a tu competencia",
-      requirements: (state: string) => `Revisando requisitos${state ? ` de ${state}` : " de tu estado"}`,
+      requirements: (place: string) => `Revisando requisitos${place ? ` en ${place}` : " de tu zona"}`,
       faq: "Juntando las preguntas de los clientes",
       ideas: "Buscando servicios que encajen contigo",
       ideas_pick: "Escogiendo las mejores",
@@ -187,7 +187,7 @@ export const PLAN_TEXT = {
     tasks: {
       prices: (city: string) => `Looking up prices${city ? ` in ${city}` : ""}`,
       competitors: "Checking your competition",
-      requirements: (state: string) => `Checking ${state || "your state"}'s requirements`,
+      requirements: (place: string) => `Checking the requirements${place ? ` in ${place}` : " for your area"}`,
       faq: "Gathering customers' questions",
       ideas: "Looking for services that fit you",
       ideas_pick: "Picking the best ones",

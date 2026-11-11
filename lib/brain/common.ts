@@ -6,7 +6,20 @@ import type { PlanSource } from "../plan";
 const CENTRAL = new Set("AL AR IL IA KS LA MN MS MO NE ND OK SD TN TX WI".split(" "));
 const MOUNTAIN = new Set("AZ CO ID MT NM UT WY".split(" "));
 const PACIFIC = new Set("CA NV OR WA".split(" "));
-export function zoneOf(state = ""): string {
+// Outside the US, the country's main time zone (the date only has to be right
+// for offers' end dates and research dates).
+const COUNTRY_ZONE: Record<string, string> = {
+  MX: "America/Mexico_City", CO: "America/Bogota", ES: "Europe/Madrid", AR: "America/Argentina/Buenos_Aires", PE: "America/Lima",
+  CL: "America/Santiago", VE: "America/Caracas", EC: "America/Guayaquil", BO: "America/La_Paz", PY: "America/Asuncion",
+  UY: "America/Montevideo", DO: "America/Santo_Domingo", GT: "America/Guatemala", SV: "America/El_Salvador", HN: "America/Tegucigalpa",
+  NI: "America/Managua", CR: "America/Costa_Rica", PA: "America/Panama", CU: "America/Havana", PR: "America/Puerto_Rico",
+  CA: "America/Toronto", BR: "America/Sao_Paulo", GB: "Europe/London", IE: "Europe/Dublin", PT: "Europe/Lisbon", FR: "Europe/Paris",
+  DE: "Europe/Berlin", IT: "Europe/Rome", NL: "Europe/Amsterdam", BE: "Europe/Brussels", CH: "Europe/Zurich", AU: "Australia/Sydney",
+};
+export function zoneOf(state = "", country = ""): string {
+  const c = country.toUpperCase();
+  if (c && c !== "US" && COUNTRY_ZONE[c]) return COUNTRY_ZONE[c];
+  if (c && c !== "US") return "UTC";
   const st = state.toUpperCase();
   if (st === "AZ") return "America/Phoenix";
   if (st === "HI") return "Pacific/Honolulu";
@@ -17,9 +30,9 @@ export function zoneOf(state = ""): string {
   if (PACIFIC.has(st)) return "America/Los_Angeles";
   return "America/New_York";
 }
-export function today(state = ""): string {
+export function today(state = "", country = ""): string {
   // en-CA formats as YYYY-MM-DD.
-  return new Intl.DateTimeFormat("en-CA", { timeZone: zoneOf(state), year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", { timeZone: zoneOf(state, country), year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
 export function textOf(content: ContentBlock[]): string {
@@ -237,4 +250,6 @@ export async function runWithServerTools(
   throw lastErr ?? new Error("no tool set worked");
 }
 
-export const RESTRICTED = /\b(credit repair|reparaci[oó]n de cr[eé]dito|notari[oa]|immigration|inmigraci[oó]n|migratori[oa]|loans?|pr[eé]stamos?|medical|m[eé]dic[oa])\b/i;
+// Ideas never proposed (whole words, accents and plurals included: "notaría",
+// "trámites migratorios", "préstamos").
+export const RESTRICTED = /\b(credit repair|reparaci[oó]n de cr[eé]dito|notar[ií][oa]s?|notary|notaries|immigration|inmigraci[oó]n|migratori[oa]s?|loans?|pr[eé]stamos?|medical|m[eé]dic[oa]s?)(?![\p{L}\d])/iu;

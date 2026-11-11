@@ -43,7 +43,7 @@
 .mt .brand img { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; }
 .mt .brand-name { font-weight: 700; font-size: 15px; color: #f4f5f3; }
 .mt .header-title { justify-self: center; font-weight: 600; font-size: 16px; white-space: nowrap; color: #f4f5f3; max-width: 52vw; overflow: hidden; text-overflow: ellipsis; }
-.mt .header-badge { justify-self: end; font-size: 11px; letter-spacing: 0.06em; color: rgba(244,245,243,0.7); text-transform: uppercase; white-space: nowrap; text-decoration: none; }
+.mt .header-badge { justify-self: end; font-size: 11px; letter-spacing: 0.06em; color: rgba(244,245,243,0.7); text-transform: uppercase; white-space: nowrap; text-decoration: none; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 640px) { .mt .header-badge { display: none; } .mt .header-row { grid-template-columns: auto 1fr; } .mt .header-title { justify-self: end; } }
 
 /* buttons */
@@ -92,7 +92,7 @@
 .mt .thumb.video:not([style]) { background: #111; }
 .mt .thumb.active { border-color: var(--accent-grad-solid); box-shadow: 0 0 0 2px var(--accent-grad-solid); }
 .mt .thumb-play { width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; padding-left: 2px; }
-.mt .thumb-price { color: var(--accent-on); font-weight: 800; font-size: 13px; line-height: 1.15; letter-spacing: -0.01em; padding: 0 4px; text-align: center; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.mt .thumb-price { color: var(--accent-on); font-weight: 800; font-size: 12px; line-height: 1.15; letter-spacing: -0.02em; padding: 0 3px; text-align: center; overflow-wrap: normal; word-break: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .mt .thumb.slide.offer .thumb-price { color: #f4f1ea; }
 
 /* packages & prices (below the gallery) */
@@ -607,7 +607,9 @@
    edit mode the wrapper doesn't exist for the layout. */
 .mt .mt-intro { display: contents; }
 .mt.editing .mt-intro { display: flex; flex-direction: column; gap: 20px; }
-.mt-sectools.fixed { padding-inline: 0; }
+/* Not "fixed": that name is Tailwind's position: fixed, which lifted these
+   tools out of the page and over the texts. */
+.mt-sectools.pinned { padding-inline: 0; }
 /* A blank page: one plain line for the owner, never seen by visitors. */
 .mt .mt-blank { margin-block: 8px 48px; padding: 22px 24px; border: 2px dashed var(--line); border-radius: 18px; color: var(--ink-dim); font-size: 15px; line-height: 1.55; max-width: 820px; }
 .mt .mt-blank strong { color: var(--ink); }

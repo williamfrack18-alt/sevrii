@@ -7,48 +7,24 @@ import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage,
 import { approveBlockAction, chooseIdeaAction, confirmProposalAction, finishPlanAction, moreIdeasAction, noOfferAction, otherPackagesAction, resumePlanAction, saveCardsAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
 import CardFlow from "./CardFlow";
 import { oneConfirmation } from "@/lib/brain/walk";
+import { marketRangeText } from "@/lib/brain/checks";
 import { cardTitle, unknownCards } from "@/lib/cards";
 import { MAX_IDEA_ROUNDS, isRestrictedService, missingProfile, profileComplete, shownRequirements } from "@/lib/plan";
-import type { ChatChip } from "./ChatPanel";
+import { answerChips } from "@/lib/brain/chips";
 
-// Quick answers for what the Brain is asking right now (one tap sends it).
 // The hourly figure is in US dollars (to rank ideas the same way everywhere):
 // outside the US it says so ("US$").
 const usd = (plan: BusinessPlan) => (plan.profile.country && plan.profile.country !== "US" ? "US$" : "$");
-
-function answerChips(plan: BusinessPlan, es: boolean): ChatChip[] {
-  if (plan.stage !== "interview" && plan.stage !== "ready_check") return [];
-  const next = missingProfile(plan)[0]?.split(" ")[0] ?? "";
-  const s = (label: string, en: string): ChatChip => ({ label: es ? label : en, send: true });
-  switch (next) {
-    case "remoteScope":
-      return [s("Todo mi país", "My whole country"), s("Solo mi estado o región", "Only my state or region"), s("También otros países", "Other countries too")];
-    case "languages":
-      return [s("Español", "Spanish"), s("Inglés", "English"), s("Los dos", "Both")];
-    case "typicalCustomer":
-      return plan.mode === "agent" ? [s("A cualquiera", "Anyone")] : [];
-    case "agentInterest":
-      return [s("Propónme ideas abiertas", "Suggest open ideas")];
-    case "agentTask":
-    case "agentLimits":
-      return [s("Sí, confirmado", "Yes, confirmed"), { label: es ? "Quiero cambiar algo" : "I want to change something", text: es ? "Quiero cambiar esto: " : "I want to change this: " }];
-    case "serviceMode":
-      return [s("En persona, en mi zona", "In person, in my area"), s("En línea, a distancia", "Online, remote")];
-    case "insured":
-    case "hasVehicle":
-    case "toolsReady":
-      return [s("Sí", "Yes"), s("No", "No")];
-    case "goal":
-      return [s("Un ingreso extra", "Extra income"), s("Vivir de esto", "To live from it")];
-    // Quick answers, never required: the person can always write freely.
-    case "howGetsClients":
-      return [s("Pasan por mi local", "They walk by my place"), s("Por recomendación", "Word of mouth"), s("Por redes sociales", "Social media"), s("Todavía casi no tengo clientes", "I barely have clients yet")];
-    case "city":
-      return [s(plan.mode === "new" ? "Quiero trabajar en línea" : "Trabajo en línea", plan.mode === "new" ? "I want to work online" : "I work online")];
-    default:
-      return [];
+// "CO" → "Colombia" in the screen's language ("" for none).
+function countryLabel(code: string, lang: "es" | "en"): string {
+  if (!/^[A-Z]{2}$/.test(code || "")) return "";
+  try {
+    return new Intl.DisplayNames([lang], { type: "region" }).of(code) || code;
+  } catch {
+    return code;
   }
 }
+
 import ChatPanel, { type ChatToken, type Msg } from "./ChatPanel";
 import type { MindNode } from "./MindMap";
 import ProjectDock, { StepList } from "./ProjectDock";
@@ -266,7 +242,9 @@ export default function PlanView({
   const cardsMode = false;
   const reviewing: ApprovalBlock | null = plan.stage === "proposal" && !single ? (APPROVAL_BLOCKS.find((b) => !plan.approvals[b]) ?? null) : null;
   // A strategy for a service Sevrii doesn't publish: its way forward replaces the confirmation.
-  const restricted = plan.stage === "proposal" && isRestrictedService(plan);
+  // Also before any research: A said a restricted service, or B chose one as
+  // their own idea (no research is spent on it; the way out shows right away).
+  const restricted = isRestrictedService(plan) && (plan.stage === "proposal" || (plan.stage === "interview" && plan.mode === "existing") || (plan.stage === "ready_check" && plan.mode === "new"));
   const lastCard = [...msgs].reverse().find((m) => m.role !== "user" && TOKEN.test(m.content));
   const lastTok = lastCard ? TOKEN.exec(lastCard.content) : null;
   const liveId =
@@ -296,6 +274,7 @@ export default function PlanView({
   // Only the last ideas card in the chat can be the one they picked from;
   // earlier rounds are options they passed on.
   const lastIdeasId = [...msgs].reverse().find((m) => m.role !== "user" && m.content.includes("[[ideas]]"))?.id ?? null;
+  const lastSummaryId = [...msgs].reverse().find((m) => m.role !== "user" && m.content.includes("[[summary]]"))?.id ?? null;
   const summaryCard = (
     <SummaryCard
       plan={plan}
@@ -311,7 +290,7 @@ export default function PlanView({
     if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} payReady={business.payReady} />;
     if (kind === "market") return <MarketInChat plan={plan} />;
     if (kind === "restricted") return msgId === liveId ? restrictedCard : <PassedRow text={es ? "Servicio que Sevrii no publica" : "A service Sevrii doesn't publish"} />;
-    if (kind === "summary") return msgId === liveId ? summaryCard : <PassedRow text={es ? "Tu estrategia (versión anterior)" : "Your strategy (earlier version)"} />;
+    if (kind === "summary") return msgId === liveId ? summaryCard : <PassedRow text={plan.stage === "approved" && msgId === lastSummaryId ? (es ? "Tu estrategia confirmada (la ves en «Tu estrategia»)" : "Your confirmed strategy (see \"Your strategy\")") : es ? "Tu estrategia (versión anterior)" : "Your strategy (earlier version)"} />;
     return null;
   };
   // No live card in the chat yet (an older chat, or a final check stopped
@@ -439,7 +418,7 @@ export default function PlanView({
           }
           sync={sync}
           prefill={prefill}
-          chips={answerChips(plan, lang === "es")}
+          chips={answerChips(plan, lang === "es", [...msgs].reverse().find((m) => m.role !== "user")?.content ?? (msgs.length ? "" : greeting))}
           renderToken={renderToken}
           tail={
             <>
@@ -1031,49 +1010,13 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
   const g = plan.growth;
   const growthOn = plan.mode === "existing" && Boolean(g.diagnosis || g.idealClient || g.actions.length || plan.channels.length);
   const o = growthOn ? 1 : 0;
-  const row = (label: string, body: ReactNode) => (
-    <div className="flex flex-col gap-1">
-      <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-pmuted">{label}</span>
-      <div className="text-[14.5px] text-pfg2 leading-relaxed">{body}</div>
-    </div>
-  );
   return (
     <div className="flex flex-col gap-4 min-w-0">
       <div className="flex flex-col gap-1 px-1">
         <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: GREEN }}>{growthOn ? (es ? "Tu plan para más clientes · 6 partes" : "Your plan for more clients · 6 parts") : es ? "Tu estrategia · 5 partes" : "Your strategy · 5 parts"}</span>
         <span className="text-[19px] font-semibold text-pfg leading-snug">{plan.service}</span>
       </div>
-      {growthOn &&
-        card(
-          1,
-          es ? "Cómo conseguir más clientes" : "How to get more clients",
-          <div className="flex flex-col gap-4">
-            {g.diagnosis && row(es ? "Por qué hoy no te llegan más" : "Why more don't come today", g.diagnosis)}
-            {g.idealClient && row(es ? "A quién venderle primero" : "Who to sell to first", g.idealClient)}
-            {g.priceVsMarket && row(es ? "Tu precio frente al mercado" : "Your price vs. the market", g.priceVsMarket)}
-            {plan.channels.length > 0 &&
-              row(
-                es ? "Por dónde llegarles" : "Where to reach them",
-                <ul className="flex flex-col gap-1.5">
-                  {plan.channels.map((c, i) => (
-                    <li key={i}>
-                      <b className="font-semibold text-pfg">{c.channel}</b>
-                      {c.why ? ` — ${c.why}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            {g.actions.length > 0 &&
-              row(
-                es ? "Tres cosas para esta semana" : "Three things for this week",
-                <ol className="flex flex-col gap-1.5 list-decimal pl-5">
-                  {g.actions.map((a, i) => (
-                    <li key={i}>{a}</li>
-                  ))}
-                </ol>
-              )}
-          </div>
-        )}
+      {growthOn && card(1, es ? "Cómo conseguir más clientes" : "How to get more clients", <GrowthBody plan={plan} />)}
       {card(
         1 + o,
         t.blocks.service,
@@ -1150,6 +1093,48 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
               : "Want to change something? Write it below and I'll update the cards."}
         </span>
       </div>
+    </div>
+  );
+}
+
+// A ("más clientes"): why more clients don't come yet, who to sell to first,
+// their price against the market, where to reach them and three things for
+// this week. On the confirmation card and, once approved, in "Tu estrategia".
+function GrowthBody({ plan }: { plan: BusinessPlan }) {
+  const es = useLang() === "es";
+  const g = plan.growth;
+  const row = (label: string, body: ReactNode) => (
+    <div className="flex flex-col gap-1">
+      <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-pmuted">{label}</span>
+      <div className="text-[14.5px] text-pfg2 leading-relaxed">{body}</div>
+    </div>
+  );
+  return (
+    <div className="flex flex-col gap-4">
+      {g.diagnosis && row(es ? "Por qué hoy no te llegan más" : "Why more don't come today", g.diagnosis)}
+      {g.idealClient && row(es ? "A quién venderle primero" : "Who to sell to first", g.idealClient)}
+      {g.priceVsMarket && row(es ? "Tu precio frente al mercado" : "Your price vs. the market", g.priceVsMarket)}
+      {plan.channels.length > 0 &&
+        row(
+          es ? "Por dónde llegarles" : "Where to reach them",
+          <ul className="flex flex-col gap-1.5">
+            {plan.channels.map((c, i) => (
+              <li key={i}>
+                <b className="font-semibold text-pfg">{c.channel}</b>
+                {c.why ? ` — ${c.why}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+      {g.actions.length > 0 &&
+        row(
+          es ? (g.actions.length === 3 ? "Tres cosas para esta semana" : "Para esta semana") : g.actions.length === 3 ? "Three things for this week" : "For this week",
+          <ol className="flex flex-col gap-1.5 list-decimal pl-5">
+            {g.actions.map((a, i) => (
+              <li key={i}>{a}</li>
+            ))}
+          </ol>
+        )}
     </div>
   );
 }
@@ -1416,6 +1401,20 @@ function strategyNodes({ plan, t, onChange }: { plan: BusinessPlan; t: T; onChan
   );
 
   const nodes: MindNode[] = [];
+  // A: the plan to get more clients is what they came for: it stays first.
+  const g = plan.growth;
+  if (plan.mode === "existing" && (g.diagnosis || g.idealClient || g.actions.length || plan.channels.length)) {
+    const es = t === PLAN_TEXT.es;
+    nodes.push({
+      id: "growth",
+      label: es ? "Cómo conseguir más clientes" : "How to get more clients",
+      title: g.idealClient || g.diagnosis || (es ? "Tu plan" : "Your plan"),
+      summary: g.actions.length ? (es ? `${g.actions.length} acciones para esta semana` : `${g.actions.length} actions for this week`) : undefined,
+      tone: "done",
+      badge: t.approved,
+      detail: <GrowthBody plan={plan} />,
+    });
+  }
   nodes.push({ id: "service", label: t.blocks.service, title: plan.serviceIncludes || plan.service, summary: plan.problem || undefined, ...status("service"), detail: detail("service") });
   nodes.push({
     id: "pitch",
@@ -1550,11 +1549,12 @@ function SectionHead({ title, sub }: { title: string; sub: string }) {
 }
 
 function Progress({ jobs, plan, compact = false }: { jobs: Job[]; plan: BusinessPlan; compact?: boolean }) {
-  const t = PLAN_TEXT[useLang()];
+  const lang = useLang();
+  const t = PLAN_TEXT[lang];
   const label = (k: string) => {
     if (k === "ideas" && plan.mode === "agent") return t.ideasC.task;
     const v = t.tasks[k];
-    if (typeof v === "function") return v(k === "prices" ? plan.profile.city : plan.profile.state);
+    if (typeof v === "function") return v(k === "prices" ? plan.profile.city : plan.profile.state || plan.profile.region || countryLabel(plan.profile.country, lang));
     return v ?? k;
   };
   const list = jobs.length
@@ -1670,8 +1670,9 @@ function ProfileCard({ plan, bare = false }: { plan: BusinessPlan; bare?: boolea
   const rows: [string, string][] = [];
   for (const [k, label] of Object.entries(PROFILE_LABELS[lang]) as [keyof Profile, string][]) {
     let v = p[k];
-    if (k === "city") v = [p.city, p.state].filter(Boolean).join(", ");
-    if (k === "startBudgetUsd" && v !== null && v !== "") v = `$${Number(v).toLocaleString("en-US")}`;
+    // Any country: city, state or region, and the country ("Medellín, Colombia"); online says so.
+    if (k === "city") v = [p.city, p.state || p.region, p.country && p.country !== "US" ? countryLabel(p.country, lang) : ""].filter(Boolean).join(", ") || (p.serviceMode === "remote" ? [lang === "es" ? "En línea" : "Online", countryLabel(p.country, lang)].filter(Boolean).join(" · ") : "");
+    if (k === "startBudgetUsd" && v !== null && v !== "") v = p.country && p.country !== "US" ? Number(v).toLocaleString(lang) : `$${Number(v).toLocaleString("en-US")}`;
     if (v === null || v === "" || v === undefined) continue;
     const s = String(v);
     rows.push([label, VALUE[lang][s] ?? s]);
@@ -1889,22 +1890,8 @@ function Facts({ rows }: { rows: [string, string][] }) {
 // "$95–$155 por visita" … "$280–$525+ por visita" → "de $95 a $525+ por visita"
 // (one range from the lowest to the highest, never a range of ranges).
 function priceSpan(p: BusinessPlan["market"]["prices"], t: T): string {
-  if (!p) return "";
-  const lo = p.low || p.mid || "";
-  const hi = p.high || p.mid || "";
-  if (!lo || !hi || lo === hi) return lo || hi;
-  const AMT = /\$\s?[\d,.]+\+?/g;
-  const first = lo.match(AMT)?.[0];
-  const all = hi.match(AMT);
-  const last = all?.[all.length - 1];
-  if (!first || !last) return t.priceRange(lo, hi);
-  const unitOf = (x: string, amt: string) => x.slice(x.lastIndexOf(amt) + amt.length).replace(/^[\s+]+/, "").trim();
-  const unit = unitOf(hi, last);
-  const loAll = lo.match(AMT) ?? [];
-  const loUnit = unitOf(lo, loAll[loAll.length - 1] ?? first);
-  // Different units ("por pieza" … "por trabajo grande"): each keeps its own.
-  if (loUnit && unit && loUnit !== unit) return t.priceRange(`${first} ${loUnit}`, `${last} ${unit}`);
-  return `${t.priceRange(first, last)}${unit ? ` ${unit}` : ""}`;
+  // Any currency ("$95", "40 €", "45.000 COP"): the same text the Brain cites.
+  return marketRangeText(p, t === PLAN_TEXT.en ? "en" : "es");
 }
 
 const NEW_CLIENTS = /(nuev[oa]s?|new (clients?|customers?)|primer[ao]? (servicio|visita|compra|limpieza|trabajo)|first (service|visit|purchase|time))/i;

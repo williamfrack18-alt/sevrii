@@ -18,7 +18,7 @@ import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanSource,
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
 import { guardPlan, keptPriceIssue } from "./guard";
-import { avoidedIssue, withoutAvoided, hasJargon, knownAmounts, markReferencePrices, marketRangeText, mentionsDiscount, noFakeCosts, silentProposalIssues, withoutDiscounts } from "./checks";
+import { avoidedIssue, withoutAvoided, hasJargon, knownAmounts, moneyAmounts, markReferencePrices, marketRangeText, mentionsDiscount, noFakeCosts, silentProposalIssues, withoutDiscounts } from "./checks";
 import { oneConfirmation } from "./walk";
 import { today } from "./common";
 
@@ -189,7 +189,7 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
       requirements: req.data?.requirements,
       faq: faq.data?.faq,
       sources: all.flatMap((r) => r.sources),
-      researchedAt: today(plan.profile.state),
+      researchedAt: today(plan.profile.state, plan.profile.country),
       incomplete: (["prices", "competitors", "requirements", "faq"] as const).filter((k) => jobOf(jobs, k)?.status !== "done"),
     });
     plan = { ...plan, market, fears: str(faq.data?.fears) || plan.fears };
@@ -242,7 +242,7 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     // message is used only if every amount in it is still true.
     const strategyMsg = ((jobOf(jobs, "strategy")?.result ?? {}) as { message?: string }).message || "";
     const known = knownAmounts(plan);
-    const stale = [...strategyMsg.matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)/g)].some((m) => !known.has(Number(m[1].replace(/,/g, ""))));
+    const stale = moneyAmounts(strategyMsg).some((n) => !known.has(n));
     const range = marketRangeText(plan.market.prices, lang);
     const list = plan.packages
       .filter((k) => k.name && k.price)
@@ -254,8 +254,8 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
       strategyMsg && !anyRef && samePackages && !stale && !hasJargon(strategyMsg, true) && !/\$\s?\d[\d,]*\s*[–-]\s*\$/.test(strategyMsg) && (plan.profile.offerWanted || !mentionsDiscount(strategyMsg))
         ? strategyMsg
         : es
-          ? `Listo: investigué tu zona y armé tu propuesta. ${range ? `En el mercado se cobra ${range}. ` : ""}${list ? `Te propongo estos paquetes: ${list}.` : ""}`.trim()
-          : `Done: I researched your area and built your proposal. ${range ? `The market charges ${range}. ` : ""}${list ? `I propose these packages: ${list}.` : ""}`.trim();
+          ? `Listo: investigué tu zona y armé ${plan.mode === "existing" ? "tu plan para conseguir más clientes" : "tu propuesta"}. ${range ? `En el mercado se cobra ${range}. ` : ""}${list ? `Te propongo estos paquetes: ${list}.` : ""}`.trim()
+          : `Done: I researched your area and built ${plan.mode === "existing" ? "your plan to get more clients" : "your proposal"}. ${range ? `The market charges ${range}. ` : ""}${list ? `I propose these packages: ${list}.` : ""}`.trim();
     const walk = oneConfirmation(plan)
       ? ""
       : es

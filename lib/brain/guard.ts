@@ -2,6 +2,7 @@ import { BRAIN_MODEL, getBrainModel, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import { codeChecks, type BusinessPlan } from "../plan";
 import { textOf, today } from "./common";
+import { moneyAmounts, moneyTokens } from "./checks";
 
 // The Guardian: a cheap model that flags problems before the owner sees a
 // proposal. It never rewrites. Code checks run too, so a model failure never
@@ -54,14 +55,14 @@ const SCHEMA = {
 const CODE_TEXT: Record<string, { es: string; en: string }> = {
   claim: { es: "Hay una afirmación que necesita prueba (garantizado, el mejor, número de clientes o reseñas).", en: "A claim needs proof (guaranteed, the best, customer or review counts)." },
   offer: { es: "La oferta necesita una fecha de fin real y que no haya pasado.", en: "The offer needs a real end date that hasn't passed." },
-  license: { es: "Este oficio pide licencia estatal y todavía no la tienes.", en: "This trade needs a state license you don't have yet." },
+  license: { es: "Este oficio pide una licencia oficial y todavía no la tienes.", en: "This trade needs an official license you don't have yet." },
   restricted: { es: "Por ahora Sevrii no publica servicios de notario, trámites de inmigración, préstamos ni reparación de crédito: la ley los regula y piden licencias especiales.", en: "For now Sevrii doesn't publish notary, immigration paperwork, loan or credit repair services: they're regulated by law and need special licenses." },
   promise: { es: "Hay una frase que promete un resultado que nadie puede asegurar.", en: "A sentence promises a result nobody can guarantee." },
   lang: { es: "La propuesta dice que atiendes en un idioma que no me dijiste. Debe usar solo el idioma (o los idiomas) en que atiendes.", en: "The proposal says you serve in a language you didn't tell me. It must use only the language(s) you serve in." },
 };
 
 export function codeGuard(plan: BusinessPlan, lang: Lang, final = true): { block: string[]; warn: string[] } {
-  const raw = codeChecks(plan, today(plan.profile.state), final);
+  const raw = codeChecks(plan, today(plan.profile.state, plan.profile.country), final);
   // Only the version being approved counts, and a note that quotes a phrase
   // blocks only if that exact phrase is in it (never a ghost of an old version).
   // The checks quote some texts joined ("name includes", "q a"): those joins are
@@ -86,7 +87,8 @@ export function codeGuard(plan: BusinessPlan, lang: Lang, final = true): { block
 // different one is only a suggestion they approve in the chat. Checked by code
 // on the first proposal only (once they agree to a change in the chat, the new
 // price is theirs). Hourly or per-unit prices aren't compared with packages.
-const money = (t: string) => [...t.matchAll(/\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/g)].map((m) => Number(m[1].replace(/,/g, "")));
+// Any currency ("$35", "40 €", "45.000 COP").
+const money = moneyAmounts;
 export function keptPriceIssue(plan: BusinessPlan, lang: Lang): string | null {
   const cp = plan.profile.currentPrice || "";
   if (!cp || !plan.packages.length || /(hora|hour|\/\s?h(r|ra)?\b|pie|sq\.?\s?ft|milla|mile)/i.test(cp)) return null;
@@ -95,7 +97,8 @@ export function keptPriceIssue(plan: BusinessPlan, lang: Lang): string | null {
   const offered = new Set(plan.packages.flatMap((k) => money(k.price)));
   const lost = now.filter((n) => !offered.has(n));
   if (!lost.length) return null;
-  const list = lost.map((n) => `$${n}`).join(", ");
+  // Said as the owner wrote it (their currency), never re-written in dollars.
+  const list = lost.map((n) => moneyTokens(cp).find((x) => x.value === n)?.text ?? String(n)).join(", ");
   return lang === "es"
     ? `Hoy cobras ${list} y ningún paquete mantiene ese precio. Tu precio se queda como lo dijiste; si te propongo otro, te pido el OK primero.`
     : `Today you charge ${list} and no package keeps that price. Your price stays as you said it; if I suggest another one, I ask for your OK first.`;
@@ -138,6 +141,8 @@ export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block
             campaignType: plan.campaignType,
             faq: plan.faq,
             videoScript: plan.videoScript,
+            // A ("más clientes"): the plan to get clients is reviewed too.
+            ...(plan.mode === "existing" ? { growth: plan.growth, channels: plan.channels } : {}),
           })}`,
         },
       ],

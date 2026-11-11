@@ -1,6 +1,6 @@
 import type { Lang } from "../i18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan } from "../plan";
-import { planFingerprint } from "../planToStore";
+import { pageMatchesPlan } from "../planToStore";
 
 // The proposal is reviewed inside the Brain chat, one part at a time. A chat
 // message carries a token at its end and the chat draws the matching card:
@@ -126,7 +126,7 @@ export type PageState = "built" | "stale" | "todo";
 export function pageState(filled: boolean, hasPage: boolean, b: { plan: BusinessPlan; site: { fromPlan: string } } | undefined): PageState {
   if (filled) return "built";
   if (!hasPage) return "todo";
-  return b && b.site.fromPlan === planFingerprint(b.plan) ? "built" : "stale";
+  return b && pageMatchesPlan(b.site.fromPlan, b.plan) ? "built" : "stale";
 }
 
 // What comes after the Brain, said every time the strategy is approved: the

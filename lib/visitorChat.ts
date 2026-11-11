@@ -22,7 +22,7 @@ const TOOLS: Tool[] = [
       type: "object",
       properties: {
         name: { type: "string" },
-        phone: { type: "string", description: "US phone like (305) 555-0123" },
+        phone: { type: "string", description: "Phone number as the customer gave it (with country code if they included it)" },
         email: { type: "string" },
       },
     },
@@ -119,9 +119,10 @@ export async function runVisitorAi(b: BusinessRow, services: ServiceRow[], conv:
           const c: VisitorAiResult["contact"] = { ...out.contact };
           if (typeof input.name === "string" && input.name.trim()) c.name = input.name.trim().slice(0, 80);
           if (typeof input.phone === "string" && input.phone.trim()) {
-            const p = normalizePhone(input.phone);
+            // The business's country decides the default prefix (+57 in Colombia, +34 in Spain…).
+            const p = normalizePhone(input.phone, b.plan.profile.country);
             if (p) c.phone = p;
-            else result = "phone looks invalid; ask again (10 digits)";
+            else result = "phone looks invalid; ask again for the full number (with country code if outside the business's country)";
           }
           if (typeof input.email === "string" && input.email.trim()) {
             const e = input.email.trim().toLowerCase().slice(0, 254);

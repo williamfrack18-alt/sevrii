@@ -20,7 +20,7 @@ import {
   type ServiceRow,
 } from "@/lib/db";
 import { isOurBlob, ownsBlob, LIMITS, normalizePhone, publishGaps, startLayout, PAGE_DESIGNS, START_MODES, type PageDesign, type PublishGap, type SiteData } from "@/lib/site";
-import { planFingerprint, planReadyForStore } from "@/lib/planToStore";
+import { pageMatchesPlan, planReadyForStore } from "@/lib/planToStore";
 import { allow, LIMITS as RATE } from "@/lib/guard";
 import { addChatMessage, listChatMessages } from "@/lib/db";
 import { agentAreaGreeting, runStoreChatTurn, storeGreeting } from "@/lib/storeAgent";
@@ -83,11 +83,13 @@ export async function saveStoreAction(input: StoreFormInput): Promise<StoreSaveR
   if (!name) return { ok: false, error: "name" };
 
   const phoneRaw = clip(input.phone, 30);
-  const phone = phoneRaw ? normalizePhone(phoneRaw) : "";
+  // A national number gets the owner's country code (not +1 outside the US).
+  const country = business.plan.profile.country || undefined;
+  const phone = phoneRaw ? normalizePhone(phoneRaw, country) : "";
   if (phoneRaw && !phone) return { ok: false, error: "phone" };
 
   const waRaw = clip(input.whatsapp, 30);
-  const wa = waRaw ? normalizePhone(waRaw) : "";
+  const wa = waRaw ? normalizePhone(waRaw, country) : "";
   if (waRaw && !wa) return { ok: false, error: "whatsapp" };
 
   // Only the fields this form edits are written, so photos or a video that
@@ -376,7 +378,7 @@ export async function chooseStartAction(mode: string, design?: string): Promise<
     // page the owner already worked on in the Store chat (an older draft) is
     // never overwritten here: a newer plan shows the "Actualizar mi página"
     // banner instead, so they decide.
-    if (planReadyForStore(business.plan) && business.site.fromPlan !== planFingerprint(business.plan)) {
+    if (planReadyForStore(business.plan) && !pageMatchesPlan(business.site.fromPlan, business.plan)) {
       const ownerWorked = (await listChatMessages(business.id, "store")).some((m) => m.role === "user");
       await fillStoreFromPlan(business.id, lang, { onlyIfEmpty: ownerWorked, quiet: true });
     }

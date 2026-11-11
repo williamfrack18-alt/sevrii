@@ -46,10 +46,15 @@ function clip(s: string, max: number): string {
 }
 
 // Plain dollar amount ("$1,200", "$120.50", "$99/hr") → number. Anything else
-// ("$1.5k", "$2M") → null, so we never show a wrong "From $X".
+// ("$1.5k", "$2M", "$80.000") → null, so we never show a wrong "From $X".
 function plainDollars(price: string): number | null {
   const m = /\$\s?((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?)(?![\w.,])/.exec(price);
   return m ? Number(m[1].replace(/,/g, "")) : null;
+}
+// The letters stuck to the "$" ("CA$25" → "CA", "US$40" → "US", "$40" → ""),
+// so "From …" keeps the owner's currency.
+function dollarPrefix(price: string): string {
+  return /([A-Za-z]{0,3})\$/.exec(price)?.[1].toUpperCase() ?? "";
 }
 
 // A service agent can work on the official pages during a chat request.
@@ -161,7 +166,14 @@ export default async function PublicBusinessPage({
     );
 
   const reach = resolveReach(site, business.city, business.plan.profile);
-  const area = site.serviceArea || reachLabel(reach, site.lang) || business.city || "";
+  // Outside the US the place finder and its labels ("todo EE. UU.", "millas",
+  // a US city with the same name) don't apply: the page says what the owner said.
+  const country = business.plan.profile.country;
+  const abroad = Boolean(country) && country !== "US";
+  const area = site.serviceArea || (abroad ? "" : reachLabel(reach, site.lang)) || business.city || "";
+  // The header shows the short place ("Brooklyn, NY", "Bogotá, Colombia"); an
+  // online service shows where it serves.
+  const headerPlace = reach.mode === "remote" || site.reachMode === "remote" ? area : business.city || area;
   const mainTitle = completeFrom(site.headline, business.plan) || completeFrom(business.category, business.plan) || business.name;
   const images = [site.coverUrl, ...site.gallery].filter(Boolean);
   const ordered = [...services].sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
@@ -206,7 +218,11 @@ export default async function PublicBusinessPage({
   // every dollar price is a plain amount (else it could be wrong).
   const dollarPrices = ordered.map((x) => x.price || "").filter((p) => p.includes("$"));
   const nums = dollarPrices.map(plainDollars);
-  const fromPrice = !single && nums.length > 0 && nums.every((n) => n !== null) ? Math.min(...(nums as number[])) : null;
+  // One currency only ("CA$" and "$" mixed would make the lowest one wrong).
+  const prefixes = [...new Set(dollarPrices.map(dollarPrefix))];
+  const cur$ = `${prefixes[0] ?? ""}$`;
+  const fromPrice = !single && nums.length > 0 && prefixes.length === 1 && nums.every((n) => n !== null) ? Math.min(...(nums as number[])) : null;
+  const money = (n: number) => `${cur$}${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
   // Payment links that don't belong to a listed service get their own section.
   const extraPayLinks = payLinks.filter((l) => !ordered.some((sv) => payFor(sv.name)?.id === l.id));
 
@@ -227,7 +243,10 @@ export default async function PublicBusinessPage({
   if (site.insured) trust.push({ icon: "◇", text: t.insured });
   if (yearsInBusiness) trust.push({ icon: "★", text: t.years(yearsInBusiness) });
   if (site.spanish) trust.push({ icon: "ñ", text: langBadge });
-  if (reach.mode === "remote") trust.push({ icon: "🌎", text: reachLabel(reach, site.lang) });
+  if (reach.mode === "remote") {
+    const online = abroad ? site.serviceArea || (site.lang === "en" ? "Online" : "En línea") : reachLabel(reach, site.lang);
+    trust.push({ icon: "🌎", text: online });
+  }
   for (const f of site.features) if (trust.length < 5) trust.push({ icon: "✓", text: f });
 
   const keyPoints = site.keyPoints.length > 0 ? site.keyPoints : site.highlights.map((h) => ({ title: "", text: h }));
@@ -240,7 +259,8 @@ export default async function PublicBusinessPage({
     .map((x) => (x || "").trim().replace(/[.?!]+$/, ""))
     .filter((x) => x && x.length <= 60)
     .sort((a, b) => a.length - b.length)[0] || "";
-  const helloCity = site.baseCity || business.plan.profile.city || business.city || "";
+  // An online service isn't "in Bogotá": the city only for in-person services.
+  const helloCity = reach.mode === "remote" || site.reachMode === "remote" ? "" : site.baseCity || business.plan.profile.city || business.city || "";
   const lowerFirst = (x: string) => (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(x) ? `${x.charAt(0).toLowerCase()}${x.slice(1)}` : x);
   const hello = helloService
     ? site.lang === "en"
@@ -271,9 +291,9 @@ export default async function PublicBusinessPage({
   if (area) ld.areaServed = area;
   if (fromPrice !== null) {
     const hi = Math.max(...(nums as number[]));
-    ld.priceRange = hi > fromPrice ? `$${fromPrice}-$${hi}` : `$${fromPrice}`;
+    ld.priceRange = hi > fromPrice ? `${money(fromPrice)}-${money(hi)}` : money(fromPrice);
   } else if (single && ordered[0].price && plainDollars(ordered[0].price) !== null) {
-    ld.priceRange = `$${plainDollars(ordered[0].price)}`;
+    ld.priceRange = `${dollarPrefix(ordered[0].price)}$${plainDollars(ordered[0].price)}`;
   }
   const ldJson = JSON.stringify(ld).replace(/</g, "\\u003c");
 
@@ -482,7 +502,7 @@ export default async function PublicBusinessPage({
             <span className="brand-name">{site.logoUrl ? "" : "Sevrii"}</span>
           </span>
           <div className="header-title">{business.name}</div>
-          <span className="header-badge">{area}</span>
+          <span className="header-badge" title={headerPlace}>{headerPlace}</span>
         </div>
       </header>
 
@@ -612,7 +632,7 @@ export default async function PublicBusinessPage({
                 {topTools("intro")}
                 {fromPrice !== null && (
                   <div className="from-price">
-                    {t.fromPrice} <strong className="grad-text">{usd(fromPrice * 100).replace(/\.00$/, "")}</strong>
+                    {t.fromPrice} <strong className="grad-text">{money(fromPrice)}</strong>
                   </div>
                 )}
                 <p className="lede">{edit("pitch", business.pitch, { multiline: true })}</p>

@@ -8,7 +8,7 @@ import { STORE_TEXT } from "@/lib/storeI18n";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { toClientBusiness, type ClientBusiness, type ClientService } from "./types";
 import { chooseStartAction, fillStoreFromPlanAction, loadStoreAction, previewLinkAction, setPublishedAction } from "@/app/storeActions";
-import { planFingerprint, planReadyForStore } from "@/lib/planToStore";
+import { pageMatchesPlan, planReadyForStore } from "@/lib/planToStore";
 import { cardsFor } from "@/lib/cards";
 import type { PageDesign, PublishGap } from "@/lib/site";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
@@ -110,7 +110,7 @@ export default function StoreView({
   }
 
   // The Brain's expediente is approved and the page doesn't reflect it yet.
-  const planPending = planReadyForStore(business.plan) && business.site.fromPlan !== planFingerprint(business.plan);
+  const planPending = planReadyForStore(business.plan) && !pageMatchesPlan(business.site.fromPlan, business.plan);
   const [filling, setFilling] = useState(false);
   const [fillError, setFillError] = useState(false);
   const [sync, setSync] = useState<{ key: number; messages: Msgs } | undefined>();
