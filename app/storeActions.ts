@@ -405,7 +405,12 @@ export async function chooseStartAction(mode: string, design?: string): Promise<
         : es
           ? "Tu página ya está armada con lo que aprobaste en el Cerebro. Revísala en la vista previa y dime aquí lo que quieras cambiar, o súbeme fotos y video reales de tu trabajo con el botón +."
           : "Your page is built with what you approved in the Brain. Check it in the preview and tell me here what you'd like to change, or send me real photos and video of your work with the + button.";
-    await addChatMessage(business.id, "store", "ai", `${note}${empty ? "" : ask}`);
+    // The page was already built when the strategy was approved and the chat
+    // says so ("¡Listo! Armé tu página…", with what is still missing): the same
+    // news isn't given twice. A blank or empty start still gets its own message.
+    const chat = await listChatMessages(business.id, "store");
+    const alreadyTold = !empty && mode !== "blank" && chat.length > 0 && !chat.some((m) => m.role === "user");
+    if (!alreadyTold) await addChatMessage(business.id, "store", "ai", `${note}${empty ? "" : ask}`);
     ok = true;
   }
   const fresh = (await getBusinessById(business.id)) ?? business;

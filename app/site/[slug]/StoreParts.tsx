@@ -20,12 +20,18 @@ export type MediaItem =
 // "desde $850" stays "desde $850" (the selector and the price card must say the
 // same); compact (the small squares) shows it as "$850+".
 const FROM = /^\s*(desde|a partir de|from|starting at)\b/i;
-function shortPrice(p: string, lang: Lang, compact = false): string {
+export function shortPrice(p: string, lang: Lang, compact = false): string {
   // Letters stuck to the "$" are the currency ("CA$25", "US$40", "MX$450"): kept.
-  const m = /(?<![A-Za-z])(?:[A-Z]{1,3})?\$\s?\d[\d,]*(?:\.\d+)?(?:\s?[kK]\b)?/.exec(p);
+  // The whole amount, with its thousands however they are written
+  // ("$1.200.000", "$1,200.50"): never cut at the first dot.
+  const AMOUNT = /(?<![A-Za-z])(?:[A-Z]{1,3})?\$\s?\d(?:[\d.,]*\d)?(?:\s?[kK]\b)?/g;
+  const all = [...p.matchAll(AMOUNT)];
+  const m = all[0];
   if (m) {
     const amt = m[0].replace(/\s/g, "");
     const from = FROM.exec(p.slice(0, m.index));
+    // A range ("$150.000 a $250.000") is never shown as its lowest price alone.
+    if (!from && all.length >= 2) return compact ? `${amt}+` : `${amt}–${all[all.length - 1][0].replace(/\s/g, "")}`;
     if (!from) return amt;
     return compact ? `${amt}+` : `${from[1].toLowerCase()} ${amt}`;
   }

@@ -244,7 +244,7 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     // A business type the owner already has stays (the proposal's service title
     // is long); new projects take the short service name.
     await updateBusinessDetails(businessId, {
-      category: b.category?.trim() ? b.category : (plan.profile.mainService || plan.service).slice(0, 60),
+      category: b.category?.trim() ? b.category : (plan.profile.mainService || plan.service).slice(0, 60).replace(/^\p{Ll}/u, (c) => c.toUpperCase()),
       city: b.city || plan.profile.city || null,
     });
     // The summary is written from the FINAL proposal: the Strategist's first

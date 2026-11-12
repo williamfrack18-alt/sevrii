@@ -10,7 +10,7 @@ import { toClientBusiness, type ClientBusiness, type ClientService } from "./typ
 import { chooseStartAction, fillStoreFromPlanAction, loadStoreAction, previewLinkAction, setPublishedAction } from "@/app/storeActions";
 import { pageMatchesPlan, planReadyForStore } from "@/lib/planToStore";
 import { cardsFor } from "@/lib/cards";
-import type { PageDesign, PublishGap } from "@/lib/site";
+import { isPlaceholderName, type PageDesign, type PublishGap } from "@/lib/site";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
 import { ACCENT, BRAND_BTN, GREEN, INK, TINT } from "@/lib/panel";
 
@@ -150,10 +150,14 @@ export default function StoreView({
       ]
     : hasPage
       ? [
+          // The first thing a new project needs: its real name on the page.
+          ...(isPlaceholderName(business.name) ? [{ label: es ? "Poner el nombre de mi negocio" : "Set my business name", text: es ? "Mi negocio se llama " : "My business is called " }] : []),
           { label: es ? "Agregar fotos" : "Add photos", upload: true },
           { label: es ? "Agregar un video" : "Add a video", upload: true },
           { label: es ? "Cambiar el título" : "Change the headline", text: es ? "Cambia el título de mi página a: " : "Change my page headline to: " },
-          { label: es ? "Cambiar la oferta" : "Change the offer", text: es ? "Cambia la oferta: " : "Change the offer: " },
+          business.site.offer
+            ? { label: es ? "Cambiar la oferta" : "Change the offer", text: es ? "Cambia la oferta: " : "Change the offer: " }
+            : { label: es ? "Agregar una oferta" : "Add an offer", text: es ? "Agrega esta oferta para clientes nuevos: " : "Add this offer for new customers: " },
           { label: es ? "Cambiar precios" : "Change prices", text: es ? "Cambia el precio de " : "Change the price of " },
         ]
       : [];
@@ -419,18 +423,24 @@ function StartPicker({ business, lang, onDone }: { business: ClientBusiness; lan
             setMode(id);
           }
         }}
-        className="rounded-[22px] bg-white p-4 md:p-5 flex flex-col gap-3 cursor-pointer text-left outline-none focus-visible:ring-2"
-        style={{ boxShadow: on ? `0 0 0 2px ${GREEN}, 0 10px 30px -14px rgba(10,10,10,.25)` : "0 0 0 1px rgba(10,10,10,.08)" }}
+        className="dash-on-dark rounded-[22px] p-4 md:p-5 flex flex-col gap-3 cursor-pointer text-left outline-none focus-visible:ring-2"
+        // Dark glass like the rest of the panel (the page preview inside stays
+        // light: it is the customer's page as it will look).
+        style={{
+          background: on ? "rgba(74,222,128,0.07)" : "rgba(255,255,255,0.045)",
+          backdropFilter: "blur(14px)",
+          boxShadow: on ? "0 0 0 2px #4ADE80, 0 18px 40px -22px rgba(0,0,0,.7)" : "inset 0 0 0 1px rgba(255,255,255,0.10)",
+        }}
       >
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 h-5 w-5 rounded-full shrink-0 flex items-center justify-center" style={{ boxShadow: `inset 0 0 0 2px ${on ? GREEN : "rgba(10,10,10,.25)"}` }} aria-hidden="true">
-            {on && <span className="h-2.5 w-2.5 rounded-full" style={{ background: GREEN }} />}
+          <span className="mt-0.5 h-5 w-5 rounded-full shrink-0 flex items-center justify-center" style={{ boxShadow: `inset 0 0 0 2px ${on ? "#4ADE80" : "rgba(255,255,255,.32)"}` }} aria-hidden="true">
+            {on && <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#4ADE80" }} />}
           </span>
           <div className="min-w-0 flex flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[16.5px] font-semibold" style={{ color: INK }}>{title}</span>
+              <span className="text-[16.5px] font-semibold text-pfg">{title}</span>
               {recommended && (
-                <span className="inline-flex items-center h-6 px-2.5 rounded-full text-[11.5px] font-bold uppercase tracking-[0.06em]" style={{ background: TINT, color: ACCENT }}>
+                <span className="inline-flex items-center h-6 px-2.5 rounded-full text-[11.5px] font-bold uppercase tracking-[0.06em]" style={{ background: "rgba(74,222,128,0.16)", color: "#86EFAC" }}>
                   {es ? "Recomendada" : "Recommended"}
                 </span>
               )}
@@ -453,8 +463,8 @@ function StartPicker({ business, lang, onDone }: { business: ClientBusiness; lan
           <h1 className="text-[26px] md:text-[34px] font-light tracking-[-0.02em] text-pfg leading-tight">{es ? "¿Cómo quieres crear tu página?" : "How do you want to create your page?"}</h1>
           <p className="text-[14.5px] text-psub leading-relaxed max-w-[680px]">
             {es
-              ? `Todo se arma con lo que aprobaste en el Cerebro para ${business.name}: tu servicio, tus paquetes, tus precios y tu oferta. No inventamos fotos, testimonios ni precios.`
-              : `Everything is built from what you approved in the Brain for ${business.name}: your service, packages, prices and offer. We never invent photos, testimonials or prices.`}
+              ? `Todo se arma con lo que aprobaste en el Cerebro${isPlaceholderName(business.name) ? "" : ` para ${business.name}`}: tu servicio, tus paquetes${business.plan.offer && !business.plan.noOffer ? ", tus precios y tu oferta" : " y tus precios"}. No inventamos fotos, testimonios ni precios.`
+              : `Everything is built from what you approved in the Brain${isPlaceholderName(business.name) ? "" : ` for ${business.name}`}: your service, packages${business.plan.offer && !business.plan.noOffer ? ", prices and offer" : " and prices"}. We never invent photos, testimonials or prices.`}
           </p>
         </div>
 
@@ -484,10 +494,10 @@ function StartPicker({ business, lang, onDone }: { business: ClientBusiness; lan
                       aria-checked={on}
                       onClick={() => setDesign(d.id)}
                       className="rounded-2xl p-2 flex flex-col gap-2 text-left"
-                      style={{ boxShadow: on ? `0 0 0 2px ${GREEN}` : "0 0 0 1px rgba(10,10,10,.1)" }}
+                      style={{ background: "rgba(255,255,255,0.04)", boxShadow: on ? "0 0 0 2px #4ADE80" : "inset 0 0 0 1px rgba(255,255,255,0.12)" }}
                     >
                       <Thumb slug={business.slug} design={d.id} label={d.name} />
-                      <span className="px-1 text-[14px] font-semibold" style={{ color: INK }}>
+                      <span className="px-1 text-[14px] font-semibold text-pfg">
                         {on ? "✓ " : ""}
                         {d.name}
                       </span>

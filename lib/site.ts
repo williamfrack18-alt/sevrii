@@ -340,6 +340,12 @@ export function startLayout(mode: Exclude<StartMode, "">, design: PageDesign = "
 }
 
 // What the page still lacks to really sell — the chat asks for these, in order.
+// The name every new project starts with ("Proyecto nuevo"): never a real
+// business name, so the page shows the service instead until the owner gives one.
+export function isPlaceholderName(name: string | null | undefined): boolean {
+  return /^\s*(proyecto nuevo|new project)?\s*$/i.test(name ?? "");
+}
+
 export function missingForSales(opts: {
   category: string;
   whatsapp: string | null;

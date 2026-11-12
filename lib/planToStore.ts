@@ -191,7 +191,8 @@ export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraf
     : city
     ? p.radiusMiles
       ? `${city} ${es ? "y" : "and"} ${radiusText(p.radiusMiles, us, es)}`
-      : city
+      // Their neighborhood, when they said it ("Laureles, Medellín").
+      : p.area && !fold(city).includes(fold(p.area)) ? `${p.area}, ${city}` : city
     : "";
   const pageLang: Lang = lang;
 
@@ -211,7 +212,10 @@ export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraf
   // The closing title ("¿Necesitas …?") uses the shortest name that fits whole;
   // a long one never gets cut in the middle — it gets a plain question instead.
   const lower = (x: string) => `${x.charAt(0).toLowerCase()}${x.slice(1)}`;
-  const shortName = [p.mainService, plan.service].map((x) => (x || "").trim().replace(/[.?!]+$/, "")).filter(Boolean).sort((a, b) => a.length - b.length)[0] || "";
+  // What they want to sell more of (A's focus) names the page better than the
+  // general trade; otherwise the shortest service name.
+  const focus = (p.focus || "").trim().replace(/[.?!]+$/, "");
+  const shortName = (focus && focus.length <= 55 ? focus : "") || [p.mainService, plan.service].map((x) => (x || "").trim().replace(/[.?!]+$/, "")).filter(Boolean).sort((a, b) => a.length - b.length)[0] || "";
   const ask = shortName ? (es ? `¿Necesitas ${lower(shortName)}?` : `Need ${lower(shortName)}?`) : "";
   const ctaTitle = ask && ask.length <= 70 ? ask : es ? "¿Te ayudamos? Escríbenos" : "Can we help? Message us";
   return {

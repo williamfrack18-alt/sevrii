@@ -10,6 +10,7 @@ import {
   mergeBusinessSite,
   updateBusinessAccent,
   updateBusinessDetails,
+  updateBusinessPlan,
   updateBusinessWhatsapp,
   updateService,
   setServiceAgent,
@@ -18,7 +19,8 @@ import {
 } from "./db";
 import { HIDEABLE, LIMITS, PAGE_DESIGNS, PAGE_SECTIONS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, sectionOrder, type Hideable, type PageDesign, type PageSection, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
-import { ownerPricedPackages, pageMatchesPlan, planReadyForStore, refPriceUnconfirmed } from "./planToStore";
+import { isPlaceholderName, renameProject } from "./projectName";
+import { ownerPricedPackages, pageMatchesPlan, planFingerprint, planReadyForStore, refPriceUnconfirmed } from "./planToStore";
 import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, offerTarget, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
 
 // The Store tab is one chat. This agent interviews the owner for exactly the
@@ -58,6 +60,7 @@ const TOOLS: Tool[] = [
         noLicenseNeeded: { type: "boolean", description: "Owner said their trade needs no license in their state" },
         insured: { type: "boolean", description: "ONLY if the owner said they carry insurance" },
         spanish: { type: "boolean", description: "Owner serves customers in Spanish" },
+        languages: { type: "string", enum: ["es", "en", "both"], description: "The language(s) the owner serves customers in, ONLY when the owner says it in this chat (es = Spanish only, en = English only, both). It changes the language badge of the page and what the page chat may say; use it whenever the owner corrects their languages" },
         yearsInBusiness: { type: "number", description: "ONLY if the owner said it" },
         googleReviewsUrl: { type: "string", description: "https link to their Google reviews" },
         keyPoints: { type: "array", items: pointSchema, description: "3-5 selling points shown as a checklist next to the buy buttons. title = 2-4 words, text = one short line. Based only on owner facts." },
@@ -253,7 +256,7 @@ How to think (always):
 - Images: describe a NEW upload once, then classify it with set_photo (whatItIs). A screenshot of a screen (this panel, the page, an app, a chat, text) is never a work photo: don't put it on the page; look at what the owner points at in it and fix that. Never describe old photos again.
 - Facts in the state are the truth: "published", "alertsOn", "ownerDeclined", "realPhotos", "hasVideo", "languages". Never ask for what's already done (alertsOn true = alerts are on) or what they declined. When they say no to something (video, publishing, reviews…), save it with set_layout.declined and never suggest it again.
 - Publish (or unpublish) ONLY when the owner asks for it in their message ("publícala"). Don't keep asking "¿la publico?".
-- Languages: only "languages" in the state. Never say they serve in English (or Spanish) if it isn't there.
+- Languages: only "languages" in the state. Never say they serve in English (or Spanish) if it isn't there. If the owner tells you which languages they serve in (or corrects them: "solo atiendo en español"), save it with update_page.languages in that same turn and also take the other language out of the texts that mention it; never say the page changed its languages without that call.
 - Button names on screen: the live preview of the page is right beside this chat; «Ver mi página» (above the preview; «Abrir página publicada» once it's published) opens it in a new tab, and «Editar mi página» edits it in place. There is no page summary under the chat.
 - Sevrii, so you can guide them (a button to each section appears under your reply when it applies): Cerebro = their strategy; Store = this page; Conversaciones = customer chats and «Avisos» (notifications); Payments = card payment links for their services (Stripe; 5% per payment, everything included; they connect Stripe there once); Marketing = their strategy and ads on Facebook and Instagram with their own account, and AI videos; Planes = plans. After the page is ready and published, the next step is Marketing, and Payments to charge by card.
 - If the owner is upset or insults you: one short, calm line that answers or does what they asked. No apology lists, no repeating the page status, no new suggestions.`;
@@ -273,6 +276,9 @@ export function publishConsent(publish: boolean, ownerLast: string, lastAssistan
   return asked && YES.test(t);
 }
 
+// The owner talking about the languages they serve in.
+const SAID_LANGS = /\b(espa[ñn]ol|ingl[eé]s|spanish|english|idiomas?|languages?|biling[uü]e|bilingual)\b/i;
+
 // The owner is upset: the reply gets short and only does what they asked.
 const UPSET = /(in[uú]til|imb[eé]cil|idiota|est[uú]pid|mierda|maldit|co[nñ]o|carajo|odio|horrible|useless|stupid|idiot|damn|shit|wtf)/i;
 
@@ -291,7 +297,11 @@ export function pageState(b: BusinessRow, services: ServiceRow[], extra: { alert
     brainPlan: b.plan.service ? { profile: { ownerName: b.plan.profile.ownerName, mainService: b.plan.profile.mainService, country: b.plan.profile.country || "US", region: b.plan.profile.region, city: b.plan.profile.city, state: b.plan.profile.state, zip: b.plan.profile.zip, radiusMiles: b.plan.profile.radiusMiles, serviceMode: b.plan.profile.serviceMode, remoteScope: b.plan.profile.remoteScope, languages: b.plan.profile.languages, yearsExperience: b.plan.profile.yearsExperience, yearsOwnBusiness: b.plan.profile.yearsOwnBusiness, currentPrice: b.plan.profile.currentPrice }, neverWants: b.plan.profile.notWant, rejectedIdeas: b.plan.rejectedIdeas, flowLanguage: b.plan.flowLang || null, cardAnswers: b.plan.cards, service: b.plan.service, customer: b.plan.customer, problem: b.plan.problem, promise: b.plan.promise, differentiators: b.plan.differentiators, packages: ownerPricedPackages(b.plan), offer: b.plan.offer, photoIdeas: b.plan.photoIdeas, videoScript: b.plan.videoScript ? "ready" : "" } : null,
     page: b.site,
     services: services.map((s) => ({ id: s.id, name: s.name, price: s.price, description: s.description, featured: Boolean(s.featured), tag: s.tag ?? null })),
-    missing: missingForSales({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length, pricedServices: priced }).filter((m) => !b.site.declined.some((d) => m.toLowerCase().includes(d))),
+    missing: [
+      // The page still shows the name every new project starts with.
+      ...(isPlaceholderName(b.name) ? ["name (the business name: the page still shows the temporary one; ask what their business is called, or what name they want on the page — their own name is fine — and save it with update_page.name)"] : []),
+      ...missingForSales({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length, pricedServices: priced }),
+    ].filter((m) => !b.site.declined.some((d) => m.toLowerCase().includes(d))),
     // Facts to never get wrong: what's on, what's done, what they said no to.
     published: Boolean(b.published),
     alertsOn: Boolean(extra.alertsOn),
@@ -299,7 +309,7 @@ export function pageState(b: BusinessRow, services: ServiceRow[], extra: { alert
     layout: { galleryCards: b.site.galleryCards, hiddenSections: b.site.hidden },
     realPhotos: [b.site.coverUrl, ...b.site.gallery].filter(Boolean).length,
     hasVideo: Boolean(b.site.videoUrl),
-    languages: b.plan.profile.languages || (b.site.spanish ? "es" : ""),
+    languages: b.site.langs || b.plan.profile.languages || (b.site.spanish ? "es" : ""),
     publishBlockers: publishGaps({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: services.length }),
     ...(b.plan.mode === "agent" || b.serviceAgent.name
       ? {
@@ -374,7 +384,8 @@ async function runTool(
         });
       }
       const details: Partial<{ name: string; category: string; pitch: string; city: string | null }> = {};
-      if (typeof input.name === "string" && input.name.trim()) details.name = clip(input.name, LIMITS.name);
+      // The real name also gives the draft its real address (not "proyecto-1a2b…").
+      if (typeof input.name === "string" && input.name.trim() && !isPlaceholderName(input.name)) await renameProject(b, clip(input.name, LIMITS.name));
       if (typeof input.category === "string" && input.category.trim()) details.category = clip(input.category, 60);
       if (typeof input.pitch === "string" && input.pitch.trim()) details.pitch = clip(input.pitch, LIMITS.pitch);
       if (typeof input.city === "string") details.city = clip(input.city, 80) || null;
@@ -418,6 +429,26 @@ async function runTool(
           if (where && zip) patch.baseZip = zip;
           if (input.reachMode === "local" || where) patch.reachMode = "local";
           if (typeof input.reachRadiusMiles === "number") patch.reachRadius = Math.max(1, Math.min(300, Math.round(input.reachRadiusMiles)));
+        }
+      }
+      // The languages they serve in, said by the owner here: the badge on the
+      // page, the Brain profile and what the chats may claim all follow it.
+      let planNow = b.plan;
+      if (input.languages === "es" || input.languages === "en" || input.languages === "both") {
+        if (!SAID_LANGS.test(ctx.ownerSaid ?? "")) notes.push("languages NOT changed: the owner never said which languages they serve in. Ask them (español, inglés o los dos)");
+        else {
+          const langs = input.languages;
+          const us = !b.plan.profile.country || b.plan.profile.country === "US";
+          patch.langs = langs;
+          // "Se habla español" is worth saying in the US or on an English page; both anywhere.
+          patch.spanish = langs === "both" || (langs === "es" && (us || (input.lang ?? b.site.lang) === "en"));
+          if (b.plan.profile.languages !== langs) {
+            const matched = pageMatchesPlan(b.site.fromPlan, b.plan);
+            planNow = { ...b.plan, profile: { ...b.plan.profile, languages: langs } };
+            await updateBusinessPlan(b.id, planNow);
+            // Same page, same plan: no "update your page" banner for this.
+            if (matched) patch.fromPlan = planFingerprint(planNow);
+          }
         }
       }
       if (input.clearOffer) patch.offer = null;
@@ -758,7 +789,7 @@ export async function runStoreChatTurn(opts: {
     reply = aiErrorReply(err, opts.lang === "en" ? "en" : "es");
   }
 
-  reply = cleanStoreReply(reply, business, { alertsOn, upset, message: opts.message });
+  reply = cleanStoreReply(reply, business, { alertsOn, upset, message: opts.message, lastAssistant });
   // The next step is a button, not "búscalo en el menú": after publishing, or
   // when the owner asks about Marketing, Payments or their chats.
   const go: string[] = [];
@@ -772,7 +803,7 @@ export async function runStoreChatTurn(opts: {
 
 // Checked in code on every Store reply: no pushing what the owner declined or
 // already did, no languages they didn't give, and short when they're upset.
-function cleanStoreReply(reply: string, b: BusinessRow, o: { alertsOn: boolean; upset: boolean; message: string }): string {
+export function cleanStoreReply(reply: string, b: Pick<BusinessRow, "site" | "plan" | "published">, o: { alertsOn: boolean; upset: boolean; message: string; lastAssistant?: string }): string {
   if (!reply) return reply;
   const declined = new Set(b.site.declined);
   const asked = (r: RegExp) => r.test(o.message);
@@ -787,12 +818,23 @@ function cleanStoreReply(reply: string, b: BusinessRow, o: { alertsOn: boolean; 
   if ((b.published || declined.has("publish")) && !asked(PUBLISH)) drop.push(/(¿[^?]*publi[cq]|publicar(la)? ahora|shall i publish|publish it now)/i);
   if (declined.has("reviews") && !asked(REVIEWS)) drop.push(REVIEWS);
   // Never claim a language the owner didn't give.
-  const langs = b.plan.profile.languages || (b.site.spanish ? "es" : "");
+  const langs = b.site.langs || b.plan.profile.languages || (b.site.spanish ? "es" : "");
   if (langs === "es") drop.push(/(atiend|habl|serv|attend|speak)\w*[^.?!]{0,40}(ingl[eé]s|english)|biling[uü]e|bilingual/i);
   if (langs === "en") drop.push(/(atiend|habl|serv|attend|speak)\w*[^.?!]{0,40}(espa[nñ]ol|spanish)|biling[uü]e|bilingual/i);
   let parts = reply.split(/(?<=[.!?])\s+|\n+/).filter((x) => x.trim());
   const kept = parts.filter((x) => !drop.some((r) => r.test(x)));
   if (kept.length) parts = kept;
+  // The question the last reply already ended with (and the owner didn't
+  // answer: they asked for something else) isn't asked again right away —
+  // "¿Cómo te llamas?" under every reply reads like a broken record.
+  const questionsIn = (t: string) => (t.match(/¿[^?]*\?|[^.!?¿\n]*\?/g) ?? []).map((q) => fold(q).replace(/[^a-z0-9]+/g, " ").trim()).filter((q) => q.length >= 8);
+  const before = new Set(questionsIn(o.lastAssistant ?? ""));
+  if (before.size) {
+    const fresh = parts.filter((x) => !questionsIn(x).some((q) => before.has(q)));
+    // The sentence that only introduces that question goes with it.
+    if (fresh.length && fresh.length < parts.length) parts = fresh.filter((x, i) => !(i === fresh.length - 1 && /^(falta|me falta|solo falta|still missing|i still need)\b/i.test(x.trim())));
+    if (!parts.length) parts = fresh;
+  }
   // Upset owner: at most 3 sentences, no closing sales question.
   if (o.upset) parts = parts.slice(0, 3);
   return parts.join(" ").replace(/\s{2,}/g, " ").trim();

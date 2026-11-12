@@ -3,6 +3,7 @@ import { BRAIN_MODEL, aiErrorReply, getBrainModel, logAiError } from "../claude"
 import type { Lang } from "../i18n";
 import { slugify } from "../ai";
 import { after } from "next/server";
+import { renameProject } from "../projectName";
 import { runForUser } from "../usage";
 import { addPlanInsights, addChatMessage, getBusinessById, isSlugTaken, latestResearchRun, listChatMessages, listServices, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
 import {
@@ -492,19 +493,6 @@ export function applyApprovals(plan: BusinessPlan, blocks: ApprovalBlock[], lang
     }
   }
   return { plan: parsePlan(next), refused };
-}
-
-async function renameProject(b: BusinessRow, name: string) {
-  const clean = name.trim().slice(0, 80);
-  if (!clean || clean === b.name) return;
-  await updateBusinessDetails(b.id, { name: clean });
-  // The temporary address changes to the real name while the page is a draft.
-  if (!b.published && b.slug.startsWith("proyecto-")) {
-    const base = slugify(clean) || "negocio";
-    let slug = base;
-    for (let n = 2; await isSlugTaken(slug); n++) slug = `${base}-${n}`;
-    await updateBusinessSlug(b.id, slug);
-  }
 }
 
 // Placeholders the model sometimes saves as a business name.

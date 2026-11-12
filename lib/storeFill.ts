@@ -2,7 +2,7 @@
 import { addChatMessage, addService, deleteService, getBusinessById, listServices, mergeBusinessSite, setServiceAgent, updateBusinessDetails, type BusinessRow } from "./db";
 import { EMPTY_AGENT, offerTarget, parseServiceAgent, periodHours, type AgentOffer, type ServiceAgent } from "./serviceAgentConfig";
 import type { BusinessPlan } from "./plan";
-import { normalizePhone, type SiteData } from "./site";
+import { isPlaceholderName, normalizePhone, type SiteData } from "./site";
 import { planFingerprint, planReadyForStore, storeFromPlan } from "./planToStore";
 import { stripReasoning } from "./pageText";
 
@@ -147,13 +147,17 @@ export function doneMessage(lang: Lang, b: BusinessRow, packages: number, priced
     : `Done! I built your page from what you approved in the Brain: ${partList}${pk}. On the right you see your page as it looks (on a phone, tap "Preview").${hiddenNote}`;
   if (packages && unpriced > 0) missing.unshift(es ? "tu precio para cada paquete que todavía no lo tiene" : "your price for each package that doesn't have one yet");
   if (!s.reachMode) missing.unshift(es ? "dónde atiendes (en persona en tu zona o en línea)" : "where you serve (in person in your area, or online)");
+  // A new project is still called "Proyecto nuevo": the page needs its real name.
+  if (isPlaceholderName(b.name)) missing.unshift(es ? "el nombre de tu negocio (o el tuyo, si trabajas con tu nombre)" : "your business name (or your own, if you work under your name)");
   const media = s.gallery.length === 0 && !s.coverUrl || !s.videoUrl;
   if (!missing.length) return `${built} ${es ? "Si quieres cambiar algo, dímelo aquí." : "If you want to change anything, tell me here."}`;
   const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} ${es ? "y" : "and"} ${missing[missing.length - 1]}`;
   const how = media
     ? es ? "Las fotos y el video me los puedes mandar aquí mismo con el botón +." : "You can send me the photos and the video right here with the + button."
     : es ? "Dímelo aquí." : "Tell me here.";
-  return `${built} ${es ? `Para que quede completa me falta ${list}.` : `To finish it I still need ${list}.`} ${how}`;
+  // "Me faltan fotos…", "me falta tu horario".
+  const plural = missing.length > 1 || /^(fotos|photos)/i.test(missing[0]);
+  return `${built} ${es ? `Para que quede completa me falta${plural ? "n" : ""} ${list}.` : `To finish it I still need ${list}.`} ${how}`;
 }
 
 // "$29/mes", "desde $15", "$40 por sesión de 3 días" → an offer the chat can sell.

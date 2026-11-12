@@ -131,19 +131,21 @@ export function pageState(filled: boolean, hasPage: boolean, b: { plan: Business
 
 // What comes after the Brain, said every time the strategy is approved: the
 // owner never has to guess the next step.
-export function nextSteps(lang: Lang, page: PageState): string {
+export function nextSteps(lang: Lang, page: PageState, hasOffer = true): string {
   const es = lang === "es";
+  // Only what the strategy really has (never "tu oferta" when there is none).
+  const what = es ? (hasOffer ? "tu servicio, tus precios, tu oferta y tus preguntas" : "tu servicio, tus precios y tus preguntas") : hasOffer ? "your service, prices, offer and FAQ" : "your service, prices and FAQ";
   const store = es
     ? page === "built"
-      ? "ya armé tu página con lo que aprobamos: tu servicio, tus precios, tu oferta y tus preguntas. Revísala, agrega fotos tuyas y de tu trabajo, y cambia lo que quieras."
+      ? `ya armé tu página con lo que aprobamos: ${what}. Revísala, agrega fotos tuyas y de tu trabajo, y cambia lo que quieras.`
       : page === "stale"
         ? "tu página todavía muestra la versión anterior: no la cambié sin tu permiso, porque ya la habías armado. Ahí toca «Actualizar mi página» para pasarle lo que acabamos de aprobar, y revisa tus fotos y textos."
-        : "ahí se arma tu página con lo que aprobamos: tu servicio, tus precios, tu oferta y tus preguntas. Revísala, agrega fotos tuyas y de tu trabajo, y cambia lo que quieras."
+        : `ahí se arma tu página con lo que aprobamos: ${what}. Revísala, agrega fotos tuyas y de tu trabajo, y cambia lo que quieras.`
     : page === "built"
-      ? "I already built your page from what we approved: your service, prices, offer and FAQ. Review it, add photos of you and your work, and change anything you like."
+      ? `I already built your page from what we approved: ${what}. Review it, add photos of you and your work, and change anything you like.`
       : page === "stale"
         ? "your page still shows the earlier version: I didn't change it without your OK, since you had already built it. Tap \"Update my page\" there to bring in what we just approved, and check your photos and texts."
-        : "your page is built there from what we approved: your service, prices, offer and FAQ. Review it, add photos of you and your work, and change anything you like.";
+        : `your page is built there from what we approved: ${what}. Review it, add photos of you and your work, and change anything you like.`;
   const tap = es
     ? page === "stale"
       ? "Toca «Armar mi página en Store» y luego «Actualizar mi página»."

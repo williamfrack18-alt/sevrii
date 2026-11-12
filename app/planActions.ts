@@ -290,7 +290,7 @@ async function afterApproved(business: BusinessRow, lang: Lang) {
   // reopened strategy never rewrites a page the owner already has), or none.
   const fresh = await getBusinessById(business.id);
   const hasPage = (await listServices(business.id)).length > 0 || Boolean(fresh?.site.headline);
-  await addChatMessage(business.id, CHANNEL, "ai", `${nextSteps(lang, pageState(filled, hasPage, fresh))}\n\n${DONE_TOKEN}`);
+  await addChatMessage(business.id, CHANNEL, "ai", `${nextSteps(lang, pageState(filled, hasPage, fresh), Boolean(fresh?.plan.offer && !fresh.plan.noOffer))}\n\n${DONE_TOKEN}`);
 }
 
 // Every block is approved but the plan is still open (a final check stopped

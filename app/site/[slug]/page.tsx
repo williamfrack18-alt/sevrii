@@ -12,7 +12,7 @@ import { previewOk } from "@/lib/preview";
 import { allow, clientIp } from "@/lib/guard";
 import { STORE_TEXT } from "@/lib/storeI18n";
 import { reachLabel, resolveReach } from "@/lib/reach";
-import { activeOffer, HIDEABLE, PAGE_DESIGNS, sectionOrder, storeTheme, type PageDesign, type PageSection, type TopPart } from "@/lib/site";
+import { activeOffer, HIDEABLE, isPlaceholderName, PAGE_DESIGNS, sectionOrder, storeTheme, type PageDesign, type PageSection, type TopPart } from "@/lib/site";
 import { getLang } from "@/lib/lang";
 import type { EditField } from "@/app/siteEditActions";
 import { BuyActions, ChatIcon, ChatLink, Countdown, Gallery, UntilOfferEnds, type MediaItem } from "./StoreParts";
@@ -27,6 +27,15 @@ import "./store.css";
 // (if the subscription ends, the page goes offline until they subscribe again).
 // Metadata and the page share these lookups (one query each per request).
 const businessBySlug = cache((slug: string) => getBusinessBySlug(slug));
+
+// A new project is called "Proyecto nuevo" until the owner gives its real
+// name: customers never read that; the page shows what it sells instead.
+const capFirst = (x: string) => x.replace(/^\p{Ll}/u, (c) => c.toUpperCase());
+function shownName(b: BusinessRow): string {
+  if (!isPlaceholderName(b.name)) return b.name;
+  const title = [b.plan.service, b.category, b.plan.profile.mainService].map((x) => (x || "").trim().replace(/[.?!]+$/, "")).find((x) => x && x.length <= 60);
+  return title ? capFirst(title) : b.name;
+}
 const ownerById = cache((id: string) => getUserById(id));
 
 async function isLive(b: BusinessRow): Promise<boolean> {
@@ -64,8 +73,9 @@ const BOT_UA = /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|slack|discor
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const business = await businessBySlug(slug);
-  if (!business || !(await isLive(business))) return { title: "Sevrii", robots: { index: false } };
+  const found = await businessBySlug(slug);
+  if (!found || !(await isLive(found))) return { title: "Sevrii", robots: { index: false } };
+  const business = { ...found, name: shownName(found) };
   const site = business.site;
   const where = site.serviceArea || business.city || "";
   // The full title (no "…"): the page's headline as written, or its category.
@@ -94,8 +104,11 @@ export default async function PublicBusinessPage({
   const { slug } = await params;
   const sp = await searchParams;
   const rawC = sp.c;
-  const business = await businessBySlug(slug);
-  if (!business) notFound();
+  const found = await businessBySlug(slug);
+  if (!found) notFound();
+  // Still "Proyecto nuevo": the page shows what it sells, never that name.
+  const unnamed = isPlaceholderName(found.name);
+  const business: BusinessRow = unnamed ? { ...found, name: shownName(found) } : found;
 
   const [viewer, live] = await Promise.all([getCurrentUser().catch(() => null), isLive(business)]);
   const isOwner = viewer?.id === business.userId;
@@ -255,17 +268,21 @@ export default async function PublicBusinessPage({
   const hasChat = site.chat && !preview;
   // The chat greets with what the owner approved: the business, its service
   // and where it works (never a generic line when those are known).
-  const helloService = [business.plan.profile.mainService, business.category]
-    .map((x) => (x || "").trim().replace(/[.?!]+$/, ""))
-    .filter((x) => x && x.length <= 60)
-    .sort((a, b) => a.length - b.length)[0] || "";
+  // What they want to sell more of (the Brain's focus) says it better than the
+  // general trade ("restauración de cuero", not "arreglo de zapatos").
+  const helloService = (business.plan.profile.focus || "").trim().replace(/[.?!]+$/, "").length > 0 && business.plan.profile.focus.trim().length <= 60
+    ? business.plan.profile.focus.trim().replace(/[.?!]+$/, "")
+    : [business.plan.profile.mainService, business.category]
+        .map((x) => (x || "").trim().replace(/[.?!]+$/, ""))
+        .filter((x) => x && x.length <= 60)
+        .sort((a, b) => a.length - b.length)[0] || "";
   // An online service isn't "in Bogotá": the city only for in-person services.
   const helloCity = reach.mode === "remote" || site.reachMode === "remote" ? "" : site.baseCity || business.plan.profile.city || business.city || "";
   const lowerFirst = (x: string) => (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(x) ? `${x.charAt(0).toLowerCase()}${x.slice(1)}` : x);
   const hello = helloService
     ? site.lang === "en"
-      ? `Hi! 👋 Thanks for writing to ${business.name}: ${lowerFirst(helloService)}${helloCity && !helloService.toLowerCase().includes(helloCity.toLowerCase()) ? ` in ${helloCity}` : ""}. What do you need? We'll answer right here.`
-      : `¡Hola! 👋 Gracias por escribir a ${business.name}: ${lowerFirst(helloService)}${helloCity && !helloService.toLowerCase().includes(helloCity.toLowerCase()) ? ` en ${helloCity}` : ""}. ¿Qué necesitas? Te respondemos aquí.`
+      ? `Hi! 👋 Thanks for writing${unnamed ? "" : ` to ${business.name}`}: ${lowerFirst(helloService)}${helloCity && !helloService.toLowerCase().includes(helloCity.toLowerCase()) ? ` in ${helloCity}` : ""}. What do you need? We'll answer right here.`
+      : `¡Hola! 👋 Gracias por escribir${unnamed ? "nos" : ` a ${business.name}`}: ${lowerFirst(helloService)}${helloCity && !helloService.toLowerCase().includes(helloCity.toLowerCase()) ? ` en ${helloCity}` : ""}. ¿Qué necesitas? Te respondemos aquí.`
     : undefined;
   const es = site.lang !== "en";
   const chatLong = es ? "Escríbenos ahora" : "Message us now";
@@ -509,10 +526,10 @@ export default async function PublicBusinessPage({
       <main>
         <div className="wrap breadcrumb">
           <span>{business.name}</span>
-          {business.category && (
+          {business.category && capFirst(completeFrom(business.category, business.plan)) !== business.name && (
             <>
               <span className="sep" aria-hidden>›</span>
-              <span className="current">{completeFrom(business.category, business.plan)}</span>
+              <span className="current">{capFirst(completeFrom(business.category, business.plan))}</span>
             </>
           )}
         </div>
