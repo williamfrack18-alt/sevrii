@@ -414,9 +414,6 @@ export default function PlanView({
             emptySub: isB ? t.chat.emptySubB : plan.mode === "agent" ? t.chat.emptySubC : t.chat.emptySubA,
             seeBelow: "",
             seeBelowHref: "",
-            // While it gets to know them, a slow reply usually means it is
-            // looking up real data on the web (up to two lookups per project).
-            thinkingLong: plan.stage === "interview" && plan.mode !== "agent" && plan.insightRuns < 2 && Boolean(plan.profile.mainService || plan.profile.workHistory || plan.profile.likes) ? (es ? "Buscando datos reales de tu zona…" : "Looking up real data for your area…") : undefined,
           }}
           locked={
             inPipeline && !pipeErr ? (
@@ -1758,8 +1755,10 @@ function Progress({ jobs, plan, compact = false }: { jobs: Job[]; plan: Business
 const PROFILE_LABELS: Record<"es" | "en", Partial<Record<keyof Profile, string>>> = {
   es: {
     mainService: "Servicio",
+    focus: "Quiere vender más",
     exampleJob: "Último trabajo",
     city: "Dónde",
+    area: "Barrio o zona",
     yearsExperience: "Años de experiencia",
     typicalCustomer: "Cliente típico",
     currentPrice: "Cobra hoy",
@@ -1785,8 +1784,10 @@ const PROFILE_LABELS: Record<"es" | "en", Partial<Record<keyof Profile, string>>
   },
   en: {
     mainService: "Service",
+    focus: "Wants to sell more",
     exampleJob: "Last job",
     city: "Where",
+    area: "Neighborhood or area",
     yearsExperience: "Years of experience",
     typicalCustomer: "Typical customer",
     currentPrice: "Charges today",

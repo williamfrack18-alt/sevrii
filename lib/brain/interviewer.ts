@@ -2,7 +2,9 @@ import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from "@an
 import { BRAIN_MODEL, aiErrorReply, getBrainModel, logAiError } from "../claude";
 import type { Lang } from "../i18n";
 import { slugify } from "../ai";
-import { addChatMessage, getBusinessById, isSlugTaken, latestResearchRun, listChatMessages, listServices, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
+import { after } from "next/server";
+import { runForUser } from "../usage";
+import { addPlanInsights, addChatMessage, getBusinessById, isSlugTaken, latestResearchRun, listChatMessages, listServices, updateChatMessage, updateBusinessDetails, updateBusinessPlan, updateBusinessSlug, type BusinessRow } from "../db";
 import {
   APPROVAL_BLOCKS,
   allApproved,
@@ -48,7 +50,7 @@ Cómo conversas:
 - Antes de cada mensaje revisa "profile", "essentialMissing" y TODA la conversación. Lo que ya dijo o se deduce no se pregunta, nunca, ni con otras palabras.
 - Deduce y guarda sin preguntar: de "arreglo zapatos en Medellín" sacas el servicio, la ciudad, el país (country "CO") y que es presencial (serviceMode local). Una ciudad conocida trae su país (Madrid → ES, Bogotá → CO, Ciudad de México → MX, Miami → US y state FL). Clases por Zoom o diseño son en línea (remote).
 - Cada dato que la persona diga, aunque no lo hayas preguntado, guárdalo con save_profile en ese mismo turno, con sus palabras.
-- Cada mensaje tuyo aporta algo antes de preguntar. Si el estado trae "insights" (datos reales que acabo de buscar en internet para esta persona, cada uno con su fuente), usa UNO que todavía no hayas dicho, con sus números tal cual y el nombre de la fuente ("acabo de buscar…", "según …"), y saca de él una conclusión para su caso en una frase. Si no hay insights, haz una observación honesta sobre su caso sin ninguna cifra. Nunca cites un número, un precio ni un negocio que no esté en "insights" o que la persona no haya dicho. La persona tiene que sentir que avanza desde el primer mensaje.
+- Cada mensaje tuyo aporta algo antes de preguntar. Si el estado trae "newFacts" (datos reales que acabas de buscar en internet para esta persona, cada uno con su fuente), usa UNO, el más cercano a su caso, con sus números tal cual y el nombre de la fuente ("estuve buscando y…", "según …"), y di en una frase qué significa para ELLA sin exagerar: el dato dice lo que dice, no saques de él conclusiones que no trae (un dato de otro país o del mundo no prueba nada de su barrio). Si "newFacts" está vacío, haz una observación honesta sobre su caso sin ninguna cifra y sin decir que buscaste. Nunca cites un número, un precio ni un negocio que no esté en "newFacts" o que la persona no haya dicho. La persona tiene que sentir que avanza desde el primer mensaje.
 - Usa lo que la persona dice: si cuenta qué quiere o qué le funciona, tu siguiente mensaje parte de ESO (con sus palabras), no de una frase general del oficio.
 - Una sola pregunta por mensaje, natural y conectada con lo que acaba de decir. Nunca una lista de preguntas.
 - Pregunta solo si la respuesta cambia el plan. Lo que se puede ajustar después (nombre del negocio, idiomas, años, horas exactas, detalles) no se pregunta ahora.
@@ -379,7 +381,31 @@ export function interviewGate(plan: BusinessPlan, ownerReplies: number): { essen
   return { essentialMissing: essential, canResearch: can, mustResearchNow: can && ownerReplies >= RESEARCH_CAP, forceResearch: can && ownerReplies > RESEARCH_CAP };
 }
 
-function state(b: BusinessRow, ownerReplies = 0) {
+// The web lookup, after the reply is sent (it takes 20 to 40 seconds).
+function lookUpLater(b: BusinessRow, plan: BusinessPlan, lang: Lang) {
+  const job = () =>
+    runForUser(b.userId, async () => {
+      const fresh = await runInsights(plan, lang).catch(() => []);
+      if (fresh.length) await addPlanInsights(b.id, fresh);
+    }, "brain_chat").catch((err) => console.warn("[brain:insights] not saved", (err as { message?: string })?.message));
+  try {
+    after(job);
+  } catch {
+    // Outside a request (a script, a test): no background work.
+  }
+}
+
+// A fact found on the web that no message of the Brain has used yet (its
+// source or one of its numbers already said = used).
+function unusedInsights(plan: BusinessPlan, saidByBrain: string): { fact: string; source: string }[] {
+  const said = saidByBrain.toLowerCase();
+  const nums = new Set(everyAmount(saidByBrain));
+  return plan.insights
+    .filter((i) => !(i.source && said.includes(i.source.toLowerCase())) && !everyAmount(i.fact).some((n) => n >= 100 && nums.has(n)))
+    .map((i) => ({ fact: i.fact, source: i.source }));
+}
+
+function state(b: BusinessRow, ownerReplies = 0, saidByBrain = "") {
   const p = b.plan;
   const base = {
     stage: p.stage,
@@ -390,7 +416,7 @@ function state(b: BusinessRow, ownerReplies = 0) {
     // A cap in code, not only in the prompt: with what's essential known, a
     // few replies are enough; past that the research starts.
     const g = interviewGate(p, ownerReplies);
-    return { ...base, profile: p.profile, insights: p.insights.map((i) => ({ fact: i.fact, source: i.source })), essentialMissing: g.essentialMissing, canResearch: g.canResearch, mustResearchNow: g.mustResearchNow, ownerReplies };
+    return { ...base, profile: p.profile, newFacts: unusedInsights(p, saidByBrain).slice(0, 2), essentialMissing: g.essentialMissing, canResearch: g.canResearch, mustResearchNow: g.mustResearchNow, ownerReplies };
   }
   if (p.stage === "interview" || p.stage === "ready_check") {
     const idea = p.chosenIdea !== null ? p.ideas[p.chosenIdea] : null;
@@ -647,21 +673,18 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (brainDecides(next)) {
         await updateBusinessPlan(b.id, parsePlan(next));
         if (next.mode === "existing" && isRestrictedService(next)) return { out: `saved${note}. ${RESTRICTED_NOTE("existing")}` };
-        // Real facts for the next message: one web lookup when the Brain first
+        // Real facts for the conversation: one web lookup when the Brain first
         // knows what they do and where, and one more when it learns what they
-        // want more of. Only while questions are left (never delays the research).
-        let found = "";
+        // want more of. It runs in the background, after this reply (the person
+        // never waits for a search); what it finds is in the state of the next
+        // message. Only while questions are left.
         const second = next.mode === "existing" && Boolean(next.profile.focus) && !plan.profile.focus;
         if (left.length && canLookUp(next) && (next.insightRuns === 0 || (next.insightRuns === 1 && second))) {
-          // Never more than 40 s: the person is waiting for a reply.
-          const fresh = await Promise.race([runInsights(next, lang).catch(() => []), new Promise<Awaited<ReturnType<typeof runInsights>>>((done) => setTimeout(() => done([]), 40_000))]);
-          const known = new Set(next.insights.map((i) => i.fact));
-          next = { ...next, insightRuns: next.insightRuns + 1, insights: [...fresh.filter((i) => !known.has(i.fact)), ...next.insights].slice(0, 5) };
+          next = { ...next, insightRuns: next.insightRuns + 1 };
           await updateBusinessPlan(b.id, parsePlan(next));
-          if (fresh.length)
-            found = ` Facts I just found on the web for this person (real, each with its source): ${JSON.stringify(fresh.map((i) => ({ fact: i.fact, source: i.source })))}. Open your next message with ONE of them (its numbers exactly, naming the source, "acabo de buscar…"), say what it means for THEIR case in one sentence, then ask your one question.`;
+          lookUpLater(b, next, lang);
         }
-        return { out: `saved${note}. canResearch: ${left.length ? `no (still essential: ${left.join(", ")})` : "yes (call start_research as soon as more questions wouldn't change the strategy)"}.${found}` };
+        return { out: `saved${note}. canResearch: ${left.length ? `no (still essential: ${left.join(", ")})` : "yes (call start_research as soon as more questions wouldn't change the strategy)"}.` };
       }
       // B's chosen idea is a service Sevrii doesn't publish: no research on it.
       if (next.mode === "new" && next.stage === "ready_check" && isRestrictedService(next)) {
@@ -1006,6 +1029,7 @@ export async function runPlanChatTurn(opts: {
   const mem = opts.fullHistory ?? opts.history;
   const ownerSaid = [...mem.filter((h) => h.role === "user").map((h) => h.content), opts.message].join("\n");
   const lastAssistant = [...opts.history].reverse().find((h) => h.role === "assistant")?.content ?? "";
+  const saidByBrain = mem.filter((h) => h.role === "assistant").map((h) => h.content).join("\n");
   const askedSomething = isQuestionTurn(opts.message);
   const ownerReplies = mem.filter((h) => h.role === "user").length + 1;
   // Questions the Brain already asked and the owner already answered (whole chat).
@@ -1025,7 +1049,7 @@ export async function runPlanChatTurn(opts: {
   let retriedRepeat = false;
   const messages: MessageParam[] = [
     ...opts.history.map((h): MessageParam => ({ role: h.role, content: h.content })),
-    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business, ownerReplies))}\n\nOwner: ${opts.message}${nameNote}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}${askedSomething ? "\n\n(Internal note: the owner asked something or didn't understand. Answer exactly that, in simpler words, and don't ask them to approve anything in this message.)" : ""}\n\n(${lockedFacts(business.plan, mem)})\n\n${HARD_RULES}` },
+    { role: "user", content: `State (JSON):\n${JSON.stringify(state(business, ownerReplies, saidByBrain))}\n\nOwner: ${opts.message}${nameNote}${LOST.test(opts.message.trim()) ? "\n\n(Internal note: a short or lost reply. Follow the rules for \"ok\" / lost replies: act on your last recommendation, say which step they are on and what comes next.)" : ""}${askedSomething ? "\n\n(Internal note: the owner asked something or didn't understand. Answer exactly that, in simpler words, and don't ask them to approve anything in this message.)" : ""}\n\n(${lockedFacts(business.plan, mem)})\n\n${HARD_RULES}` },
   ];
   let reply = "";
   let startPipeline = false;
@@ -1123,7 +1147,7 @@ export async function runPlanChatTurn(opts: {
       }
       // Replay only text and tool calls (Meta keeps its own reasoning).
       messages.push({ role: "assistant", content: res.content.filter((c) => c.type === "text" || c.type === "tool_use") });
-      messages.push({ role: "user", content: [...results, { type: "text", text: `Updated state (JSON):\n${JSON.stringify(state(business, ownerReplies))}` }] });
+      messages.push({ role: "user", content: [...results, { type: "text", text: `Updated state (JSON):\n${JSON.stringify(state(business, ownerReplies, saidByBrain))}` }] });
     }
   } catch (err) {
     logAiError("brain", err);

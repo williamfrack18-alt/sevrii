@@ -931,6 +931,15 @@ export async function updateBusinessPlan(businessId: string, plan: BusinessPlan)
   await sql`UPDATE businesses SET plan = ${JSON.stringify(plan)}::jsonb WHERE id = ${businessId}`;
 }
 
+// Facts the Brain found on the web while chatting, added to the plan without
+// touching the rest of it (they arrive in the background, after the reply, so
+// a full rewrite could undo what the next message saved).
+export async function addPlanInsights(businessId: string, fresh: { fact: string; source: string; url: string }[]): Promise<void> {
+  if (!fresh.length) return;
+  await ensureSchema();
+  await sql`UPDATE businesses SET plan = jsonb_set(plan, '{insights}', ${JSON.stringify(fresh)}::jsonb || COALESCE(plan->'insights', '[]'::jsonb)) WHERE id = ${businessId}`;
+}
+
 export async function getBusinessBySlug(slug: string): Promise<BusinessRow | undefined> {
   await ensureSchema();
   const rows = (await sql`SELECT * FROM businesses WHERE slug = ${slug}`) as Record<string, unknown>[];

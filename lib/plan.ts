@@ -384,11 +384,14 @@ export function safeHttpUrl(v: unknown): string {
     return "";
   }
 }
+const BROKEN_PAGE = /^\s*(error\b|40[34]\b|not found|page not found|p[aá]gina no encontrada|access denied|forbidden|just a moment|attention required|untitled)/i;
 function sources(v: unknown, max = 8): PlanSource[] {
   const out: PlanSource[] = [];
   for (const x of Array.isArray(v) ? v : []) {
     const r = (x ?? {}) as Record<string, unknown>;
     const url = safeHttpUrl(r.url);
+    // A page that answered with an error is not a source.
+    if (url && BROKEN_PAGE.test(str(r.title, 120))) continue;
     if (url && !out.some((o) => o.url === url)) {
       const description = str(r.description, 300);
       out.push({ title: str(r.title, 120) || url, url, ...(description ? { description } : {}) });

@@ -194,6 +194,19 @@ export class SeenPages {
   has(url: string): boolean {
     return this.pages.has(normUrl(url));
   }
+  // Another page of a site the search did return (a price list next to the
+  // home page it found): the business is real and was seen, the exact page may differ.
+  hasHost(url: string): boolean {
+    const host = (u: string) => {
+      try {
+        return new URL(u).hostname.replace(/^www\./, "").toLowerCase();
+      } catch {
+        return "";
+      }
+    };
+    const h = host(url);
+    return Boolean(h) && [...this.pages.values()].some((p) => host(p.url) === h);
+  }
   get(url: string): PlanSource | undefined {
     return this.pages.get(normUrl(url));
   }
