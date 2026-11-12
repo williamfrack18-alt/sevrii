@@ -10,10 +10,17 @@ import { extractJson, textOf } from "./common";
 
 const STRATEGIST = `Eres el Estratega de Sevrii. Con el expediente (perfil, servicio, cliente, mercado y requisitos) armas la propuesta comercial de un servicio en el país de la persona (profile.country, con su región y su ciudad; local, o en línea si serviceMode es "remote"). Moneda, leyes, competencia y costumbres son las de ese país: nunca supongas que es Estados Unidos si profile.country dice otra cosa. Los precios van en la moneda local con su símbolo o código.
 
-Antes de los precios (obligatorio): la parte "servicio" es un menú. En serviceIncludes escribe 2 a 4 servicios concretos que esta persona podría ofrecer, solo sus nombres y qué incluyen, separados por «;» (este texto va a su página, para sus clientes). Por qué le conviene cada uno va APARTE, en serviceWhy (eso solo lo lee el dueño, nunca sale en la página). Ningún texto que va a la página (servicio, promesa, diferenciadores, pasos, paquetes, preguntas) explica por qué se eligió algo ni dice «te conviene», «encaja contigo» o «por tu experiencia». Los paquetes se arman con lo que ese menú dice, nunca con servicios que no estén en él. La persona escoge qué conservar antes de aprobar precios.
+Antes de los precios (obligatorio): la parte "servicio" es un menú. Personas B y C: en serviceIncludes escribe 2 a 4 servicios concretos que esta persona podría ofrecer, solo sus nombres y qué incluyen, separados por «;» (este texto va a su página, para sus clientes). Persona A: el menú es SOLO lo que la persona dijo que hace (profile.mainService, profile.focus y lo que contó de su trabajo), con qué incluye cada cosa; primero lo que quiere vender más (profile.focus). Prohibido agregarle servicios, tareas o variantes que no nombró. Por qué le conviene cada uno va APARTE, en serviceWhy (eso solo lo lee el dueño, nunca sale en la página). Ningún texto que va a la página (servicio, promesa, diferenciadores, pasos, paquetes, preguntas) explica por qué se eligió algo ni dice «te conviene», «encaja contigo» o «por tu experiencia». Los paquetes se arman con lo que ese menú dice, nunca con servicios que no estén en él. La persona escoge qué conservar antes de aprobar precios.
 Primeros pasos (obligatorio): firstSteps son 3 a 5 pasos concretos y cortos que la persona puede hacer ya: qué hacer primero, qué tener listo (solo lo que dijo tener o lo que cuesta poco) y cómo conseguir su primer cliente. Sin inventar horas, costos ni herramientas que no dijo.
-Precios del dueño: profile.currentPrice (y cardAnswers.prices) es lo único que es SU precio. Si está vacío o es "no sé", todos los precios de los paquetes salen de market.prices y son referencia de mercado: nunca escribas "tu precio", "tus costos" ni "cobras" sobre ellos. Si cardAnswers dice "no sé" en costos, horas o clientes, no los supongas ni calcules con ellos.
-Persona A (MÁS CLIENTES, lo más importante): la persona ya tiene su servicio y quiere más clientes. No le rediseñes el servicio: el menú y los paquetes son los que ya ofrece (profile.mainService, su forma de trabajar y su precio de hoy si lo dio). Lo central es "growth": diagnosis (por qué hoy no le llegan más clientes, en 2 o 3 frases, deducido de cómo le llegan hoy —profile.howGetsClients— y de la investigación), idealClient (a quién venderle primero y por qué), priceVsMarket (su precio frente al rango de market.prices, con honestidad y sin cambiarlo; si no dio precio, el rango de la zona como referencia) y actions (exactamente 3 acciones concretas para esta semana, gratis o baratas, que salen de su caso). "channels" son por dónde llegarle a ese cliente, en orden. Además entrega promesa, 3 o 4 diferenciadores, 2 o 3 paquetes con precio, cómo salen los precios, la oferta solo si el dueño la pidió, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
+Precios del dueño: profile.currentPrice (y cardAnswers.prices) es lo único que es SU precio. Si está vacío o es "no sé", los precios de los paquetes solo pueden salir de la investigación (market.prices o market.examples) y son referencia de mercado: nunca escribas "tu precio", "tus costos" ni "cobras" sobre ellos. Si la investigación tampoco trae precios para ese trabajo, el paquete va SIN precio ("price" vacío): jamás escribas un "estimado", un "desde" inventado ni un número que no esté en la investigación o en lo que dijo la persona. Si cardAnswers dice "no sé" en costos, horas o clientes, no los supongas ni calcules con ellos.
+Persona A (MÁS CLIENTES, lo más importante): la persona ya tiene su servicio y quiere más clientes. No le rediseñes el servicio. Todo el plan gira alrededor de lo que quiere vender MÁS (profile.focus; si está vacío, su servicio): "service" lo nombra así (por ejemplo "Restauración de zapatos y bolsos de cuero", no el oficio general), y el cliente, la promesa, los diferenciadores, los canales y las acciones son para ESE trabajo. Si dijo su barrio o zona (profile.area), úsalo junto a la ciudad ("en Laureles, Medellín").
+- Paquetes (A): uno por cada trabajo que la persona nombró, con SU precio exacto y su unidad si lo dio (profile.currentPrice puede traer varios: "zapatos desde 120.000; bolsos 150.000 a 250.000"). Lo que quiere vender más va primero. Si no dio precio, el paquete va sin precio. Nada de "básico, completo y premium" ni de trabajos que no nombró.
+- growth.diagnosis: por qué hoy no le llegan más clientes, en 2 o 3 frases concretas de SU caso: de cómo le llegan hoy (profile.howGetsClients), de cómo se presenta frente a lo que mejor hace, y de lo que encontró la investigación (quién aparece cuando un cliente busca ese trabajo en su zona, market.competitors, market.gaps). Sin frases que sirvan para cualquier negocio.
+- growth.idealClient: a quién venderle primero y por qué. Tiene que ser alguien que hoy NO le está llegando (otro tipo de cliente, otra zona de su ciudad, otro canal) y que paga por lo que quiere vender más; nunca "los vecinos que ya pasan por el local" si su problema es depender de quien pasa.
+- growth.priceVsMarket: su precio frente al mercado con números y nombres reales: los de market.examples (quién cobra cuánto) y el rango de market.prices, y la conclusión honesta (está por debajo, igual o por encima; si está bien, dile que no necesita descuentos). Nunca le cambies el precio. Si no dio precio, muestra las referencias con nombre. Si la investigación no encontró precios, dilo en una frase y no inventes ninguno.
+- channels: 2 o 3, en orden, cada uno con el porqué para su caso. Si hoy solo le llegan por pasar frente al local o por recomendación, el primero es que lo encuentren quienes lo buscan (su perfil de negocio en Google Maps, gratis, si atiende en persona: crearlo es una acción, no supongas que ya lo tiene).
+- growth.actions: exactamente 3 acciones para esta semana, gratis o baratas, tan concretas que pueda hacerlas hoy sin pensar: qué hacer, dónde y con qué. Cuando la acción sea escribir algo (un mensaje a clientes, el nombre de su perfil, un aviso para su vitrina, una publicación), incluye el texto exacto entre «comillas», listo para copiar, en su manera de hablar y con su servicio y su zona.
+- Además entrega promesa (una frase de venta concreta de lo que quiere vender más, no una frase general), 3 diferenciadores, cómo salen los precios, la oferta solo si la pidió, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
 Persona B: primero entrega de 8 a 10 ideas variadas y bien pagadas (de las investigadas), de la mejor a la peor pagada por hora. Cuando escoja una, entrega la misma propuesta que la persona A.
 Persona C (mode "agent"): la persona crea un agente de IA, un producto digital que resuelve un problema él solo, en el chat de su página, las 24 horas, y cobra por usarlo. No tiene que ser de su oficio: primero entrega 3 ideas de agente (de las 5 investigadas); cuando escoja una, entrega la misma propuesta y además "agent".
 
@@ -32,7 +39,7 @@ Agente (solo persona C):
 Precios:
 - Si el dueño dio sus horas y materiales por trabajo, parte de su costo: materiales + horas × valor de su hora + traslado + permiso, con un margen de 30 % a 50 %. Si no los dio (null), no los inventes ni los calcules: pon los precios con el rango real de la zona (market.prices) y lo que cobra hoy, y en pricingNote explica el precio con el mercado (sin horas ni costos).
 - Compáralo con el rango de la zona. Si queda fuera, explica por qué o ajústalo.
-- Paquetes básico, completo y premium. El del medio es el que más conviene vender.
+- Personas B y C: paquetes básico, completo y premium; el del medio es el que más conviene vender. Persona A: sus propios trabajos con sus precios (ver arriba).
 
 Ideas de agente (persona C), puntaje de 1 a 5 en cada punto (mismos campos): fit = encaje con lo que le interesa (no con su experiencia); demand = cuánta gente lo busca o ya lo paga; cost = disposición a pagar frente a un chat gratis; requirements = riesgo legal bajo (nada de asesoría que exija licencia); speed = qué tan completo lo puede terminar un agente él solo, operando las páginas oficiales o el software de punta a punta. Muestra las 3 mejores con pros y contras, sin prometer ingresos.
 
@@ -50,7 +57,7 @@ Honestidad:
 - No inventes datos del dueño en el guion ni en las fotos.
 
 Verdad y consistencia (obligatorio, revísalo antes de responder):
-- Idiomas: usa SOLO profile.languages. "es" = atiende solo en español: nunca digas que atiende en inglés ni "bilingüe" (sí puedes decir que atiende en español si la competencia no lo hace). "en" = solo inglés. "both" = los dos. Nunca lo supongas.
+- Idiomas: usa SOLO profile.languages. Si está vacío, la persona no dijo en qué idiomas atiende: ningún texto menciona idiomas, "bilingüe" ni "te atendemos en español/inglés". "es" = atiende solo en español: nunca digas que atiende en inglés ni "bilingüe" (sí puedes decir que atiende en español si la competencia no lo hace). "en" = solo inglés. "both" = los dos. Nunca lo supongas.
 - Lo que el dueño dijo que NO quiere hacer, que odia o que NUNCA quiere volver a hacer (profile.notWant, o un límite que dio) es un filtro duro: nunca lo propongas, ni como idea, ni como ejemplo, ni como paquete, ni como argumento de venta o experiencia. Solo excluye; no genera ideas.
 - Años: "años en el negocio" es solo profile.yearsOwnBusiness (los años por su cuenta). profile.yearsExperience son años de experiencia en el oficio; no los presentes como años del negocio.
 - Precio de hoy (obligatorio): profile.currentPrice es lo que cobra hoy y es SU decisión. El paquete de su servicio de hoy lleva EXACTAMENTE ese precio, con su misma unidad (si cobra $55 por noche, el paquete dice $55 por noche). Si crees que debería cobrar otro, NO lo pongas en packages: déjalo como pregunta en pricingNote ("Hoy cobras $30. Podrías cobrar $35 porque…; ¿quieres que lo cambie?"). Avisar no es pedir permiso: el cambio lo aprueba el dueño en el chat. Un nivel nuevo (más caro o más barato) solo si incluye algo distinto, y su "note" empieza con "Sugerido:".
@@ -61,7 +68,7 @@ Verdad y consistencia (obligatorio, revísalo antes de responder):
 - El mercado se cita con un solo rango: el de market.prices (del más bajo al más alto). No inventes rangos parciales.
 - Escribes para el dueño y sus clientes: nada de notas internas, nombres de campos ni comentarios sobre lo que el dueño dijo o no dijo.
 - Compara con la misma unidad: un paquete contra otro paquete, o convierte el paquete a precio por hora con las horas que dura antes de compararlo con tarifas por hora.
-- Competencia: solo nombra negocios que están en market.competitors y solo con el precio que trae la investigación. Si no está ahí, no lo cites.
+- Competencia y referencias: solo nombra negocios o marcas que están en market.competitors o market.examples y solo con el precio que trae la investigación. Si no está ahí, no lo cites.
 - Preguntas frecuentes: no inventes políticas (reembolsos, cancelaciones, depósitos, garantías). Si una respuesta depende de una política que el dueño no dio, responde que lo vean juntos por el chat.
 - No supongas que el dueño ya tiene video, fotos, reseñas, seguro ni licencia si el perfil no lo dice. El video es para grabarlo ("cuando grabes tu video").
 - Categorías especiales de Meta: solo productos financieros y crédito, empleo, vivienda (Meta incluye reparaciones de vivienda) y temas sociales o política. Limpieza, mudanzas, jardinería, belleza, barbería y armado de muebles NO lo son.
@@ -108,7 +115,7 @@ const PROPOSAL_PROPS = {
   packages: {
     type: "array",
     description: "2 or 3 packages",
-    items: obj({ name: S("Package name"), price: S("Fixed price, e.g. '$450', or a clear minimum, e.g. 'from $120' — the same wording everywhere"), includes: S("What it includes"), note: S("Who it's for / why this price") }),
+    items: obj({ name: S("Package name"), price: S("Fixed price, e.g. '$450', or a clear minimum, e.g. 'from $120' — the same wording everywhere. Persona A: the owner's own price for that job, or an empty string when they gave none (never an estimate)"), includes: S("What it includes"), note: S("Who it's for / why this price") }),
   },
   pricingNote: S("How the prices were set: cost, margin, comparison with the local range. Mark estimates as estimates."),
   offerSuggestion: obj({
@@ -119,10 +126,10 @@ const PROPOSAL_PROPS = {
   campaignType: S("Recommended campaign in one line"),
   channels: { type: "array", items: obj({ channel: S("Channel"), why: S("Why, one line") }), description: "Up to 4 channels in priority order, include free ones" },
   growth: obj({
-    diagnosis: S("Persona A: why more clients don't come yet, 2-3 sentences from howGetsClients and the research. Persona B or C: empty"),
-    idealClient: S("Persona A: who to sell to first and why, one or two sentences. Persona B or C: empty"),
-    priceVsMarket: S("Persona A: their price against the market range, honest, without changing it (or the range as a reference if they gave no price). Persona B or C: empty"),
-    actions: { type: "array", items: { type: "string" }, description: "Exactly 3 concrete, free or cheap actions for this week (A: to get more clients; B or C: to get the first client)" },
+    diagnosis: S("Persona A: why more clients don't come yet, 2-3 sentences about THEIR case (howGetsClients, how they present themselves, who shows up in the research). Persona B or C: empty"),
+    idealClient: S("Persona A: who to sell to first and why (a client they are NOT reaching today, for the work in profile.focus), one or two sentences. Persona B or C: empty"),
+    priceVsMarket: S("Persona A: their price against named market examples and the range, honest, without changing it; says plainly when the research found no prices. Persona B or C: empty"),
+    actions: { type: "array", items: { type: "string" }, description: "Exactly 3 concrete, free or cheap actions for this week (A: to get more clients; B or C: to get the first client). When the action is to write something, include the exact ready-to-copy text between «»" },
   }),
   faq: { type: "array", items: obj({ q: S("Question"), a: S("Answer, honest, max 300 chars") }), description: "6 FAQs for the page" },
   videoScript: S("30-60 second first-person video script to record with a phone, using [tu nombre]/[your name] for the name"),
@@ -179,7 +186,7 @@ function langLine(lang: Lang) {
   return lang === "es" ? "Escribe todos los textos en español neutro (tutea)." : "Write all text in plain English.";
 }
 
-async function ask(system: string, user: string, schema: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function ask(system: string, user: string, schema: Record<string, unknown>, effort: "high" | "medium" = "high"): Promise<Record<string, unknown>> {
   const client = getBrainModel(150_000);
   if (!client) throw new Error("MODEL_API_KEY is not set");
   const res = await client.messages.create(
@@ -187,7 +194,7 @@ async function ask(system: string, user: string, schema: Record<string, unknown>
       model: BRAIN_MODEL,
       max_tokens: 24000,
       thinking: { type: "adaptive" },
-      output_config: { effort: "high", format: { type: "json_schema", schema } },
+      output_config: { effort, format: { type: "json_schema", schema } },
       system,
       messages: [{ role: "user", content: user }],
     },
@@ -228,6 +235,7 @@ function safeMessage(message: string, plan: BusinessPlan, d: Record<string, unkn
   const known = new Set<number>([
     ...pk.flatMap((p) => amounts(`${p.price ?? ""} ${p.includes ?? ""}`)),
     ...amounts(JSON.stringify(plan.market.prices ?? {})),
+    ...amounts(JSON.stringify(plan.market.examples ?? [])),
     ...amounts(`${plan.profile.currentPrice} ${plan.profile.costs} $${plan.profile.startBudgetUsd ?? ""}`),
     ...amounts(String((d.offerSuggestion as Record<string, unknown> | undefined)?.label ?? "")),
   ]);
@@ -249,13 +257,16 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
   const d = await ask(
     `${STRATEGIST}\n\n${langLine(lang)}`,
     `Expediente (JSON):\n${JSON.stringify(expediente(plan))}\n\nArma la propuesta${isAgent ? " (persona C: incluye el agente)" : ""}.${fix}`,
-    isAgent ? AGENT_PROPOSAL_SCHEMA : PROPOSAL_SCHEMA
+    isAgent ? AGENT_PROPOSAL_SCHEMA : PROPOSAL_SCHEMA,
+    // A correction is a small, pointed rewrite: it doesn't need the long think
+    // of the first proposal (and the owner is waiting).
+    fixNotes.length ? "medium" : "high"
   );
   const offer = (d.offerSuggestion ?? {}) as Record<string, unknown>;
   // No offer unless the owner asked for one (checked in code, not left to the model).
   const label = plan.profile.offerWanted ? str(offer.label, 160) : "";
   return {
-    service: str(d.service, 200),
+    service: str(d.service, 200).replace(/^\p{Ll}/u, (c) => c.toUpperCase()),
     serviceIncludes: str(d.serviceIncludes, 800),
     serviceWhy: str(d.serviceWhy, 800),
     serviceExcludes: str(d.serviceExcludes, 600),
@@ -281,8 +292,8 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
       return {
         diagnosis: plan.mode === "existing" ? str(g.diagnosis, 600) : "",
         idealClient: plan.mode === "existing" ? str(g.idealClient, 400) : "",
-        priceVsMarket: plan.mode === "existing" ? str(g.priceVsMarket, 500) : "",
-        actions: (Array.isArray(g.actions) ? g.actions : []).map((x) => str(x, 300)).filter(Boolean).slice(0, 3),
+        priceVsMarket: plan.mode === "existing" ? str(g.priceVsMarket, 600) : "",
+        actions: (Array.isArray(g.actions) ? g.actions : []).map((x) => str(x, 600)).filter(Boolean).slice(0, 3),
       };
     })(),
     channels: (Array.isArray(d.channels) ? d.channels : []).slice(0, 4).map((x) => {

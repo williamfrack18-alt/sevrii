@@ -16,6 +16,9 @@ export type ChatTexts = {
   seeBelow: string;
   seeBelowHref: string;
   thinking: string;
+  // Shown instead of "Pensando…" when a reply takes more than a few seconds
+  // and there is something true to say about why (e.g. a web lookup).
+  thinkingLong?: string;
   attach: string;
   failed: string;
   // Only needed by chats that accept uploads (Store).
@@ -229,21 +232,24 @@ export default function ChatPanel({
   const [limit, setLimit] = useState<LimitInfo | null>(null);
   // A photo or video on its way to storage (percentage only for videos).
   const [uploading, setUploading] = useState<{ video: boolean; pct: number } | null>(null);
-  // A reply that takes long: a visible "still working" after 15 s, and the
+  // A reply that takes long: a visible "still working" after 15 s (25 s when a web lookup is under way), and the
   // saved chat is read again every few seconds so it shows up on its own
   // (never minutes of silence that only a "¿hola?" unlocks).
   const [slow, setSlow] = useState(false);
+  const [mid, setMid] = useState(false);
   const [recovered, setRecovered] = useState(false);
   const waiting = pending && !recovered;
   useEffect(() => {
     if (!pending) {
       setSlow(false);
+      setMid(false);
       setRecovered(false);
       return;
     }
     const sentAt = Date.now();
     let stop = false;
-    const t1 = setTimeout(() => !stop && setSlow(true), 15_000);
+    const t0 = setTimeout(() => !stop && setMid(true), 4_000);
+    const t1 = setTimeout(() => !stop && setSlow(true), texts.thinkingLong ? 25_000 : 15_000);
     const iv = setInterval(async () => {
       if (stop || !recover || Date.now() - sentAt < 20_000) return;
       const saved = await recover().catch(() => null);
@@ -262,6 +268,7 @@ export default function ChatPanel({
     }, 100_000);
     return () => {
       stop = true;
+      clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
       clearInterval(iv);
@@ -820,7 +827,7 @@ export default function ChatPanel({
           {waiting && (
             <div className="flex items-center gap-3 min-h-6 text-[14px]" style={{ color: DIM }} role="status" aria-live="polite">
               <Mark size={28} live />
-              {slow ? (lang === "es" ? "Está tardando un poco más de lo normal; sigo trabajando y te respondo aquí." : "This is taking a bit longer than usual; I'm still working and will answer here.") : texts.thinking}
+              {slow ? (lang === "es" ? "Está tardando un poco más de lo normal; sigo trabajando y te respondo aquí." : "This is taking a bit longer than usual; I'm still working and will answer here.") : mid && texts.thinkingLong ? texts.thinkingLong : texts.thinking}
             </div>
           )}
           {composerInline && (

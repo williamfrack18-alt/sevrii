@@ -24,7 +24,8 @@ export const TOPICS: Record<string, RegExp> = {
   languages: /(idiomas?|languages?)/,
   city: /(qu[eé] ciudad|ciudad y (estado|pa[ií]s)|what city|city and (state|country))/,
   country: /(en qu[eé] pa[ií]s|qu[eé] pa[ií]s|desde qu[eé] pa[ií]s|what country|which country)/,
-  currentPrice: /(cu[aa]nto cobras|what do you charge)/,
+  currentPrice: /(cu[aa]nto cobras|que precio (tienes|manejas|cobras)|what do you charge|how much do you charge)/,
+  focus: /(vender mas|(te )?gustaria (hacer|vender|recibir|conseguir) mas|quieres (hacer|vender|recibir|conseguir) mas|trabajo (que )?(mas )?te (deja|conviene|gusta)|sell more|(get|do) more of|like more of)/,
   goal: /(ingreso extra|dinero extra|vivir de (esto|ello|eso)|extra income|side income|live (from|off) (it|this))/,
   mainService: /(qu[eé] servicio ofreces|what service do you offer)/,
   howGetsClients: /(c[oó]mo consigues|c[oó]mo (te )?llegan (tus )?clientes|how do you get (your )?(customers|clients))/,
@@ -132,6 +133,10 @@ const ASK: Record<string, { es: [string, string]; en: [string, string] }> = {
     es: ["¿Cuánto cobras hoy por tu servicio? Dime el precio, en tu moneda, y por qué unidad (por visita, por hora, por mes…).", "Dime un precio real que hayas cobrado y por qué, en tu moneda: por ejemplo «50 por visita»."],
     en: ["What do you charge today for your service? Give me the price, in your currency, and the unit (per visit, per hour, per month…).", "Give me a real price you've charged and for what, in your currency: for example \"50 per visit\"."],
   },
+  focus: {
+    es: ["De todo lo que haces, ¿qué trabajo te gustaría vender más: el que mejor te sale o el que más te deja?", "Dime un solo trabajo que te gustaría que te pidieran más: por ejemplo el que mejor pagan o el que más disfrutas."],
+    en: ["Of everything you do, which work would you like to sell more of: what you do best, or what pays best?", "Tell me one job you'd like to get asked for more: for example the one that pays best or the one you enjoy most."],
+  },
   differentiators: {
     es: ["¿Qué te hace diferente de otras personas que hacen lo mismo?", "Si un cliente te eligió a ti y no a otra persona, ¿por qué crees que fue?"],
     en: ["What makes you different from others who do the same work?", "If a customer picked you over someone else, why do you think it was?"],
@@ -181,6 +186,8 @@ function filled(plan: BusinessPlan, key: string): boolean {
   const v = (plan.profile as unknown as Record<string, unknown>)[key];
   // Any country: a city is enough (outside the US there is no "state").
   if (key === "city") return Boolean(plan.profile.city);
+  // "No tengo precio fijo" answered the price question.
+  if (key === "currentPrice") return Boolean(plan.profile.currentPrice || plan.profile.noPrice);
   return v !== "" && v !== null && v !== undefined;
 }
 

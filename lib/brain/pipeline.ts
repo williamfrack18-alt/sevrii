@@ -4,6 +4,7 @@ import {
   createResearchRun,
   getBusinessById,
   latestResearchRun,
+  listChatMessages,
   requeueFailedJobs,
   setResearchJob,
   updateBusinessDetails,
@@ -18,7 +19,7 @@ import { parseIdeas, parseMarket, parsePlan, type BusinessPlan, type PlanSource,
 import { runResearch, researchFailedLog, type ResearchKind } from "./research";
 import { pickIdeas, proposePlan } from "./strategist";
 import { guardPlan, keptPriceIssue } from "./guard";
-import { avoidedIssue, withoutAvoided, hasJargon, knownAmounts, moneyAmounts, markReferencePrices, marketRangeText, mentionsDiscount, noFakeCosts, silentProposalIssues, withoutDiscounts } from "./checks";
+import { avoidedIssue, withoutAvoided, hasJargon, knownAmounts, moneyAmounts, markReferencePrices, marketRangeText, mentionsDiscount, noFakeCosts, silentProposalIssues, withoutDiscounts, dropUnbackedRefs, noLanguageClaims, unbackedRefIssues } from "./checks";
 import { oneConfirmation } from "./walk";
 import { today } from "./common";
 
@@ -184,6 +185,7 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     const all = [prices, comp, req, faq];
     const market = parseMarket({
       prices: prices.data,
+      examples: prices.data?.examples,
       competitors: comp.data?.competitors,
       gaps: comp.data?.gaps,
       requirements: req.data?.requirements,
@@ -204,29 +206,36 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
 
   if (step === "guard") {
     // The review is silent: the Guardian's notes and the code checks go back
-    // to the Strategist, never to the owner. Up to 2 correction rounds; the
-    // owner only ever sees the corrected proposal.
+    // to the Strategist, never to the owner. What code can fix by itself (a
+    // discount nobody asked for, an invented price, a language nobody said,
+    // "your costs") is fixed by code and costs no wait; only what is left
+    // goes back for ONE correction round (two rounds made the owner wait
+    // several minutes more).
     let guard = await guardPlan(plan, lang);
     // Packages as the Strategist first wrote them: if the review changes them,
     // its first summary (with the old names and prices) can't be shown.
     const firstPackages = JSON.stringify(plan.packages.map((k) => [k.name, k.price]));
-    for (let round = 0; round < 2; round++) {
-      const issues = [...guard.block, ...silentProposalIssues(plan)];
+    // A price the owner gave in the chat is theirs even if the profile kept it
+    // in other words.
+    const said = (await listChatMessages(businessId, "plan")).filter((m) => m.role === "user").map((m) => m.content).join("\n");
+    const byCode = (p: BusinessPlan) => withoutAvoided(noFakeCosts(noLanguageClaims(dropUnbackedRefs(markReferencePrices(p.profile.offerWanted ? p : withoutDiscounts(p), said)))));
+    {
       const kept = keptPriceIssue(plan, lang);
-      if (kept && !issues.includes(kept)) issues.push(kept);
-      const sacred = avoidedIssue(plan);
-      if (sacred) issues.push(sacred);
-      if (!issues.length) break;
-      const fixed = await proposePlan(plan, lang, issues);
-      const { message: _m, ...fields } = fixed;
-      plan = { ...plan, ...fields };
-      guard = await guardPlan(plan, lang);
+      const hard = [...guard.block, ...silentProposalIssues(byCode(plan)), ...(kept ? [kept] : [])];
+      if (hard.length) {
+        const sacred = avoidedIssue(plan);
+        const issues = [...new Set([...guard.block, ...silentProposalIssues(plan), ...unbackedRefIssues(plan, said), ...(kept ? [kept] : []), ...(sacred ? [sacred] : [])])];
+        const fixed = await proposePlan(plan, lang, issues);
+        const { message: _m, ...fields } = fixed;
+        plan = { ...plan, ...fields };
+        guard = await guardPlan(plan, lang);
+      }
     }
-    // Last resort, by code: a discount nobody asked for never reaches the owner.
-    if (!plan.profile.offerWanted) plan = withoutDiscounts(plan);
-    // By code too: a researched number is a market reference, never "your
-    // price", and "your costs" only exist if the owner gave them.
-    plan = withoutAvoided(noFakeCosts(markReferencePrices(plan)));
+    // Last resort, by code: a discount nobody asked for never reaches the
+    // owner; a researched number is a market reference, never "your price"; a
+    // price nobody gave and nobody found is not shown; no language the owner
+    // never said; "your costs" only exist if the owner gave them.
+    plan = byCode(plan);
     const left = [...guard.block, ...silentProposalIssues(plan)];
     if (left.length) console.warn("[brain] proposal shown with open review notes (kept internal)", businessId, left.slice(0, 6));
     // Only plain "keep in mind" notes reach the owner; review notes never do.
@@ -244,6 +253,13 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     const known = knownAmounts(plan);
     const stale = moneyAmounts(strategyMsg).some((n) => !known.has(n));
     const range = marketRangeText(plan.market.prices, lang);
+    // Real prices with a name say more than a range ("Vélez: $159.900").
+    const named = (plan.market.examples ?? []).slice(0, 3).map((e) => `${e.who}${e.what ? ` (${e.what})` : ""}: ${e.price}`).join("; ");
+    const found = named
+      ? es ? `Precios reales que encontré: ${named}. ` : `Real prices I found: ${named}. `
+      : range
+        ? es ? `En el mercado se cobra ${range}. ` : `The market charges ${range}. `
+        : "";
     const list = plan.packages
       .filter((k) => k.name && k.price)
       .map((k) => (k.ref ? `${k.name} (${es ? "referencia de mercado" : "market reference"}: ${k.price})` : `${k.name} (${k.price})`))
@@ -254,8 +270,8 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
       strategyMsg && !anyRef && samePackages && !stale && !hasJargon(strategyMsg, true) && !/\$\s?\d[\d,]*\s*[–-]\s*\$/.test(strategyMsg) && (plan.profile.offerWanted || !mentionsDiscount(strategyMsg))
         ? strategyMsg
         : es
-          ? `Listo: investigué tu zona y armé ${plan.mode === "existing" ? "tu plan para conseguir más clientes" : "tu propuesta"}. ${range ? `En el mercado se cobra ${range}. ` : ""}${list ? `Te propongo estos paquetes: ${list}.` : ""}`.trim()
-          : `Done: I researched your area and built ${plan.mode === "existing" ? "your plan to get more clients" : "your proposal"}. ${range ? `The market charges ${range}. ` : ""}${list ? `I propose these packages: ${list}.` : ""}`.trim();
+          ? `Listo: investigué tu zona y armé ${plan.mode === "existing" ? "tu plan para conseguir más clientes" : "tu propuesta"}. ${found}${list ? (plan.mode === "existing" ? `Tus servicios quedan así: ${list}.` : `Te propongo estos paquetes: ${list}.`) : ""}`.trim()
+          : `Done: I researched your area and built ${plan.mode === "existing" ? "your plan to get more clients" : "your proposal"}. ${found}${list ? (plan.mode === "existing" ? `Your services: ${list}.` : `I propose these packages: ${list}.`) : ""}`.trim();
     const walk = oneConfirmation(plan)
       ? ""
       : es

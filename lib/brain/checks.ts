@@ -162,7 +162,7 @@ export function knownAmounts(plan: BusinessPlan, packages: Package[] = plan.pack
   const pk = packages.flatMap((k) => dollars(`${k.price} ${k.includes} ${k.note}`));
   // The price card answered without "$" ("35 la suela") is still their price.
   const priceCard = plan.cards.prices && !plan.cards.prices.u ? plan.cards.prices.v : "";
-  const base = new Set<number>([...pk, ...dollars(JSON.stringify(plan.market.prices ?? {})), ...dollars(JSON.stringify(plan.market.competitors ?? [])), ...dollars(own), ...priceNumbers(`${p.currentPrice} ${priceCard}`)]);
+  const base = new Set<number>([...pk, ...dollars(JSON.stringify(plan.market.prices ?? {})), ...dollars(JSON.stringify(plan.market.examples ?? [])), ...dollars(JSON.stringify(plan.insights ?? [])), ...dollars(JSON.stringify(plan.market.competitors ?? [])), ...dollars(own), ...everyAmount(`${p.currentPrice} ${priceCard}`)]);
   // Discounted prices of the offer ("10 % → $135") are fine too.
   const pct = Number(/(\d{1,2})\s*%/.exec(`${plan.offer?.label ?? ""} ${plan.offer?.detail ?? ""}`)?.[1] ?? 0);
   if (pct) for (const n of pk) base.add(Math.round(n * (100 - pct)) / 100), base.add(Math.round((n * (100 - pct)) / 100));
@@ -177,6 +177,16 @@ export function unknownAmountSentences(reply: string, plan: BusinessPlan, ownerS
   for (const n of numbersIn(ownerSaid)) known.add(n);
   const parts = reply.split(/(?<=[.!?])\s+/);
   const kept = parts.filter((x) => dollars(x).every((n) => known.has(n)));
+  return kept.length === parts.length ? reply : kept.join(" ").trim();
+}
+
+// In the interview there is no research yet: a price in a reply is real only
+// if it is one of the facts found on the web for this person, or a number
+// they wrote. Any other sentence with a price is left out.
+export function interviewAmountSentences(reply: string, plan: BusinessPlan, ownerSaid: string): string {
+  const known = new Set<number>([...(plan.insights ?? []).flatMap((i) => everyAmount(i.fact)), ...everyAmount(ownerSaid), ...numbersIn(ownerSaid), ...everyAmount(`${plan.profile.currentPrice} ${plan.profile.costs}`)]);
+  const parts = reply.split(/(?<=[.!?])\s+/);
+  const kept = parts.filter((x) => dollars(x).every((n) => known.has(n)) && dollars(expandThousands(x)).every((n) => known.has(n)));
   return kept.length === parts.length ? reply : kept.join(" ").trim();
 }
 
@@ -404,6 +414,18 @@ function plainAmounts(t: string): number[] {
 export function priceNumbers(t: string): number[] {
   return [...dollarAmounts(t), ...plainAmounts(t)];
 }
+// "120 mil", "120k", "1,5 millones" → the full number: a price said in words
+// and the same price written in digits are the same amount.
+export function expandThousands(t: string): string {
+  const n = (x: string) => Number(x.replace(",", "."));
+  return (t || "")
+    .replace(/(\d+(?:[.,]\d{1,2})?)\s*(?:millones|mill[oó]n|millions?)\b/gi, (_m, x: string) => String(Math.round(n(x) * 1_000_000)))
+    .replace(/(\d+(?:[.,]\d{1,2})?)\s*(?:mil\b|k\b)/gi, (_m, x: string) => String(Math.round(n(x) * 1000)));
+}
+// Every amount of a text about prices, with "120 mil" also read as 120000.
+export function everyAmount(t: string): number[] {
+  return [...new Set([...priceNumbers(t), ...priceNumbers(expandThousands(t))])];
+}
 
 // Amounts in the chat that are about someone else's money or the owner's
 // costs and income, never a price they set: "la competencia cobra $80",
@@ -437,14 +459,98 @@ export function markReferencePrices(plan: BusinessPlan, ownerSaid = "", typed = 
   // C's access prices are the Brain's proposal, approved part by part.
   if (plan.mode === "agent") return plan;
   const priceCard = plan.cards.prices && !plan.cards.prices.u ? plan.cards.prices.v : "";
-  const own = new Set([...priceNumbers(`${plan.profile.currentPrice} ${priceCard} ${typed}`), ...ownerPriceAmounts(ownerSaid)]);
+  const own = new Set([...everyAmount(`${plan.profile.currentPrice} ${priceCard} ${typed}`), ...ownerPriceAmounts(ownerSaid), ...ownerPriceAmounts(expandThousands(ownerSaid))]);
   return {
     ...plan,
     packages: plan.packages.map((k) => {
-      const am = dollarAmounts(k.price);
+      const am = packageAmounts(k.price);
       return { ...k, ref: !(am.length > 0 && am.every((n) => own.has(n))) };
     }),
   };
+}
+// The amounts of a package price: "$120.000", "120 mil pesos" and "desde 120.000".
+function packageAmounts(price: string): number[] {
+  const x = expandThousands(price);
+  const am = dollarAmounts(x);
+  return am.length ? am : plainAmounts(x);
+}
+
+// ---------- A (more clients): nothing invented ----------
+// Prices the research really found: its range, its named examples, its competitors.
+export function researchAmounts(plan: BusinessPlan): Set<number> {
+  const m = plan.market;
+  const pr = m.prices;
+  const fields = [pr?.low, pr?.mid, pr?.high, ...(m.examples ?? []).map((e) => e.price), ...(m.competitors ?? []).map((c) => c.price)].filter(Boolean).join(" ; ");
+  return new Set([...everyAmount(fields), ...dollarAmounts(JSON.stringify(pr ?? {}))]);
+}
+// Packages of A whose price is neither the owner's nor one the research found:
+// an estimate made up by the model. (Run after markReferencePrices.)
+function unbacked(plan: BusinessPlan): { i: number; amounts: number[] }[] {
+  if (plan.mode !== "existing") return [];
+  const backed = researchAmounts(plan);
+  return plan.packages
+    .map((k, i) => ({ i, amounts: k.ref ? packageAmounts(k.price).filter((n) => !backed.has(n)) : [] }))
+    .filter((x) => x.amounts.length > 0);
+}
+export function unbackedRefIssues(plan: BusinessPlan, ownerSaid = ""): string[] {
+  const marked = markReferencePrices(plan, ownerSaid);
+  return unbacked(marked).map(
+    ({ i }) => `packages[${i}] ("${marked.packages[i].name}") has the price "${marked.packages[i].price}", which the owner never gave and the research didn't find. Leave its price empty and don't quote that number anywhere.`
+  );
+}
+// By code: that package stays without price ("tú pones el precio") and every
+// sentence quoting the invented number goes with it.
+export function dropUnbackedRefs(plan: BusinessPlan): BusinessPlan {
+  const bad = unbacked(plan);
+  if (!bad.length) return plan;
+  const idx = new Set(bad.map((x) => x.i));
+  const packages = plan.packages.map((k, i) => (idx.has(i) ? { ...k, price: "" } : k));
+  const p = plan.profile;
+  const priceCard = plan.cards.prices && !plan.cards.prices.u ? plan.cards.prices.v : "";
+  const still = new Set<number>([...researchAmounts(plan), ...everyAmount(`${p.currentPrice} ${priceCard} ${p.costs}`), ...packages.flatMap((k) => packageAmounts(k.price))]);
+  const gone = new Set(bad.flatMap((x) => x.amounts).filter((n) => !still.has(n)));
+  if (!gone.size) return { ...plan, packages };
+  const hit = (t: string) => everyAmount(t).some((n) => gone.has(n));
+  return cutSentences({ ...plan, packages }, hit);
+}
+
+// Removes from every text of a proposal the sentences that `hit` marks. The
+// promise and the menu are never left empty: they keep their text.
+function cutSentences(plan: BusinessPlan, hit: (sentence: string) => boolean): BusinessPlan {
+  const cut = (t: string) => (t && hit(t) ? t.split(/(?<=[.!?;])\s+/).filter((x) => !hit(x)).join(" ").trim() : t);
+  const keep = (t: string) => cut(t) || t;
+  return {
+    ...plan,
+    promise: keep(plan.promise),
+    serviceIncludes: keep(plan.serviceIncludes),
+    pricingNote: cut(plan.pricingNote),
+    firstSteps: plan.firstSteps.map(cut).filter(Boolean),
+    differentiators: plan.differentiators.map(cut).filter(Boolean),
+    packages: plan.packages.map((k) => ({ ...k, includes: keep(k.includes), note: cut(k.note) })),
+    faq: plan.faq.map((f) => ({ q: f.q, a: cut(f.a) })).filter((f) => f.a && !hit(f.q)),
+    videoScript: cut(plan.videoScript),
+    growth: { ...G(plan), diagnosis: cut(G(plan).diagnosis), idealClient: cut(G(plan).idealClient), priceVsMarket: cut(G(plan).priceVsMarket), actions: G(plan).actions.map(cut).filter(Boolean) },
+    channels: (plan.channels ?? []).map((c) => ({ channel: c.channel, why: cut(c.why) })).filter((c) => !hit(c.channel)),
+  };
+}
+
+// Languages: when the owner never said which ones they serve in, no text
+// claims any ("te atendemos en español e inglés", "bilingüe").
+const LANG_WORD = String.raw`(?:ingl[eé]s|english|espa[ñn]ol|spanish|castellano|portugu[eé]s|portuguese|franc[eé]s|french)`;
+const LANG_CLAIM = new RegExp(
+  String.raw`\b(?:biling[uü]es?|bilingual|multiling[uü]es?)\b|${LANG_WORD}\s+(?:y|e|o|and|or)\s+(?:en\s+|in\s+)?${LANG_WORD}|\b(?:atiendo|atendemos|atenci[oó]n|hablo|hablamos|se habla|te atiendo|te atendemos|te explico|we speak|we serve|i speak|service|support|served)\s+(?:en\s+|in\s+)?${LANG_WORD}\b|\ben tu idioma\b|\bin your (?:own )?language\b`,
+  "i"
+);
+// A service that IS about languages (classes, translation) talks about them.
+const LANG_SERVICE = /(ingl[eé]s|english|espa[ñn]ol|spanish|idioma|language|traduc|translat|int[eé]rprete|interpret)/i;
+export function claimsLanguage(text: string): boolean {
+  return LANG_CLAIM.test(text || "");
+}
+export function noLanguageClaims(plan: BusinessPlan): BusinessPlan {
+  const card = plan.cards.languages && !plan.cards.languages.u ? plan.cards.languages.v : "";
+  if (plan.profile.languages || card || plan.mode === "agent") return plan;
+  if (LANG_SERVICE.test(`${plan.profile.mainService} ${plan.profile.focus} ${plan.service}`)) return plan;
+  return cutSentences(plan, claimsLanguage);
 }
 
 // "Tus costos" only when the owner gave costs: otherwise that sentence is a

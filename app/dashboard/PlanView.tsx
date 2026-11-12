@@ -309,7 +309,11 @@ export default function PlanView({
         : plan.stage === "choose" && plan.ideas.length
           ? <IdeasCard plan={plan} busy={busy} live onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} onMore={onMore} />
           : null;
-  const tailKey = `${plan.stage}:${reviewing}:${liveId}:${busy}`;
+  // The research is done and the plan is being written: what was found shows
+  // right away, so the wait has something real to read.
+  const writing = plan.stage === "research" && !pipeErr && jobs.some((j) => j.kind === "strategy" && j.status !== "queued") && jobs.some((j) => j.kind === "prices" && (j.status === "done" || j.status === "failed"));
+  const foundSoFar = writing && plan.market.researchedAt ? <FoundSoFar plan={plan} /> : null;
+  const tailKey = `${plan.stage}:${reviewing}:${liveId}:${busy}:${foundSoFar ? "found" : ""}`;
 
   const isStrategy = plan.stage === "proposal" || plan.stage === "approved";
   const doneCount = APPROVAL_BLOCKS.filter((b) => plan.approvals[b]).length;
@@ -340,7 +344,10 @@ export default function PlanView({
         title={(plan.chosenIdea !== null ? plan.ideas[plan.chosenIdea]?.title : "") || plan.profile.mainService || business.name}
         status={<StatusChip>{es ? `${savedFacts} ${savedFacts === 1 ? "dato" : "datos"}` : `${savedFacts} ${savedFacts === 1 ? "fact" : "facts"}`}</StatusChip>}
       >
-        <StepList numbered={false} items={[{ id: "file", label: es ? "Lo que ya sé de ti" : "What I know so far", title: es ? "Toca para verlo" : "Tap to see it", detail: <ProfileCard plan={plan} bare /> }]} />
+        <StepList numbered={false} items={[
+            { id: "file", label: es ? "Lo que ya sé de ti" : "What I know so far", title: es ? "Toca para verlo" : "Tap to see it", detail: <ProfileCard plan={plan} bare /> },
+            ...(plan.insights.length ? [{ id: "found", label: es ? "Datos reales que encontré" : "Real data I found", title: es ? "Toca para ver de dónde salen" : "Tap to see where they come from", detail: <InsightList plan={plan} /> }] : []),
+          ]} />
       </ProjectDock>
     ) : undefined;
   // Notices and errors also show inside the chat, after the last message.
@@ -407,6 +414,9 @@ export default function PlanView({
             emptySub: isB ? t.chat.emptySubB : plan.mode === "agent" ? t.chat.emptySubC : t.chat.emptySubA,
             seeBelow: "",
             seeBelowHref: "",
+            // While it gets to know them, a slow reply usually means it is
+            // looking up real data on the web (up to two lookups per project).
+            thinkingLong: plan.stage === "interview" && plan.mode !== "agent" && plan.insightRuns < 2 && Boolean(plan.profile.mainService || plan.profile.workHistory || plan.profile.likes) ? (es ? "Buscando datos reales de tu zona…" : "Looking up real data for your area…") : undefined,
           }}
           locked={
             inPipeline && !pipeErr ? (
@@ -423,6 +433,7 @@ export default function PlanView({
           tail={
             <>
               {alerts}
+              {foundSoFar}
               {tail}
             </>
           }
@@ -536,10 +547,14 @@ function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
             {plan.packages.map((p, i) => (
               <div key={i} className="rounded-xl p-4 flex flex-col gap-1.5 min-w-0" style={i === 1 ? { ...INSET, boxShadow: `inset 0 0 0 1px ${RING}` } : INSET}>
                 <span className="text-[14px] font-semibold text-pfg break-words">{p.name}</span>
-                <span className="text-[22px] font-semibold tracking-tight break-words leading-tight" style={{ color: p.ref ? "#52525B" : GREEN }}>
-                  {p.price || "—"}
-                </span>
-                {p.ref && (
+                {p.price ? (
+                  <span className="text-[22px] font-semibold tracking-tight break-words leading-tight" style={{ color: p.ref ? "#52525B" : GREEN }}>
+                    {p.price}
+                  </span>
+                ) : (
+                  <span className="text-[14px] font-medium text-psub leading-tight">{t.youSetPrice}</span>
+                )}
+                {p.ref && p.price && (
                   <span className="self-start text-[11px] font-semibold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full" style={{ background: "rgba(10,10,10,0.06)", color: "#52525B" }}>
                     {t.marketRef}
                   </span>
@@ -1038,13 +1053,21 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
             <div key={i} className="rounded-2xl p-4 flex flex-col gap-2 min-w-0" style={{ background: "#F5F5F2" }}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="text-[15px] font-semibold text-pfg">{p.name}</span>
-                <span className="text-[19px] font-semibold" style={{ color: p.ref ? "#52525B" : GREEN }}>{p.price || "—"}</span>
+                {p.price ? <span className="text-[19px] font-semibold" style={{ color: p.ref ? "#52525B" : GREEN }}>{p.price}</span> : <span className="text-[13.5px] font-medium text-psub">{t.youSetPrice}</span>}
               </div>
               {p.includes && <span className="text-[13.5px] text-pfg2 leading-relaxed">{p.includes}</span>}
               {p.ref ? (
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[12.5px] text-pmuted">
-                    <b className="font-semibold">{t.marketRef}</b> · {es ? "lo que se cobra en tu zona, no es tu precio. Escribe el tuyo si ya lo sabes:" : "what's charged in your area, not your price. Type yours if you know it:"}
+                    {p.price ? (
+                      <>
+                        <b className="font-semibold">{t.marketRef}</b> · {es ? "lo que se cobra en tu zona, no es tu precio. Escribe el tuyo si ya lo sabes:" : "what's charged in your area, not your price. Type yours if you know it:"}
+                      </>
+                    ) : es ? (
+                      "No encontré un precio publicado para este trabajo y no quise inventarlo. Escribe el tuyo si ya lo sabes:"
+                    ) : (
+                      "I didn't find a published price for this job and didn't want to make one up. Type yours if you know it:"
+                    )}
                   </span>
                   <input
                     value={prices[String(i)] ?? ""}
@@ -1079,15 +1102,15 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
           </button>
           {onOther && (
             <button type="button" disabled={busy} onClick={onOther} className="h-12 px-5 rounded-full text-[14.5px] font-medium disabled:opacity-60 inline-flex items-center gap-2" style={{ background: "#fff", color: "#0A0A0A", boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.14)" }}>
-              <span aria-hidden="true" className="text-[17px] leading-none">↻</span> {es ? "Ver otros paquetes y presentación" : "See other packages and presentation"}
+              <span aria-hidden="true" className="text-[17px] leading-none">↻</span> {es ? "Ver otra presentación" : "See another presentation"}
             </button>
           )}
         </div>
         <span className="text-[13px] text-psub">
           {onOther
             ? es
-              ? "«Ver otros» cambia los paquetes y la presentación; tu servicio y los precios que confirmaste se quedan igual. ¿Otro cambio? Escríbelo abajo."
-              : "\"See other\" changes the packages and the presentation; your service and the prices you confirmed stay the same. Another change? Write it below."
+              ? "«Ver otra presentación» cambia solo cómo te presentas; tu servicio y tus precios se quedan igual. ¿Otro cambio? Escríbelo abajo."
+              : "\"See another presentation\" changes only how you present yourself; your service and your prices stay the same. Another change? Write it below."
             : es
               ? "¿Quieres cambiar algo? Escríbelo abajo y actualizo las tarjetas."
               : "Want to change something? Write it below and I'll update the cards."}
@@ -1129,13 +1152,143 @@ function GrowthBody({ plan }: { plan: BusinessPlan }) {
       {g.actions.length > 0 &&
         row(
           es ? (g.actions.length === 3 ? "Tres cosas para esta semana" : "Para esta semana") : g.actions.length === 3 ? "Three things for this week" : "For this week",
-          <ol className="flex flex-col gap-1.5 list-decimal pl-5">
+          <ol className="flex flex-col gap-3">
             {g.actions.map((a, i) => (
-              <li key={i}>{a}</li>
+              <li key={i} className="flex gap-3 min-w-0">
+                <span className="h-6 w-6 rounded-full shrink-0 flex items-center justify-center text-[12px] font-semibold mt-px" style={{ background: "rgba(10,10,10,0.07)", color: "#27272A" }}>{i + 1}</span>
+                <ActionText text={a} />
+              </li>
             ))}
           </ol>
         )}
+      {plan.market.sources.length > 0 && <Sources list={plan.market.sources.slice(0, 5)} />}
     </div>
+  );
+}
+
+// An action with its ready-to-use text: what goes between «» shows as a block
+// with a button to copy it (a message, the name of a profile, a sign).
+function ActionText({ text }: { text: string }) {
+  const es = useLang() === "es";
+  const [copied, setCopied] = useState(-1);
+  const parts = text
+    .split(/(«[^»]{12,}»)/g)
+    .map((x, i) => (x.startsWith("«") ? x : i === 0 ? x.trim() : x.replace(/^[\s:.,;]+/, "").trim()))
+    .filter(Boolean);
+  const copy = async (value: string, i: number) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(i);
+      setTimeout(() => setCopied(-1), 1800);
+    } catch {}
+  };
+  return (
+    <div className="min-w-0 flex flex-col gap-2">
+      {parts.map((x, i) =>
+        x.startsWith("«") && x.endsWith("»") ? (
+          <div key={i} className="rounded-2xl px-4 py-3 flex flex-col gap-2 min-w-0" style={{ background: "rgba(10,10,10,0.045)", boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.07)" }}>
+            <span className="text-[14px] text-pfg leading-relaxed whitespace-pre-line break-words">{x.slice(1, -1)}</span>
+            <button type="button" onClick={() => copy(x.slice(1, -1), i)} className="self-start h-8 px-3.5 rounded-full text-[12.5px] font-semibold" style={{ background: "#0A0A0A", color: "#fff" }}>
+              {copied === i ? (es ? "Copiado ✓" : "Copied ✓") : es ? "Copiar texto" : "Copy text"}
+            </button>
+          </div>
+        ) : (
+          <span key={i} className="min-w-0">{x}</span>
+        )
+      )}
+    </div>
+  );
+}
+
+// Real prices with a name ("Vélez · restauración de calzado · $159.900").
+function PriceExamples({ plan, max = 6 }: { plan: BusinessPlan; max?: number }) {
+  const list = (plan.market.examples ?? []).slice(0, max);
+  if (!list.length) return null;
+  return (
+    <div className="flex flex-col">
+      {list.map((e, i) => (
+        <div key={i} className="py-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 text-[13.5px]" style={i > 0 ? { borderTop: `1px solid ${HAIR}` } : undefined}>
+          <span className="min-w-0">
+            <span className="text-pfg font-medium">
+              {e.url ? (
+                <a href={e.url} target="_blank" rel="noopener noreferrer nofollow" className="hover:underline">
+                  {e.who} ↗
+                </a>
+              ) : (
+                e.who
+              )}
+            </span>
+            {e.what ? <span className="text-psub"> · {e.what}</span> : null}
+          </span>
+          <span className="text-pfg font-semibold tabular-nums">{e.price}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// While the plan is being written: what the research already found.
+function FoundSoFar({ plan }: { plan: BusinessPlan }) {
+  const lang = useLang();
+  const t = PLAN_TEXT[lang];
+  const es = lang === "es";
+  const m = plan.market;
+  const range = priceSpan(m.prices, t);
+  const names = m.competitors.map((c) => c.name).filter(Boolean).slice(0, 4);
+  const nothing = !m.examples.length && !range && !names.length && !m.gaps.length;
+  return (
+    <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-4 min-w-0" style={{ ...CARD, animation: "dash-fade .35s ease both" }}>
+      <span className="flex items-center gap-2">
+        <Globe />
+        <Label>{es ? "Lo que ya encontré" : "What I found so far"}</Label>
+      </span>
+      {nothing ? (
+        <p className="text-[14px] text-psub leading-relaxed">{es ? "Encontré poca información publicada sobre este servicio en tu zona. Armo tu plan con lo que me contaste y te digo con claridad qué no pude confirmar." : "I found little published information about this service in your area. I'm building your plan from what you told me, and I'll say clearly what I couldn't confirm."}</p>
+      ) : (
+        <>
+          {m.examples.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[13.5px] font-semibold text-pfg">{es ? "Precios reales, con nombre" : "Real prices, with a name"}</span>
+              <PriceExamples plan={plan} max={4} />
+            </div>
+          )}
+          {range && <span className="text-[13.5px] text-pfg2">{t.zonePrices(range)}</span>}
+          {names.length > 0 && (
+            <span className="text-[13.5px] text-pfg2 leading-relaxed">
+              <b className="font-semibold text-pfg">{es ? "Quién aparece cuando te buscan: " : "Who shows up when people search: "}</b>
+              {names.join(", ")}
+            </span>
+          )}
+          {m.gaps.slice(0, 2).map((x, i) => (
+            <span key={i} className="text-[13.5px] text-pfg leading-relaxed flex gap-2">
+              <span className="shrink-0" style={{ color: GREEN }}>→</span>
+              <span className="min-w-0">{x}</span>
+            </span>
+          ))}
+        </>
+      )}
+      <span className="text-[12.5px] text-pmuted">{es ? "Con esto estoy armando tu plan. Ya casi." : "I'm building your plan with this. Almost there."}</span>
+    </div>
+  );
+}
+
+// The facts the Brain looked up while chatting, each with its source.
+function InsightList({ plan }: { plan: BusinessPlan }) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {plan.insights.map((x, i) => (
+        <li key={i} className="flex flex-col gap-1 text-[13.5px] leading-relaxed min-w-0">
+          <span className="text-pfg">{x.fact}</span>
+          {x.url ? (
+            <a href={x.url} target="_blank" rel="noopener noreferrer nofollow" className="text-[12px] text-pmuted hover:underline truncate">
+              {x.source || hostOf(x.url)} ↗
+            </a>
+          ) : x.source ? (
+            <span className="text-[12px] text-pmuted">{x.source}</span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -1553,6 +1706,7 @@ function Progress({ jobs, plan, compact = false }: { jobs: Job[]; plan: Business
   const t = PLAN_TEXT[lang];
   const label = (k: string) => {
     if (k === "ideas" && plan.mode === "agent") return t.ideasC.task;
+    if (k === "strategy" && plan.mode === "existing") return lang === "es" ? "Armando tu plan para más clientes" : "Building your plan for more clients";
     const v = t.tasks[k];
     if (typeof v === "function") return v(k === "prices" ? plan.profile.city : plan.profile.state || plan.profile.region || countryLabel(plan.profile.country, lang));
     return v ?? k;
@@ -1760,25 +1914,27 @@ function MarketDetail({ plan }: { plan: BusinessPlan }) {
     <div className="flex flex-col gap-5 min-w-0">
       <span className="text-[12px] text-pmuted">{t.researchedOn(m.researchedAt)}</span>
 
-      {m.prices && (
+      {
         <div className="flex flex-col gap-2">
           <span className="text-[14px] font-semibold text-pfg">{t.prices}</span>
-          <div className="grid grid-cols-3 gap-2 max-w-[520px]">
+          {!m.prices?.low && !m.prices?.mid && !m.prices?.high && !m.examples.length && <p className="text-[13px] text-psub leading-relaxed">{t.noPricesFound}</p>}
+          <div className={m.prices?.low || m.prices?.mid || m.prices?.high ? "grid grid-cols-3 gap-2 max-w-[520px]" : "hidden"}>
             {([
-              [t.low, m.prices.low],
-              [t.mid, m.prices.mid],
-              [t.high, m.prices.high],
-            ] as const).map(([k, v]) => (
+              [t.low, m.prices?.low ?? ""],
+              [t.mid, m.prices?.mid ?? ""],
+              [t.high, m.prices?.high ?? ""],
+            ] as const).filter(([, v]) => v).map(([k, v]) => (
               <div key={k} className="rounded-xl px-3 py-2.5 min-w-0" style={INSET}>
                 <div className="text-[10.5px] uppercase tracking-[0.08em] text-pfaint">{k}</div>
                 <div className="text-[16px] md:text-[18px] font-semibold text-pfg break-words leading-tight mt-0.5">{v || "—"}</div>
               </div>
             ))}
           </div>
-          {m.prices.includes && <p className="text-[13px] text-psub leading-relaxed">{m.prices.includes}</p>}
-          {m.prices.note && <p className="text-[12.5px] text-pmuted leading-relaxed">{m.prices.note}</p>}
+          <PriceExamples plan={plan} />
+          {m.prices?.includes && <p className="text-[13px] text-psub leading-relaxed">{m.prices.includes}</p>}
+          {m.prices?.note && <p className="text-[12.5px] text-pmuted leading-relaxed">{m.prices.note}</p>}
         </div>
-      )}
+      }
 
       {m.competitors.length > 0 && (
         <div className="flex flex-col gap-1">
@@ -1877,12 +2033,28 @@ function Facts({ rows }: { rows: [string, string][] }) {
   if (!shown.length) return null;
   return (
     <div className="flex flex-col gap-2">
-      {shown.map(([k, v]) => (
-        <div key={k} className="text-[13.5px] leading-relaxed">
-          <span className="text-pmuted">{k}: </span>
-          <span className="text-pfg">{v}</span>
-        </div>
-      ))}
+      {shown.map(([k, v]) => {
+        // A menu written as "a; b; c" reads better as a list.
+        const items = v.split(/;\s+/).map((x) => x.trim().replace(/[.;]$/, "")).filter(Boolean);
+        return items.length >= 2 ? (
+          <div key={k} className="text-[13.5px] leading-relaxed flex flex-col gap-1">
+            <span className="text-pmuted">{k}:</span>
+            <ul className="flex flex-col gap-1">
+              {items.map((x, i) => (
+                <li key={i} className="flex gap-2 text-pfg">
+                  <span className="shrink-0 text-pmuted">•</span>
+                  <span className="min-w-0">{x.charAt(0).toUpperCase() + x.slice(1)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div key={k} className="text-[13.5px] leading-relaxed">
+            <span className="text-pmuted">{k}: </span>
+            <span className="text-pfg">{v}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

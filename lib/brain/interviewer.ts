@@ -24,10 +24,11 @@ import { codeGuard } from "./guard";
 import { priceMoves, swapAmounts } from "../reprice";
 import { lockedFacts, questionSentences, similar, withoutAnsweredQuestions } from "./asked";
 import { dropDanglingClause, groundedInOwner, neutralGender, scrubInternal, withoutAvoidedSuggestions } from "./checks";
-import { markReferencePrices, noFakeCosts, readyForPage, withoutAvoided } from "./checks";
+import { canLookUp, runInsights } from "./research";
+import { dropUnbackedRefs, everyAmount, markReferencePrices, noFakeCosts, noLanguageClaims, readyForPage, withoutAvoided } from "./checks";
 import { oneConfirmation, pageState, partName } from "./walk";
 import { unknownCards } from "../cards";
-import { numbersIn, unknownAmountSentences, ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
+import { numbersIn, interviewAmountSentences, unknownAmountSentences, ASKS_OFFER, OWNER_NUMBERS, dropApprovalScript, mentionsDiscount, hasJargon, isQuestionTurn, marketRangeText, noRepeatClaims, oneQuestion, ownerStated, priceChangeAllowed, silentProposalIssues } from "./checks";
 import { fillStoreFromPlan } from "../storeFill";
 import { alignProposal } from "./align";
 import { extractJson, textOf, today } from "./common";
@@ -40,14 +41,15 @@ import { researchLimitText, researchUsage, researchWouldStart } from "../usage";
 const INTERVIEWER = `Eres el Cerebro de Sevrii: un consultor de negocios de servicios, muy bueno y muy humano, que conversa por chat. Trabajas con personas de cualquier país. No eres un formulario: escuchas, entiendes rápido, aportas algo útil en cada mensaje y solo preguntas lo que de verdad cambia tu recomendación.
 
 Hay dos caminos y son distintos:
-- mode "A: already offers a service" = MÁS CLIENTES. La persona ya ofrece un servicio y quiere más clientes. No le rediseñas su servicio: lo respetas y le ayudas a venderlo mejor. Lo que necesitas entender, en este orden: qué ofrece y dónde (ciudad y país; si trabaja en línea, el país donde vive); cómo le llegan hoy sus clientes; qué tipo de cliente quiere más (solo si no se deduce); qué lo frena (precio, que no lo encuentran, confianza o tiempo: dedúcelo si puedes). Cuánto cobra y cuántos clientes más puede atender, solo si lo sabe o si el plan depende de eso.
+- mode "A: already offers a service" = MÁS CLIENTES. La persona ya ofrece un servicio y quiere más clientes. No le rediseñas su servicio: lo respetas y le ayudas a venderlo mejor. Lo que necesitas entender, en este orden y sin repetir lo que ya dijo: (1) qué ofrece y dónde (ciudad y país, y su barrio o zona si lo dice: guárdalo en area; si trabaja en línea, el país donde vive); (2) de todo lo que hace, qué trabajo le gustaría que le llegara MÁS —lo que mejor le sale o mejor le pagan— (focus): es la pregunta más importante, porque el plan entero se arma alrededor de eso; (3) cómo le llegan hoy sus clientes (howGetsClients); (4) cuánto cobra hoy por ese trabajo (currentPrice, con sus palabras y su moneda): sirve para compararlo con el mercado y nunca se lo cambias; si no tiene un precio fijo, guarda noPrice=true y sigue. Nada más: horas, costos, años e idiomas no se preguntan.
 - mode "B: starting a new service" = DESCUBRE TU SERVICIO. La persona quiere independizarse o ganar dinero extra y todavía no tiene servicio. Lo que necesitas entender: qué sabe hacer o en qué ha trabajado (y qué le gusta); dónde vive (ciudad y país; si quiere trabajar en línea, el país); si busca un ingreso extra o vivir de esto. Lo que NUNCA haría, solo si sale natural o si rechaza una idea. Con eso investigas y le propones servicios bien pagados donde vive.
 
 Cómo conversas:
 - Antes de cada mensaje revisa "profile", "essentialMissing" y TODA la conversación. Lo que ya dijo o se deduce no se pregunta, nunca, ni con otras palabras.
 - Deduce y guarda sin preguntar: de "arreglo zapatos en Medellín" sacas el servicio, la ciudad, el país (country "CO") y que es presencial (serviceMode local). Una ciudad conocida trae su país (Madrid → ES, Bogotá → CO, Ciudad de México → MX, Miami → US y state FL). Clases por Zoom o diseño son en línea (remote).
 - Cada dato que la persona diga, aunque no lo hayas preguntado, guárdalo con save_profile en ese mismo turno, con sus palabras.
-- Cada mensaje tuyo aporta algo antes de preguntar: una observación útil sobre su caso, su zona o su tipo de cliente, dicha con honestidad (sin inventar cifras ni prometer ingresos). La persona tiene que sentir que avanza desde el primer mensaje.
+- Cada mensaje tuyo aporta algo antes de preguntar. Si el estado trae "insights" (datos reales que acabo de buscar en internet para esta persona, cada uno con su fuente), usa UNO que todavía no hayas dicho, con sus números tal cual y el nombre de la fuente ("acabo de buscar…", "según …"), y saca de él una conclusión para su caso en una frase. Si no hay insights, haz una observación honesta sobre su caso sin ninguna cifra. Nunca cites un número, un precio ni un negocio que no esté en "insights" o que la persona no haya dicho. La persona tiene que sentir que avanza desde el primer mensaje.
+- Usa lo que la persona dice: si cuenta qué quiere o qué le funciona, tu siguiente mensaje parte de ESO (con sus palabras), no de una frase general del oficio.
 - Una sola pregunta por mensaje, natural y conectada con lo que acaba de decir. Nunca una lista de preguntas.
 - Pregunta solo si la respuesta cambia el plan. Lo que se puede ajustar después (nombre del negocio, idiomas, años, horas exactas, detalles) no se pregunta ahora.
 - En cuanto "canResearch" sea true, llama a start_research: no sigas preguntando "por si acaso". Si "mustResearchNow" es true, llama a start_research en este mismo turno, sin preguntar nada más.
@@ -74,7 +76,7 @@ Si mode es "C: an AI agent" la persona va a crear un agente de IA: un producto d
 En mode C el estado trae "missing": pregunta eso, una cosa a la vez, y cuando save_profile diga que el perfil está completo la investigación empieza sola.
 Si stage es "ready_check" en mode B (ya escogió una idea): solo falta lo de "missing"; deducelo de la idea si es obvio (guárdalo con save_profile) o pregúntalo en una línea.
 
-Cuando start_research (o save_profile) responda que la investigación empezó, dile en una o dos líneas que vas a investigar su zona (1 a 2 minutos) y que aquí verá el avance. En ese mensaje NO hagas ninguna pregunta: mientras investigas el chat queda bloqueado.`;
+Cuando start_research (o save_profile) responda que la investigación empezó, dile en una o dos líneas que vas a investigar su zona (unos minutos) y que aquí verá el avance. En ese mensaje NO hagas ninguna pregunta: mientras investigas el chat queda bloqueado.`;
 
 const CHOOSER = `Eres el Cerebro de Sevrii. La persona está escogiendo entre las ideas que aparecen en el estado ("ideas"; si mode es C son ideas de agentes de IA); las ve en una tarjeta en este mismo chat, con un botón para escoger cada una. Responde sus dudas en pocas líneas, con los datos de cada idea; no inventes cifras. No prometas ingresos.
 - Si dice cuál quiere, llama a choose_idea con su número (el de la tarjeta).
@@ -86,7 +88,7 @@ Máximo 70 palabras.`;
 
 const EDITOR = `Eres el Cerebro de Sevrii.
 Si mode es A (más clientes), la tarjeta empieza por su plan para conseguir más clientes ("growth": por qué no le llegan más, a quién venderle primero, su precio frente al mercado y tres acciones para esta semana; y "channels": por dónde llegarles). Ese plan es lo más importante para esta persona: si pide cambiarlo, hazlo con update_proposal.growth o channels.
-Si mode es A o B: el dueño ve TODA su estrategia en una sola tarjeta (servicio, presentación, paquetes, oferta y preguntas frecuentes) con un botón «Confirmar y crear mi página»; no hay partes una por una y "currentPart" no aplica. Si confirma de forma explícita ("confirmo", "apruebo todo", "así está bien"), llama a approve_blocks con todas las partes. Los paquetes con "ref": true son una REFERENCIA DE MERCADO (lo que se cobra en su zona), nunca sus precios: nunca digas "tus precios" ni "tus costos" de ellos. Si el dueño te dice su precio, guárdalo con update_proposal tal cual. Si dice en qué idiomas atiende, guárdalo con update_proposal.languages.
+Si mode es A o B: el dueño ve TODA su estrategia en una sola tarjeta (servicio, presentación, paquetes, oferta y preguntas frecuentes) con un botón «Confirmar y crear mi página»; no hay partes una por una y "currentPart" no aplica. Si confirma de forma explícita ("confirmo", "apruebo todo", "así está bien"), llama a approve_blocks con todas las partes. Los paquetes con "ref": true son una REFERENCIA DE MERCADO (lo que se cobra en su zona), nunca sus precios: nunca digas "tus precios" ni "tus costos" de ellos. Si el dueño te dice su precio, guárdalo con update_proposal tal cual. Un paquete sin precio significa que el dueño todavía no dijo cuánto cobra por ese trabajo y que la investigación no encontró un precio publicado: nunca le pongas tú un número ni un "estimado"; si pregunta, dile que ese precio lo pone él y que te lo diga cuando lo tenga. Si dice en qué idiomas atiende, guárdalo con update_proposal.languages.
 Si mode es C: el dueño revisa su propuesta aquí mismo en el chat, una parte a la vez y en este orden: servicio, presentación, paquetes, oferta y preguntas frecuentes. Aquí solo se diseña la oferta: la campaña, los anuncios, el video y las fotos se deciden después en Marketing; si pregunta por eso, díselo en una línea. La parte que están viendo ahora es "currentPart" en el estado: el sistema la muestra en una tarjeta justo debajo de tu mensaje, con botones de Aprobar y Cambiar.
 - No repitas el contenido de la tarjeta ni hagas listas: ya la está viendo. Habla de la parte actual, en 1 a 3 frases.
 - Si aprueba esa parte de forma explícita ("apruebo", "así está bien", o un "sí"/"dale" respondiendo a si la aprueba), llama a approve_blocks con currentPart y no digas nada de la siguiente: el sistema la muestra sola. Responde solo algo corto como "Perfecto, aprobado."
@@ -122,10 +124,10 @@ Si mode es C: el dueño revisa su propuesta aquí mismo en el chat, una parte a 
 const GUIDE = `
 
 El camino completo (úsalo para explicar dónde va la persona; nombra los pasos así):
-- Si mode es A (más clientes): 1) Conversamos (me cuentas de tu negocio) → 2) Investigación de tu zona (1 a 2 minutos, la hace Sevrii solo) → 3) Tu plan para más clientes (lo ves completo en una tarjeta: por qué no te llegan más clientes, a quién venderle primero, cómo presentarte, tu precio frente al mercado, por dónde llegarles y tres acciones para esta semana; pides cambios en el chat y lo confirmas una vez con «Confirmar») → 4) Aprobado: tu página en Store y tus anuncios en Marketing salen de ese plan.
+- Si mode es A (más clientes): 1) Conversamos (me cuentas de tu negocio) → 2) Investigación de tu zona (unos minutos, la hace Sevrii solo) → 3) Tu plan para más clientes (lo ves completo en una tarjeta: por qué no te llegan más clientes, a quién venderle primero, cómo presentarte, tu precio frente al mercado, por dónde llegarles y tres acciones para esta semana; pides cambios en el chat y lo confirmas una vez con «Confirmar») → 4) Aprobado: tu página en Store y tus anuncios en Marketing salen de ese plan.
 - Si mode es B (descubre tu servicio): 1) Conversamos (me cuentas qué sabes hacer) → 2) Ideas (Sevrii investiga tu zona y te muestra primero las 3 mejores, y más si quieres) → 3) Escoges (una idea, o pides otras) → 4) Últimos datos (solo si falta cómo o dónde lo ofrecerías; si no, se salta) → 5) Investigación de ese servicio → 6) Propuesta (tu servicio armado en una tarjeta; lo confirmas una vez) → 7) Aprobado: tu página en Store y tus anuncios en Marketing.
 (Estos nombres y números son los mismos que la persona ve en la barra de pasos arriba del chat.)
-- Si mode es C: 1) Te conozco → 2) Ideas (Sevrii investiga y propone 3, 1 a 2 minutos) → 3) Escoges una → 4) Tu agente (cómo trabaja con cada cliente, sus límites, hasta dónde atiende y su nombre) → 5) Investigación → 6) Propuesta → 7) Aprobado. Después, en Store se publica el agente y en Marketing sus anuncios.
+- Si mode es C: 1) Te conozco → 2) Ideas (Sevrii investiga y propone 3, unos minutos) → 3) Escoges una → 4) Tu agente (cómo trabaja con cada cliente, sus límites, hasta dónde atiende y su nombre) → 5) Investigación → 6) Propuesta → 7) Aprobado. Después, en Store se publica el agente y en Marketing sus anuncios.
 
 Piensa antes de responder: mira el estado, lo que ya está guardado y lo que falta, y decide cuál es el siguiente paso real.
 
@@ -161,7 +163,10 @@ const PROFILE_PROPS: Record<string, unknown> = {
   exampleJob: { type: "string" },
   typicalCustomer: { type: "string" },
   howGetsClients: { type: "string" },
-  currentPrice: { type: "string" },
+  focus: { type: "string", description: "A only: the work they want MORE of, in their words (what they do best or what pays best, e.g. 'restauración de zapatos y bolsos de cuero'). If they offer one single thing, the same as mainService" },
+  area: { type: "string", description: "The neighborhood or part of town they work in, only if they said it (e.g. 'Laureles')" },
+  currentPrice: { type: "string", description: "What they charge today, exactly as they said it, with every price they gave and its unit (e.g. 'zapatos desde 120.000; bolsos 150.000 a 250.000')" },
+  noPrice: { type: "boolean", description: "true only when you asked what they charge and they have no price to give ('depende', 'no sé', 'lo cotizo en el momento')" },
   costs: { type: "string" },
   differentiators: { type: "string" },
   licenseStatus: { type: "string", enum: ["has", "no", "not_needed"] },
@@ -347,6 +352,14 @@ const brainDecides = (plan: BusinessPlan) => plan.stage === "interview" && plan.
 // After this many owner replies with the essentials known, the Brain stops
 // asking and researches (a person never gets a long interrogation).
 const RESEARCH_CAP = 4;
+// With the core known (what + where), this many replies is the end of the
+// interview no matter what is still unanswered: nobody gets stuck in questions.
+const HARD_CAP = 6;
+function coreKnown(plan: BusinessPlan): boolean {
+  const p = plan.profile;
+  const where = Boolean(p.city || p.country);
+  return plan.mode === "existing" ? Boolean(p.mainService) && where : Boolean(p.workHistory || p.likes) && where;
+}
 
 function stageOf(plan: BusinessPlan): { system: string; tools: Tool[] } {
   if (brainDecides(plan)) return { system: INTERVIEWER + GUIDE, tools: [SAVE_PROFILE, START_RESEARCH] };
@@ -359,7 +372,8 @@ function stageOf(plan: BusinessPlan): { system: string; tools: Tool[] } {
 // A and B: what's essential and still missing, whether the research can
 // start, and whether it must start now (the cap on questions, in code).
 export function interviewGate(plan: BusinessPlan, ownerReplies: number): { essentialMissing: string[]; canResearch: boolean; mustResearchNow: boolean; forceResearch: boolean } {
-  const essential = brainDecides(plan) ? missingProfile(plan) : [];
+  const missing = brainDecides(plan) ? missingProfile(plan) : [];
+  const essential = ownerReplies >= HARD_CAP && coreKnown(plan) ? [] : missing;
   // A service Sevrii doesn't publish is never researched (honest message instead).
   const can = brainDecides(plan) && essential.length === 0 && !(plan.mode === "existing" && isRestrictedService(plan));
   return { essentialMissing: essential, canResearch: can, mustResearchNow: can && ownerReplies >= RESEARCH_CAP, forceResearch: can && ownerReplies > RESEARCH_CAP };
@@ -376,7 +390,7 @@ function state(b: BusinessRow, ownerReplies = 0) {
     // A cap in code, not only in the prompt: with what's essential known, a
     // few replies are enough; past that the research starts.
     const g = interviewGate(p, ownerReplies);
-    return { ...base, profile: p.profile, essentialMissing: g.essentialMissing, canResearch: g.canResearch, mustResearchNow: g.mustResearchNow, ownerReplies };
+    return { ...base, profile: p.profile, insights: p.insights.map((i) => ({ fact: i.fact, source: i.source })), essentialMissing: g.essentialMissing, canResearch: g.canResearch, mustResearchNow: g.mustResearchNow, ownerReplies };
   }
   if (p.stage === "interview" || p.stage === "ready_check") {
     const idea = p.chosenIdea !== null ? p.ideas[p.chosenIdea] : null;
@@ -509,7 +523,7 @@ export async function resumeStuckResearch(b: BusinessRow, lang: Lang): Promise<B
       await updateChatMessage(b.id, m.id, es ? "Quedó guardado todo tu perfil. (Aquí había un aviso de límite que ya no aplica: tu plan permite seguir.)" : "Your whole profile is saved. (There was a limit notice here that no longer applies: your plan lets you continue.)");
     }
   }
-  await addChatMessage(b.id, "plan", "ai", es ? "Ya puedo seguir: empiezo a investigar ahora (1 o 2 minutos). Verás el avance aquí en el chat." : "I can keep going now: starting the research (1-2 minutes). You'll see the progress here in the chat.");
+  await addChatMessage(b.id, "plan", "ai", es ? "Ya puedo seguir: empiezo a investigar ahora (unos minutos). Verás el avance aquí en el chat." : "I can keep going now: starting the research (a few minutes). You'll see the progress here in the chat.");
   return (await getBusinessById(b.id)) ?? null;
 }
 
@@ -537,6 +551,10 @@ const HARD_RULES = `(Reglas de siempre: lenguaje neutro de género (nunca «ubic
 const RESTRICTED_NOTE = (mode: "existing" | "new") =>
   `not started: Sevrii doesn't publish this kind of service for now (notary, immigration paperwork, loans or credit repair: heavily regulated, special licenses). Tell the owner kindly and honestly in 2 short lines, never suggest renaming it to get around it, ${mode === "existing" ? "and say that if they offer another service they can create a new project with it (the card under your message has the button)" : "and offer to look for other service ideas with what they already told you (the card under your message has the button «Ver otros servicios»)"}. Ask nothing else.`;
 
+// The price question, and the answers that mean "I have no fixed price".
+const ASKS_PRICE = /(cu[aá]nto (cobras|cuesta|vale|pides)|qu[eé] (cobras|precio)|tus? precios?|cobras hoy|how much do you charge|what do you charge|your prices?|your rate)/i;
+const NO_PRICE = /(depende|no se\b|no tengo (un )?precio|sin precio|cotiz|segun|varia|it depends|no fixed|i quote|not sure|dont know|don't know)/;
+
 // What save_profile keeps of what the model sent, checked in code: numbers
 // the owner really said, free text in their own words, no offer they didn't
 // ask for, the place settled (country deduced, no US state abroad) and a
@@ -563,12 +581,27 @@ export function applyProfileInput(plan: BusinessPlan, inputIn: Record<string, un
     }
   }
   // Free-text answers come from the owner's own words, never from a guess.
-  for (const k of ["likes", "notWant", "workHistory", "askedFor"] as const) {
+  for (const k of ["likes", "notWant", "workHistory", "askedFor", "focus", "area"] as const) {
     const v = input[k];
     if (typeof v === "string" && v.trim() && !groundedInOwner(v, ownerSaid)) {
       delete input[k];
       note += ` (${k} NOT saved: the owner didn't say that. Ask them again with other words and 2 or 3 options they can pick; never fill it in yourself and never mention a system)`;
     }
+  }
+  // Their price is theirs: saved only when at least one of its amounts is a
+  // number they wrote ("120 mil" and "120.000" are the same amount).
+  if (typeof input.currentPrice === "string" && input.currentPrice.trim()) {
+    const am = everyAmount(input.currentPrice);
+    const said = new Set([...everyAmount(ownerSaid), ...numbersIn(ownerSaid)]);
+    if (am.length && !am.some((n) => said.has(n))) {
+      delete input.currentPrice;
+      note += " (currentPrice NOT saved: the owner never wrote that amount. Ask what they charge today, in numbers; never guess it)";
+    }
+  }
+  // "No tengo precio fijo" is an answer to the price question, not a way to skip it.
+  if (input.noPrice === true && !(ASKS_PRICE.test(lastAssistant) || NO_PRICE.test(fold(lastSaid)))) {
+    delete input.noPrice;
+    note += " (noPrice NOT saved: you haven't asked what they charge yet. Ask it)";
   }
   // An offer exists only if the owner asked for one.
   if (typeof input.offerWanted === "string" && input.offerWanted.trim() && !ASKS_OFFER.test(ownerSaid)) {
@@ -599,7 +632,7 @@ export function applyProfileInput(plan: BusinessPlan, inputIn: Record<string, un
   return { next, note };
 }
 
-async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = "", lastAssistant = "", turn: { approved: boolean } = { approved: false }): Promise<{ out: string; startPipeline?: boolean }> {
+async function runTool(name: string, input: Record<string, unknown>, b: BusinessRow, lang: Lang, ownerSaid = "", lastSaid = "", lastAssistant = "", turn: { approved: boolean; force?: boolean } = { approved: false }): Promise<{ out: string; startPipeline?: boolean }> {
   const plan = b.plan;
   switch (name) {
     case "save_profile": {
@@ -614,7 +647,21 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (brainDecides(next)) {
         await updateBusinessPlan(b.id, parsePlan(next));
         if (next.mode === "existing" && isRestrictedService(next)) return { out: `saved${note}. ${RESTRICTED_NOTE("existing")}` };
-        return { out: `saved${note}. canResearch: ${left.length ? `no (still essential: ${left.join(", ")})` : "yes (call start_research as soon as more questions wouldn't change the strategy)"}` };
+        // Real facts for the next message: one web lookup when the Brain first
+        // knows what they do and where, and one more when it learns what they
+        // want more of. Only while questions are left (never delays the research).
+        let found = "";
+        const second = next.mode === "existing" && Boolean(next.profile.focus) && !plan.profile.focus;
+        if (left.length && canLookUp(next) && (next.insightRuns === 0 || (next.insightRuns === 1 && second))) {
+          // Never more than 40 s: the person is waiting for a reply.
+          const fresh = await Promise.race([runInsights(next, lang).catch(() => []), new Promise<Awaited<ReturnType<typeof runInsights>>>((done) => setTimeout(() => done([]), 40_000))]);
+          const known = new Set(next.insights.map((i) => i.fact));
+          next = { ...next, insightRuns: next.insightRuns + 1, insights: [...fresh.filter((i) => !known.has(i.fact)), ...next.insights].slice(0, 5) };
+          await updateBusinessPlan(b.id, parsePlan(next));
+          if (fresh.length)
+            found = ` Facts I just found on the web for this person (real, each with its source): ${JSON.stringify(fresh.map((i) => ({ fact: i.fact, source: i.source })))}. Open your next message with ONE of them (its numbers exactly, naming the source, "acabo de buscar…"), say what it means for THEIR case in one sentence, then ask your one question.`;
+        }
+        return { out: `saved${note}. canResearch: ${left.length ? `no (still essential: ${left.join(", ")})` : "yes (call start_research as soon as more questions wouldn't change the strategy)"}.${found}` };
       }
       // B's chosen idea is a service Sevrii doesn't publish: no research on it.
       if (next.mode === "new" && next.stage === "ready_check" && isRestrictedService(next)) {
@@ -634,14 +681,15 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       }
       next = { ...next, stage, runId: "", flowLang: next.flowLang || (lang === "en" ? "en" : "es") };
       await updateBusinessPlan(b.id, parsePlan(next));
-      return { out: `saved${note}. profile complete: stage moved to ${stage}. Tell the owner you will now research their area (1-2 minutes) and they will see the progress here in the chat. Do NOT ask any question now: the chat is locked during the research.`, startPipeline: true };
+      return { out: `saved${note}. profile complete: stage moved to ${stage}. Tell the owner you will now research their area (a few minutes) and they will see the progress here in the chat. Do NOT ask any question now: the chat is locked during the research.`, startPipeline: true };
     }
     case "start_research": {
       if (!brainDecides(plan)) return { out: "error: not in the interview" };
       // A service Sevrii doesn't publish: no research run is spent on it, and
       // the person hears it now (not after 2 minutes, on the proposal).
       if (plan.mode === "existing" && isRestrictedService(plan)) return { out: RESTRICTED_NOTE("existing") };
-      const left = missingProfile(plan);
+      // Past the hard cap the code starts it with what there is (turn.force).
+      const left = turn.force ? [] : missingProfile(plan);
       if (left.length) return { out: `not started: still essential: ${left.join(", ")}. Ask only that, in one line.` };
       // The research, the proposal and the page's fixed labels follow the
       // language this flow runs in (it used to be set only by the old cards).
@@ -653,7 +701,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
         return { out: `the research can't start now. Tell the owner kindly, with these exact facts and nothing else about plans (don't suggest upgrading unless this text does): "${msg}"` };
       }
       await updateBusinessPlan(b.id, parsePlan({ ...next, stage, runId: "" }));
-      return { out: `research started (stage ${stage}). Tell the owner you will now research their area (1-2 minutes) and they will see the progress here in the chat${plan.mode === "new" ? ", and then the 3 best service ideas first (and more if they want)" : ""}. Do NOT ask any question now: the chat is locked during the research.`, startPipeline: true };
+      return { out: `research started (stage ${stage}). Tell the owner you will now research their area (a few minutes) and they will see the progress here in the chat${plan.mode === "new" ? ", and then the 3 best service ideas first (and more if they want)" : ""}. Do NOT ask any question now: the chat is locked during the research.`, startPipeline: true };
     }
     case "choose_idea": {
       if (plan.stage !== "choose") return { out: "error: not choosing ideas now" };
@@ -672,7 +720,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
           return { out: `error: their idea can't be researched now. Facts to tell them (don't suggest upgrading unless this text does): "${researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es")}". Meanwhile help them pick one of the current ideas.` };
         const what = str(input.what, 800);
         await updateBusinessPlan(b.id, parsePlan({ ...requestMoreIdeas(plan, ""), ownIdea: `${title}${what ? `: ${what}` : ""}` }));
-        return { out: "evaluating their idea with the same research (1-2 minutes). Tell them in one line you'll check their idea against what people pay and need, and show it here next to 2 alternatives.", startPipeline: true };
+        return { out: "evaluating their idea with the same research (a few minutes). Tell them in one line you'll check their idea against what people pay and need, and show it here next to 2 alternatives.", startPipeline: true };
       }
       const own = parseIdeas([{ title, why: str(input.what, 800), what: str(input.what, 400) }])[0];
       const ideas = [...plan.ideas.slice(0, 9), own];
@@ -684,7 +732,7 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       if (!(await researchWouldStart(b.userId, { budgetOnly: true })))
         return { out: `error: no new search now. Facts to tell them (don't suggest upgrading unless this text does): "${researchLimitText(await researchUsage(b.userId), lang === "en" ? "en" : "es")}". Their ideas are still here: help them pick one.` };
       await updateBusinessPlan(b.id, requestMoreIdeas(plan, str(input.feedback, 300)));
-      return { out: "searching new ideas. Tell them in one line you're looking for different options with what they said (1-2 minutes) and they'll see them here in the chat.", startPipeline: true };
+      return { out: "searching new ideas. Tell them in one line you're looking for different options with what they said (a few minutes) and they'll see them here in the chat.", startPipeline: true };
     }
     case "update_proposal": {
       if (plan.stage !== "proposal" && plan.stage !== "approved") return { out: "error: no proposal yet" };
@@ -769,6 +817,10 @@ async function runTool(name: string, input: Record<string, unknown>, b: Business
       let next = parsePlan({ ...plan, ...patch, approvals, ...(reopen ? { stage: "proposal", ready: false } : {}) });
       // A price is the owner's only if they said it; the rest stay market references.
       next = withoutAvoided(noFakeCosts(markReferencePrices(next, ownerSaid)));
+      // A (more clients): a new price nobody gave and the research didn't find
+      // is not shown; and no language the owner never said.
+      if (patch.packages) next = dropUnbackedRefs(next);
+      next = noLanguageClaims(next);
       // Invented amounts or hours, or internal words, never reach the owner.
       // (Only problems this edit brings in: an older proposal is never blocked.)
       const had = new Set(silentProposalIssues(plan, ownerSaid));
@@ -840,7 +892,7 @@ async function afterChoice(b: BusinessRow, next: BusinessPlan, lang: Lang, title
     return { out: `chosen: ${title}, but the research can't start now. Tell the owner kindly, with these exact facts: "${msg}"` };
   }
   await updateBusinessPlan(b.id, parsePlan({ ...next, stage: "research", runId: "" }));
-  return { out: `chosen: ${title}. Research started (1-2 minutes). Tell the owner in one line you're researching prices and customers for it in their area. Do NOT ask any question now.`, startPipeline: true };
+  return { out: `chosen: ${title}. Research started (a few minutes). Tell the owner in one line you're researching prices and customers for it in their area. Do NOT ask any question now.`, startPipeline: true };
 }
 
 function repriced(plan: BusinessPlan, patch: Record<string, unknown>): Record<string, unknown> {
@@ -1081,14 +1133,14 @@ export async function runPlanChatTurn(opts: {
   // The model kept asking past the cap: the code starts the research itself.
   if (!startPipeline && interviewGate(business.plan, ownerReplies).forceResearch) {
     try {
-      const r = await runTool("start_research", {}, business, opts.lang, ownerSaid, opts.message, lastAssistant, turnState);
+      const r = await runTool("start_research", {}, business, opts.lang, ownerSaid, opts.message, lastAssistant, { ...turnState, force: true });
       if (r.out.startsWith("research started")) {
         startPipeline = true;
         business = (await getBusinessById(business.id))!;
         // What the reply answered stays (a question of theirs is never left
         // unanswered); its own questions go, and it says the research started.
         const kept = reply.split(/(?<=[.!?])\s+/).filter((x) => x.trim() && !/[?¿]/.test(x)).join(" ").trim();
-        reply = `${kept ? `${kept} ` : ""}${es ? "Con esto ya tengo lo que necesito: ahora investigo tu zona y en 1 o 2 minutos te muestro aquí lo que encontré." : "That's all I need: I'm researching your area now and I'll show you what I found here in 1-2 minutes."}`;
+        reply = `${kept ? `${kept} ` : ""}${es ? "Con esto ya tengo lo que necesito: ahora investigo tu zona y en unos minutos te muestro aquí lo que encontré." : "That's all I need: I'm researching your area now and I'll show you what I found here in a few minutes."}`;
       }
     } catch (err) {
       console.error("[ai:brain] could not start the research past the cap", business.id, err);
@@ -1105,7 +1157,7 @@ export async function runPlanChatTurn(opts: {
     }
   }
   if (!reply && startPipeline) {
-    reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.";
+    reply = es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en unos minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in a few minutes.";
   }
   // The chat is locked while the research runs: a question there can't be
   // answered, so it's taken out of the message.
@@ -1113,7 +1165,7 @@ export async function runPlanChatTurn(opts: {
     const kept = reply.split(/(?<=[.!?])\s+/).filter((x) => !/[?¿]/.test(x)).join(" ").trim();
     reply =
       kept ||
-      (es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en 1 o 2 minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in 1-2 minutes.");
+      (es ? "¡Listo! Ya tengo lo que necesito. Ahora voy a investigar tu zona; en unos minutos te muestro aquí lo que encontré." : "Done! I have what I need. I'll research your area now; I'll show you what I found here in a few minutes.");
   }
   // Checked in code on every reply: no repeat claims, one question, no
   // approval script after a question, and no sentence with internal words.
@@ -1127,6 +1179,9 @@ export async function runPlanChatTurn(opts: {
   }
   // In the proposal: no amount that isn't a package, the research or the owner's.
   if (business.plan.stage === "proposal" || business.plan.stage === "approved") reply = unknownAmountSentences(reply, business.plan, ownerSaid) || reply;
+  // While it gets to know them: the only prices it may quote are the ones it
+  // found on the web (with their source) or the person's own.
+  if (business.plan.stage === "interview" && business.plan.mode !== "agent") reply = interviewAmountSentences(reply, business.plan, ownerSaid) || reply;
   // No discount the owner never asked for, not even as a suggestion.
   if (!business.plan.profile.offerWanted && !ASKS_OFFER.test(ownerSaid) && mentionsDiscount(reply))
     reply = reply.split(/(?<=[.!?])\s+/).filter((x) => !mentionsDiscount(x)).join(" ").trim();

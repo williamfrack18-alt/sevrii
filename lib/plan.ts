@@ -37,6 +37,13 @@ export type Profile = {
   exampleJob: string;
   typicalCustomer: string;
   howGetsClients: string;
+  // A ("más clientes"): the work they want MORE of (what they do best or what
+  // pays best), in their words; the plan is built around it. And the part of
+  // town they work in ("Laureles"), when they said it.
+  focus: string;
+  area: string;
+  // They were asked their price and don't have one to give ("depende", "no sé").
+  noPrice: boolean;
   currentPrice: string;
   costs: string;
   differentiators: string;
@@ -106,12 +113,17 @@ export type PlanAgent = {
 };
 
 export type PriceRange = { low: string; mid: string; high: string; includes: string; note: string };
+// A price someone really publishes (a named business or brand), with its page.
+export type PriceExample = { who: string; what: string; price: string; url: string };
+// A fact found on the web while talking, quoted with its source.
+export type Insight = { fact: string; source: string; url: string };
 export type Competitor = { name: string; url: string; offer: string; price: string; guarantee: string; languages: string };
 export type Requirement = { item: string; applies: "yes" | "no" | "check"; link: string; note: string };
 export type Faq = { q: string; a: string };
 
 export type Market = {
   prices: PriceRange | null;
+  examples: PriceExample[];
   competitors: Competitor[];
   gaps: string[];
   requirements: Requirement[];
@@ -186,6 +198,10 @@ export type BusinessPlan = {
   // their price against the market (never changed without them) and three
   // things to do this week. B: the actions to get the first client.
   growth: PlanGrowth;
+  // Facts found on the web during the conversation (each with its source): the
+  // only figures the interviewer may quote before the full research.
+  insights: Insight[];
+  insightRuns: number; // web lookups done during the interview (at most 2)
   faq: Faq[];
   agent: PlanAgent | null; // C only
   approvals: Partial<Record<ApprovalBlock, boolean>>;
@@ -234,6 +250,9 @@ export const EMPTY_PROFILE: Profile = {
   exampleJob: "",
   typicalCustomer: "",
   howGetsClients: "",
+  focus: "",
+  area: "",
+  noPrice: false,
   currentPrice: "",
   costs: "",
   differentiators: "",
@@ -267,7 +286,7 @@ export const EMPTY_PROFILE: Profile = {
   ownerGoal: "",
 };
 
-export const EMPTY_MARKET: Market = { prices: null, competitors: [], gaps: [], requirements: [], faq: [], sources: [], researchedAt: "", incomplete: [] };
+export const EMPTY_MARKET: Market = { prices: null, examples: [], competitors: [], gaps: [], requirements: [], faq: [], sources: [], researchedAt: "", incomplete: [] };
 
 export const EMPTY_PLAN: BusinessPlan = {
   mode: "",
@@ -293,6 +312,8 @@ export const EMPTY_PLAN: BusinessPlan = {
   campaignType: "",
   channels: [],
   growth: EMPTY_GROWTH,
+  insights: [],
+  insightRuns: 0,
   faq: [],
   agent: null,
   approvals: {},
@@ -411,6 +432,9 @@ export function parseProfile(raw: unknown): Profile {
     exampleJob: str(p.exampleJob, 600),
     typicalCustomer: str(p.typicalCustomer, 500),
     howGetsClients: str(p.howGetsClients, 500),
+    focus: str(p.focus, 300),
+    area: str(p.area, 80),
+    noPrice: p.noPrice === true,
     currentPrice: str(p.currentPrice, 500),
     costs: str(p.costs, 500),
     differentiators: str(p.differentiators, 800),
@@ -445,15 +469,28 @@ export function parseProfile(raw: unknown): Profile {
   };
 }
 
+// What the research writes when it finds nothing ("no encontrado", "no publica", "n/a").
+const NOT_FOUND = /^\s*(no\s+(se\s+)?encontr\w+|not\s+found|no\s+publica\w*|not\s+published|sin\s+datos?|no\s+data|n\/?a|desconocid\w+|unknown|-+)\s*\.?\s*$/i;
+export function found(v: string): string {
+  return NOT_FOUND.test(v) ? "" : v;
+}
+
 export function parseMarket(raw: unknown): Market {
   const m = obj(raw);
   const pr = obj(m.prices);
-  const prices =
-    str(pr.low, 80) || str(pr.mid, 80) || str(pr.high, 80)
-      ? { low: clip(pr.low, 80), mid: clip(pr.mid, 80), high: clip(pr.high, 80), includes: clip(pr.includes, 800), note: clip(pr.note, 1200) }
-      : null;
+  // "No encontrado" is not a price: an empty range, never a sentence like
+  // «en el mercado se cobra no encontrado».
+  const [lo, mi, hi] = [found(clip(pr.low, 80)), found(clip(pr.mid, 80)), found(clip(pr.high, 80))];
+  const prices = lo || mi || hi ? { low: lo, mid: mi, high: hi, includes: found(clip(pr.includes, 800)), note: clip(pr.note, 1200) } : null;
   return {
     prices,
+    examples: (Array.isArray(m.examples) ? m.examples : [])
+      .map((x) => {
+        const e = obj(x);
+        return { who: str(e.who, 80), what: str(e.what, 160), price: found(str(e.price, 80)), url: safeHttpUrl(e.url) };
+      })
+      .filter((e) => e.who && e.price)
+      .slice(0, 6),
     competitors: (Array.isArray(m.competitors) ? m.competitors : [])
       .map((x) => {
         const c = obj(x);
@@ -609,6 +646,14 @@ export function parsePlan(raw: unknown): BusinessPlan {
       .filter((c) => c.channel)
       .slice(0, 4),
     growth: parseGrowth(o.growth),
+    insights: (Array.isArray(o.insights) ? o.insights : [])
+      .map((x) => {
+        const i = obj(x);
+        return { fact: str(i.fact, 400), source: str(i.source, 80), url: safeHttpUrl(i.url) };
+      })
+      .filter((i) => i.fact)
+      .slice(0, 5),
+    insightRuns: Math.max(0, Math.min(2, Math.round(Number(o.insightRuns) || 0))),
     faq: parseFaq(o.faq),
     agent: parsePlanAgent(o.agent),
     approvals,
@@ -635,7 +680,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
 
 function parseGrowth(raw: unknown): PlanGrowth {
   const g = obj(raw);
-  return { diagnosis: str(g.diagnosis, 600), idealClient: str(g.idealClient, 400), priceVsMarket: str(g.priceVsMarket, 500), actions: list(g.actions, 3, 300) };
+  return { diagnosis: str(g.diagnosis, 600), idealClient: str(g.idealClient, 400), priceVsMarket: str(g.priceVsMarket, 600), actions: list(g.actions, 3, 600) };
 }
 
 // ---------- what the interviewer still needs, in order ----------
@@ -654,11 +699,20 @@ export function missingProfile(plan: BusinessPlan): string[] {
     // A ("más clientes"): a conversation, not a form. Only what the research
     // and the plan can't do without, most important first; the rest is
     // deduced or asked only when it changes the plan.
+    // Projects that answered the old cards were already asked what they
+    // needed there: the chat never re-opens that interview.
+    const legacy = Object.keys(plan.cards ?? {}).length > 0;
     need(!p.mainService, "mainService (the service they offer, in their words)");
     need(p.serviceMode !== "remote" && !p.city, "city (where they work: city and country; or that they work online)");
     // Online with no city: the country still sets the currency, the laws and the market.
     need(p.serviceMode === "remote" && !p.city && !p.country, "country (the country they live and work in: prices, currency and laws depend on it)");
+    // What they want MORE of decides who the plan sells to: asked right after
+    // the service, unless they already said it.
+    need(!p.focus && !legacy, "focus (of everything they do, the work they'd like to get MORE of: what they do best or what pays best. If they offer one single thing, save that)");
     need(!p.howGetsClients, "howGetsClients (how customers find them today: walk-ins, referrals, social media, nothing yet…)");
+    // Their price lets the plan compare them with the market (never changed
+    // without them). "No sé" or "depende" is a valid answer (noPrice).
+    need(!p.currentPrice && !p.noPrice && !legacy, "currentPrice (what they charge today for that work, in their words and currency; if they don't have a fixed price, save noPrice=true)");
   } else if (plan.stage === "interview") {
     // B ("descubre tu servicio"): what they know, where, and what they're after.
     need(!p.workHistory && !p.likes, "workHistory (what they know how to do, or jobs they've had)");

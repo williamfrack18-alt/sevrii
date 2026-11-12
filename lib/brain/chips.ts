@@ -15,6 +15,7 @@ const ASKED_ABOUT: [string, RegExp][] = [
   ["country", /(qu[eé] pa[ií]s|what country|which country)/i],
   ["serviceMode", /(en persona|in person)/i],
   ["languages", /(idiomas?|languages?)/i],
+  ["currentPrice", /(cu[aá]nto (cobras|cuesta|vale|pides)|qu[eé] (cobras|precio)|tus? precios?|how much do you charge|what do you charge|your prices?)/i],
 ];
 export function askedAbout(lastAi: string): string {
   const qs = lastAi.match(/¿[^?]*\?|[^.!?¿\n]*\?/g) ?? [];
@@ -55,6 +56,8 @@ export function answerChips(plan: BusinessPlan, es: boolean, lastAi = ""): ChatC
     // Quick answers, never required: the person can always write freely.
     case "howGetsClients":
       return [s("Pasan por mi local", "They walk by my place"), s("Por recomendación", "Word of mouth"), s("Por redes sociales", "Social media"), s("Todavía casi no tengo clientes", "I barely have clients yet")];
+    case "currentPrice":
+      return [s("No tengo un precio fijo", "I don't have a fixed price"), s("Depende del trabajo", "It depends on the job")];
     case "city":
       return [s(plan.mode === "new" ? "Quiero trabajar en línea" : "Trabajo en línea", plan.mode === "new" ? "I want to work online" : "I work online")];
     default:

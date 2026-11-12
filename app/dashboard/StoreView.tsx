@@ -600,7 +600,7 @@ export function StrategyGate({ area, business, lang, onBrain }: { area: "store" 
       : p.stage === "interview" || p.stage === "ready_check"
       ? es ? "Todavía estás en la entrevista con el Cerebro: contesta sus preguntas para que investigue tu zona." : "You're still in the interview with the Brain: answer its questions so it can research your area."
       : p.stage === "ideas_research" || p.stage === "research"
-        ? es ? "El Cerebro está investigando tu zona. En 1 o 2 minutos te muestra tu propuesta." : "The Brain is researching your area. In 1-2 minutes it shows you your proposal."
+        ? es ? "El Cerebro está investigando tu zona. En unos minutos te muestra tu propuesta." : "The Brain is researching your area. In a few minutes it shows you your proposal."
         : p.stage === "choose"
           ? es ? "Escoge una de las propuestas del Cerebro (o pide otras)." : "Pick one of the Brain's proposals (or ask for others)."
           : pending.length

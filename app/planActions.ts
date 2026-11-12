@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { budgetUsed, chatGate, gateLimit, gateMessage, month, researchLimitText, researchUsage, researchWouldStart, runForUser } from "@/lib/usage";
 import { cleanAnswers, pendingCards, cardTitle, type CardAnswers } from "@/lib/cards";
-import { markReferencePrices, readyForPage, withCurrency } from "@/lib/brain/checks";
+import { dropUnbackedRefs, markReferencePrices, noLanguageClaims, readyForPage, withCurrency } from "@/lib/brain/checks";
 import { cardsToProfile } from "@/lib/brain/legacy";
 import type { LimitInfo } from "@/lib/upgrade";
 import { addChatMessage, getBusinessById, listChatMessages, listServices, updateBusinessPlan, type BusinessRow, type ServiceRow } from "@/lib/db";
@@ -167,8 +167,8 @@ export async function chooseIdeaAction(index: number, businessId?: string): Prom
       CHANNEL,
       "ai",
       es
-        ? `¡Buena elección! Ahora investigo precios, competencia y clientes de «${idea.title}» en tu zona (1 o 2 minutos). Verás el avance aquí mismo.`
-        : `Great choice! I'm now researching prices, competition and customers for "${idea.title}" in your area (1-2 minutes). You'll see the progress right here.`
+        ? `¡Buena elección! Ahora investigo precios, competencia y clientes de «${idea.title}» en tu zona (unos minutos). Verás el avance aquí mismo.`
+        : `Great choice! I'm now researching prices, competition and customers for "${idea.title}" in your area (a few minutes). You'll see the progress right here.`
     );
     revalidatePath("/dashboard");
     return respond(business, { startPipeline: true });
@@ -397,11 +397,11 @@ export async function saveCardsAction(cards: unknown, submit: boolean, businessI
     "ai",
     plan.mode === "new"
       ? es
-        ? "Gracias, ya tengo todas tus respuestas. Ahora investigo tu zona y te muestro propuestas de servicio que encajen contigo (1 o 2 minutos). Nada de lo que me dijiste que no quieres va a aparecer."
-        : "Thanks, I have all your answers. I'm researching your area now and will show you service proposals that fit you (1-2 minutes). Nothing you said you don't want will show up."
+        ? "Gracias, ya tengo todas tus respuestas. Ahora investigo tu zona y te muestro propuestas de servicio que encajen contigo (unos minutos). Nada de lo que me dijiste que no quieres va a aparecer."
+        : "Thanks, I have all your answers. I'm researching your area now and will show you service proposals that fit you (a few minutes). Nothing you said you don't want will show up."
       : es
-        ? "Gracias, ya tengo todas tus respuestas. Ahora investigo precios, competencia y clientes de tu zona (1 o 2 minutos) y te armo la propuesta."
-        : "Thanks, I have all your answers. I'm researching prices, competition and customers in your area (1-2 minutes) and will build your proposal."
+        ? "Gracias, ya tengo todas tus respuestas. Ahora investigo precios, competencia y clientes de tu zona (unos minutos) y te armo la propuesta."
+        : "Thanks, I have all your answers. I'm researching prices, competition and customers in your area (a few minutes) and will build your proposal."
   );
   revalidatePath("/dashboard");
   return respond(business, { startPipeline: true });
@@ -442,9 +442,9 @@ export async function confirmProposalAction(prices: Record<string, string>, busi
   return respond(business);
 }
 
-// A (existing service): "↻ Ver otros paquetes y presentación". A new promise,
-// reasons to choose them and packages, never another service, and the prices
-// the owner confirmed stay exactly as they are (checked in code here).
+// A (existing service): "↻ Ver otra presentación". A new promise and new
+// reasons to choose them; never another service, and the packages stay as
+// they are: they are the owner's own jobs with the owner's own prices.
 export async function otherPackagesAction(businessId?: string): Promise<PlanChatResponse> {
   const business = await requireBusiness(businessId);
   const lang = await getLang();
@@ -455,13 +455,11 @@ export async function otherPackagesAction(businessId?: string): Promise<PlanChat
   if (!(await researchWouldStart(business.userId, { budgetOnly: true }))) return respond(business, { notice: getDict(lang).dashboard.aiMonthlyLimit });
   const { proposePlan } = await import("@/lib/brain/strategist");
   const { withoutAvoided, noFakeCosts, withoutDiscounts } = await import("@/lib/brain/checks");
-  const fold = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const own = plan.packages.filter((k) => !k.ref);
-  const shown = [...plan.packages.filter((k) => k.ref).map((k) => k.name), plan.promise].filter(Boolean);
   const notes = [
     `Keep the service exactly as it is: "${plan.service}". Do not change it or its menu.`,
-    own.length ? `Keep these packages exactly, same names and prices (the owner confirmed them): ${own.map((k) => `${k.name} ${k.price}`).join("; ")}.` : "",
-    `The owner wants a DIFFERENT presentation (promise and reasons to choose them) and DIFFERENT packages than these, which they already saw: ${shown.join(" | ")}. Don't repeat them.`,
+    plan.packages.length ? `Keep these packages exactly, same names and prices: ${plan.packages.map((k) => `${k.name} ${k.price}`.trim()).join("; ")}.` : "",
+    `The owner wants a DIFFERENT presentation (promise and reasons to choose them) than this one, which they already saw: "${plan.promise}" | ${plan.differentiators.join(" | ")}. Don't repeat it.`,
   ].filter(Boolean);
   let fresh: Awaited<ReturnType<typeof proposePlan>>;
   try {
@@ -469,28 +467,24 @@ export async function otherPackagesAction(businessId?: string): Promise<PlanChat
   } catch {
     return respond(business, { notice: es ? "No pude traer otra versión ahora. Inténtalo de nuevo en un momento." : "I couldn't get another version right now. Try again in a moment." });
   }
-  const added = (fresh.packages ?? []).filter((k) => k.name && !own.some((o) => fold(o.name) === fold(k.name)) && !shown.some((s) => fold(s) === fold(k.name)));
-  // Nothing new came back (all repeated): keep what they have instead of
-  // leaving the strategy without packages.
-  if (!added.length && !own.length) return respond(business, { notice: es ? "No pude traer otra versión ahora. Inténtalo de nuevo en un momento." : "I couldn't get another version right now. Try again in a moment." });
+  // Nothing new came back: keep what they have.
+  if (!fresh.promise || fresh.promise === plan.promise) return respond(business, { notice: es ? "No pude traer otra versión ahora. Inténtalo de nuevo en un momento." : "I couldn't get another version right now. Try again in a moment." });
   let next: BusinessPlan = {
     ...plan,
-    promise: fresh.promise || plan.promise,
+    promise: fresh.promise,
     differentiators: fresh.differentiators?.length ? fresh.differentiators : plan.differentiators,
-    packages: [...own, ...added].slice(0, 4),
-    pricingNote: fresh.pricingNote || plan.pricingNote,
     approvals: {},
   };
   // The owner's prices (card or chat) stay theirs; the new ones are references.
-  next = withoutAvoided(noFakeCosts(markReferencePrices(next, await ownerChat(business.id))));
+  next = withoutAvoided(noFakeCosts(noLanguageClaims(dropUnbackedRefs(markReferencePrices(next, await ownerChat(business.id))))));
   if (!next.profile.offerWanted) next = withoutDiscounts(next);
   await updateBusinessPlan(business.id, next);
-  await addChatMessage(business.id, CHANNEL, "user", es ? "Ver otros paquetes y presentación" : "See other packages and presentation");
+  await addChatMessage(business.id, CHANNEL, "user", es ? "Ver otra presentación" : "See another presentation");
   await addChatMessage(
     business.id,
     CHANNEL,
     "ai",
-    `${es ? `Te traje otra presentación y otros paquetes. Tu servicio${own.length ? " y tus precios" : ""} siguen igual.` : `Here's another presentation and other packages. Your service${own.length ? " and your prices" : ""} stay the same.`}\n\n[[summary]]`
+    `${es ? `Te traje otra forma de presentarte. Tu servicio${own.length ? " y tus precios" : ""} siguen igual.` : `Here's another way to present yourself. Your service${own.length ? " and your prices" : ""} stay the same.`}\n\n[[summary]]`
   );
   revalidatePath("/dashboard");
   return respond(business);
