@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { afterAuthPath, BUY_COOKIE } from "@/lib/buyIntent";
 import { NextResponse, after } from "next/server";
 import { getLang } from "@/lib/lang";
 import { sendWelcomeEmail } from "@/lib/notify";
@@ -51,7 +52,8 @@ export async function GET(req: Request) {
       const lang = await getLang();
       after(() => sendWelcomeEmail(email, lang));
     }
-    return NextResponse.redirect(new URL(isNew ? "/start" : "/dashboard", url.origin));
+    // Chose to pay on sevrii.com/precios: straight to paying.
+    return NextResponse.redirect(new URL(afterAuthPath(jar.get(BUY_COOKIE)?.value, isNew ? "/start" : "/dashboard"), url.origin));
   } catch (err) {
     console.error("[google] sign-in failed", (err as Error)?.message);
     return fail();

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import { countProjects } from "@/lib/db";
-import { limitsFor } from "@/lib/billing";
+import { limitsFor, syncCheckoutSession } from "@/lib/billing";
 import PathPicker from "./PathPicker";
 import BrandMark from "@/components/BrandMark";
 import LangToggle from "@/components/LangToggle";
@@ -13,10 +13,13 @@ import { logoutAction } from "@/app/actions";
 import { cookies } from "next/headers";
 import { isStartPath } from "@/lib/startPath";
 
-export default async function StartPage({ searchParams }: { searchParams: Promise<{ new?: string; path?: string }> }) {
+export default async function StartPage({ searchParams }: { searchParams: Promise<{ new?: string; path?: string; checkout?: string; session_id?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const sp = (await searchParams) ?? {};
+  // Paid right after signing up (sevrii.com/precios → Stripe): turn the plan on
+  // now, the webhook may arrive a bit later.
+  if (sp.checkout === "success" && sp.session_id) await syncCheckoutSession(user, sp.session_id);
   // Came from "Quiero ser afiliado" and has no business: straight to the affiliate panel.
   if (!user.business && (await cookies()).get("sevrii_path")?.value === "affiliate") redirect("/panel-afiliado");
   const isNew = Boolean(user.business) && sp.new === "1";

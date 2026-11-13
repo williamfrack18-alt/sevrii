@@ -192,7 +192,7 @@ async function cancelDuplicate(sub: Sub & { latest_invoice?: string | null }): P
 
 export class AlreadySubscribed extends Error {}
 
-export async function createCheckoutUrl(user: UserRow, interval: "month" | "year"): Promise<string> {
+export async function createCheckoutUrl(user: UserRow, interval: "month" | "year", opts: { successPath?: string; cancelPath?: string } = {}): Promise<string> {
   // Never charge a different interval than the one the person chose.
   const price = interval === "year" ? process.env.STRIPE_PRICE_STARTER_YEARLY : process.env.STRIPE_PRICE_STARTER_MONTHLY;
   if (!price) throw new Error(`no Starter ${interval} price configured`);
@@ -238,8 +238,8 @@ export async function createCheckoutUrl(user: UserRow, interval: "month" | "year
     // Which plan this is, also when the price was made here (not a known price id).
     "subscription_data[metadata][plan]": "starter",
     allow_promotion_codes: "true",
-    success_url: `${origin}/dashboard?view=plans&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/dashboard?view=plans&checkout=cancel`,
+    success_url: `${origin}${opts.successPath ?? "/dashboard?view=plans&checkout=success&session_id={CHECKOUT_SESSION_ID}"}`,
+    cancel_url: `${origin}${opts.cancelPath ?? "/dashboard?view=plans&checkout=cancel"}`,
   });
   return session.url;
 }

@@ -9,6 +9,8 @@ import GoogleButton, { OrDivider } from "@/components/GoogleButton";
 import RotatingHeadline from "@/components/RotatingHeadline";
 import { googleReady } from "@/lib/google";
 import { cookies } from "next/headers";
+import { BUY_COOKIE, readBuy } from "@/lib/buyIntent";
+import { PLANS } from "@/lib/plans";
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const t = getDict(await getLang());
@@ -16,8 +18,16 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   const err = sp.error === "google_cancel" ? t.auth.errGoogleCancel : sp.error ? t.auth.errGoogle : null;
   const google = googleReady();
   // Came from a button that already chose a path ("Crear mi agente"): say where they'll land.
-  const path = (await cookies()).get("sevrii_path")?.value ?? "";
-  const subtitle = t.auth.signupSubtitleFor[path] ?? t.auth.signupSubtitle;
+  const jar = await cookies();
+  const path = jar.get("sevrii_path")?.value ?? "";
+  // Chose Starter on sevrii.com/precios: they pay right after creating the account.
+  const buying = readBuy(jar.get(BUY_COOKIE)?.value);
+  const lang = await getLang();
+  const subtitle = buying
+    ? lang === "es"
+      ? `Crea tu cuenta y pasas directo a pagar el plan Starter (${buying === "year" ? `$${(PLANS.starter.yearlyPerMonth ?? PLANS.starter.monthly) * 12} al año` : `$${PLANS.starter.monthly} al mes`}). Cancelas cuando quieras.`
+      : `Create your account and go straight to paying for the Starter plan (${buying === "year" ? `$${(PLANS.starter.yearlyPerMonth ?? PLANS.starter.monthly) * 12} a year` : `$${PLANS.starter.monthly} a month`}). Cancel any time.`
+    : t.auth.signupSubtitleFor[path] ?? t.auth.signupSubtitle;
   return (
     <div className="theme-dark flex">
       <div

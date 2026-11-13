@@ -1,5 +1,6 @@
 "use server";
 
+import { afterAuthPath, BUY_COOKIE } from "@/lib/buyIntent";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { sendWelcomeEmail } from "@/lib/notify";
@@ -72,7 +73,8 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
   await startSession(user.id);
   const lang = await getLang();
   after(() => sendWelcomeEmail(user.email, lang));
-  redirect("/start");
+  // Chose to pay on sevrii.com/precios: straight to paying, not to the free start.
+  redirect(afterAuthPath((await cookies()).get(BUY_COOKIE)?.value, "/start"));
 }
 
 export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -97,7 +99,7 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
   }
   await clear(emailKey);
   await startSession(user.id);
-  redirect("/dashboard");
+  redirect(afterAuthPath((await cookies()).get(BUY_COOKIE)?.value, "/dashboard"));
 }
 
 export async function logoutAction() {
