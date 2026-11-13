@@ -211,7 +211,11 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
     // "your costs") is fixed by code and costs no wait; only what is left
     // goes back for ONE correction round (two rounds made the owner wait
     // several minutes more).
-    let guard = await guardPlan(plan, lang);
+    // The whole step runs in one request the host stops at 300 s: the review,
+    // and the correction only with the time that is left (never a second review:
+    // the code checks run on the result anyway).
+    const stepStart = Date.now();
+    const guard = await guardPlan(plan, lang);
     // Packages as the Strategist first wrote them: if the review changes them,
     // its first summary (with the old names and prices) can't be shown.
     const firstPackages = JSON.stringify(plan.packages.map((k) => [k.name, k.price]));
@@ -225,10 +229,17 @@ async function runStep(step: string, businessId: string, jobs: ResearchJobRow[],
       if (hard.length) {
         const sacred = avoidedIssue(plan);
         const issues = [...new Set([...guard.block, ...silentProposalIssues(plan), ...unbackedRefIssues(plan, said), ...(kept ? [kept] : []), ...(sacred ? [sacred] : [])])];
-        const fixed = await proposePlan(plan, lang, issues);
-        const { message: _m, ...fields } = fixed;
-        plan = { ...plan, ...fields };
-        guard = await guardPlan(plan, lang);
+        const left = 275_000 - (Date.now() - stepStart);
+        if (left >= 60_000) {
+          try {
+            const fixed = await proposePlan(plan, lang, issues, Math.min(200_000, left));
+            const { message: _m, ...fields } = fixed;
+            plan = { ...plan, ...fields };
+          } catch (err) {
+            // No correction in time: the first proposal goes on, fixed by code.
+            console.warn("[brain] correction skipped", businessId, (err as { message?: string })?.message);
+          }
+        }
       }
     }
     // Last resort, by code: a discount nobody asked for never reaches the

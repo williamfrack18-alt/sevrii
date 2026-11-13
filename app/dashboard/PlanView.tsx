@@ -15,6 +15,13 @@ import { answerChips } from "@/lib/brain/chips";
 // The hourly figure is in US dollars (to rank ideas the same way everywhere):
 // outside the US it says so ("US$").
 const usd = (plan: BusinessPlan) => (plan.profile.country && plan.profile.country !== "US" ? "US$" : "$");
+// What an idea pays, in the person's own currency: outside the US the price the
+// research found there ("20 €–25 € por hora"), never a conversion to dollars.
+function payText(idea: BusinessPlan["ideas"][number], plan: BusinessPlan, es: boolean): string {
+  const abroad = Boolean(plan.profile.country) && plan.profile.country !== "US";
+  if (abroad) return idea.typicalPrice && idea.typicalPrice.length <= 40 ? idea.typicalPrice : "";
+  return idea.hourlyUsd ? `≈ ${usd(plan)}${idea.hourlyUsd}/${es ? "hora" : "hour"}` : "";
+}
 // "CO" → "Colombia" in the screen's language ("" for none).
 function countryLabel(code: string, lang: "es" | "en"): string {
   if (!/^[A-Z]{2}$/.test(code || "")) return "";
@@ -1025,7 +1032,7 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
   return (
     <div className="flex flex-col gap-4 min-w-0">
       <div className="flex flex-col gap-1 px-1">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: GREEN }}>{growthOn ? (es ? "Tu plan para más clientes · 6 partes" : "Your plan for more clients · 6 parts") : es ? "Tu estrategia · 5 partes" : "Your strategy · 5 parts"}</span>
+        <span className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: GREEN }}>{growthOn ? (es ? "Tu plan para más clientes · 6 partes" : "Your plan for more clients · 6 parts") : plan.mode === "new" && g.actions.length ? (es ? "Tu estrategia · 6 partes" : "Your strategy · 6 parts") : es ? "Tu estrategia · 5 partes" : "Your strategy · 5 parts"}</span>
         <span className="text-[19px] font-semibold text-pfg leading-snug">{plan.service}</span>
       </div>
       {growthOn && card(1, es ? "Cómo conseguir más clientes" : "How to get more clients", <GrowthBody plan={plan} />)}
@@ -1086,6 +1093,22 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
       )}
       {card(4 + o, t.blocks.offer, <PartBody id="offer" plan={plan} />)}
       {card(5 + o, t.blocks.faq, plan.faq.length ? <PartBody id="faq" plan={plan} /> : <span className="text-[14px] text-psub">—</span>)}
+      {/* B (new service): how to get the very first client this week, with the
+          texts ready to copy (they used to be written and never shown). */}
+      {plan.mode === "new" &&
+        g.actions.length > 0 &&
+        card(
+          6,
+          es ? "Tu primer cliente esta semana" : "Your first client this week",
+          <ol className="flex flex-col gap-3">
+            {g.actions.map((a, i) => (
+              <li key={i} className="flex gap-3 min-w-0">
+                <span className="h-6 w-6 rounded-full shrink-0 flex items-center justify-center text-[12px] font-semibold mt-px" style={{ background: "rgba(10,10,10,0.07)", color: "#27272A" }}>{i + 1}</span>
+                <ActionText text={a} />
+              </li>
+            ))}
+          </ol>
+        )}
       {unknown.length > 0 && (
         <p className="text-[13.5px] leading-relaxed rounded-2xl px-4 py-3" style={{ background: "rgba(245,158,11,0.08)", color: "#78350F" }}>
           {es ? "Contestaste «no sé» en: " : "You answered \"don't know\" on: "}
@@ -1320,7 +1343,7 @@ function ServiceIdeaItem({ idea, i, plan, busy, onChoose }: { idea: BusinessPlan
         {row(es ? "Para quién" : "For whom", idea.forWhom)}
         <div className="grid grid-cols-3 gap-3">
           {row(es ? "Modalidad" : "Format", mode && <span className="inline-flex h-7 items-center px-3 rounded-full text-[13px] font-medium" style={{ background: "rgba(10,10,10,0.06)" }}>{mode}</span>)}
-          {row(es ? "Pago aprox." : "Approx. pay", idea.hourlyUsd ? <b className="font-semibold tabular-nums">≈ {usd(plan)}{idea.hourlyUsd}/{es ? "hora" : "hour"}</b> : null)}
+          {row(es ? "Pago aprox." : "Approx. pay", payText(idea, plan, es) ? <b className="font-semibold tabular-nums">{payText(idea, plan, es)}</b> : null)}
           {row(es ? "Puntaje" : "Score", idea.score > 0 ? <span className="font-semibold tabular-nums" style={{ color: GREEN }}>{t.fit(idea.score)}</span> : null)}
         </div>
         {(idea.typicalPrice || idea.startCost) && (
@@ -1336,6 +1359,12 @@ function ServiceIdeaItem({ idea, i, plan, busy, onChoose }: { idea: BusinessPlan
                 {es ? "Cuesta empezar" : "Cost to start"}: {idea.startCost}
               </span>
             )}
+            {/* Who really charges that, with the page that says it. */}
+            {(idea.examples ?? []).map((e, n) => (
+              <span key={n} className="text-[13px]" style={{ color: "#3F3F46" }}>
+                <a href={e.url} target="_blank" rel="noopener noreferrer nofollow" className="font-medium hover:underline">{e.who} ↗</a> · {e.price}
+              </span>
+            ))}
           </div>
         )}
         {idea.usesUnknown.length > 0 && (
@@ -1408,9 +1437,9 @@ function AgentIdeaItem({ idea, i, plan, busy, compact, onChoose }: { idea: Busin
           {idea.title}
         </span>
         <span className="flex items-center gap-1.5 shrink-0">
-          {plan.mode !== "agent" && idea.hourlyUsd ? (
+          {plan.mode !== "agent" && payText(idea, plan, es) ? (
             <span className="text-[12px] px-2 py-0.5 rounded-full font-semibold tabular-nums" style={{ background: "#0A0A0A", color: "#fff" }} title={es ? "Lo que se gana por hora de trabajo en tu zona (estimado de la investigación)" : "What it pays per hour of work in your area (estimated from the research)"}>
-              ≈ {usd(plan)}{idea.hourlyUsd}/{es ? "hora" : "hour"}
+              {payText(idea, plan, es)}
             </span>
           ) : null}
           {idea.score > 0 && (

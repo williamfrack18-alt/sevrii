@@ -16,7 +16,7 @@ export const TOPICS: Record<string, RegExp> = {
   askedFor: /(te piden|piden que (los |les )?ayudes|people ask you)/,
   likes: /(qu[eé] te gusta|te gusta m[aa]s|disfrutas|prefieres trabajar con|what do you enjoy|you enjoy)/,
   notWant: /(odi(as|es)|detestas|no quieres volver|no volver[ií]as|nunca (quieres|m[aa]s)|never want|you hate|hate doing)/,
-  workPlace: /(desde (tu )?casa|a domicilio|en persona|from home|in person)/,
+  workPlace: /(desde (tu )?casa|a domicilio|en persona|en l[ií]nea|online|a distancia|from home|in person)/,
   tools: /(qu[eé] (herramientas|equipo)|con qu[eé] cuentas|what (tools|equipment))/,
   hasVehicle: /(carro|veh[ií]culo|\bauto\b|\bcar\b|vehicle)/,
   hoursPerWeek: /(horas (a la |por )?semana|hours (a|per) week)/,

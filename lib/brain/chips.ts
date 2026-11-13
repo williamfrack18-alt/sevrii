@@ -13,7 +13,7 @@ const ASKED_ABOUT: [string, RegExp][] = [
   // "¿En qué ciudad (y en qué país)?" is the city question; "¿En qué país vives?" the country one.
   ["city", /(qu[eé] ciudad|en qu[eé] zona|d[oó]nde (trabajas|vives|atiendes|lo ofrecer[ií]as)|what city|which city|where (do you|would you) (work|live|offer))/i],
   ["country", /(qu[eé] pa[ií]s|what country|which country)/i],
-  ["serviceMode", /(en persona|in person)/i],
+  ["serviceMode", /(en persona|in person|en l[ií]nea|online|a distancia|desde (tu )?casa|en casa del|from home|remot)/i],
   ["languages", /(idiomas?|languages?)/i],
   ["currentPrice", /(cu[aá]nto (cobras|cuesta|vale|pides)|qu[eé] (cobras|precio)|tus? precios?|how much do you charge|what do you charge|your prices?)/i],
 ];
@@ -30,8 +30,10 @@ export function answerChips(plan: BusinessPlan, es: boolean, lastAi = ""): ChatC
   // A and B talk freely: chips only for the question just asked, and only
   // while that answer is still missing. C keeps its fixed order.
   const topic = plan.mode === "agent" ? "" : askedAbout(lastAi);
-  if (plan.mode !== "agent" && (!topic || topic === "?" || !missing.includes(topic))) return [];
-  const next = topic || (missing[0] ?? "");
+  if (plan.mode !== "agent" && (!topic || topic === "?" || !(missing.includes(topic) || (topic === "serviceMode" && missing.includes("workPlace"))))) return [];
+  // The modality question is the same words in the interview (workPlace) and
+  // after picking an idea (serviceMode): the chips answer the one still missing.
+  const next = topic === "serviceMode" && missing.includes("workPlace") ? "workPlace" : topic || (missing[0] ?? "");
   const s = (label: string, en: string): ChatChip => ({ label: es ? label : en, send: true });
   switch (next) {
     case "remoteScope":
@@ -45,6 +47,8 @@ export function answerChips(plan: BusinessPlan, es: boolean, lastAi = ""): ChatC
     case "agentTask":
     case "agentLimits":
       return [s("Sí, confirmado", "Yes, confirmed"), { label: es ? "Quiero cambiar algo" : "I want to change something", text: es ? "Quiero cambiar esto: " : "I want to change this: " }];
+    case "workPlace":
+      return [s("En persona", "In person"), s("En línea, desde casa", "Online, from home"), s("Me da igual", "Either works")];
     case "serviceMode":
       return [s("En persona, en mi zona", "In person, in my area"), s("En línea, a distancia", "Online, remote")];
     case "insured":

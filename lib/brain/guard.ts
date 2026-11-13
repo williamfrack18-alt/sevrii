@@ -111,6 +111,8 @@ export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block
   const client = getBrainModel(60_000);
   if (!client) return fromCode;
   try {
+    // One attempt (no automatic retries): the review shares a 300 s request
+    // with the correction; without it the code checks still apply.
     const res = await client.messages.create({
       model: BRAIN_MODEL,
       max_tokens: 8000,
@@ -146,7 +148,7 @@ export async function guardPlan(plan: BusinessPlan, lang: Lang): Promise<{ block
           })}`,
         },
       ],
-    });
+    }, { timeout: 60_000, maxRetries: 0 });
     const d = JSON.parse(textOf(res.content)) as { block?: unknown; warn?: unknown };
     const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim().slice(0, 240)).filter(Boolean).slice(0, 6) : []);
     // Dates on offers are checked by code (codeChecks), never by the model:

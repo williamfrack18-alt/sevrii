@@ -45,7 +45,7 @@ const INTERVIEWER = `Eres el Cerebro de Sevrii: un consultor de negocios de serv
 
 Hay dos caminos y son distintos:
 - mode "A: already offers a service" = MÁS CLIENTES. La persona ya ofrece un servicio y quiere más clientes. No le rediseñas su servicio: lo respetas y le ayudas a venderlo mejor. Lo que necesitas entender, en este orden y sin repetir lo que ya dijo: (1) qué ofrece y dónde (ciudad y país, y su barrio o zona si lo dice: guárdalo en area; si trabaja en línea, el país donde vive); (2) de todo lo que hace, qué trabajo le gustaría que le llegara MÁS —lo que mejor le sale o mejor le pagan— (focus): es la pregunta más importante, porque el plan entero se arma alrededor de eso; (3) cómo le llegan hoy sus clientes (howGetsClients); (4) cuánto cobra hoy por ese trabajo (currentPrice, con sus palabras y su moneda): sirve para compararlo con el mercado y nunca se lo cambias; si no tiene un precio fijo, guarda noPrice=true y sigue. Nada más: horas, costos, años e idiomas no se preguntan.
-- mode "B: starting a new service" = DESCUBRE TU SERVICIO. La persona quiere independizarse o ganar dinero extra y todavía no tiene servicio. Lo que necesitas entender: qué sabe hacer o en qué ha trabajado (y qué le gusta); dónde vive (ciudad y país; si quiere trabajar en línea, el país); si busca un ingreso extra o vivir de esto. Lo que NUNCA haría, solo si sale natural o si rechaza una idea. Con eso investigas y le propones servicios bien pagados donde vive.
+- mode "B: starting a new service" = DESCUBRE TU SERVICIO. La persona quiere independizarse o ganar dinero extra y todavía no tiene servicio. Lo que necesitas entender: qué sabe hacer o en qué ha trabajado (y qué le gusta); dónde vive (ciudad y país; si quiere trabajar en línea, el país); si busca un ingreso extra o vivir de esto; y si lo haría en persona, en línea desde casa o le da igual (workPlace: out, home o any), que cambia mucho las ideas. Si dice cuántas horas tiene, guárdalo (hoursPerWeek). Lo que NUNCA haría, solo si sale natural o si rechaza una idea. Con eso investigas y le propones servicios bien pagados donde vive.
 
 Cómo conversas:
 - Antes de cada mensaje revisa "profile", "essentialMissing" y TODA la conversación. Lo que ya dijo o se deduce no se pregunta, nunca, ni con otras palabras.
@@ -927,7 +927,10 @@ export function chooseIdea(plan: BusinessPlan, i: number): BusinessPlan {
   // B: a clearly digital or in-person idea says how it's delivered. Without
   // this, someone who answered "digital" on the cards and then picked an
   // in-person idea was researched nationwide, as an online service.
-  const serviceMode = plan.mode === "new" && idea.delivery === "digital" ? "remote" : plan.mode === "new" && idea.delivery === "fisico" ? "local" : plan.profile.serviceMode;
+  // How it's delivered: from the idea, else from what they said they prefer
+  // ("desde casa" = online, "en persona" = in their area); "me da igual" is asked.
+  const wp = plan.profile.workPlace;
+  const serviceMode = plan.mode === "new" && idea.delivery === "digital" ? "remote" : plan.mode === "new" && idea.delivery === "fisico" ? "local" : plan.mode === "new" && !plan.profile.serviceMode && wp === "home" ? "remote" : plan.mode === "new" && !plan.profile.serviceMode && wp === "out" ? "local" : plan.profile.serviceMode;
   return parsePlan({
     ...plan,
     chosenIdea: i,

@@ -178,7 +178,6 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
     const m = (mode === "new" ? "new" : "existing") as "existing" | "new" | "agent";
     let slug = "";
     for (let i = 0; i < 5 && (!slug || (await isSlugTaken(slug))); i++) slug = `proyecto-${randomBytes(4).toString("hex")}`;
-    const prev = previous?.plan.profile;
     const business = await createBusiness({
       userId,
       slug,
@@ -196,12 +195,13 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
         // The language this flow runs in: the research, the proposal and the
         // page's fixed labels follow it (the old cards used to set it).
         flowLang: lang,
-        // Same person: the languages they speak carry over. Where they work is
-        // asked again (a new service may be in another city, or online).
+        // Each project starts clean: where they work and the languages they
+        // serve in are said again for this service (a new service may be in
+        // another city, online, or in another language). A carried-over
+        // "español e inglés" ended up as "como profesora con español e inglés"
+        // in a project where nobody had said it.
         profile: {
           ...EMPTY_PLAN.profile,
-          // An agent's languages are the ones it talks to customers in: asked again.
-          languages: m === "agent" ? "" : prev?.languages ?? "",
           // An agent always works online, in the page chat.
           ...(m === "agent" ? { serviceMode: "remote" as const } : {}),
         },

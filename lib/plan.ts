@@ -156,6 +156,8 @@ export type Idea = {
   steps: string[];
   usesUnknown: string[];
   sources: PlanSource[];
+  // Who charges what for it, with the page that says so (B's ideas).
+  examples?: PriceExample[];
 };
 
 // The Brain designs the offer only. The campaign type and the video/photos it
@@ -570,6 +572,13 @@ export function parseIdeas(v: unknown): Idea[] {
         steps: list(i.steps, 5, 300),
         usesUnknown: list(i.usesUnknown, 8, 40),
         sources: sources(i.sources, 4),
+        examples: (Array.isArray(i.examples) ? i.examples : [])
+          .map((x) => {
+            const e = obj(x);
+            return { who: str(e.who, 80), what: str(e.what, 160), price: found(str(e.price, 80)), url: safeHttpUrl(e.url) };
+          })
+          .filter((e) => e.who && e.price && e.url)
+          .slice(0, 3),
       };
     })
     .filter((i) => i.title)
@@ -722,6 +731,8 @@ export function missingProfile(plan: BusinessPlan): string[] {
     need(p.serviceMode !== "remote" && p.workPlace !== "home" && !p.city, "city (where they live: city and country; or that they want to work online)");
     need((p.serviceMode === "remote" || p.workPlace === "home") && !p.city && !p.country, "country (the country they live in: prices, currency and laws depend on it)");
     need(!p.goal, "goal (extra income, or to live from it: extra / fulltime)");
+    // In person, online from home, or either: it changes the ideas the most.
+    need(!p.workPlace && !p.serviceMode && !Object.keys(plan.cards ?? {}).length, "workPlace (in person = out, online from home = home, or either = any)");
   } else if (plan.stage === "ready_check" && plan.mode === "agent") {
     // The reach goes first: picking an idea already asks it (chooseIdeaAction),
     // so the quick answers under the chat match that question.

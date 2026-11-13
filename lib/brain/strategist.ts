@@ -22,7 +22,7 @@ Persona A (MÁS CLIENTES, lo más importante): la persona ya tiene su servicio y
 - growth.actions: exactamente 3 acciones para esta semana, gratis o baratas, tan concretas que pueda hacerlas hoy sin pensar: qué hacer, dónde y con qué. Cuando la acción sea escribir algo (un mensaje a clientes, el nombre de su perfil, un aviso para su vitrina, una publicación), incluye el texto exacto entre «comillas», listo para copiar, en su manera de hablar y con su servicio y su zona.
 - La promesa, los diferenciadores, el menú, los paquetes y las preguntas frecuentes van a su página y los leen SUS CLIENTES: escríbelos con la voz del negocio hablándole al cliente ("Restauro tu bolso a mano", "Te muestro fotos antes de empezar"), nunca hablándole a la persona dueña ("Atiendes…", "Te especializas…", "Estás en…"). Solo growth y serviceWhy le hablan a ella.
 - Además entrega promesa (una frase de venta concreta de lo que quiere vender más, no una frase general), 3 diferenciadores, cómo salen los precios, la oferta solo si la pidió, el tipo de campaña, el guion de un video corto y las fotos que debe tomarse.
-Persona B: primero entrega de 8 a 10 ideas variadas y bien pagadas (de las investigadas), de la mejor a la peor pagada por hora. Cuando escoja una, entrega la misma propuesta que la persona A.
+Persona B: primero entrega de 8 a 10 ideas variadas y bien pagadas (de las investigadas), primero las que mejor encajan con ella (lo que ya sabe hacer y dijo que le gusta, su tiempo, si quiere en línea o en persona) y, entre las que encajan igual, la mejor pagada. "fit" alto solo si usa lo que ya sabe sin tener que aprender otra cosa; lo que exige un curso tiene fit bajo. En "message" dile cuál le recomiendas y por qué en una frase, con sus palabras; no menciones idiomas que no dijo en esta conversación. Cuando escoja una, entrega la propuesta con las mismas partes que la persona A, con estas diferencias porque todavía no vende ni tiene precio propio: los paquetes son 2 o 3 formas de comprar ESE servicio (por ejemplo una sesión suelta, un bono de varias y otra modalidad si aplica), cada uno con un precio sugerido que sale de la investigación (market.examples o market.prices) y en pricingNote dices de dónde sale cada uno ("Miguel cobra 25 € en Superprof; empiezas un poco por debajo porque aún no tienes reseñas"); growth.diagnosis, idealClient y priceVsMarket van vacíos y growth.actions son 3 acciones para conseguir su PRIMER cliente esta semana, con el texto exacto entre «» listo para copiar; si market.requirements trae algo que debe hacer antes de empezar (registrarse, una autorización), va en firstSteps con su nombre oficial.
 Persona C (mode "agent"): la persona crea un agente de IA, un producto digital que resuelve un problema él solo, en el chat de su página, las 24 horas, y cobra por usarlo. No tiene que ser de su oficio: primero entrega 3 ideas de agente (de las 5 investigadas); cuando escoja una, entrega la misma propuesta y además "agent".
 
 Agente (solo persona C):
@@ -167,7 +167,7 @@ const AGENT_PROPOSAL_SCHEMA = obj({
 const IDEAS_SCHEMA = obj({
   ideas: {
     type: "array",
-    description: "The best ideas: exactly 3 for persona C (agent), best first; 8 to 10 for persona B, best paid per hour first",
+    description: "The best ideas: exactly 3 for persona C (agent), best first; 8 to 10 for persona B, the ones that fit this person best first (what they already know and said they like, their time and how they want to work), then the best paid",
     items: obj({
       index: { type: "integer", description: "Index of the idea in the researched list" },
       fit: { type: "integer" },
@@ -187,8 +187,12 @@ function langLine(lang: Lang) {
   return lang === "es" ? "Escribe todos los textos en español neutro (tutea)." : "Write all text in plain English.";
 }
 
-async function ask(system: string, user: string, schema: Record<string, unknown>, effort: "high" | "medium" = "high"): Promise<Record<string, unknown>> {
-  const client = getBrainModel(150_000);
+// One attempt with a time limit, never automatic retries: each step runs in a
+// request that the host stops at 300 s, and 3 attempts of 150 s used to get it
+// killed mid-way, leaving the step "running" and the owner waiting 10 minutes
+// for an error. A failed step shows «Reintentar» instead.
+async function ask(system: string, user: string, schema: Record<string, unknown>, effort: "high" | "medium" = "high", timeoutMs = 240_000): Promise<Record<string, unknown>> {
+  const client = getBrainModel(timeoutMs);
   if (!client) throw new Error("MODEL_API_KEY is not set");
   const res = await client.messages.create(
     {
@@ -199,7 +203,7 @@ async function ask(system: string, user: string, schema: Record<string, unknown>
       system,
       messages: [{ role: "user", content: user }],
     },
-    { timeout: 150_000 }
+    { timeout: timeoutMs, maxRetries: 0 }
   );
   const raw = textOf(res.content);
   try {
@@ -250,7 +254,7 @@ function safeMessage(message: string, plan: BusinessPlan, d: Record<string, unkn
     : `I propose ${service ? `"${service}"` : "your service"}${list.length ? ` with ${list.length} packages: ${list.join(", ")}` : ""}. I'll show you each part so you can review it and tell me what to change.`;
 }
 
-export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: string[] = []): Promise<Partial<BusinessPlan> & { message: string }> {
+export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: string[] = [], timeoutMs = 240_000): Promise<Partial<BusinessPlan> & { message: string }> {
   const fix = fixNotes.length
     ? `\n\nEl Guardián marcó estos problemas en tu propuesta anterior. Corrígelos:\n- ${fixNotes.join("\n- ")}`
     : "";
@@ -261,7 +265,8 @@ export async function proposePlan(plan: BusinessPlan, lang: Lang, fixNotes: stri
     isAgent ? AGENT_PROPOSAL_SCHEMA : PROPOSAL_SCHEMA,
     // A correction is a small, pointed rewrite: it doesn't need the long think
     // of the first proposal (and the owner is waiting).
-    fixNotes.length ? "medium" : "high"
+    fixNotes.length ? "medium" : "high",
+    timeoutMs
   );
   const offer = (d.offerSuggestion ?? {}) as Record<string, unknown>;
   // No offer unless the owner asked for one (checked in code, not left to the model).
@@ -357,11 +362,13 @@ export async function pickIdeas(plan: BusinessPlan, researchedIn: Idea[], lang: 
     IDEAS_SCHEMA
   );
   const picked: Idea[] = [];
+  const fitOf = new Map<string, number>();
   for (const x of Array.isArray(d.ideas) ? d.ideas : []) {
     const o = (x ?? {}) as Record<string, number | string>;
     const base = researched[Number(o.index)];
     if (!base || picked.some((p) => p.title === base.title)) continue;
     const pts = ["fit", "demand", "cost", "requirements", "speed"].reduce((a, k) => a + Math.max(0, Math.min(5, Number(o[k]) || 0)), 0);
+    fitOf.set(base.title, Math.max(0, Math.min(5, Number(o.fit) || 0)));
     picked.push({ ...base, pros: str(o.pros, 600), cons: str(o.cons, 600), score: pts });
     if (picked.length === count) break;
   }
@@ -372,10 +379,14 @@ export async function pickIdeas(plan: BusinessPlan, researchedIn: Idea[], lang: 
     const i = picked.findIndex((p) => p.title === own.title);
     if (i > 0) picked.unshift(...picked.splice(i, 1));
   }
-  // B: best paid per hour first (their own idea stays first).
+  // B: what fits this person best first (fit counts twice in the score),
+  // and between two that fit the same, the best paid per hour. A math
+  // teacher used to get Power BI first because it paid more; her own classes
+  // weren't even in the top 3. (Their own idea stays first.)
   if (plan.mode !== "agent") {
     const head = own ? picked.slice(0, 1) : [];
-    const rest = (own ? picked.slice(1) : picked).sort((a, b) => (b.hourlyUsd ?? -1) - (a.hourlyUsd ?? -1));
+    const rank = (i: Idea) => i.score + (fitOf.get(i.title) ?? 0);
+    const rest = (own ? picked.slice(1) : picked).sort((a, b) => rank(b) - rank(a) || (b.hourlyUsd ?? -1) - (a.hourlyUsd ?? -1));
     picked.splice(0, picked.length, ...head, ...rest);
   }
   return { ideas: parseIdeas(picked), message: str(d.message, 1000) };

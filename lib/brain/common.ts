@@ -246,7 +246,8 @@ export async function runWithServerTools(
     try {
       let text = "";
       for (let step = 0; step < 8; step++) {
-        const res = await client.messages.create({ ...base, tools: tools.length ? tools : undefined, messages: convo }, { timeout: opts.timeoutMs });
+        // At most one retry: research steps share a request the host stops at 300 s.
+        const res = await client.messages.create({ ...base, tools: tools.length ? tools : undefined, messages: convo }, { timeout: opts.timeoutMs, maxRetries: 1 });
         opts.seen.collect(res.content);
         const t = textOf(res.content);
         if (t) text = t;
