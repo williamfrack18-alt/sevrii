@@ -4,6 +4,7 @@ import SevriiLoader from "@/components/SevriiLoader";
 import { useEffect, useMemo, useState } from "react";
 import { useLang } from "@/components/LangProvider";
 import { PAYMENTS_TEXT } from "@/lib/paymentsI18n";
+import { PLANS } from "@/lib/plans";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 import {
   createPayLinkAction,
@@ -54,7 +55,7 @@ function sampleLink(business: ClientBusiness, services: ClientService[], es: boo
   return { label: es ? "Tu negocio" : "Your business", title: es ? "Tu servicio" : "Your service", amount: "$100.00" };
 }
 
-export default function PaymentsView({ business, services }: { business: ClientBusiness; services: ClientService[] }) {
+export default function PaymentsView({ business, services, onPlans }: { business: ClientBusiness; services: ClientService[]; onPlans?: () => void }) {
   const lang = useLang();
   const t = PAYMENTS_TEXT[lang];
   const example = sampleLink(business, services, lang === "es");
@@ -66,7 +67,7 @@ export default function PaymentsView({ business, services }: { business: ClientB
     let alive = true;
     loadPaymentsAction()
       .then((s) => alive && setState(s))
-      .catch(() => alive && setState({ ready: false, status: "none", links: [], payments: [], error: "stripe" }));
+      .catch(() => alive && setState({ ready: false, status: "none", links: [], payments: [], error: "stripe", allowed: true }));
     // Coming back from Stripe: clean the URL so a refresh doesn't look like a new return.
     if (window.location.search.includes("connect=")) window.history.replaceState(null, "", "/dashboard?view=payments");
     return () => {
@@ -83,7 +84,7 @@ export default function PaymentsView({ business, services }: { business: ClientB
         window.location.href = res.url;
         return;
       }
-      setErr(res.error === "not_ready" ? t.errNotReady : res.error === "connect" ? t.errConnect : res.error === "rate" ? t.errRate : t.errFailed);
+      setErr(res.error === "plan" ? t.needPlanTitle : res.error === "not_ready" ? t.errNotReady : res.error === "connect" ? t.errConnect : res.error === "rate" ? t.errRate : t.errFailed);
     } catch {
       setErr(t.errFailed);
     }
@@ -98,7 +99,9 @@ export default function PaymentsView({ business, services }: { business: ClientB
     );
   }
 
-  const ready = state.status === "ready";
+  // Payments is part of the paid plan: without it the screen explains it and
+  // points to Plans (a downgraded account's links stop taking payments too).
+  const ready = state.status === "ready" && state.allowed;
 
   return (
     <div className="px-4 md:px-10 pb-6 md:pb-12 max-w-[1180px]">
@@ -167,16 +170,28 @@ export default function PaymentsView({ business, services }: { business: ClientB
                     </li>
                   ))}
                 </ol>
-                {state.status === "pending" && <p className="mt-6 text-[14px] text-muted">{t.pendingNote}</p>}
-                <button
-                  type="button"
-                  onClick={goStripe}
-                  disabled={busy}
-                  className="mt-6 inline-flex items-center justify-center rounded-full px-6 py-3 text-[15px] font-semibold disabled:opacity-60"
-                  style={BRAND_BTN}
-                >
-                  {busy ? t.opening : state.status === "pending" ? t.continue : t.start}
-                </button>
+                {state.allowed && state.status === "pending" && <p className="mt-6 text-[14px] text-muted">{t.pendingNote}</p>}
+                {state.allowed ? (
+                  <button
+                    type="button"
+                    onClick={goStripe}
+                    disabled={busy}
+                    className="mt-6 inline-flex items-center justify-center rounded-full px-6 py-3 text-[15px] font-semibold disabled:opacity-60"
+                    style={BRAND_BTN}
+                  >
+                    {busy ? t.opening : state.status === "pending" ? t.continue : t.start}
+                  </button>
+                ) : (
+                  <div className="mt-6 rounded-[20px] p-5 flex flex-col gap-3" style={{ background: "rgba(10,10,10,0.034)", border: "1px solid rgba(10,10,10,0.068)" }}>
+                    <div className="text-[16px] font-[500]">{t.needPlanTitle}</div>
+                    <p className="text-[14px] text-muted leading-relaxed">{t.needPlanText(PLANS.starter.monthly)}</p>
+                    {onPlans && (
+                      <button type="button" onClick={onPlans} className="self-start inline-flex items-center justify-center rounded-full px-6 py-3 text-[15px] font-semibold" style={BRAND_BTN}>
+                        {t.seePlans} →
+                      </button>
+                    )}
+                  </div>
+                )}
               </>
             )}
             {err && <p className="mt-4 text-[14px] text-red-600">{err}</p>}

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { after } from "next/server";
 import { allow, clientIp } from "@/lib/guard";
 import { notifyPaymentReceived } from "@/lib/notify";
-import { getBusinessById, getPaymentLink } from "@/lib/db";
+import { getBusinessById, getPaymentLink, getUserById } from "@/lib/db";
+import { limitsFor } from "@/lib/billing";
 import { paySessionState } from "@/lib/payments";
 import { recordAffiliateSessionById } from "@/lib/affiliates";
 import AffRef from "@/app/site/[slug]/AffRef";
@@ -53,7 +54,10 @@ function accentOf(hex: string): string {
 async function load(id: string) {
   const link = /^[a-z0-9]{6,40}$/.test(id) ? await getPaymentLink(id) : undefined;
   const business = link ? await getBusinessById(link.businessId) : undefined;
-  return { link, business };
+  // Payments is part of the paid plan: a link of an account without it takes no payments.
+  const owner = business ? await getUserById(business.userId) : undefined;
+  const planOk = Boolean(owner && limitsFor(owner).payments);
+  return { link, business, planOk };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -77,10 +81,10 @@ export default async function PayPage({
 }) {
   const { id } = await params;
   const sp = (await searchParams) ?? {};
-  const { link, business } = await load(id);
+  const { link, business, planOk } = await load(id);
   const lang = business?.site.lang ?? "es";
   const t = TEXT[lang];
-  const available = Boolean(link && business && link.active && business.payStatus === "ready");
+  const available = Boolean(link && business && link.active && business.payStatus === "ready" && planOk);
   const accent = accentOf(business?.accentColor || "");
   const logo = business?.site.logoUrl || "";
 

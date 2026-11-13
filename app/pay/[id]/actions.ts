@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getBusinessById, getPaymentLink } from "@/lib/db";
+import { getBusinessById, getPaymentLink, getUserById } from "@/lib/db";
+import { limitsFor } from "@/lib/billing";
 import { allow, clientIp } from "@/lib/guard";
 import { checkoutForLink, refreshPayStatus } from "@/lib/payments";
 import { affiliateForCheckout } from "@/lib/affiliates";
@@ -16,6 +17,9 @@ export async function payAction(formData: FormData): Promise<void> {
   const link = await getPaymentLink(id);
   const business = link ? await getBusinessById(link.businessId) : undefined;
   if (!link || !link.active || !business || !business.stripeAccountId) redirect(back);
+  // Payments is part of the paid plan.
+  const owner = await getUserById(business.userId);
+  if (!owner || !limitsFor(owner).payments) redirect(back);
 
   let url = "";
   try {

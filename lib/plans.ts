@@ -1,9 +1,13 @@
 // Sevrii plans. Pure data, shared by server and UI.
-// Free → Starter ($29) → Pro ($79) → Team ($149). Each plan includes the one
-// below it. Payments (charging clients) is in every plan, paid per payment.
-// Pro and Team depend on features still being built (the Marketing agent that
-// launches ads), so they can't be bought yet: people can
-// join their waitlist instead. We never sell what doesn't exist.
+// Free → Starter ($39) → Pro ($79) → Team ($149). Each plan includes the one
+// below it.
+// - Free: the Brain and the page as a draft.
+// - Starter (the paid plan): the page published, Payments (payment links,
+//   5 % per payment), Affiliates (others sell the service for a commission)
+//   and Capital (credit, coming soon).
+// - Pro and Team add Marketing (strategy, campaigns, the agent that launches
+//   ads). They depend on features still being built, so they can't be bought
+//   yet: people join their waitlist instead. We never sell what doesn't exist.
 
 export type PlanId = "free" | "starter" | "pro" | "team";
 export const PLAN_ORDER: PlanId[] = ["free", "starter", "pro", "team"];
@@ -13,7 +17,8 @@ export type PlanLimits = {
   canPublish: boolean; // publish the Store page
   marketing: boolean; // marketing brain: strategy and ready-to-launch campaigns
   autoMarketing: boolean; // agent launches and optimizes ads
-  payments: boolean; // charge customers with Stripe
+  payments: boolean; // charge customers with Stripe (payment links)
+  affiliates: boolean; // other people sell the service and earn a commission
   aiPerDay: number; // AI chat messages per account per day
   aiPerMonth: number; // AI chat messages per account per month
   researchPerMonth: number; // Brain research runs per month (each run searches the web)
@@ -34,32 +39,32 @@ export const PLANS: Record<PlanId, PlanDef> = {
     monthly: 0,
     yearlyPerMonth: null,
     available: true,
-    limits: { projects: 1, canPublish: false, marketing: false, autoMarketing: false, payments: true, aiPerDay: 15, aiPerMonth: 150, researchPerMonth: 2, aiBudgetUsd: 3 },
+    limits: { projects: 1, canPublish: false, marketing: false, autoMarketing: false, payments: false, affiliates: false, aiPerDay: 15, aiPerMonth: 150, researchPerMonth: 2, aiBudgetUsd: 3 },
   },
   starter: {
     id: "starter",
-    monthly: 29,
-    yearlyPerMonth: 24,
+    monthly: 39,
+    yearlyPerMonth: 32, // 17% off, like the others: $384 a year
     available: true,
-    limits: { projects: 1, canPublish: true, marketing: true, autoMarketing: false, payments: true, aiPerDay: 60, aiPerMonth: 800, researchPerMonth: 10, aiBudgetUsd: 12 },
+    limits: { projects: 1, canPublish: true, marketing: false, autoMarketing: false, payments: true, affiliates: true, aiPerDay: 60, aiPerMonth: 800, researchPerMonth: 10, aiBudgetUsd: 12 },
   },
   pro: {
     id: "pro",
     monthly: 79,
     yearlyPerMonth: 66,
     available: false,
-    limits: { projects: 3, canPublish: true, marketing: true, autoMarketing: true, payments: true, aiPerDay: 120, aiPerMonth: 2000, researchPerMonth: 25, aiBudgetUsd: 30 },
+    limits: { projects: 3, canPublish: true, marketing: true, autoMarketing: true, payments: true, affiliates: true, aiPerDay: 120, aiPerMonth: 2000, researchPerMonth: 25, aiBudgetUsd: 30 },
   },
   team: {
     id: "team",
     monthly: 149,
     yearlyPerMonth: 124, // 17% off, like the others: $1,488 a year
     available: false,
-    limits: { projects: 10, canPublish: true, marketing: true, autoMarketing: true, payments: true, aiPerDay: 240, aiPerMonth: 5000, researchPerMonth: 60, aiBudgetUsd: 60 },
+    limits: { projects: 10, canPublish: true, marketing: true, autoMarketing: true, payments: true, affiliates: true, aiPerDay: 240, aiPerMonth: 5000, researchPerMonth: 60, aiBudgetUsd: 60 },
   },
 };
 
-export type Feature = "publish" | "marketing" | "projects" | "autoMarketing" | "payments";
+export type Feature = "publish" | "marketing" | "projects" | "autoMarketing" | "payments" | "affiliates";
 
 // The cheapest plan that unlocks a feature.
 export function planFor(feature: Feature, projectsNeeded = 1): PlanId {
@@ -69,6 +74,7 @@ export function planFor(feature: Feature, projectsNeeded = 1): PlanId {
     if (feature === "marketing" && l.marketing) return id;
     if (feature === "autoMarketing" && l.autoMarketing) return id;
     if (feature === "payments" && l.payments) return id;
+    if (feature === "affiliates" && l.affiliates) return id;
     if (feature === "projects" && l.projects >= projectsNeeded) return id;
   }
   return "team";

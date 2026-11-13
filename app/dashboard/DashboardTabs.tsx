@@ -779,7 +779,7 @@ export default function DashboardTabs({
             }}
           />
         )}
-        {view === "payments" && <PaymentsView business={currentBusiness} services={currentServices} />}
+        {view === "payments" && <PaymentsView business={currentBusiness} services={currentServices} onPlans={() => setView("plans")} />}
         {view === "affiliates" && <AffiliatesView business={currentBusiness} onNavigate={setView} />}
         {view === "capital" && <ComingSoonView pillar="capital" onBack={() => setView("projects")} onPlans={() => setView("plans")} payReady={currentBusiness.payReady} onPayments={() => setView("payments")} />}
       </main>

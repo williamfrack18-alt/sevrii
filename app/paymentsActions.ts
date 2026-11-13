@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
+import { limitsFor } from "@/lib/billing";
 import { countPaymentLinks, createPaymentLink, getBusinessById, listPaymentLinks, setPaymentLinkActive, type PayStatus } from "@/lib/db";
 import { allow } from "@/lib/guard";
 import {
@@ -23,6 +24,8 @@ export type PaymentsState = {
   links: ClientPayLink[];
   payments: ReceivedPayment[];
   error?: "stripe";
+  // Payments is part of the paid plan (Starter): the free plan sees what it does.
+  allowed: boolean;
 };
 
 async function requireBusiness() {
@@ -38,9 +41,10 @@ function toClient(l: { id: string; title: string; amountCents: number; descripti
 // Everything the Payments screen needs. Reads the account status and the
 // latest payments from Stripe each time the screen opens.
 export async function loadPaymentsAction(): Promise<PaymentsState> {
-  const { business } = await requireBusiness();
+  const { user, business } = await requireBusiness();
   const links = (await listPaymentLinks(business.id)).map(toClient);
-  const base: PaymentsState = { ready: paymentsReady(), status: (business.payStatus as PayStatus) || "none", links, payments: [] };
+  const allowed = limitsFor(user).payments;
+  const base: PaymentsState = { ready: paymentsReady(), status: (business.payStatus as PayStatus) || "none", links, payments: [], allowed };
   if (!base.ready || !business.stripeAccountId) return base;
   try {
     const { status, blocked } = await refreshPayState(business);
@@ -54,8 +58,10 @@ export async function loadPaymentsAction(): Promise<PaymentsState> {
 }
 
 // Sends the owner to Stripe to create or finish their account.
-export async function startOnboardingAction(): Promise<{ url?: string; error?: "not_ready" | "rate" | "connect" | "failed" }> {
+export async function startOnboardingAction(): Promise<{ url?: string; error?: "not_ready" | "rate" | "connect" | "failed" | "plan" }> {
   const { user, business } = await requireBusiness();
+  // Payments is part of the paid plan.
+  if (!limitsFor(user).payments) return { error: "plan" };
   if (!paymentsReady()) return { error: "not_ready" };
   if (!(await allow(`payments:onboard:${business.id}`, 12, 60 * 60))) return { error: "rate" };
   try {
@@ -84,8 +90,9 @@ export async function createPayLinkAction(input: {
   title: string;
   amount: string;
   description?: string;
-}): Promise<{ ok: true; links: ClientPayLink[] } | { ok: false; error: "title" | "amount" | "limit" | "rate" | "not_ready" }> {
-  const { business } = await requireBusiness();
+}): Promise<{ ok: true; links: ClientPayLink[] } | { ok: false; error: "title" | "amount" | "limit" | "rate" | "not_ready" | "plan" }> {
+  const { user, business } = await requireBusiness();
+  if (!limitsFor(user).payments) return { ok: false, error: "plan" };
   if (business.payStatus !== "ready") return { ok: false, error: "not_ready" };
   const title = clip(input.title, 80);
   if (title.length < 2) return { ok: false, error: "title" };

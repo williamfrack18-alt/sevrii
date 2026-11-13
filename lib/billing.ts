@@ -208,14 +208,35 @@ export async function createCheckoutUrl(user: UserRow, interval: "month" | "year
   const origin = siteUrl();
   const tax: Record<string, string> =
     process.env.STRIPE_AUTOMATIC_TAX === "1" ? { "automatic_tax[enabled]": "true", "customer_update[address]": "auto" } : {};
+  // The price people see on the Plans page is the one they're charged. If the
+  // Stripe price on file is another amount (e.g. the old $29), the same
+  // product is sold at the current price, with no manual change in Stripe.
+  // People already subscribed keep the price they signed up with.
+  const expected = interval === "year" ? (PLANS.starter.yearlyPerMonth ?? PLANS.starter.monthly) * 12 * 100 : PLANS.starter.monthly * 100;
+  let line: Record<string, string> = { "line_items[0][price]": price };
+  try {
+    const pr = await stripe<{ unit_amount?: number | null; product?: string; currency?: string }>("GET", `prices/${encodeURIComponent(price)}`);
+    if (pr.unit_amount !== expected && pr.product) {
+      line = {
+        "line_items[0][price_data][currency]": pr.currency || "usd",
+        "line_items[0][price_data][product]": pr.product,
+        "line_items[0][price_data][unit_amount]": String(expected),
+        "line_items[0][price_data][recurring][interval]": interval,
+      };
+    }
+  } catch (err) {
+    console.error("[billing] couldn't read the Starter price; using it as configured", (err as Error)?.message);
+  }
   const session = await stripe<{ url: string }>("POST", "checkout/sessions", {
     ...tax,
     mode: "subscription",
     customer,
     client_reference_id: user.id,
-    "line_items[0][price]": price,
+    ...line,
     "line_items[0][quantity]": "1",
     "subscription_data[metadata][userId]": user.id,
+    // Which plan this is, also when the price was made here (not a known price id).
+    "subscription_data[metadata][plan]": "starter",
     allow_promotion_codes: "true",
     success_url: `${origin}/dashboard?view=plans&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/dashboard?view=plans&checkout=cancel`,
@@ -266,7 +287,7 @@ type Sub = {
   cancel_at_period_end: boolean;
   current_period_start?: number;
   current_period_end?: number;
-  metadata?: { userId?: string };
+  metadata?: { userId?: string; plan?: string };
   items?: { data?: { current_period_start?: number; current_period_end?: number; price?: { id?: string } }[] };
 };
 
@@ -324,7 +345,8 @@ export async function applySubscription(subOrId: Sub | string): Promise<void> {
   const date = sub.status === "past_due" && start ? start : end;
   let plan: PlanId = "free";
   if (live) {
-    const fromPrice = planFromPrice(item?.price?.id);
+    const meta = sub.metadata?.plan;
+    const fromPrice = planFromPrice(item?.price?.id) ?? (meta && meta !== "free" && meta in PLANS ? (meta as PlanId) : null);
     if (!fromPrice) console.error("[billing] unknown price on a paying subscription; keeping a paid plan", item?.price?.id, sub.id);
     plan = fromPrice ?? (user.plan && user.plan !== "free" && PLANS[user.plan as PlanId] ? (user.plan as PlanId) : "starter");
   }

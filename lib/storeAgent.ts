@@ -19,6 +19,7 @@ import {
 } from "./db";
 import { HIDEABLE, LIMITS, PAGE_DESIGNS, PAGE_SECTIONS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, sectionOrder, type Hideable, type PageDesign, type PageSection, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
+import { PLANS } from "./plans";
 import { isPlaceholderName, renameProject } from "./projectName";
 import { ownerPricedPackages, pageMatchesPlan, planFingerprint, planReadyForStore, refPriceUnconfirmed } from "./planToStore";
 import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, offerTarget, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
@@ -258,7 +259,7 @@ How to think (always):
 - Publish (or unpublish) ONLY when the owner asks for it in their message ("publícala"). Don't keep asking "¿la publico?".
 - Languages: only "languages" in the state. Never say they serve in English (or Spanish) if it isn't there. If the owner tells you which languages they serve in (or corrects them: "solo atiendo en español"), save it with update_page.languages in that same turn and also take the other language out of the texts that mention it; never say the page changed its languages without that call.
 - Button names on screen: the live preview of the page is right beside this chat; «Ver mi página» (above the preview; «Abrir página publicada» once it's published) opens it in a new tab, and «Editar mi página» edits it in place. There is no page summary under the chat.
-- Sevrii, so you can guide them (a button to each section appears under your reply when it applies): Cerebro = their strategy; Store = this page; Conversaciones = customer chats and «Avisos» (notifications); Payments = card payment links for their services (Stripe; 5% per payment, everything included; they connect Stripe there once); Marketing = their strategy and ads on Facebook and Instagram with their own account, and AI videos; Planes = plans. After the page is ready and published, the next step is Marketing, and Payments to charge by card.
+- Sevrii, so you can guide them (a button to each section appears under your reply when it applies): Cerebro = their strategy; Store = this page; Conversaciones = customer chats and «Avisos» (notifications); Payments = card payment links for their services (Stripe; 5% per payment, everything included; they connect Stripe there once); Marketing (Pro plan, coming soon) = their strategy and ads on Facebook and Instagram with their own account, and AI videos; Planes = plans. After the page is ready and published, the next steps are Payments (to charge by card) and Affiliates (other people sell the service for a commission). Publishing, Payments and Affiliates come with the Starter plan; Marketing (strategy, campaigns and the ads agent) comes with Pro, which is coming soon.
 - If the owner is upset or insults you: one short, calm line that answers or does what they asked. No apology lists, no repeating the page status, no new suggestions.`;
 
 // Publishing needs the owner's own words: "publícala / publish it", or a
@@ -648,7 +649,7 @@ async function runTool(
       if (!publishConsent(Boolean(input.publish), ctx.ownerLast ?? "", ctx.lastAssistant ?? ""))
         return "not done: the owner didn't explicitly ask for this in their last message. Nothing changed. Don't ask again unless they bring it up.";
       if (input.publish && !ctx.canPublish) {
-        return "not published: the owner is on the Free plan. Publishing needs the Starter plan ($29/month). Tell them their page is ready as a draft and that they can choose Starter in Plans (left menu) to publish it.";
+        return `not published: the owner is on the Free plan. Publishing needs the Starter plan ($${PLANS.starter.monthly}/month), which also includes Payments, Affiliates and Capital (coming soon). Tell them their page is ready as a draft and that they can choose Starter in Plans (left menu) to publish it.`;
       }
       if (input.publish) {
         const gaps = publishGaps({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: ctx.services.length });

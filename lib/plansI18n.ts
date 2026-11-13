@@ -33,17 +33,17 @@ const es = {
   renews: (d: string) => `Se renueva el ${d}`,
   ends: (d: string) => `Termina el ${d}`,
   adsNote: "La plata de los anuncios la pagas directo a Meta o Google; nunca pasa por Sevrii.",
-  capitalNote: "Capital (próximamente): la oferta de financiamiento la hará un socio financiero según lo que cobras con Sevrii, en cualquier plan.",
+  capitalNote: "Capital (próximamente, desde el plan Starter): la oferta de crédito la hará un socio financiero según lo que cobras con Sevrii.",
   plans: {
     free: { name: "Gratis", tagline: "Para probar", summary: "Conoce tu estrategia y ve tu página lista, sin pagar." },
-    starter: { name: "Starter", tagline: "Para empezar a vender", summary: "Sevrii te prepara todo: publicas tu página y lanzas tus campañas con la guía." },
-    pro: { name: "Pro", tagline: "Para crecer", summary: "Sevrii lo hace por ti: el agente lanza y cuida tus anuncios." },
+    starter: { name: "Starter", tagline: "Para empezar a vender", summary: "Publicas tu página, cobras con links de pago y otras personas pueden vender tu servicio por una comisión." },
+    pro: { name: "Pro", tagline: "Para crecer", summary: "Sevrii hace tu marketing: estrategia, campañas y el agente que lanza y cuida tus anuncios." },
     team: { name: "Equipo", tagline: "Para negocios con equipo", summary: "Varios servicios y varias personas trabajando en Sevrii." },
   } as Record<PlanId, { name: string; tagline: string; summary: string }>,
   highlights: {
-    free: ["Cerebro completo: entrevista, investigación de tu zona y propuesta", "Tu página de venta armada, en borrador", "Cobra a tus clientes con links de pago (Payments)", "1 proyecto"],
-    starter: ["Todo lo de Gratis", "Tu página publicada en sevrii.com", "Estrategia y campañas listas, con guía para lanzarlas tú", "Conteo de visitas, llamadas y mensajes", "1 proyecto"],
-    pro: ["Todo lo de Starter", "Agente de marketing: lanza tus campañas en Facebook e Instagram con tu aprobación", "Revisa tus anuncios cada día, pausa lo que gasta sin traer clientes y te prepara publicaciones gratis", "Hasta 3 proyectos"],
+    free: ["Cerebro completo: entrevista, investigación de tu zona y propuesta", "Tu página de venta armada, en borrador", "1 proyecto"],
+    starter: ["Todo lo de Gratis", "Tu página publicada en sevrii.com", "Payments: cobra a tus clientes con links de pago", "Afiliados: otras personas venden tu servicio y tú les pagas una comisión", "Capital: crédito para tu negocio (próximamente)", "Conteo de visitas, llamadas y mensajes", "1 proyecto"],
+    pro: ["Todo lo de Starter", "Marketing: tu estrategia y tus campañas listas", "Agente de marketing: lanza tus campañas en Facebook e Instagram con tu aprobación", "Revisa tus anuncios cada día, pausa lo que gasta sin traer clientes y te prepara publicaciones gratis", "Hasta 3 proyectos"],
     team: ["Todo lo de Pro", "Hasta 10 proyectos", "Varios usuarios", "Reportes de todos tus proyectos", "Soporte prioritario"],
   } as Record<PlanId, string[]>,
   compareTitle: "Compara los planes",
@@ -66,7 +66,7 @@ const es = {
     {
       title: "Marketing",
       rows: [
-        { label: "Estrategia y campañas listas, con guía", values: { free: false, starter: true, pro: true, team: true } },
+        { label: "Estrategia y campañas listas, con guía", values: { free: false, starter: false, pro: true, team: true } },
         { label: "El agente publica las campañas por ti", values: { free: false, starter: false, pro: true, team: true } },
         { label: "Revisión diaria de tus anuncios", values: { free: false, starter: false, pro: true, team: true } },
       ],
@@ -74,8 +74,20 @@ const es = {
     {
       title: "Payments",
       rows: [
-        { label: "Cobrar a tus clientes con links de pago", values: { free: true, starter: true, pro: true, team: true } },
-        { label: "Comisión por pago (incluye Stripe)", values: { free: "5%", starter: "5%", pro: "5%", team: "5%" } },
+        { label: "Cobrar a tus clientes con links de pago", values: { free: false, starter: true, pro: true, team: true } },
+        { label: "Comisión por pago (incluye Stripe)", values: { free: false, starter: "5%", pro: "5%", team: "5%" } },
+      ],
+    },
+    {
+      title: "Afiliados",
+      rows: [
+        { label: "Otras personas venden tu servicio y les pagas una comisión", values: { free: false, starter: true, pro: true, team: true } },
+      ],
+    },
+    {
+      title: "Capital",
+      rows: [
+        { label: "Crédito para tu negocio según lo que cobras", values: { free: false, starter: "Próximamente", pro: "Próximamente", team: "Próximamente" } },
       ],
     },
     {
@@ -93,10 +105,10 @@ const es = {
     upgrade: "Mejorar plan",
     seePlans: "Ver planes",
     publishChip: "Publicar: plan Starter",
-    marketingTitle: "Marketing está desde el plan Starter",
-    marketingSub: "Con Starter, el cerebro de marketing arma tu estrategia y te deja las campañas listas con guía para lanzarlas. Con Pro (próximamente), el agente las publica y las cuida por ti.",
+    marketingTitle: "Marketing está en el plan Pro (próximamente)",
+    marketingSub: "Con Pro, Sevrii arma tu estrategia de marketing, te deja las campañas listas y el agente las publica y las cuida por ti. Está por salir: en Planes puedes pedir que te avisemos.",
     autoPro: "Publicar automático: plan Pro (próximamente)",
-    paymentsPro: "Payments viene incluido en todos los planes: 5% por pago, todo incluido.",
+    paymentsPro: "Payments viene desde el plan Starter: 5% por pago, todo incluido.",
     projectsLocked: (n: number) => `Tu plan permite ${n === 1 ? "1 proyecto" : `${n} proyectos`}`,
     projectsLockedSub: "Para vender otro servicio, mejora tu plan.",
   },
@@ -131,17 +143,17 @@ const en: typeof es = {
   renews: (d: string) => `Renews on ${d}`,
   ends: (d: string) => `Ends on ${d}`,
   adsNote: "Ad money is paid directly to Meta or Google; it never goes through Sevrii.",
-  capitalNote: "Capital (coming soon): the financing offer will come from a financial partner based on what you charge with Sevrii, on any plan.",
+  capitalNote: "Capital (coming soon, from the Starter plan): the credit offer will come from a financial partner based on what you charge with Sevrii.",
   plans: {
     free: { name: "Free", tagline: "To try it", summary: "Get your strategy and see your page ready, without paying." },
-    starter: { name: "Starter", tagline: "To start selling", summary: "Sevrii prepares everything: you publish your page and launch your campaigns with the guide." },
-    pro: { name: "Pro", tagline: "To grow", summary: "Sevrii does it for you: the agent launches and manages your ads." },
+    starter: { name: "Starter", tagline: "To start selling", summary: "You publish your page, charge with payment links, and other people can sell your service for a commission." },
+    pro: { name: "Pro", tagline: "To grow", summary: "Sevrii does your marketing: strategy, campaigns and the agent that launches and manages your ads." },
     team: { name: "Team", tagline: "For businesses with a team", summary: "Several services and several people working in Sevrii." },
   },
   highlights: {
-    free: ["Full Brain: interview, local research and proposal", "Your sales page built, as a draft", "Charge your clients with payment links (Payments)", "1 project"],
-    starter: ["Everything in Free", "Your page published on sevrii.com", "Strategy and ready campaigns, with a guide to launch them", "Visits, calls and messages count", "1 project"],
-    pro: ["Everything in Starter", "Marketing agent: launches your campaigns on Facebook and Instagram with your approval", "Checks your ads every day, pauses what spends without bringing clients and prepares free posts", "Up to 3 projects"],
+    free: ["Full Brain: interview, local research and proposal", "Your sales page built, as a draft", "1 project"],
+    starter: ["Everything in Free", "Your page published on sevrii.com", "Payments: charge your clients with payment links", "Affiliates: other people sell your service and you pay them a commission", "Capital: credit for your business (coming soon)", "Visits, calls and messages count", "1 project"],
+    pro: ["Everything in Starter", "Marketing: your strategy and campaigns ready", "Marketing agent: launches your campaigns on Facebook and Instagram with your approval", "Checks your ads every day, pauses what spends without bringing clients and prepares free posts", "Up to 3 projects"],
     team: ["Everything in Pro", "Up to 10 projects", "Multiple users", "Reports across projects", "Priority support"],
   },
   compareTitle: "Compare plans",
@@ -164,7 +176,7 @@ const en: typeof es = {
     {
       title: "Marketing",
       rows: [
-        { label: "Strategy and ready campaigns, with a guide", values: { free: false, starter: true, pro: true, team: true } },
+        { label: "Strategy and ready campaigns, with a guide", values: { free: false, starter: false, pro: true, team: true } },
         { label: "The agent publishes campaigns for you", values: { free: false, starter: false, pro: true, team: true } },
         { label: "Daily review of your ads", values: { free: false, starter: false, pro: true, team: true } },
       ],
@@ -172,8 +184,20 @@ const en: typeof es = {
     {
       title: "Payments",
       rows: [
-        { label: "Charge your clients with payment links", values: { free: true, starter: true, pro: true, team: true } },
-        { label: "Fee per payment (Stripe included)", values: { free: "5%", starter: "5%", pro: "5%", team: "5%" } },
+        { label: "Charge your clients with payment links", values: { free: false, starter: true, pro: true, team: true } },
+        { label: "Fee per payment (Stripe included)", values: { free: false, starter: "5%", pro: "5%", team: "5%" } },
+      ],
+    },
+    {
+      title: "Affiliates",
+      rows: [
+        { label: "Other people sell your service and you pay them a commission", values: { free: false, starter: true, pro: true, team: true } },
+      ],
+    },
+    {
+      title: "Capital",
+      rows: [
+        { label: "Credit for your business based on what you charge", values: { free: false, starter: "Coming soon", pro: "Coming soon", team: "Coming soon" } },
       ],
     },
     {
@@ -191,10 +215,10 @@ const en: typeof es = {
     upgrade: "Upgrade plan",
     seePlans: "See plans",
     publishChip: "Publish: Starter plan",
-    marketingTitle: "Marketing starts with the Starter plan",
-    marketingSub: "With Starter, the marketing brain builds your strategy and leaves your campaigns ready with a guide to launch them. With Pro (coming soon), the agent publishes and manages them for you.",
+    marketingTitle: "Marketing is in the Pro plan (coming soon)",
+    marketingSub: "With Pro, Sevrii builds your marketing strategy, leaves your campaigns ready, and the agent publishes and manages them for you. It's almost out: in Plans you can ask us to let you know.",
     autoPro: "Auto-publish: Pro plan (coming soon)",
-    paymentsPro: "Payments is included in every plan: 5% per payment, all included.",
+    paymentsPro: "Payments comes with the Starter plan: 5% per payment, all included.",
     projectsLocked: (n: number) => `Your plan allows ${n === 1 ? "1 project" : `${n} projects`}`,
     projectsLockedSub: "To sell another service, upgrade your plan.",
   },
