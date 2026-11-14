@@ -26,6 +26,9 @@ import {
   campaignBelongs,
   setConversationCampaign,
   getConversationCampaign,
+  setConversationAffiliate,
+  createPaymentLink,
+  countChatPaymentLinks,
   addAgentAccess,
   latestAgentAccess,
   useAgentReply,
@@ -54,8 +57,9 @@ import { redactSensitive } from "@/lib/agentOps/redact";
 import { saidApproval } from "@/lib/brain/interviewer";
 import { hasTask } from "@/lib/serviceAgentConfig";
 import { agentMissing, offerPriceLabel, welcomeFor } from "@/lib/serviceAgentConfig";
-import { agentSubscriptionEnd, checkoutForAgentOffer, getPaidAgentSession, paymentsReady } from "@/lib/payments";
+import { agentSubscriptionEnd, checkoutForAgentOffer, getPaidAgentSession, payLinkUrl, paymentsReady, MIN_AMOUNT_CENTS, MAX_AMOUNT_CENTS } from "@/lib/payments";
 import { affiliateForCheckout, recordAffiliateSessionById } from "@/lib/affiliates";
+import { AFF_COOKIE_DAYS } from "@/lib/affiliateConfig";
 import { normalizePhone, ownsBlob } from "@/lib/site";
 import { put } from "@vercel/blob";
 import { runVisitorAi } from "@/lib/visitorChat";
@@ -314,6 +318,18 @@ export async function visitorChatSendAction(input: { slug: string; token?: strin
     }
   }
 
+  // A customer who came through an affiliate's link: the chat keeps who
+  // brought them, so a payment link the owner sends later counts for that
+  // affiliate on any device (in-person services rarely pay right away).
+  if (!conv.affiliateUserId && b.affiliate.enabled) {
+    try {
+      const aff = await affiliateForCheckout(b);
+      if (aff) await setConversationAffiliate(conv.id, aff.userId, aff.percent);
+    } catch {
+      // best-effort
+    }
+  }
+
   // Sensitive data never stays in an agent's chat (cards, SSN, passwords).
   const safe = agentLive(b) ? redactSensitive(text) : { text, found: false };
   const visitorMsg = await addConvMessage(conv.id, "visitor", safe.text);
@@ -441,22 +457,88 @@ export async function unreadChatsAction(): Promise<number> {
   return countUnreadConversations(b.id);
 }
 
-export type InboxConversation = Pick<ConversationRow, "id" | "name" | "phone" | "email" | "aiEnabled" | "handoff" | "ownerUnread" | "lastMessage" | "lastMessageAt">;
+export type InboxConversation = Pick<ConversationRow, "id" | "name" | "phone" | "email" | "aiEnabled" | "handoff" | "ownerUnread" | "lastMessage" | "lastMessageAt"> & {
+  // Came through an affiliate's link (shown by their code, never their email):
+  // a payment link made in this chat pays them their commission.
+  affiliate: { code: string; percent: number; open: boolean } | null;
+};
 
 export async function listInboxAction(): Promise<InboxConversation[]> {
   const b = await ownerBusiness();
   if (!b) return [];
-  return (await listConversations(b.id, 50)).map((c) => ({
-    id: c.id,
-    name: c.name,
-    phone: c.phone,
-    email: c.email,
-    aiEnabled: c.aiEnabled,
-    handoff: c.handoff,
-    ownerUnread: c.ownerUnread,
-    lastMessage: c.lastMessage,
-    lastMessageAt: c.lastMessageAt,
-  }));
+  const codes: Record<string, string> = {};
+  const out: InboxConversation[] = [];
+  for (const c of await listConversations(b.id, 50)) {
+    let affiliate: InboxConversation["affiliate"] = null;
+    if (c.affiliateUserId && c.affiliatePct) {
+      if (!(c.affiliateUserId in codes)) codes[c.affiliateUserId] = (await getUserById(c.affiliateUserId))?.affCode ?? "";
+      affiliate = { code: codes[c.affiliateUserId], percent: c.affiliatePct, open: chatAffiliateOpen(c) };
+    }
+    out.push({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      aiEnabled: c.aiEnabled,
+      handoff: c.handoff,
+      ownerUnread: c.ownerUnread,
+      lastMessage: c.lastMessage,
+      lastMessageAt: c.lastMessageAt,
+      affiliate,
+    });
+  }
+  return out;
+}
+
+// A chat's affiliate counts for payment links made within 30 days of the
+// chat starting (the same 30 days a link visit counts).
+function chatAffiliateOpen(c: ConversationRow): boolean {
+  return Boolean(c.affiliateUserId && c.affiliatePct) && Date.now() - Date.parse(c.createdAt) <= AFF_COOKIE_DAYS * 24 * 3600 * 1000;
+}
+
+// "120", "120.50", "$1,200" → cents. Anything else → null.
+function toCents(raw: unknown): number | null {
+  const s = String(raw ?? "").replace(/[$,\s]/g, "");
+  if (!/^\d{1,6}(\.\d{1,2})?$/.test(s)) return null;
+  return Math.round(Number(s) * 100);
+}
+
+export type ChatPayResult =
+  | { ok: true; url: string; messages: ChatMsg[]; affiliate: boolean }
+  | { ok: false; error: "plan" | "not_ready" | "title" | "amount" | "rate" | "limit" | "failed" };
+
+// The owner charges this customer from the chat: a payment link just for them,
+// sent in the chat (and ready to copy to WhatsApp or SMS). If the customer came
+// through an affiliate, the link carries the affiliate, so the commission counts
+// whatever phone the customer pays from.
+export async function chatPayLinkAction(input: { id: string; title: string; amount: string; send: boolean }): Promise<ChatPayResult> {
+  const user = await getCurrentUser();
+  const b = user?.business ?? null;
+  if (!user || !b) return { ok: false, error: "failed" };
+  if (!limitsFor(user).payments) return { ok: false, error: "plan" };
+  if (b.payStatus !== "ready" || !b.stripeAccountId) return { ok: false, error: "not_ready" };
+  const conv = await getConversationForBusiness(b.id, clean(input.id, 64));
+  if (!conv) return { ok: false, error: "failed" };
+  const title = clean(input.title, 80);
+  if (title.length < 2) return { ok: false, error: "title" };
+  const cents = toCents(input.amount);
+  if (cents === null || cents < MIN_AMOUNT_CENTS || cents > MAX_AMOUNT_CENTS) return { ok: false, error: "amount" };
+  if (!(await allow(`payments:chatlink:${b.id}`, 40, 60 * 60))) return { ok: false, error: "rate" };
+  if ((await countChatPaymentLinks(conv.id)) >= 20) return { ok: false, error: "limit" };
+  const withAff = chatAffiliateOpen(conv) && conv.affiliateUserId !== b.userId;
+  const link = await createPaymentLink(b.id, title, cents, null, {
+    conversationId: conv.id,
+    affiliateUserId: withAff ? conv.affiliateUserId : null,
+    affiliatePct: withAff ? conv.affiliatePct : null,
+  });
+  const url = payLinkUrl(link.id);
+  if (input.send) {
+    const es = b.site.lang !== "en";
+    const amount = `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+    await updateConversation(conv.id, { aiEnabled: false, handoff: false });
+    await addConvMessage(conv.id, "owner", es ? `Aquí puedes pagar ${title} (${amount}) con tarjeta: ${url}` : `You can pay for ${title} (${amount}) by card here: ${url}`);
+  }
+  return { ok: true, url, affiliate: withAff, messages: (await listConvMessages(conv.id, 0, 200)).map(pub) };
 }
 
 // markRead: only when the owner is really looking (tab visible), so messages

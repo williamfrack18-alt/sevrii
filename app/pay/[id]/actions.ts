@@ -25,7 +25,13 @@ export async function payAction(formData: FormData): Promise<void> {
   try {
     // Make sure the account can still take payments right now.
     if ((await refreshPayStatus(business)) !== "ready") redirect(back);
-    url = await checkoutForLink(business, link, await affiliateForCheckout(business));
+    // A link made in a chat that came through an affiliate carries that
+    // affiliate (any device); any other link uses the visit cookie.
+    const aff =
+      link.affiliateUserId && link.affiliatePct && link.affiliateUserId !== business.userId
+        ? { userId: link.affiliateUserId, percent: link.affiliatePct }
+        : await affiliateForCheckout(business);
+    url = await checkoutForLink(business, link, aff);
   } catch (err) {
     // redirect() throws on purpose; let it through.
     if ((err as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) throw err;

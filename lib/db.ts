@@ -567,6 +567,15 @@ async function migrate(): Promise<void> {
       await sql`CREATE INDEX IF NOT EXISTS marketing_actions_biz_idx ON marketing_actions ("businessId", "createdAt" DESC)`;
       // Old strategist messages sent owners to an approve button "in the card
       // here in the chat"; it's in the strategy panel next to the chat.
+      // Affiliates on in-person services: a chat that came through an
+      // affiliate's link remembers who brought it (and the commission then),
+      // and a payment link the owner makes in that chat carries it, so the
+      // commission counts on any device.
+      await sql`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "affiliateUserId" TEXT`;
+      await sql`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "affiliatePct" INTEGER`;
+      await sql`ALTER TABLE payment_links ADD COLUMN IF NOT EXISTS "conversationId" TEXT`;
+      await sql`ALTER TABLE payment_links ADD COLUMN IF NOT EXISTS "affiliateUserId" TEXT`;
+      await sql`ALTER TABLE payment_links ADD COLUMN IF NOT EXISTS "affiliatePct" INTEGER`;
       await sql`UPDATE chat_messages SET content = regexp_replace(regexp_replace(content, 'en tu tarjeta de estrategia,? (justo )?aqu[ií] en el chat', 'al final del panel «Tu estrategia de marketing», junto al chat', 'gi'), 'in your strategy card,? (right )?here in the chat', 'at the bottom of the "Your marketing strategy" panel next to the chat', 'gi') WHERE channel = 'brain' AND (content ~* 'tarjeta de estrategia,? (justo )?aqu[ií] en el chat' OR content ~* 'strategy card,? (right )?here in the chat')`;
     }
   }
@@ -1583,6 +1592,10 @@ export type PaymentLinkRow = {
   description: string | null;
   active: boolean;
   createdAt: string;
+  // Made in a chat (for one customer): not on the page or in the Payments list.
+  conversationId: string | null;
+  affiliateUserId: string | null;
+  affiliatePct: number | null;
 };
 
 function toLink(r: Record<string, unknown>): PaymentLinkRow {
@@ -1594,6 +1607,9 @@ function toLink(r: Record<string, unknown>): PaymentLinkRow {
     description: (r.description as string | null) ?? null,
     active: Boolean(r.active),
     createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+    conversationId: r.conversationId ? String(r.conversationId) : null,
+    affiliateUserId: r.affiliateUserId ? String(r.affiliateUserId) : null,
+    affiliatePct: r.affiliatePct == null ? null : Number(r.affiliatePct),
   };
 }
 
@@ -1606,28 +1622,42 @@ function linkId(): string {
   return out;
 }
 
-export async function createPaymentLink(businessId: string, title: string, amountCents: number, description: string | null): Promise<PaymentLinkRow> {
+export async function createPaymentLink(
+  businessId: string,
+  title: string,
+  amountCents: number,
+  description: string | null,
+  chat: { conversationId: string; affiliateUserId: string | null; affiliatePct: number | null } | null = null
+): Promise<PaymentLinkRow> {
   await ensureSchema();
   const id = linkId();
   const rows = (await sql`
-    INSERT INTO payment_links (id, "businessId", title, "amountCents", description)
-    VALUES (${id}, ${businessId}, ${title}, ${amountCents}, ${description})
+    INSERT INTO payment_links (id, "businessId", title, "amountCents", description, "conversationId", "affiliateUserId", "affiliatePct")
+    VALUES (${id}, ${businessId}, ${title}, ${amountCents}, ${description}, ${chat?.conversationId ?? null}, ${chat?.affiliateUserId ?? null}, ${chat?.affiliatePct ?? null})
     RETURNING *
   `) as Record<string, unknown>[];
   return toLink(rows[0]);
 }
 
+// The business's own links (page and Payments list); links made inside a chat
+// for one customer stay in that chat.
 export async function listPaymentLinks(businessId: string): Promise<PaymentLinkRow[]> {
   await ensureSchema();
   const rows = (await sql`
-    SELECT * FROM payment_links WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT 100
+    SELECT * FROM payment_links WHERE "businessId" = ${businessId} AND "conversationId" IS NULL ORDER BY "createdAt" DESC LIMIT 100
   `) as Record<string, unknown>[];
   return rows.map(toLink);
 }
 
 export async function countPaymentLinks(businessId: string): Promise<number> {
   await ensureSchema();
-  const rows = (await sql`SELECT COUNT(*)::int AS n FROM payment_links WHERE "businessId" = ${businessId}`) as { n: number }[];
+  const rows = (await sql`SELECT COUNT(*)::int AS n FROM payment_links WHERE "businessId" = ${businessId} AND "conversationId" IS NULL`) as { n: number }[];
+  return Number(rows[0]?.n ?? 0);
+}
+
+export async function countChatPaymentLinks(conversationId: string): Promise<number> {
+  await ensureSchema();
+  const rows = (await sql`SELECT COUNT(*)::int AS n FROM payment_links WHERE "conversationId" = ${conversationId}`) as { n: number }[];
   return Number(rows[0]?.n ?? 0);
 }
 
@@ -1831,6 +1861,8 @@ export type ConversationRow = {
   visitorSeenAt: string;
   notifiedAt: string | null;
   createdAt: string;
+  affiliateUserId: string | null;
+  affiliatePct: number | null;
 };
 export type ConvMessageRow = { seq: number; role: "visitor" | "ai" | "owner"; content: string; createdAt: string };
 
@@ -1852,7 +1884,15 @@ function convRow(r: Record<string, unknown>): ConversationRow {
     visitorSeenAt: iso(r.visitorSeenAt),
     notifiedAt: r.notifiedAt ? iso(r.notifiedAt) : null,
     createdAt: iso(r.createdAt),
+    affiliateUserId: r.affiliateUserId ? String(r.affiliateUserId) : null,
+    affiliatePct: r.affiliatePct == null ? null : Number(r.affiliatePct),
   };
+}
+
+// The affiliate who brought this chat: the first one only, never changed.
+export async function setConversationAffiliate(conversationId: string, affiliateUserId: string, percent: number): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE conversations SET "affiliateUserId" = ${affiliateUserId}, "affiliatePct" = ${percent} WHERE id = ${conversationId} AND "affiliateUserId" IS NULL`;
 }
 
 export async function createConversation(businessId: string, tokenHash: string): Promise<ConversationRow> {

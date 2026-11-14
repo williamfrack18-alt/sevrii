@@ -11,6 +11,7 @@ import {
   resolveConversationAction,
   getOwnerProfileAction,
   setOwnerNameAction,
+  chatPayLinkAction,
   type ChatMsg,
   type InboxConversation,
 } from "@/app/chatActions";
@@ -49,6 +50,30 @@ const TEXT = {
     save: "Guardar",
     namePh: "Tu nombre",
     askName: "¿Cómo te llamas? Los clientes verán tu nombre y tu foto cuando respondas.",
+    charge: "Cobrar",
+    affTag: "Afiliado",
+    affLine: (code: string, p: number) => `Llegó con el link del afiliado «${code}». Si le cobras con un link de pago desde aquí, el afiliado gana el ${p}% de comisión.`,
+    affOld: (code: string) => `Llegó con el link del afiliado «${code}», pero ya pasaron los 30 días: un cobro nuevo no lleva comisión.`,
+    payTitle: "Cobrar a este cliente",
+    payConcept: "Qué cobras (ej. Limpieza de seccional)",
+    payAmount: "Monto en US$",
+    paySend: "Enviar link en el chat",
+    payCopyOnly: "Solo crear el link",
+    payWorking: "Creando…",
+    payDone: "Link de pago listo. También lo puedes mandar por WhatsApp o mensaje de texto:",
+    payDoneAff: "Este cobro lleva la comisión del afiliado.",
+    copy: "Copiar",
+    copied: "Copiado",
+    close: "Cerrar",
+    payErr: {
+      plan: "Cobrar con links es parte del plan Starter. Míralo en Planes.",
+      not_ready: "Primero conecta Payments para poder cobrar.",
+      title: "Escribe qué estás cobrando.",
+      amount: "El monto debe ser entre $15 y $10,000.",
+      rate: "Creaste muchos links seguidos. Espera un rato.",
+      limit: "Este chat ya tiene muchos links de pago.",
+      failed: "No se pudo crear el link. Inténtalo de nuevo.",
+    } as Record<string, string>,
   },
   en: {
     title: "Conversations",
@@ -81,6 +106,30 @@ const TEXT = {
     save: "Save",
     namePh: "Your name",
     askName: "What's your name? Customers see your name and photo when you reply.",
+    charge: "Charge",
+    affTag: "Affiliate",
+    affLine: (code: string, p: number) => `Came through affiliate «${code}»'s link. If you charge them with a payment link from here, the affiliate earns a ${p}% commission.`,
+    affOld: (code: string) => `Came through affiliate «${code}»'s link, but the 30 days are over: a new charge carries no commission.`,
+    payTitle: "Charge this customer",
+    payConcept: "What you're charging for (e.g. Sectional cleaning)",
+    payAmount: "Amount in US$",
+    paySend: "Send link in the chat",
+    payCopyOnly: "Just create the link",
+    payWorking: "Creating…",
+    payDone: "Payment link ready. You can also send it by WhatsApp or text:",
+    payDoneAff: "This charge carries the affiliate's commission.",
+    copy: "Copy",
+    copied: "Copied",
+    close: "Close",
+    payErr: {
+      plan: "Charging with links is part of the Starter plan. See Plans.",
+      not_ready: "Connect Payments first to be able to charge.",
+      title: "Write what you're charging for.",
+      amount: "The amount must be between $15 and $10,000.",
+      rate: "You created many links in a row. Wait a bit.",
+      limit: "This chat already has many payment links.",
+      failed: "Couldn't create the link. Try again.",
+    } as Record<string, string>,
   },
 };
 
@@ -141,6 +190,8 @@ export default function ChatsView({ businessId, published, onStore }: { business
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  // "Cobrar": a payment link for this customer, made and sent from the chat.
+  const [pay, setPay] = useState<{ title: string; amount: string; busy: boolean; error: string; url: string; aff: boolean; copied: boolean } | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const current = list?.find((c) => c.id === openId) ?? null;
 
@@ -180,6 +231,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
   }, []);
 
   useEffect(() => {
+    setPay(null);
     if (!openId) return;
     setMsgs([]);
     lastSeq.current = 0;
@@ -214,6 +266,26 @@ export default function ChatsView({ businessId, published, onStore }: { business
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function charge(send: boolean) {
+    if (!openId || !pay || pay.busy) return;
+    const id = openId;
+    setPay({ ...pay, busy: true, error: "" });
+    try {
+      const res = await chatPayLinkAction({ id, title: pay.title, amount: pay.amount, send });
+      if (openRef.current !== id) return;
+      if (!res.ok) {
+        setPay((p) => (p ? { ...p, busy: false, error: t.payErr[res.error] || t.payErr.failed } : p));
+        return;
+      }
+      setMsgs(res.messages);
+      lastSeq.current = res.messages.length ? res.messages[res.messages.length - 1].seq : 0;
+      setPay((p) => (p ? { ...p, busy: false, url: res.url, aff: res.affiliate } : p));
+      refresh();
+    } catch {
+      setPay((p) => (p ? { ...p, busy: false, error: t.payErr.failed } : p));
     }
   }
 
@@ -318,6 +390,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 min-w-0">
                         <span className={`min-w-0 text-[13.5px] md:text-[13px] truncate ${c.ownerUnread ? "text-pfg2" : "text-pfaint"}`}>{c.lastMessage.replace(/\s*\[\[(pay|case:[A-Za-z0-9_-]+)\]\]\s*$/, "").replace(/^📷\s+https:\/\/\S+$/, lang === "es" ? "📷 Foto" : "📷 Photo")}</span>
+                        {c.affiliate && <span className="shrink-0 text-[10.5px] font-medium px-1.5 py-0.5 rounded-md text-[#137a3d] bg-[#e8f6ee]">{t.affTag}</span>}
                         {c.handoff && <span className="ml-auto shrink-0 text-[11px] text-[#e0b54a]">{t.needsYou}</span>}
                         {!c.handoff && c.ownerUnread > 0 && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
                       </div>
@@ -359,6 +432,9 @@ export default function ChatsView({ businessId, published, onStore }: { business
                       {t.resolve}
                     </button>
                   )}
+                  <button type="button" onClick={() => setPay((p) => (p ? null : { title: "", amount: "", busy: false, error: "", url: "", aff: false, copied: false }))} className={`${quiet} hidden md:inline-flex`}>
+                    {t.charge}
+                  </button>
                   <button type="button" onClick={toggleAi} className="hidden md:inline-flex h-8 px-3 rounded-lg text-[13px] text-pfg items-center transition-colors" style={{ border: "1px solid rgba(10,10,10,0.119)" }}>
                     {current.aiEnabled ? t.turnAiOff : t.turnAiOn}
                   </button>
@@ -373,7 +449,15 @@ export default function ChatsView({ businessId, published, onStore }: { business
                       {t.resolve}
                     </button>
                   )}
+                  <button type="button" onClick={() => setPay((p) => (p ? null : { title: "", amount: "", busy: false, error: "", url: "", aff: false, copied: false }))} className="h-10 px-4 rounded-full text-[13.5px] text-pfg2 inline-flex items-center shrink-0 whitespace-nowrap" style={{ background: "rgba(10,10,10,0.051)" }}>
+                    {t.charge}
+                  </button>
                 </div>
+                {current.affiliate && (
+                  <div className="shrink-0 px-4 md:px-6 py-2 text-[12.5px] leading-[1.45]" style={{ borderBottom: line, background: current.affiliate.open ? "#f1faf5" : "rgba(10,10,10,0.025)", color: current.affiliate.open ? "#0b5130" : "#6b6b6b" }}>
+                    {current.affiliate.open ? t.affLine(current.affiliate.code, current.affiliate.percent) : t.affOld(current.affiliate.code)}
+                  </div>
+                )}
 
                 <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto">
                   <div className="max-w-[720px] mx-auto px-4 md:px-8 py-4 md:py-6 flex flex-col gap-1">
@@ -415,6 +499,56 @@ export default function ChatsView({ businessId, published, onStore }: { business
 
                 <div className="shrink-0 px-4 md:px-6 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:pb-4" style={{ borderTop: line }}>
                   <div className="max-w-[720px] mx-auto">
+                    {pay && (
+                      <div className="mb-3 rounded-xl p-3" style={{ background: "#FFFFFF", border: "1px solid rgba(10,10,10,0.068)" }}>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-[13.5px] font-medium text-pfg">{t.payTitle}</span>
+                          <button type="button" onClick={() => setPay(null)} className="text-[12.5px] text-pfaint hover:text-pfg tap">
+                            {t.close}
+                          </button>
+                        </div>
+                        {pay.url ? (
+                          <div className="flex flex-col gap-2">
+                            <p className="text-[12.5px] text-psub">{t.payDone}</p>
+                            <div className="flex gap-2 items-center">
+                              <input readOnly value={pay.url} className="flex-1 min-w-0 h-10 md:h-9 rounded-lg px-3 text-[13px] text-pfg bg-transparent outline-none" style={{ border: "1px solid rgba(10,10,10,0.119)" }} onFocus={(e) => e.currentTarget.select()} />
+                              <button
+                                type="button"
+                                className="h-10 md:h-9 px-4 rounded-lg text-[13px] font-medium bg-pfg text-pfg shrink-0"
+                                onClick={() => {
+                                  navigator.clipboard?.writeText(pay.url).then(() => setPay((p) => (p ? { ...p, copied: true } : p))).catch(() => {});
+                                }}
+                              >
+                                {pay.copied ? t.copied : t.copy}
+                              </button>
+                            </div>
+                            {pay.aff && <p className="text-[12px] text-[#137a3d]">{t.payDoneAff}</p>}
+                          </div>
+                        ) : (
+                          <form
+                            className="flex flex-col gap-2"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              charge(true);
+                            }}
+                          >
+                            <div className="flex max-md:flex-col gap-2">
+                              <input value={pay.title} onChange={(e) => setPay({ ...pay, title: e.target.value })} placeholder={t.payConcept} maxLength={80} className="flex-1 min-w-0 h-10 md:h-9 rounded-lg px-3 text-[16px] md:text-[13.5px] text-pfg outline-none bg-transparent placeholder:text-pfaint" style={{ border: "1px solid rgba(10,10,10,0.119)" }} />
+                              <input value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} placeholder={t.payAmount} inputMode="decimal" maxLength={10} className="md:w-[130px] min-w-0 h-10 md:h-9 rounded-lg px-3 text-[16px] md:text-[13.5px] text-pfg outline-none bg-transparent placeholder:text-pfaint" style={{ border: "1px solid rgba(10,10,10,0.119)" }} />
+                            </div>
+                            {pay.error && <p className="text-[12.5px] text-[#b42318]">{pay.error}</p>}
+                            <div className="flex flex-wrap gap-2">
+                              <button type="submit" disabled={pay.busy} className="h-10 md:h-9 px-4 rounded-lg text-[13px] font-medium bg-pfg text-pfg disabled:opacity-40">
+                                {pay.busy ? t.payWorking : t.paySend}
+                              </button>
+                              <button type="button" disabled={pay.busy} onClick={() => charge(false)} className="h-10 md:h-9 px-4 rounded-lg text-[13px] text-pfg2 disabled:opacity-40" style={{ background: "rgba(10,10,10,0.051)" }}>
+                                {t.payCopyOnly}
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    )}
                     {me && editName ? (
                       <div className="mb-3">
                         <p className="text-[12.5px] text-psub mb-2">{t.askName}</p>
