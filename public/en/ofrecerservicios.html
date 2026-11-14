@@ -406,6 +406,35 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
   .s-foot-bottom a:hover{color:#fff;}
   .s-foot-bottom .links{display:flex;gap:28px;}
 
+  /* Cerebro: strategy card over a radar on the left */
+  .s-radar.alt{background:radial-gradient(circle at 30% 50%,#1c5a3d 0%,#0e2c1f 35%,#07140e 70%);}
+  .s-radar.alt i{left:30%;top:50%;}
+  .ui-brain{right:7%;top:50%;transform:translateY(-50%);width:300px;padding:16px;}
+  .ui-brain .lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9A968A;margin-bottom:4px;}
+  .ui-brain .t{font-size:14px;font-weight:600;margin-bottom:10px;}
+  .ui-brain .row{display:flex;flex-direction:column;gap:1px;padding:8px 0;border-top:1px solid #E4E0D6;font-size:11px;line-height:1.4;color:#6E7268;}
+  .ui-brain .row b{color:#122118;font-weight:600;font-size:11.5px;}
+  .ui-brain .src{margin-top:8px;font-size:10px;font-weight:500;color:#137a3d;background:#EFF3F1;padding:4px 9px;border-radius:9999px;display:inline-block;}
+  /* Chats: the page chat, the AI answering and the owner stepping in */
+  .ui-chats{left:6%;top:50%;transform:translateY(-50%);width:min(320px,86%);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 30px 70px -20px rgba(0,0,0,.7);}
+  .ui-chats .hd{display:flex;align-items:center;gap:9px;padding:11px 13px;background:linear-gradient(135deg,#12432a,#0b2918);color:#fff;}
+  .ui-chats .av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+  .ui-chats .nm{font-size:12.5px;font-weight:700;}
+  .ui-chats .st{font-size:10px;opacity:.85;}
+  .ui-chats .ls{background:#F6F4EF;padding:12px;display:flex;flex-direction:column;gap:7px;}
+  .ui-chats .ui-bubble{max-width:88%;}
+  .ui-chats .ui-bubble.ai{background:#fff;border:1px solid #E4E0D6;}
+  .ui-chats .who{font-size:9.5px;font-weight:600;color:#6E7268;margin:2px 0 -3px;}
+  .ui-chats .ui-bubble.owner{background:#d9f7e6;color:#0b2918;border-radius:12px 12px 12px 3px;}
+  /* Afiliados: a sale that came through someone's link */
+  .ui-aff{left:7%;bottom:28px;width:270px;padding:18px;}
+  .ui-aff .lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9A968A;margin-bottom:8px;}
+  .ui-aff .svc{font-size:13px;font-weight:600;margin-bottom:10px;}
+  .ui-aff .pct{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:#6E7268;padding:8px 0;border-top:1px solid #E4E0D6;}
+  .ui-aff .pct b{color:#122118;font-size:13px;}
+  .ui-aff .sale{display:flex;justify-content:space-between;align-items:center;background:#EFF3F1;border-radius:10px;padding:9px 10px;margin-top:6px;font-size:11px;}
+  .ui-aff .sale strong{font-size:13px;color:#137a3d;}
+  .ui-aff .foot{font-size:10px;color:#9A968A;margin-top:8px;}
   @media(max-width:1000px){
     .s-ov-grid{grid-template-columns:1fr 1fr;row-gap:40px;}
     .s-pillar-grid{grid-template-columns:1fr;gap:44px;}
@@ -433,6 +462,9 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
     .s-chip.c3,.s-chip.c4{display:none;}
     .ui-pay{right:5%;left:5%;width:auto;}
     .ui-capital{left:5%;right:5%;width:auto;}
+    .ui-brain{left:5%;right:5%;width:auto;top:auto;bottom:22px;transform:none;}
+    .ui-chats{left:5%;right:5%;width:auto;top:auto;bottom:22px;transform:none;}
+    .ui-aff{left:5%;right:5%;width:auto;}
     .sections .s-close{padding:110px 0 120px;}
     .s-close .s-wrap{justify-content:flex-start;}
   }
@@ -625,23 +657,57 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
 <div class="s-pillars" id="servicios">
   <nav class="s-pnav" aria-label="Sevrii pillars">
     <div class="s-wrap">
-      <a href="#store" data-pillar="store"><span>01</span>Store</a>
-      <a href="#marketing" data-pillar="marketing"><span>02</span>Marketing</a>
-      <a href="#payments" data-pillar="payments"><span>03</span>Payments</a>
-      <a href="#capital" data-pillar="capital"><span>04</span>Capital</a>
+      <a href="#cerebro" data-pillar="cerebro"><span>01</span>Brain</a>
+      <a href="#store" data-pillar="store"><span>02</span>Store</a>
+      <a href="#chats" data-pillar="chats"><span>03</span>Chats</a>
+      <a href="#payments" data-pillar="payments"><span>04</span>Payments</a>
+      <a href="#capital" data-pillar="capital"><span>05</span>Capital</a>
+      <a href="#afiliados" data-pillar="afiliados"><span>06</span>Affiliates</a>
+      <a href="#marketing" data-pillar="marketing"><span>07</span>Marketing</a>
     </div>
   </nav>
 
-  <!-- 01. Store -->
-  <section class="s-pillar is-pearl" id="store">
+  <!-- 01. Brain -->
+  <section class="s-pillar is-pearl" id="cerebro">
     <div class="s-wrap s-pillar-grid">
       <div class="s-pillar-text reveal">
-        <div class="n">01 · Store</div>
-        <h2 class="s-h2">Your services shop, built to sell.</h2>
-        <p class="s-lead">This is where you offer your service. Tell your AI agent about your business and it builds your shop inside Sevrii, with a template designed to get people to buy.</p>
+        <div class="n">01 · Brain</div>
+        <h2 class="s-h2">The right strategy, before you sell.</h2>
+        <p class="s-lead">Tell your Brain what you do or what you know how to do. It researches your area, prices and competitors, and builds your strategy: what to offer, to whom and at what price. It works whether you already have a service or you're starting a new one.</p>
         <ul class="s-points">
-          <li><b>You already offer a service</b><span>List your business as it is and start getting customers.</span></li>
-          <li><b>You want to go independent</b><span>The Brain researches your area and helps you create a new service people are looking for.</span></li>
+          <li><b>You already have a service</b><span>It looks at how customers find you and what you charge, and tells you what to sell more of and how to get more customers.</span></li>
+          <li><b>You're starting something new</b><span>It suggests ideas that fit what you know and the time you have, with packages and suggested prices.</span></li>
+          <li><b>Built on real data</b><span>Market prices, competitors and your city's requirements, with their sources. It never makes up numbers.</span></li>
+        </ul>
+        <div class="s-actions"><a href="/empezar?path=existing" class="s-btn s-btn-white">I have a service</a><a href="/empezar?path=new" class="s-btn s-btn-outline">I want to start something new</a></div>
+      </div>
+      <div class="s-media reveal">
+        <div class="s-radar alt"><i></i><i></i><i></i><i></i></div>
+        <span class="s-chip" style="left:8%;top:14%">Prices in your area</span>
+        <span class="s-chip c3" style="left:6%;top:44%">Competitors</span>
+        <span class="s-chip c4" style="left:12%;top:74%">Requirements</span>
+        <div class="ui ui-card ui-brain">
+          <div class="lbl">Your strategy</div>
+          <div class="t">Upholstery cleaning · Houston</div>
+          <div class="row"><b>What to offer</b>Sofa, sectional and mattress, at the customer's home</div>
+          <div class="row"><b>Who for</b>Families with kids or pets</div>
+          <div class="row"><b>Suggested price</b>Based on what your area charges</div>
+          <span class="src">With market sources</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02. Store -->
+  <section class="s-pillar is-glow flip" id="store">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">02 · Store</div>
+        <h2 class="s-h2">Your services shop, built to sell.</h2>
+        <p class="s-lead">With what you approved in the Brain, Sevrii builds your page with a template designed to get people to buy. You adjust it by talking to your AI agent and publish it.</p>
+        <ul class="s-points">
+          <li><b>Built from your strategy</b><span>Your service, packages, prices and FAQ come ready.</span></li>
+          <li><b>Change it by talking</b><span>Ask for photos, prices or offers in the chat and see them live on your page.</span></li>
           <li id="agentes"><b>An agent does it for you <span class="s-tag">New</span></b><span>Create an AI agent that solves a problem by chat, even outside your trade: the Brain proposes the ideas. It serves customers on your page and charges, 24/7.</span></li>
         </ul>
         <div class="s-actions"><a href="/empezar?path=existing" class="s-btn s-btn-white">Create my store</a><a href="/crear-agente" class="s-btn s-btn-outline">Create my agent</a></div>
@@ -666,48 +732,46 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
     </div>
   </section>
 
-  <!-- 02. Marketing -->
-  <section class="s-pillar is-glow flip" id="marketing">
+  <!-- 03. Chats -->
+  <section class="s-pillar is-pearl" id="chats">
     <div class="s-wrap s-pillar-grid">
       <div class="s-pillar-text reveal">
-        <div class="n">02 · Marketing</div>
-        <h2 class="s-h2">The brain behind your marketing.</h2>
-        <p class="s-lead">An agent analyzes your business and builds your funnel strategy. Then your agent preps the campaigns to run it.</p>
+        <div class="n">03 · Chats</div>
+        <h2 class="s-h2">Your customers get an answer instantly.</h2>
+        <p class="s-lead">Every page comes with its chat. The AI answers right away with your business info, takes the customer's name and phone and lets you know. Whenever you want, you step in and reply yourself.</p>
         <ul class="s-points">
-          <li><b>Analyzes your business</b><span>Understands what you sell, who you sell to and where your clients are.</span></li>
-          <li><b>Builds your funnel</b><span>Defines audience, platforms and message for every stage.</span></li>
-          <li><b>Preps the execution</b><span>Leaves you campaigns and ads already written, ready to launch.</span></li>
+          <li><b>Answers instantly, any time</b><span>Prices, area, hours and common questions, with what you approved. It never makes things up.</span></li>
+          <li><b>Lets you know about every customer</b><span>It saves their name and phone and alerts you, so no one slips away.</span></li>
+          <li><b>You take over</b><span>From Conversations you reply yourself, with your name and photo, whenever you choose.</span></li>
         </ul>
-        <div class="s-actions"><a href="/empezar?path=existing" class="s-btn s-btn-white">Get started</a></div>
       </div>
       <div class="s-media reveal">
-        <div class="s-radar"><i></i><i></i><i></i><i></i></div>
-        <span class="s-chip" style="left:62%;top:14%">Audience</span>
-        <span class="s-chip c3" style="left:80%;top:38%">Instagram</span>
-        <span class="s-chip c4" style="left:74%;top:72%">Google</span>
-        <span class="s-chip" style="left:54%;top:84%">TikTok</span>
-        <div class="ui ui-card ui-campaign">
-          <div class="hd"><span class="t">More weekend bookings</span><span class="st">Draft</span></div>
-          <p><b>Goal:</b> fill Saturday and Sunday appointments</p>
-          <p><b>Audience:</b> women 25–45 in Miami</p>
-          <p><b>Platforms:</b> Instagram and Facebook</p>
-          <div class="ad"><strong>Ready for a new look?</strong><span>Book your Saturday appointment in a minute.</span></div>
+        <img class="s-photo" src="https://images.pexels.com/photos/8986141/pexels-photo-8986141.jpeg?auto=compress&cs=tinysrgb&w=1240" alt="Mechanic checking a message on his phone in the workshop" loading="lazy">
+        <div class="ui ui-toast"><b>✓</b>New customer in your chat</div>
+        <div class="ui ui-chats">
+          <div class="hd"><span class="av">R</span><span><span class="nm">Ramirez Auto</span><br><span class="st">Online · replies instantly</span></span></div>
+          <div class="ls">
+            <div class="ui-bubble user">How much is a brake job?</div>
+            <div class="ui-bubble ai">From $180, depending on the car. Can I get your name and phone so Luis can confirm?</div>
+            <div class="who">Luis · owner</div>
+            <div class="ui-bubble owner">Hi, this is Luis. I can see you tomorrow at 9.</div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 03. Payments -->
-  <section class="s-pillar is-pearl" id="payments">
+  <!-- 04. Payments -->
+  <section class="s-pillar is-glow flip" id="payments">
     <div class="s-wrap s-pillar-grid">
       <div class="s-pillar-text reveal">
-        <div class="n">03 · Payments</div>
+        <div class="n">04 · Payments</div>
         <h2 class="s-h2">Get paid from your phone.</h2>
         <p class="s-lead">Create a payment link and charge your client from your phone or from inside Sevrii. The money goes straight to your bank.</p>
         <ul class="s-points">
           <li><b>Payment links</b><span>Create a link per service and send it to your client.</span></li>
           <li><b>From your phone or Sevrii</b><span>Get paid wherever you are, no bank or card terminal needed.</span></li>
-          <li><b>5% per payment, all included</b><span>Stripe's fee included. No monthly fee, on every plan.</span></li>
+          <li><b>5% per payment, all included</b><span>Stripe's fee included. No card reader. Comes with the Starter plan.</span></li>
         </ul>
       </div>
       <div class="s-media reveal">
@@ -724,12 +788,11 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
     </div>
   </section>
 
-
-  <!-- 04. Capital -->
-  <section class="s-pillar is-glow flip" id="capital"> <span id="socios"></span>
+  <!-- 05. Capital -->
+  <section class="s-pillar is-pearl" id="capital"> <span id="socios"></span>
     <div class="s-wrap s-pillar-grid">
       <div class="s-pillar-text reveal">
-        <div class="n">04 · Capital <span class="s-tag">Coming soon</span></div>
+        <div class="n">05 · Capital <span class="s-tag">Coming soon</span></div>
         <h2 class="s-h2">Financing to grow.</h2>
         <p class="s-lead">We're preparing financing options with a financial partner for businesses that get paid through Sevrii. Sevrii does not lend money, and this is not an offer of credit.</p>
         <ul class="s-points">
@@ -746,6 +809,65 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
           <div class="t">Your business is growing</div>
           <div class="ui-bars"><span style="height:30%"></span><span style="height:42%"></span><span style="height:38%"></span><span style="height:55%"></span><span style="height:70%"></span><span class="on" style="height:92%"></span></div>
           <div class="offer">Illustrative example<em>Coming soon</em></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06. Affiliates -->
+  <section class="s-pillar is-glow flip" id="afiliados">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">06 · Affiliates</div>
+        <h2 class="s-h2">Let others sell your service for you.</h2>
+        <p class="s-lead">Open your service to affiliates: creators, promoters and happy customers recommend it with their link. You only pay a commission when someone buys.</p>
+        <ul class="s-points">
+          <li><b>You set the commission</b><span>From 5% to 50% of what the customer pays.</span></li>
+          <li><b>You only pay for sales</b><span>It counts when the customer pays through Sevrii: a payment link or access to your agent.</span></li>
+          <li><b>No surprises</b><span>Commissions are paid after 30 days, so refunds don't count.</span></li>
+        </ul>
+        <div class="s-actions"><a href="/en/afiliados" class="s-btn s-btn-white">See how it works</a></div>
+      </div>
+      <div class="s-media reveal">
+        <img class="s-photo" src="https://images.pexels.com/photos/7480527/pexels-photo-7480527.jpeg?auto=compress&cs=tinysrgb&w=1240" alt="Content creator recording with her phone" loading="lazy">
+        <div class="ui ui-toast"><b>✓</b>Affiliate sale</div>
+        <div class="ui ui-card ui-aff">
+          <div class="lbl">Your affiliate program</div>
+          <div class="svc">At-home sofa cleaning</div>
+          <div class="pct"><span>Commission</span><b>20%</b></div>
+          <div class="sale"><span>$120 sale by @dani</span><strong>$24</strong></div>
+          <div class="foot">Illustrative example · paid after 30 days</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07. Marketing -->
+  <section class="s-pillar is-pearl" id="marketing">
+    <div class="s-wrap s-pillar-grid">
+      <div class="s-pillar-text reveal">
+        <div class="n">07 · Marketing <span class="s-tag">Coming soon</span></div>
+        <h2 class="s-h2">The brain behind your marketing.</h2>
+        <p class="s-lead">An agent analyzes your business and builds your funnel strategy. Then your agent preps the campaigns to run it.</p>
+        <ul class="s-points">
+          <li><b>Analyzes your business</b><span>Understands what you sell, who you sell to and where your clients are.</span></li>
+          <li><b>Builds your funnel</b><span>Defines audience, platforms and message for every stage.</span></li>
+          <li><b>Preps the execution</b><span>Leaves you campaigns and ads already written, ready to launch.</span></li>
+        </ul>
+        <div class="s-actions"><a href="/en/precios" class="s-btn s-btn-white">See plans</a></div>
+      </div>
+      <div class="s-media reveal">
+        <div class="s-radar"><i></i><i></i><i></i><i></i></div>
+        <span class="s-chip" style="left:62%;top:14%">Audience</span>
+        <span class="s-chip c3" style="left:80%;top:38%">Instagram</span>
+        <span class="s-chip c4" style="left:74%;top:72%">Google</span>
+        <span class="s-chip" style="left:54%;top:84%">TikTok</span>
+        <div class="ui ui-card ui-campaign">
+          <div class="hd"><span class="t">More weekend bookings</span><span class="st">Draft</span></div>
+          <p><b>Goal:</b> fill Saturday and Sunday appointments</p>
+          <p><b>Audience:</b> women 25–45 in Miami</p>
+          <p><b>Platforms:</b> Instagram and Facebook</p>
+          <div class="ad"><strong>Ready for a new look?</strong><span>Book your Saturday appointment in a minute.</span></div>
         </div>
       </div>
     </div>
@@ -840,7 +962,7 @@ src="https://www.facebook.com/tr?id=1606497581185286&ev=PageView&noscript=1"
       </div>
       <div>
         <h4>Platform</h4>
-        <ul><li><a href="#store">Store</a></li><li><a href="#marketing">Marketing</a></li><li><a href="#payments">Payments</a></li><li><a href="/en/agentes">Agents</a></li><li><a href="/en/afiliados">Affiliates</a></li><li><a href="#capital">Capital</a></li></ul>
+        <ul><li><a href="#cerebro">Brain</a></li><li><a href="#store">Store</a></li><li><a href="#chats">Chats</a></li><li><a href="#payments">Payments</a></li><li><a href="#capital">Capital</a></li><li><a href="/en/afiliados">Affiliates</a></li><li><a href="#marketing">Marketing</a></li><li><a href="/en/agentes">Agents</a></li></ul>
       </div>
       <div>
         <h4>Get started</h4>
