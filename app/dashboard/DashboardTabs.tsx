@@ -266,10 +266,13 @@ export default function DashboardTabs({
     { id: "plan", label: pt.nav.plan },
     { id: "store", label: t.dashboard.store },
     ...(isAgent ? [{ id: "agent" as DashboardView, label: agentLabel }] : []),
-    { id: "marketing", label: t.dashboard.marketing },
+    // In the order of the road: the page (Store), then charging (Payments),
+    // others selling it (Affiliates), credit (Capital), and Marketing last
+    // (it comes with Pro).
     { id: "payments", label: "Payments" },
     { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates" },
     { id: "capital", label: "Capital", soon: true },
+    { id: "marketing", label: t.dashboard.marketing },
   ];
 
   function NavIcon({ id }: { id: DashboardView }) {
@@ -303,14 +306,14 @@ export default function DashboardTabs({
       : p
   );
 
-  // Mobile: the 5 places used every day in the bottom bar; the rest (Payments,
-  // Affiliates, plan, account) in the sheet the avatar opens at the top right.
+  // Mobile: the 5 places used every day in the bottom bar; the rest (Affiliates,
+  // Capital, Marketing, plan, account) in the sheet the avatar opens at the top right.
   const tabs: { id: DashboardView; label: string }[] = [
     { id: "projects", label: homeLabel },
     { id: "plan", label: pt.nav.plan },
     { id: "store", label: t.dashboard.store },
     { id: "chats", label: "Chats" },
-    { id: "marketing", label: t.dashboard.marketing },
+    { id: "payments", label: "Payments" },
   ];
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
@@ -355,9 +358,9 @@ export default function DashboardTabs({
   );
   const sheetRows: { id: DashboardView; label: string; meta?: React.ReactNode }[] = [
     ...(isAgent ? [{ id: "agent" as DashboardView, label: agentLabel }] : []),
-    { id: "payments", label: "Payments" },
     { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates" },
     { id: "capital", label: "Capital", meta: <span className="dash-soon">{t.dashboard.soon}</span> },
+    { id: "marketing", label: t.dashboard.marketing },
     {
       id: "plans",
       label: bt.nav,
