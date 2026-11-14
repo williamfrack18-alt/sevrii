@@ -346,6 +346,16 @@ export function isPlaceholderName(name: string | null | undefined): boolean {
   return /^\s*(proyecto nuevo|new project)?\s*$/i.test(name ?? "");
 }
 
+// How a project is called in the panel's lists: its name, or — while it still
+// has the placeholder ("Proyecto nuevo") — the service the Brain worked out, so
+// several new projects can be told apart.
+export function projectLabel(name: string, service?: string | null): string {
+  const sv = (service || "").trim();
+  if (!isPlaceholderName(name) || !sv) return name;
+  const short = sv.length > 48 ? `${sv.slice(0, 47).trimEnd()}…` : sv;
+  return `${short.charAt(0).toUpperCase()}${short.slice(1)}`;
+}
+
 export function missingForSales(opts: {
   category: string;
   whatsapp: string | null;

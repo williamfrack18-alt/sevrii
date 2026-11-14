@@ -26,6 +26,7 @@ import SevriiLoader from "@/components/SevriiLoader";
 import NetworkBackdrop from "@/components/NetworkBackdrop";
 import { unreadChatsAction } from "@/app/chatActions";
 import { BRAND_BTN } from "@/lib/panel";
+import { projectLabel } from "@/lib/site";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -258,6 +259,7 @@ export default function DashboardTabs({
 
   const chatsLabel = lang === "es" ? "Conversaciones" : "Conversations";
   // An AI-agent project has its own area right below Store: the agent itself.
+  const currentLabel = projectLabel(currentBusiness.name, currentBusiness.plan.service);
   const isAgent = currentBusiness.plan.mode === "agent" || Boolean(currentBusiness.serviceAgent.name);
   const agentLabel = lang === "es" ? "Agente" : "Agent";
   const homeLabel = lang === "es" ? "Inicio" : "Home";
@@ -392,16 +394,16 @@ export default function DashboardTabs({
         <button
           type="button"
           onClick={() => setView("projects")}
-          aria-label={`${homeLabel}: ${currentBusiness.name}`}
+          aria-label={`${homeLabel}: ${currentLabel}`}
           className="min-w-0 flex-1 h-11 flex items-center gap-2.5 pr-2 rounded-full active:bg-black/[0.04] transition-colors"
         >
           <span
             className="w-8 h-8 rounded-full text-white flex items-center justify-center text-[11px] font-medium shrink-0"
             style={{ background: "linear-gradient(135deg, #16A34A 0%, #052E16 100%)" }}
           >
-            {initials(currentBusiness.name)}
+            {initials(currentLabel)}
           </span>
-          <span className="min-w-0 truncate text-[16px] font-medium text-pfg">{currentBusiness.name}</span>
+          <span className="min-w-0 truncate text-[16px] font-medium text-pfg">{currentLabel}</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pfaint shrink-0" aria-hidden="true">
             <path d="M6 9l6 6 6-6" />
           </svg>
@@ -508,10 +510,10 @@ export default function DashboardTabs({
               className="w-full text-left flex items-center gap-2.5 p-2.5 rounded-[20px] bg-pbg hover:bg-psoft transition"
             >
               <div className="w-9 h-9 rounded-full text-white flex items-center justify-center text-[11.5px] font-medium shrink-0" style={{ background: "linear-gradient(135deg, #16A34A 0%, #052E16 100%)" }}>
-                {initials(currentBusiness.name)}
+                {initials(currentLabel)}
               </div>
               <div className="grow min-w-0">
-                <div className="text-[13.5px] font-medium text-pfg truncate">{currentBusiness.name}</div>
+                <div className="text-[13.5px] font-medium text-pfg truncate">{currentLabel}</div>
                 <div className="text-[11.5px] text-pmuted truncate">
                   {projects.length > 1 ? `${pt.nav.projects} · ${projects.length}` : `sevrii.com/site/${currentBusiness.slug}`}
                 </div>
@@ -539,10 +541,10 @@ export default function DashboardTabs({
                       className="w-full text-left flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-psoft transition disabled:opacity-60"
                     >
                       <span className="w-7 h-7 rounded-full text-white flex items-center justify-center text-[10.5px] font-medium shrink-0" style={{ background: "linear-gradient(135deg, #16A34A 0%, #052E16 100%)" }}>
-                        {initials(p.name)}
+                        {initials(projectLabel(p.name, p.planService))}
                       </span>
                       <span className="grow min-w-0 flex flex-col">
-                        <span className="text-[13.5px] font-medium text-pfg truncate">{p.name}</span>
+                        <span className="text-[13.5px] font-medium text-pfg truncate">{projectLabel(p.name, p.planService)}</span>
                         <span className="text-[11.5px] text-pmuted truncate">{p.published ? (es ? "Publicada" : "Published") : es ? "Borrador" : "Draft"}</span>
                       </span>
                       {here && <span className="text-[11px] font-semibold shrink-0" style={{ color: "#16A34A" }}>{es ? "Abierto" : "Open"}</span>}

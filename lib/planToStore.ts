@@ -145,6 +145,24 @@ export function radiusText(miles: number, us: boolean, es: boolean): string {
   return es ? `${n} km a la redonda` : `${n} km around`;
 }
 
+// "Sofá de 3 puestos" inside a sentence → "sofá de 3 puestos". Only names whose
+// sole capital is the first letter (never "Power BI" or a brand), and never
+// at the start of the text or right after . ! ? ¿ ¡ or a line break.
+export function lowerNames(text: string, names: string[]): string {
+  let out = text || "";
+  for (const raw of names) {
+    const name = (raw || "").trim();
+    if (name.length < 3 || !/^\p{Lu}/u.test(name) || /\p{Lu}/u.test(name.slice(1))) continue;
+    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`(^|[\\s\\S])(${esc})(?![\\p{L}\\p{N}])`, "gu"), (m, before: string, found: string, at: number) => {
+      const head = out.slice(0, at + before.length).replace(/\s+$/, "");
+      if (!head || /[.!?¿¡\n]$/.test(head) || /[\p{L}\p{N}]$/u.test(before)) return m;
+      return `${before}${found.charAt(0).toLowerCase()}${found.slice(1)}`;
+    });
+  }
+  return out;
+}
+
 // An approved strategy can have no packages (the Brain's single confirmation
 // lets an empty part through): its headline, texts and FAQ still build the page,
 // and the Store chat asks for the packages, instead of leaving it empty.
@@ -170,6 +188,13 @@ export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraf
     packages: ownerPricedPackages(planIn).map((k) => ({ ...k, name: stripReasoning(k.name), includes: stripReasoning(k.includes) })),
     offer: planIn.offer ? { ...planIn.offer, label: stripReasoning(planIn.offer.label) } : null,
   };
+  // Package names said inside a sentence read lower-case ("tu sofá de 3
+  // puestos por $120", not "tu Sofá de 3 puestos"); at a sentence start they stay.
+  const names = plan.packages.map((k) => k.name);
+  plan.promise = lowerNames(plan.promise, names);
+  plan.differentiators = plan.differentiators.map((x) => lowerNames(x, names));
+  plan.steps = plan.steps.map((x) => lowerNames(x, names));
+  plan.faq = plan.faq.map((f) => ({ q: lowerNames(f.q, names), a: lowerNames(f.a, names) }));
   const p = plan.profile;
   const es = lang === "es";
   // Any country: the US state, or the region outside the US.

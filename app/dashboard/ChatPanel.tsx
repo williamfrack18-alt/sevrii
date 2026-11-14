@@ -551,7 +551,7 @@ export default function ChatPanel({
 
   const chipClass = "tap shrink-0 h-10 px-4 rounded-full text-[14px] text-white bg-white/[0.07] hover:bg-white/[0.14] transition disabled:opacity-40 whitespace-nowrap";
   const chipRow =
-    chips && chips.length > 0 && !locked ? (
+    chips && chips.length > 0 && !locked && !busy ? (
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {chips.map((c) => (
           <button key={c.label} type="button" disabled={busy} onClick={() => pickChip(c)} className={chipClass}>
@@ -562,7 +562,7 @@ export default function ChatPanel({
     ) : null;
   // Empty chat: the suggestions stacked, like an assistant's first screen.
   const chipStack =
-    chips && chips.length > 0 && !locked ? (
+    chips && chips.length > 0 && !locked && !busy ? (
       <div className="flex flex-col items-start gap-2 pb-3">
         {chips.slice(0, 4).map((c) => (
           <button key={c.label} type="button" disabled={busy} onClick={() => pickChip(c)} className={chipClass}>

@@ -71,6 +71,16 @@ export const maxDuration = 300;
 
 const BOT_UA = /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|slack|discord|telegram|preview|vercel|lighthouse|headless/i;
 
+// "Sofá de 3 puestos: limpieza…; Seccional: limpieza…" → named items, when
+// every part is "name: what it includes" (2 to 6 parts); anything else → null.
+function menuItems(pitch: string): { name: string; text: string }[] | null {
+  const parts = (pitch || "").split(/\s*;\s*/).map((x) => x.trim().replace(/[.;]+$/, "")).filter(Boolean);
+  if (parts.length < 2 || parts.length > 6) return null;
+  const items = parts.map((x) => /^([^:]{2,50}):\s*(.{3,})$/.exec(x));
+  if (items.some((m) => !m)) return null;
+  return items.map((m) => ({ name: `${m![1].trim()}:`, text: `${m![2].trim()}.` }));
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const found = await businessBySlug(slug);
@@ -652,7 +662,18 @@ export default async function PublicBusinessPage({
                     {t.fromPrice} <strong className="grad-text">{money(fromPrice)}</strong>
                   </div>
                 )}
-                <p className="lede">{edit("pitch", business.pitch, { multiline: true })}</p>
+                {!editing && menuItems(business.pitch) ? (
+                  // The Brain's menu ("Sofá: …; Seccional: …") reads as a list, not one long line.
+                  <ul className="lede lede-menu">
+                    {menuItems(business.pitch)!.map((m, n) => (
+                      <li key={n}>
+                        <strong>{m.name}</strong> {m.text}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="lede">{edit("pitch", business.pitch, { multiline: true })}</p>
+                )}
 
                 {keyPoints.length > 0 && (
                   <ul className="about-list">

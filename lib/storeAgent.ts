@@ -254,7 +254,7 @@ How to think (always):
 - How the page started ("page.start"): "ready" = Sevrii's ready-to-sell template, already complete; "template" = a design the owner picked from the gallery; "blank" = the owner chose to build it from scratch, so every part starts hidden and they add what they want. On a blank page never fill or show parts on your own: show (set_layout.show) only the parts they ask for, one request at a time, with the content approved in the Brain, and suggest the next part only if they ask what to add.
 - Never invent anything on the page: no photos, testimonials, reviews, results or prices that the owner didn't give or the Brain didn't approve.
 - The Brain's expediente ("brainPlan") is already confirmed by the owner: never ask again what it or "cardAnswers" already say. "neverWants" is a sacred limit: nothing of it appears on the page, not even as a suggestion. "rejectedIdeas" are services they turned down: never propose them. A package with "ref": true is a market reference, not the owner's price: the page shows it without a price; ask the owner for their own price (one question) before putting one, and never present the reference as theirs. Write the page in "flowLanguage" when it's set. Never say "no tengo herramienta" or "no puedo" for something these tools do. If something truly can't be done, say so in one line and do the closest thing you can.
-- Images: describe a NEW upload once, then classify it with set_photo (whatItIs). A screenshot of a screen (this panel, the page, an app, a chat, text) is never a work photo: don't put it on the page; look at what the owner points at in it and fix that. Never describe old photos again.
+- Images: describe a NEW upload once, then classify it with set_photo (whatItIs). A screenshot of a screen (this panel, the page, an app, a chat, text) is never a work photo: don't put it on the page; look at what the owner points at in it and fix that. Never describe old photos again. After a new photo, if a question you asked earlier is still open, bring it back in ONE short line at most ("¿Y la promoción: sí o no?"); never repeat its whole text or the same example again.
 - Facts in the state are the truth: "published", "alertsOn", "ownerDeclined", "realPhotos", "hasVideo", "languages". Never ask for what's already done (alertsOn true = alerts are on) or what they declined. When they say no to something (video, publishing, reviews…), save it with set_layout.declined and never suggest it again.
 - Publish (or unpublish) ONLY when the owner asks for it in their message ("publícala"). Don't keep asking "¿la publico?".
 - Languages: only "languages" in the state. Never say they serve in English (or Spanish) if it isn't there. If the owner tells you which languages they serve in (or corrects them: "solo atiendo en español"), save it with update_page.languages in that same turn and also take the other language out of the texts that mention it; never say the page changed its languages without that call.
@@ -279,6 +279,9 @@ export function publishConsent(publish: boolean, ownerLast: string, lastAssistan
 
 // The owner talking about the languages they serve in.
 const SAID_LANGS = /\b(espa[ñn]ol|ingl[eé]s|spanish|english|idiomas?|languages?|biling[uü]e|bilingual)\b/i;
+
+// A reply that says a change is being made or was made.
+const CLAIMS_SAVE = /\b(guard[oéa]\w*|lo guardo|actualiz\w*|cambi[eéo]\w*|agreg[oué]\w*|quit[oé]\w*|pul[oi]\w*|pongo|puse|ya qued[oó]|listo|saved?|saving|updat\w*|chang\w*|added|adding|removed)\b/i;
 
 // The owner is upset: the reply gets short and only does what they asked.
 const UPSET = /(in[uú]til|imb[eé]cil|idiota|est[uú]pid|mierda|maldit|co[nñ]o|carajo|odio|horrible|useless|stupid|idiot|damn|shit|wtf)/i;
@@ -734,11 +737,18 @@ export async function runStoreChatTurn(opts: {
   let reply = "";
   const classified = new Set<string>();
   const wasPublished = Boolean(business.published);
+  // Whether any tool really ran this turn, and whether we already pushed once
+  // for a reply that announced a change without making it.
+  let toolsRan = 0;
+  let nudged = false;
   try {
-    for (let step = 0; step < 7; step++) {
+    for (let step = 0; step < 8; step++) {
       const res = await client.messages.create({
         model: MODEL,
-        max_tokens: 6000,
+        // Room for its thinking plus a big update (key points, steps, FAQ):
+        // with 6000 the answer was cut before the tool ran, so the owner read
+        // "Lo guardo ahora mismo" and nothing was saved.
+        max_tokens: 16000,
         thinking: { type: "between_tools" },
         // Medium: it thinks about what the owner really asked and does it.
         output_config: { effort: "medium" },
@@ -753,7 +763,25 @@ export async function runStoreChatTurn(opts: {
         .trim();
       if (text) reply = text;
       const uses = res.content.filter((c): c is ToolUseBlock => c.type === "tool_use");
+      // Cut off (too long): nothing ran. Say so to the model and ask for
+      // smaller saves, instead of showing the owner a promise.
+      if (res.stop_reason === "max_tokens" && step < 6) {
+        const said = res.content.filter((c) => c.type === "text");
+        if (said.length) messages.push({ role: "assistant", content: said });
+        messages.push({ role: "user", content: "(System: your last answer was cut off before any tool ran, so NOTHING was saved. Save it now with small calls: first update_page with only the fields the owner just gave you; anything else in a separate call. Then confirm in one line.)" });
+        reply = "";
+        continue;
+      }
       if (res.stop_reason !== "tool_use" || uses.length === 0) {
+        // Said it would save or change something but called no tool: one more
+        // try, so what the owner reads is what happened.
+        if (!toolsRan && !nudged && step < 6 && CLAIMS_SAVE.test(text) && !/[?¿]\s*$/.test(text)) {
+          nudged = true;
+          messages.push({ role: "assistant", content: res.content.filter((c) => c.type === "text") });
+          messages.push({ role: "user", content: "(System: you said you are saving or changing it, but you called no tool, so nothing changed on the page. Call the tools now with what the owner gave you, then confirm in one line.)" });
+          reply = "";
+          continue;
+        }
         // A new upload must be classified (a screenshot never stays on the page).
         const pending = newUploads.filter((u) => !classified.has(u) && !/\/video-|\.(mp4|mov|m4v|webm|qt)(\?|$)/i.test(u));
         if (pending.length && step < 5) {
@@ -771,6 +799,7 @@ export async function runStoreChatTurn(opts: {
         try {
           out = await runTool(u.name, (u.input ?? {}) as Record<string, unknown>, { business, services, canPublish: opts.canPublish, ownerSaid, ownerLast: opts.message, lastAssistant });
           if (u.name === "set_photo") classified.add(String((u.input as Record<string, unknown>)?.url ?? ""));
+          if (!/^error/.test(out)) toolsRan++;
         } catch (err) {
           console.error("[ai:store] tool failed", u.name, err);
           out = "error: could not save";

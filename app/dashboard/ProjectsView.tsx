@@ -7,6 +7,7 @@ import { PLANS_TEXT } from "@/lib/plansI18n";
 import { deleteProjectAction, switchProjectAction } from "@/app/actions";
 import type { ClientBusiness, ClientProject, DashboardView } from "./types";
 import { GREEN } from "@/lib/panel";
+import { projectLabel } from "@/lib/site";
 
 const MAX_PROJECTS = 10;
 
@@ -225,7 +226,7 @@ export default function ProjectsView({
                       <img src={p.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center pb-[96px]" style={{ background: FILLS[projects.indexOf(p) % FILLS.length] ?? FILLS[idx % FILLS.length] }}>
-                        <span className="text-[56px] font-medium tracking-[-0.04em] text-white/90">{initials(p.name)}</span>
+                        <span className="text-[56px] font-medium tracking-[-0.04em] text-white/90">{initials(projectLabel(p.name, p.planService))}</span>
                       </div>
                     )}
                     <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.62) 100%)" }} />
@@ -234,8 +235,8 @@ export default function ProjectsView({
                       {isOpen && <Tag green>{tx.open}</Tag>}
                     </span>
                     <span className="absolute left-5 right-5 bottom-5 flex flex-col gap-0.5 text-white">
-                      <span className="text-[13px] opacity-85 truncate">{p.planService || p.category}</span>
-                      <span className="text-[24px] leading-[1.1] font-medium tracking-[-0.02em] break-words line-clamp-2">{p.name}</span>
+                      <span className="text-[13px] opacity-85 truncate">{projectLabel(p.name, p.planService) !== p.name ? p.city || p.category : p.planService || p.category}</span>
+                      <span className="text-[24px] leading-[1.1] font-medium tracking-[-0.02em] break-words line-clamp-2">{projectLabel(p.name, p.planService)}</span>
                       <span className="text-[13px] opacity-85 mt-1">
                         {`${p.pageViews} ${pt.views} · ${pt.services(p.services)}`}
                       </span>

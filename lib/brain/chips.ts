@@ -59,7 +59,18 @@ export function answerChips(plan: BusinessPlan, es: boolean, lastAi = ""): ChatC
       return [s("Un ingreso extra", "Extra income"), s("Vivir de esto", "To live from it")];
     // Quick answers, never required: the person can always write freely.
     case "howGetsClients":
-      return [s("Pasan por mi local", "They walk by my place"), s("Por recomendación", "Word of mouth"), s("Por redes sociales", "Social media"), s("Todavía casi no tengo clientes", "I barely have clients yet")];
+    {
+      // "They walk by my place" only fits a shop, salon or workshop; someone
+      // who goes to the customer's home or works online gets "Google" instead.
+      const said = `${plan.profile.mainService ?? ""} ${plan.profile.focus ?? ""}`;
+      const hasPlace = plan.profile.serviceMode !== "remote" && /\b(local|tienda|taller|sal[oó]n|barber[ií]a|peluquer[ií]a|consultorio|oficina|shop|store|salon|studio|estudio|workshop)\b/i.test(said) && !/(a domicilio|en casa del cliente|voy a (la )?casa|at (their|the customer'?s?) home|mobile)/i.test(said);
+      return [
+        hasPlace ? s("Pasan por mi local", "They walk by my place") : s("Por Google", "Google"),
+        s("Por recomendación", "Word of mouth"),
+        s("Por redes sociales", "Social media"),
+        s("Todavía casi no tengo clientes", "I barely have clients yet"),
+      ];
+    }
     case "currentPrice":
       return [s("No tengo un precio fijo", "I don't have a fixed price"), s("Depende del trabajo", "It depends on the job")];
     case "city":
