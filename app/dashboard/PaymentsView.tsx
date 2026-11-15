@@ -2,6 +2,7 @@
 
 import SevriiLoader from "@/components/SevriiLoader";
 import { useEffect, useMemo, useState } from "react";
+import { cachedView, loadView, putView } from "./viewCache";
 import { useLang } from "@/components/LangProvider";
 import { PAYMENTS_TEXT } from "@/lib/paymentsI18n";
 import { PLANS } from "@/lib/plans";
@@ -59,13 +60,17 @@ export default function PaymentsView({ business, services, onPlans }: { business
   const lang = useLang();
   const t = PAYMENTS_TEXT[lang];
   const example = sampleLink(business, services, lang === "es");
-  const [state, setState] = useState<PaymentsState | null>(null);
+  const cacheKey = `payments:${business.id}`;
+  const [state, setState] = useState<PaymentsState | null>(() => cachedView<PaymentsState>(cacheKey));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (state) putView(cacheKey, state);
+  }, [state, cacheKey]);
 
   useEffect(() => {
     let alive = true;
-    loadPaymentsAction()
+    loadView(`payments:${business.id}`, loadPaymentsAction)
       .then((s) => alive && setState(s))
       .catch(() => alive && setState({ ready: false, status: "none", links: [], payments: [], error: "stripe", allowed: true }));
     // Coming back from Stripe: clean the URL so a refresh doesn't look like a new return.
@@ -497,4 +502,9 @@ function ReadyView({
       </div>
     </div>
   );
+}
+
+// Hovering "Payments" in the menu starts loading it.
+export function warmPayments(businessId: string): void {
+  if (!cachedView(`payments:${businessId}`)) loadView(`payments:${businessId}`, loadPaymentsAction).catch(() => {});
 }

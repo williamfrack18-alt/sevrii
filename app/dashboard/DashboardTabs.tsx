@@ -11,8 +11,8 @@ import PlansView from "./PlansView";
 import { PLANS_TEXT } from "@/lib/plansI18n";
 import { PLANS, type ClientPlan } from "@/lib/plans";
 import ComingSoonView from "./ComingSoonView";
-import PaymentsView from "./PaymentsView";
-import AffiliatesView from "./AffiliatesView";
+import PaymentsView, { warmPayments } from "./PaymentsView";
+import AffiliatesView, { warmAffiliates } from "./AffiliatesView";
 import LangToggle from "@/components/LangToggle";
 import { useT, useLang } from "@/components/LangProvider";
 import { PLAN_TEXT } from "@/lib/planI18n";
@@ -20,10 +20,9 @@ import type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, ClientPr
 
 export type { ClientBusiness, ClientService, ClientCampaign, ClientMsg, DashboardView } from "./types";
 import { DASHBOARD_VIEWS } from "./types";
-import ChatsView from "./ChatsView";
+import ChatsView, { warmChats } from "./ChatsView";
 import UsageMeter from "./UsageMeter";
 import SevriiLoader from "@/components/SevriiLoader";
-import NetworkBackdrop from "@/components/NetworkBackdrop";
 import { unreadChatsAction } from "@/app/chatActions";
 import { BRAND_BTN } from "@/lib/panel";
 import { projectLabel } from "@/lib/site";
@@ -218,15 +217,16 @@ export default function DashboardTabs({
   const [agentMsgs, setAgentMsgs] = useState<ClientMsg[]>(agentMessages);
   const [brainMessages, setBrainMessages] = useState<ClientMsg[]>(marketingMessages);
   const [planMsgs, setPlanMsgs] = useState<ClientMsg[]>(planMessages);
-  // Side rail: collapsed (icons only) by default; the choice is remembered on this device.
-  const [railOpen, setRailOpen] = useState(false);
+  // Side rail: open with names by default (like an admin panel); the choice
+  // is remembered on this device.
+  const [railOpen, setRailOpen] = useState(true);
   // Animate the width only when the owner toggles it: restoring "open" on load
   // (e.g. coming back from Mi cuenta) must not leave labels squeezed in a
   // half-open rail.
   const [railAnim, setRailAnim] = useState(false);
   useEffect(() => {
     try {
-      if (localStorage.getItem("sevrii_rail") === "open") setRailOpen(true);
+      if (localStorage.getItem("sevrii_rail") === "closed") setRailOpen(false);
     } catch {}
   }, []);
   function toggleRail() {
@@ -239,22 +239,22 @@ export default function DashboardTabs({
     });
   }
 
-  // Moving between sections: Sevrii's logo shows for a moment over the
-  // section while the new one mounts, then fades out.
-  const [moving, setMoving] = useState<"" | "on" | "leaving">("");
-  const movingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  useEffect(() => () => movingTimers.current.forEach(clearTimeout), []);
+  // Moving between sections is instant: no cover in between.
   function setView(next: DashboardView) {
-    if (next !== view) {
-      movingTimers.current.forEach(clearTimeout);
-      setMoving("on");
-      movingTimers.current = [setTimeout(() => setMoving("leaving"), 420), setTimeout(() => setMoving(""), 720)];
-    }
     setViewState(next);
     if (next === "store" || next === "chats") setStoreOpen(true);
     // Keep the URL in sync so a refresh or a shared link opens the same section.
     window.history.replaceState(null, "", next === "projects" ? "/dashboard" : `/dashboard?view=${next}`);
+    // On a computer the section scrolls inside its frame; on a phone, the page.
+    document.querySelector(".dash-main")?.scrollTo({ top: 0 });
     window.scrollTo({ top: 0 });
+  }
+
+  // Hovering a menu item starts loading its section, so it opens ready.
+  function warm(id: DashboardView) {
+    if (id === "payments") warmPayments(currentBusiness.id);
+    else if (id === "affiliates") warmAffiliates(currentBusiness.id);
+    else if (id === "chats") warmChats(currentBusiness.id);
   }
 
   const chatsLabel = lang === "es" ? "Conversaciones" : "Conversations";
@@ -387,7 +387,6 @@ export default function DashboardTabs({
     // top bar + bottom tab bar + safe areas; 0 on desktop.
     // Full-height views use calc(100dvh - var(--hdr)).
     <div className="dash-root theme-panel dash-dark flex flex-col md:flex-row" style={{ ["--rail-w" as string]: railOpen ? "256px" : "76px" }}>
-      {moving && <SevriiLoader cover leaving={moving === "leaving"} />}
       {switching && <SevriiLoader full label={lang === "es" ? "Abriendo tu proyecto…" : "Opening your project…"} />}
       {/* Mobile top bar: current project (opens Inicio), avatar (opens the menu) */}
       <header className="dash-topbar md:hidden sticky top-0 z-30">
@@ -571,6 +570,8 @@ export default function DashboardTabs({
                 <button
                   type="button"
                   onClick={() => (it.id === "store" && view === "store" && railOpen ? setStoreOpen((o) => !o) : setView(it.id))}
+                  onMouseEnter={() => warm(it.id)}
+                  onFocus={() => warm(it.id)}
                   title={railOpen ? undefined : it.label}
                   aria-label={it.label}
                   aria-current={view === it.id ? "page" : undefined}
@@ -611,6 +612,8 @@ export default function DashboardTabs({
                   <button
                     type="button"
                     onClick={() => setView("chats")}
+                    onMouseEnter={() => warm("chats")}
+                    onFocus={() => warm("chats")}
                     title={railOpen ? undefined : chatsLabel}
                     aria-label={chatsLabel}
                     aria-current={view === "chats" ? "page" : undefined}
@@ -693,12 +696,6 @@ export default function DashboardTabs({
 
       {/* Main content */}
       <main className="dash-main grow min-w-0">
-        {/* The landing hero's moving network behind the top of every section
-            (one layer, so it keeps moving when the owner changes sections). */}
-        <div className="dash-backdrop" aria-hidden="true">
-          <NetworkBackdrop />
-          <div className="dash-horizon" />
-        </div>
         {view === "projects" && (
           <ProjectsView
             projects={liveProjects}

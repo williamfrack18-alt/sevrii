@@ -2,6 +2,7 @@
 
 import SevriiLoader from "@/components/SevriiLoader";
 import { useEffect, useState } from "react";
+import { cachedView, loadView, putView } from "./viewCache";
 import { useLang } from "@/components/LangProvider";
 import { ACCENT, BRAND_BTN, TINT } from "@/lib/panel";
 import { AFF_MAX_PERCENT, AFF_MIN_PERCENT, type AffiliateSettings } from "@/lib/affiliateConfig";
@@ -145,12 +146,16 @@ const TEXT = {
 export default function AffiliatesView({ business, onNavigate }: { business: ClientBusiness | null; onNavigate?: (v: DashboardView) => void }) {
   const lang = useLang();
   const t = TEXT[lang];
-  const [state, setState] = useState<AffiliatesState | null>(null);
+  const cacheKey = `affiliates:${business?.id ?? "none"}`;
+  const [state, setState] = useState<AffiliatesState | null>(() => cachedView<AffiliatesState>(cacheKey));
   const [tab, setTab] = useState<"promote" | "mine">("promote");
+  useEffect(() => {
+    if (state) putView(cacheKey, state);
+  }, [state, cacheKey]);
 
   useEffect(() => {
     let alive = true;
-    loadAffiliatesAction()
+    loadView(`affiliates:${business?.id ?? "none"}`, loadAffiliatesAction)
       .then((s) => alive && setState(s))
       .catch(() => {});
     if (window.location.search.includes("connect=")) window.history.replaceState(null, "", window.location.pathname === "/dashboard" ? "/dashboard?view=affiliates" : window.location.pathname);
@@ -487,4 +492,9 @@ function Sales({ title, empty, sales, t }: { title: string; empty: string; sales
       )}
     </div>
   );
+}
+
+// Hovering "Afiliados" in the menu starts loading it.
+export function warmAffiliates(businessId: string): void {
+  if (!cachedView(`affiliates:${businessId}`)) loadView(`affiliates:${businessId}`, loadAffiliatesAction).catch(() => {});
 }

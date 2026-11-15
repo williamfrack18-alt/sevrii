@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { cachedView, loadView } from "./viewCache";
 import { useLang } from "@/components/LangProvider";
 import Dictate from "./Dictate";
 import {
@@ -162,7 +163,7 @@ function when(iso: string, lang: "es" | "en") {
 export default function ChatsView({ businessId, published, onStore }: { businessId: string; published: boolean; onStore: () => void }) {
   const lang = useLang();
   const t = TEXT[lang];
-  const [list, setList] = useState<InboxConversation[] | null>(null);
+  const [list, setList] = useState<InboxConversation[] | null>(() => cachedView<InboxConversation[]>(`chats:${businessId}`));
   const [openId, setOpenId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("c");
@@ -197,11 +198,11 @@ export default function ChatsView({ businessId, published, onStore }: { business
 
   const refresh = useCallback(async () => {
     try {
-      setList(await listInboxAction());
+      setList(await loadView(`chats:${businessId}`, listInboxAction));
     } catch {
       setList((l) => l ?? []);
     }
-  }, []);
+  }, [businessId]);
 
   useEffect(() => {
     refresh();
@@ -622,4 +623,9 @@ export default function ChatsView({ businessId, published, onStore }: { business
       </div>
     </div>
   );
+}
+
+// Hovering "Conversaciones" in the menu starts loading the list.
+export function warmChats(businessId: string): void {
+  if (!cachedView(`chats:${businessId}`)) loadView(`chats:${businessId}`, listInboxAction).catch(() => {});
 }

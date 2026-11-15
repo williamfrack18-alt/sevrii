@@ -940,3 +940,55 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
 .chat-screen .dash-head .dash-title,
 .chat-screen .dash-head .dash-stage,
 .chat-screen .dash-head .dash-steps { display: none !important; }
+
+/* ------------------------------------------------------------------
+   Minimal admin look (like an admin panel): a black frame, a flat side
+   menu with names, and each section in one rounded frame beside it that
+   scrolls on its own. Sevrii's colors: black, white and green.
+   ------------------------------------------------------------------ */
+.theme-panel.dash-dark { background: #050505; }
+.dash-dark .dash-main { background: #0c0d0c; }
+.dash-dark .dash-rail {
+  background: #050505 !important;
+  box-shadow: none !important;
+}
+.dash-dark .dash-rail .dash-nav {
+  height: 36px;
+  padding: 0 10px;
+  gap: 10px;
+  border-radius: 9px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.76);
+}
+.dash-dark .dash-rail .dash-nav svg { width: 17px; height: 17px; opacity: 0.85; }
+.dash-dark .dash-rail .dash-nav:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.dash-dark .dash-rail .dash-nav.on {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.dash-dark .dash-rail .dash-nav.on svg { color: #3ddc84; opacity: 1; }
+/* Sub-items (Conversaciones, Videos…): indented names, no icon, like a tree. */
+.dash-dark .dash-rail .dash-nav.dash-sub { padding-left: 37px; font-size: 13.5px; height: 32px; color: rgba(255, 255, 255, 0.6); }
+.dash-dark .dash-rail .dash-nav.dash-sub > svg:first-child { display: none; }
+.dash-dark .dash-rail .dash-nav.dash-sub.on { color: #fff; background: rgba(255, 255, 255, 0.08); box-shadow: none; }
+@media (min-width: 768px) {
+  /* The section frame: rounded, inset from the window, its own scroll. */
+  .dash-dark.dash-root { height: 100vh; overflow: hidden; }
+  .dash-dark .dash-main {
+    height: calc(100vh - 16px);
+    margin: 8px 8px 8px 0;
+    border-radius: 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+  /* Full-height sections fit the frame, not the window. */
+  .dash-dark .dash-main .md\:h-screen { height: calc(100vh - 16px); }
+  .dash-dark .dash-main .md\:min-h-screen,
+  .dash-dark .dash-main .min-h-screen { min-height: calc(100vh - 16px); }
+  /* Section titles: small and calm, at the top of the frame. */
+  .dash-dark .dash-head { min-height: 64px; padding-top: 18px; padding-bottom: 12px; }
+  .dash-dark .dash-head .dash-title { font-size: 22px; font-weight: 500; letter-spacing: -0.01em; }
+}
