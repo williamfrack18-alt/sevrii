@@ -239,8 +239,17 @@ export default function DashboardTabs({
     });
   }
 
-  // Moving between sections is instant: no cover in between.
+  // Moving between sections: the new one renders right away and Sevrii's
+  // logo shows over it for a blink, then fades out (it never blocks clicks).
+  const [moving, setMoving] = useState<"" | "on" | "leaving">("");
+  const movingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => movingTimers.current.forEach(clearTimeout), []);
   function setView(next: DashboardView) {
+    if (next !== view) {
+      movingTimers.current.forEach(clearTimeout);
+      setMoving("on");
+      movingTimers.current = [setTimeout(() => setMoving("leaving"), 260), setTimeout(() => setMoving(""), 460)];
+    }
     setViewState(next);
     if (next === "store" || next === "chats") setStoreOpen(true);
     // Keep the URL in sync so a refresh or a shared link opens the same section.
@@ -387,6 +396,9 @@ export default function DashboardTabs({
     // top bar + bottom tab bar + safe areas; 0 on desktop.
     // Full-height views use calc(100dvh - var(--hdr)).
     <div className="dash-root theme-panel dash-dark flex flex-col md:flex-row" style={{ ["--rail-w" as string]: railOpen ? "256px" : "76px" }}>
+      {moving && <SevriiLoader cover leaving={moving === "leaving"} />}
+      {/* Keeps the logo's image ready, so it's there from the first change of section. */}
+      <span aria-hidden="true" className="sevrii-loader-logo" style={{ position: "fixed", left: -20, top: -20, width: 4, height: 4, opacity: 0.01, pointerEvents: "none", animation: "none" }} />
       {switching && <SevriiLoader full label={lang === "es" ? "Abriendo tu proyecto…" : "Opening your project…"} />}
       {/* Mobile top bar: current project (opens Inicio), avatar (opens the menu) */}
       <header className="dash-topbar md:hidden sticky top-0 z-30">
