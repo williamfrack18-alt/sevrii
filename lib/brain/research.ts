@@ -69,6 +69,7 @@ function task(kind: ResearchKind, plan: BusinessPlan, lang: Lang): string {
   const reqWhere = remote ? `en ${[area, nation || "su país"].filter(Boolean).join(", ")} (servicio en línea)` : where;
   const money = us || !p.country ? "" : ` Los precios van en la moneda de ${nation || "ese país"}, con su símbolo o código (por ejemplo € o COP), nunca en dólares si no es la moneda local.`;
   const out = (lang === "es" ? "Escribe los textos en español neutro." : "Write the text fields in English.") + money;
+  if (plan.mode === "new" && plan.track === "job") return jobTask(kind, plan, { service, where, reqWhere, remote, us, nation, out });
   switch (kind) {
     case "prices":
       return `Tarea: PRECIOS de "${service}" ${where}.
@@ -120,6 +121,50 @@ ${out}`;
   }
 }
 
+// Empleo: the same research, for someone who wants to be hired. "Prices"
+// are pay, "competitors" are who is hiring, "requirements" what's legally
+// needed to do that job, "faq" what employers ask. Same JSON shapes.
+function jobTask(kind: ResearchKind, plan: BusinessPlan, c: { service: string; where: string; reqWhere: string; remote: boolean; us: boolean; nation: string; out: string }): string {
+  const p = plan.profile;
+  const { service, where, reqWhere, remote, us, nation, out } = c;
+  switch (kind) {
+    case "prices":
+      return `Tarea: PAGO de un EMPLEO de "${service}" ${where} (la persona quiere trabajar como empleada, no por su cuenta).
+${us ? "Busca el pago publicado en ofertas de empleo reales (Indeed, LinkedIn, ZipRecruiter, Glassdoor, páginas de empleo de las empresas) y el dato oficial del Bureau of Labor Statistics (bls.gov) para esa ocupación y esa zona." : `Busca el pago publicado en ofertas de empleo reales de ${nation || "ese país"} (portales de empleo del país y páginas de empleo de las empresas) y el dato oficial de salarios si existe.`}${remote ? " Es trabajo remoto: busca ofertas remotas para gente de ese país." : ""}
+"examples": de 2 a 4 ofertas reales con pago publicado: "who" = la empresa que contrata, "what" = el puesto y si es tiempo completo o medio tiempo, "price" = el pago tal como lo publica (por hora, por mes o por año), "url" = la oferta.
+Forma: {"low":"…","mid":"…","high":"…","includes":"qué suele incluir (horario, beneficios comunes)","note":"unidad (por hora, por mes, por año), de dónde salen los números y diferencias entre fuentes","examples":[{"who":"empresa","what":"puesto","price":"pago publicado","url":"…"}],"sources":[{"title":"…","url":"…"}]}
+"low", "mid" y "high" son el rango corto de pago con su moneda y su unidad, por ejemplo "$16–$19 por hora" (máximo 35 caracteres). Solo de ese mismo puesto; si no hay datos, déjalos vacíos y da solo los ejemplos.
+${out}`;
+    case "competitors":
+      return `Tarea: QUIÉN CONTRATA para un empleo de "${service}" ${where}.
+Busca de 3 a 5 empresas u ofertas reales y recientes que estén contratando para ese puesto${remote ? " (remoto)" : " en esa ciudad"}: lee la oferta.
+Forma: {"competitors":[{"name":"empresa que contrata","url":"la oferta o su página de empleo","offer":"el puesto y lo que piden, en una línea","price":"pago publicado o 'no publica'","guarantee":"beneficios que anuncian o 'no menciona'","languages":"idiomas que piden"}],"gaps":["algo que esas empresas valoran mucho y que pocos candidatos muestran"],"sources":[{"title":"…","url":"…"}]}
+${out}`;
+    case "requirements":
+      return `Tarea: REQUISITOS para trabajar como empleado en "${service}" ${reqWhere}.
+Solo lo que la ley exige para hacer ese trabajo (certificados, carnés, licencias o cursos obligatorios para ese puesto, por ejemplo manipulación de alimentos o una certificación de seguridad) y lo que casi todas las empresas piden en sus ofertas (por ejemplo licencia de conducir, revisión de antecedentes). No des asesoría migratoria ni hables de estatus migratorio. Muchos empleos no necesitan nada especial: si es así, dilo.
+"applies": "yes" solo si una fuente oficial o la mayoría de las ofertas lo piden; "no" si una fuente oficial dice que no aplica; si no estás seguro, "check".
+"link": la página oficial o la oferta que lo dice.
+Forma: {"requirements":[{"item":"…","applies":"yes|no|check","link":"…","note":"en una línea, qué hay que hacer y cuánto cuesta si lo dice la fuente"}],"sources":[{"title":"…","url":"…"}]}
+${out}`;
+    case "faq":
+      return `Tarea: PREGUNTAS de los empleadores al contratar para "${service}" ${where}.
+Busca las preguntas típicas de entrevista para ese puesto y las dudas que tienen las empresas al contratar (experiencia, horario, disponibilidad, transporte, referencias, certificados).
+Las respuestas son una base general y honesta para que la persona prepare las suyas; no inventes nada de ella.
+Forma: {"faq":[{"q":"…","a":"…"}],"fears":"las 2 o 3 dudas más comunes de los empleadores, en una línea","sources":[{"title":"…","url":"…"}]}
+6 a 8 preguntas. ${out}`;
+    case "ideas":
+      return `Tarea: IDEAS de EMPLEO para alguien que quiere trabajar como empleado ${where}.
+Perfil: dónde quiere trabajar: ${p.workPlace === "home" ? "remoto desde casa" : p.workPlace === "out" ? "en persona" : "le da igual"}; trabajos anteriores o lo que sabe hacer: ${p.workHistory || "?"}; le gusta: ${p.likes || "?"}; horas por semana: ${p.hoursPerWeek ?? "?"}; busca: ${p.goal === "fulltime" ? "tiempo completo" : p.goal === "extra" ? "medio tiempo o por horas" : "?"}; vehículo: ${p.hasVehicle || "?"}; idiomas: ${p.languages || "?"}; ODIA o NUNCA quiere volver a hacer (filtro duro: no lo propongas, ni parecido): ${p.notWant || "-"}; cuánto quiere ganar: ${p.incomeGoal || "?"}. ("?" = no lo sabemos todavía: no lo supongas.)
+Propón 12 EMPLEOS reales que hoy se estén contratando ${remote ? "de forma remota" : "en su zona"} y que encajen con lo que sabe y le gusta. Ordénalos por lo bien que encajan con ESTA persona (lo que ya sabe hacer primero; los que exigen un certificado o curso, después) y, entre dos que encajan igual, primero el que mejor paga. La PRIMERA idea es el puesto más directo para lo que ya hizo o sabe hacer, salvo que lo haya descartado. Que sean variados (no 12 versiones del mismo puesto).${plan.rejectedIdeas.length ? `
+Ya le mostramos y NO le gustaron: ${plan.rejectedIdeas.slice(-80).join("; ")}. No los repitas ni propongas parecidos.` : ""}${plan.ideaPrefs ? `
+Lo que dijo que prefiere o no quiere: ${plan.ideaPrefs}. Respétalo.` : ""}
+Para cada uno busca el pago típico en su zona en ofertas reales (typicalPrice), cuánto se gana por hora (hourlyUsd: un número en dólares estadounidenses; si la moneda local es otra, conviértelo solo para este número), qué piden las empresas y la evidencia de que hoy contratan.
+Forma: {"ideas":[{"title":"el puesto, máx. 90 caracteres","why":"por qué encaja con esta persona","typicalPrice":"pago típico, ej. '$16–$19 por hora' (máx. 40 caracteres)","hourlyUsd":17,"what":"qué hace en ese trabajo, en una frase","forWhom":"qué tipo de empresas contratan","delivery":"digital (remoto) | fisico (en persona) | ambos","needs":"qué piden para contratar","steps":["3 pasos concretos para conseguir ese empleo"],"usesUnknown":[],"startCost":"lo que cuesta un certificado obligatorio, o 'Nada'","license":"certificado o licencia obligatoria para ese puesto, o 'No'","demand":"evidencia de que hoy contratan en su zona (cuántas ofertas, quiénes)","examples":[{"who":"empresa que contrata","price":"pago publicado","url":"la oferta"}],"sources":[{"title":"…","url":"…"}]}]}
+${out}`;
+  }
+}
+
 // C: ideas for an AI agent sold as a product. It doesn't have to match the
 // creator's trade; it has to solve a problem people already pay to solve.
 function agentIdeasTask(plan: BusinessPlan, out: string): string {
@@ -163,6 +208,10 @@ export function insightsTask(plan: BusinessPlan, lang: Lang): string {
   if (plan.mode === "existing")
     return `La persona ya ofrece este servicio y quiere más clientes: "${p.mainService}"${p.focus ? ` (quiere más de: ${p.focus})` : ""}, en ${place}${p.serviceMode === "remote" ? " (trabaja en línea)" : ""}.
 Busca: (1) qué encuentra hoy un cliente que busca ese servicio en esa zona desde su celular (¿salen negocios como el suyo o salen otros?); (2) un precio publicado por una marca, cadena o negocio con nombre para ese mismo trabajo en esa ciudad o país; (3) una señal real de demanda.
+${out}`;
+  if (plan.mode === "new" && plan.track === "job")
+    return `La persona busca EMPLEO (trabajar como empleada). Sabe hacer o ha trabajado en: "${[p.workHistory, p.likes].filter(Boolean).join("; ")}". Vive en ${place}${p.workPlace === "home" || p.serviceMode === "remote" ? " (busca trabajo remoto)" : ""}.
+Busca: cuánto pagan hoy en esa ciudad o país 2 o 3 empleos que alguien con esa experiencia podría conseguir, con el nombre de la empresa o el portal que publica la oferta.
 ${out}`;
   return `La persona quiere empezar un servicio y todavía no lo tiene. Sabe hacer o ha trabajado en: "${[p.workHistory, p.likes].filter(Boolean).join("; ")}". Vive en ${place}${p.workPlace === "home" || p.serviceMode === "remote" ? " (quiere trabajar en línea)" : ""}.
 Busca: cuánto se paga hoy en esa ciudad o país por 2 o 3 servicios que alguien con esa experiencia podría ofrecer por su cuenta, con el nombre de la plataforma o negocio que publica el precio.

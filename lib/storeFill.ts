@@ -46,6 +46,7 @@ export async function fillStoreFromPlan(businessId: string, lang: Lang, opts: { 
     ctaTitle: d.ctaTitle || cur.ctaTitle,
     ctaText: d.ctaText || cur.ctaText,
     lang: d.lang,
+    kind: d.kind,
     fromPlan: planFingerprint(b.plan),
   };
   // Where they work, from the Brain profile (only if the page doesn't say yet).
@@ -145,10 +146,11 @@ export function doneMessage(lang: Lang, b: BusinessRow, packages: number, priced
   const built = es
     ? `¡Listo! Armé tu página con lo que aprobaste en el Cerebro: ${partList}${pk}. A la derecha ves tu página tal como queda (en el teléfono, toca «Vista previa»).${hiddenNote}`
     : `Done! I built your page from what you approved in the Brain: ${partList}${pk}. On the right you see your page as it looks (on a phone, tap "Preview").${hiddenNote}`;
-  if (packages && unpriced > 0) missing.unshift(es ? "tu precio para cada paquete que todavía no lo tiene" : "your price for each package that doesn't have one yet");
-  if (!s.reachMode) missing.unshift(es ? "dónde atiendes (en persona en tu zona o en línea)" : "where you serve (in person in your area, or online)");
+  const jobPage = s.kind === "job";
+  if (packages && unpriced > 0) missing.unshift(jobPage ? (es ? "el pago que esperas en cada forma de trabajar que todavía no lo tiene" : "the pay you expect for each way of working that doesn't have one yet") : es ? "tu precio para cada paquete que todavía no lo tiene" : "your price for each package that doesn't have one yet");
+  if (!s.reachMode) missing.unshift(jobPage ? (es ? "dónde puedes trabajar (en persona en tu zona o remoto)" : "where you can work (in person in your area, or remote)") : es ? "dónde atiendes (en persona en tu zona o en línea)" : "where you serve (in person in your area, or online)");
   // A new project is still called "Proyecto nuevo": the page needs its real name.
-  if (isPlaceholderName(b.name)) missing.unshift(es ? "el nombre de tu negocio (o el tuyo, si trabajas con tu nombre)" : "your business name (or your own, if you work under your name)");
+  if (isPlaceholderName(b.name)) missing.unshift(jobPage ? (es ? "tu nombre, como quieres que lo vean los empleadores" : "your name, as you want employers to see it") : es ? "el nombre de tu negocio (o el tuyo, si trabajas con tu nombre)" : "your business name (or your own, if you work under your name)");
   const media = s.gallery.length === 0 && !s.coverUrl || !s.videoUrl;
   if (!missing.length) return `${built} ${es ? "Si quieres cambiar algo, dímelo aquí." : "If you want to change anything, tell me here."}`;
   const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} ${es ? "y" : "and"} ${missing[missing.length - 1]}`;

@@ -2,7 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { siteUrl } from "./billing";
 
-export const START_PATHS = ["existing", "new", "agent"] as const;
+export const START_PATHS = ["existing", "new", "job", "agent"] as const;
 export type StartPath = (typeof START_PATHS)[number];
 export const isStartPath = (v: unknown): v is StartPath => (START_PATHS as readonly unknown[]).includes(v);
 

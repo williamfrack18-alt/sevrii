@@ -30,6 +30,7 @@ export type StoreDraft = {
     ctaTitle: string;
     ctaText: string;
     lang: Lang;
+    kind: "" | "job";
   };
   services: { name: string; price: string; description: string }[];
 };
@@ -242,7 +243,13 @@ export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraf
   const focus = (p.focus || "").trim().replace(/[.?!]+$/, "");
   const shortName = (focus && focus.length <= 55 ? focus : "") || [p.mainService, plan.service].map((x) => (x || "").trim().replace(/[.?!]+$/, "")).filter(Boolean).sort((a, b) => a.length - b.length)[0] || "";
   const ask = shortName ? (es ? `¿Necesitas ${lower(shortName)}?` : `Need ${lower(shortName)}?`) : "";
-  const ctaTitle = ask && ask.length <= 70 ? ask : es ? "¿Te ayudamos? Escríbenos" : "Can we help? Message us";
+  const job = plan.mode === "new" && plan.track === "job";
+  // Empleo: the closing speaks to an employer ("¿Buscas ayudante de cocina en Houston?").
+  const role = (plan.service || p.mainService || "").trim().replace(/[.?!]+$/, "");
+  const jobAsk = role ? (es ? `¿Buscas ${lower(role)}?` : `Looking for a ${lower(role)}?`) : "";
+  const ctaTitle = job
+    ? jobAsk && jobAsk.length <= 70 ? jobAsk : es ? "¿Hablamos?" : "Shall we talk?"
+    : ask && ask.length <= 70 ? ask : es ? "¿Te ayudamos? Escríbenos" : "Can we help? Message us";
   return {
     details: {
       name: p.businessName ? cut(p.businessName, LIMITS.name) : undefined,
@@ -266,10 +273,11 @@ export function storeFromPlan(planIn: BusinessPlan, flowLangIn: Lang): StoreDraf
       keyPoints: plan.differentiators.slice(0, LIMITS.keyPoints).map(splitPoint),
       steps: uniformSteps(plan.steps.slice(0, LIMITS.steps)),
       faq: plan.faq.slice(0, LIMITS.faq).map((f) => ({ q: cut(f.q, LIMITS.faqQ), a: cut(f.a, LIMITS.faqA) })).filter((f) => f.q && f.a),
-      offer,
+      offer: job ? null : offer,
       ctaTitle,
-      ctaText: es ? "Escríbenos aquí para agendar." : "Message us here to book.",
+      ctaText: job ? (es ? "Escríbeme aquí y hablamos del trabajo." : "Message me here and let's talk about the job.") : es ? "Escríbenos aquí para agendar." : "Message us here to book.",
       lang: pageLang,
+      kind: job ? "job" : "",
     },
     services: plan.packages
       .filter((k) => k.name)

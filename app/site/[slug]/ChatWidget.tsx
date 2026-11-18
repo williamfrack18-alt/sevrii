@@ -420,6 +420,8 @@ export default function ChatWidget({
         if (res.token !== token) {
           setToken(res.token);
           storeSet(key, res.token);
+          // A new conversation: the page's own pixel (if any) counts a contact.
+          window.dispatchEvent(new Event("sevrii:contact"));
         }
         setMsgs(res.messages);
         setWaiting(res.waiting);

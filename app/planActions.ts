@@ -290,7 +290,7 @@ async function afterApproved(business: BusinessRow, lang: Lang) {
   // reopened strategy never rewrites a page the owner already has), or none.
   const fresh = await getBusinessById(business.id);
   const hasPage = (await listServices(business.id)).length > 0 || Boolean(fresh?.site.headline);
-  await addChatMessage(business.id, CHANNEL, "ai", `${nextSteps(lang, pageState(filled, hasPage, fresh), Boolean(fresh?.plan.offer && !fresh.plan.noOffer))}\n\n${DONE_TOKEN}`);
+  await addChatMessage(business.id, CHANNEL, "ai", `${nextSteps(lang, pageState(filled, hasPage, fresh), Boolean(fresh?.plan.offer && !fresh.plan.noOffer), (fresh ?? business).plan.track === "job")}\n\n${DONE_TOKEN}`);
 }
 
 // Every block is approved but the plan is still open (a final check stopped
@@ -433,7 +433,7 @@ export async function confirmProposalAction(prices: Record<string, string>, busi
   // (The chat counts only amounts said as their price: a competitor's price
   // or a cost they mentioned there never turns a reference into "tu precio".)
   plan = markReferencePrices({ ...plan, packages }, said, typed.join(" "));
-  if (typed.length) await addChatMessage(business.id, CHANNEL, "user", `${es ? "Mis precios" : "My prices"}: ${typed.join(" · ")}`);
+  if (typed.length) await addChatMessage(business.id, CHANNEL, "user", `${plan.track === "job" ? (es ? "Mi pago esperado" : "My expected pay") : es ? "Mis precios" : "My prices"}: ${typed.join(" · ")}`);
   await addChatMessage(business.id, CHANNEL, "user", es ? "Confirmo mi estrategia." : "I confirm my strategy.");
   const { plan: next, refused } = applyApprovals(readyForPage(plan), APPROVAL_BLOCKS, lang);
   await updateBusinessPlan(business.id, next);

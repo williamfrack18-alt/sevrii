@@ -1,16 +1,17 @@
+import { createHash } from "node:crypto";
 import { completeFrom } from "@/lib/planToStore";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { cache, Fragment } from "react";
-import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, addCampaignEvent, campaignBelongs, listAgentReviews, type BusinessRow } from "@/lib/db";
+import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, recordPageView, addCampaignEvent, campaignBelongs, listAgentReviews, type BusinessRow } from "@/lib/db";
 import { cleanCampaignId } from "@/lib/campaignLink";
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
 import { previewOk } from "@/lib/preview";
 import { allow, clientIp } from "@/lib/guard";
-import { STORE_TEXT } from "@/lib/storeI18n";
+import { JOB_SITE_TEXT, STORE_TEXT } from "@/lib/storeI18n";
 import { reachLabel, resolveReach } from "@/lib/reach";
 import { activeOffer, HIDEABLE, isPlaceholderName, PAGE_DESIGNS, sectionOrder, storeTheme, type PageDesign, type PageSection, type TopPart } from "@/lib/site";
 import { getLang } from "@/lib/lang";
@@ -20,6 +21,9 @@ import { ChatJump } from "./ChatWidget";
 import { Ed, EditBar, SectionTools } from "./EditBits";
 import AgentPage from "./AgentPage";
 import AffRef from "./AffRef";
+import OwnerBack from "./OwnerBack";
+import MetaPixel from "./MetaPixel";
+import PageTracking from "./PageTracking";
 import { chatAgentFor } from "./agentChat";
 import "./store.css";
 
@@ -127,7 +131,8 @@ export default async function PublicBusinessPage({
   if (!live && !isOwner && !preview) notFound();
 
   const site = business.site;
-  const t = STORE_TEXT[site.lang].site;
+  // Empleo pages speak to employers (their own labels on the same layout).
+  const t = site.kind === "job" ? { ...STORE_TEXT[site.lang].site, ...JOB_SITE_TEXT[site.lang] } : STORE_TEXT[site.lang].site;
   // The owner can open their own page in edit mode (?editar=1): texts change in
   // place, sections move or hide, and the design is picked. Visitors never see it.
   const editing = isOwner && sp.editar === "1";
@@ -161,6 +166,12 @@ export default async function PublicBusinessPage({
         const id = business.id;
         after(async () => {
           if (await allow(`view:${ip}:${id}`, 1, 60 * 60)) await incrementPageViews(id);
+          // The page's daily numbers: every visit (up to 30 an hour per IP)
+          // and distinct visitors by a one-way hash of IP + browser + day.
+          if (await allow(`pview:${ip}:${id}`, 30, 60 * 60)) {
+            const visitor = createHash("sha256").update(`${id}|${new Date().toISOString().slice(0, 10)}|${ip}|${ua}`).digest("hex").slice(0, 32);
+            await recordPageView(id, visitor);
+          }
         });
         if (campaign) {
           after(async () => {
@@ -180,10 +191,15 @@ export default async function PublicBusinessPage({
   const chatAgent = chatAgentFor(business);
   // A service agent gets its own page: the chat is the product.
   const affRef = business.affiliate.enabled ? <AffRef businessId={business.id} slug={business.slug} /> : null;
+  // Real visitors of a live page: "Pedir" taps are counted and, if the owner
+  // added their Meta pixel, it measures the visit (never the owner's own views).
+  const visitor = live && !isOwner;
+  const pixel = visitor && site.metaPixelId ? <MetaPixel id={site.metaPixelId} /> : null;
   if (business.plan.mode === "agent" || sa.name)
     return (
       <>
         {affRef}
+        {pixel}
         <AgentPage business={business} live={live} preview={preview} campaign={campaign} chatAgent={chatAgent} reviews={await listAgentReviews(business.id, 9).catch(() => ({ list: [], avg: null, count: 0 }))} />
       </>
     );
@@ -289,14 +305,19 @@ export default async function PublicBusinessPage({
   // An online service isn't "in Bogotá": the city only for in-person services.
   const helloCity = reach.mode === "remote" || site.reachMode === "remote" ? "" : site.baseCity || business.plan.profile.city || business.city || "";
   const lowerFirst = (x: string) => (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(x) ? `${x.charAt(0).toLowerCase()}${x.slice(1)}` : x);
-  const hello = helloService
+  const isJobPage = site.kind === "job";
+  const hello = isJobPage
+    ? site.lang === "en"
+      ? `Hi! 👋 Thanks for writing. I'm ${business.site.ownerName || business.name}${helloService ? `: ${lowerFirst(helloService)}` : ""}. Tell me about the job and I'll answer right here.`
+      : `¡Hola! 👋 Gracias por escribir. Soy ${business.site.ownerName || business.name}${helloService ? `: ${lowerFirst(helloService)}` : ""}. Cuéntame del trabajo y te respondo aquí.`
+    : helloService
     ? site.lang === "en"
       ? `Hi! 👋 Thanks for writing${unnamed ? "" : ` to ${business.name}`}: ${lowerFirst(helloService)}${helloCity && !helloService.toLowerCase().includes(helloCity.toLowerCase()) ? ` in ${helloCity}` : ""}. What do you need? We'll answer right here.`
       : `¡Hola! 👋 Gracias por escribir${unnamed ? "nos" : ` a ${business.name}`}: ${lowerFirst(helloService)}${helloCity && !helloService.toLowerCase().includes(helloCity.toLowerCase()) ? ` en ${helloCity}` : ""}. ¿Qué necesitas? Te respondemos aquí.`
     : undefined;
   const es = site.lang !== "en";
-  const chatLong = es ? "Escríbenos ahora" : "Message us now";
-  const chatShort = es ? "Pedir este servicio" : "Ask about this";
+  const chatLong = isJobPage ? (es ? "Escríbeme ahora" : "Message me now") : es ? "Escríbenos ahora" : "Message us now";
+  const chatShort = isJobPage ? (es ? "Contactarme" : "Contact me") : es ? "Pedir este servicio" : "Ask about this";
   const chatLink = (className: string, children: React.ReactNode, service?: string) => (
     <ChatLink service={service} className={className}>
       {children}
@@ -516,6 +537,9 @@ export default async function PublicBusinessPage({
     <div className={`mt${editing ? " editing" : ""}`} data-design={design} lang={site.lang} style={storeTheme(business.accentColor) as React.CSSProperties}>
       {live && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson }} />}
       {affRef}
+      {pixel}
+      {visitor && <PageTracking slug={business.slug} pixel={Boolean(pixel)} />}
+      {isOwner && !editing && <OwnerBack es={(await getLang()) === "es"} />}
       {!live && !editing && !trying && <div className="draft-bar">{preview ? t.previewBanner : t.draftBanner}</div>}
       {editing && <EditBar slug={business.slug} design={site.design} ui={ui} exitHref={`/site/${business.slug}`} />}
 

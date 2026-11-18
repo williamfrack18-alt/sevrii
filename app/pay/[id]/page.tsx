@@ -7,6 +7,8 @@ import { limitsFor } from "@/lib/billing";
 import { paySessionState } from "@/lib/payments";
 import { recordAffiliateSessionById } from "@/lib/affiliates";
 import AffRef from "@/app/site/[slug]/AffRef";
+import MetaPixel from "@/app/site/[slug]/MetaPixel";
+import Script from "next/script";
 import { payAction } from "./actions";
 import "./pay.css";
 
@@ -106,6 +108,15 @@ export default async function PayPage({
   return (
     <div className="pay" lang={lang} style={{ ["--accent" as string]: accent } as React.CSSProperties}>
       {business?.affiliate.enabled && <AffRef businessId={business.id} slug={business.slug} />}
+      {/* The owner's Meta pixel counts the purchase (once per payment). */}
+      {state === "paid" && business?.site.metaPixelId && link && (
+        <>
+          <MetaPixel id={business.site.metaPixelId} />
+          <Script id="meta-purchase" strategy="afterInteractive">
+            {`window.fbq&&fbq('track','Purchase',{value:${(link.amountCents / 100).toFixed(2)},currency:'USD'},{eventID:'${sessionId}'});`}
+          </Script>
+        </>
+      )}
       <main className="pay-card">
         {business && (
           <div className="pay-biz">

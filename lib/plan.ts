@@ -170,6 +170,10 @@ export const EMPTY_GROWTH: PlanGrowth = { diagnosis: "", idealClient: "", priceV
 
 export type BusinessPlan = {
   mode: "existing" | "new" | "agent" | "";
+  // "job": someone who wants to work as an EMPLOYEE (Empleo). It runs the new-
+  // service road (mode "new"): interview → job ideas → pick one → research →
+  // their profile → a page for employers. "" = a service of their own.
+  track: "" | "job";
   stage: PlanStage;
   profile: Profile;
   market: Market;
@@ -292,6 +296,7 @@ export const EMPTY_MARKET: Market = { prices: null, examples: [], competitors: [
 
 export const EMPTY_PLAN: BusinessPlan = {
   mode: "",
+  track: "",
   stage: "interview",
   profile: EMPTY_PROFILE,
   market: EMPTY_MARKET,
@@ -624,6 +629,7 @@ export function parsePlan(raw: unknown): BusinessPlan {
   const chosen = num(o.chosenIdea, 0, 13);
   return {
     mode: o.mode === "existing" || o.mode === "new" || o.mode === "agent" ? o.mode : "",
+    track: o.track === "job" && o.mode === "new" ? "job" : "",
     stage,
     profile: parseProfile(o.profile),
     market: parseMarket(o.market),
@@ -882,4 +888,9 @@ export function requestMoreIdeas(plan: BusinessPlan, feedback: string): Business
 export function shownRequirements(p: BusinessPlan): Requirement[] {
   const remote = p.profile.serviceMode === "remote";
   return p.market.requirements.filter((r) => !(remote && r.applies !== "yes" && /(seguro|insurance|liability|responsabilidad civil)/i.test(`${r.item} ${r.note}`)));
+}
+
+// Someone looking for a job as an employee (Empleo).
+export function isJob(plan: Pick<BusinessPlan, "mode" | "track">): boolean {
+  return plan.mode === "new" && plan.track === "job";
 }

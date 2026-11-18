@@ -131,8 +131,15 @@ export function pageState(filled: boolean, hasPage: boolean, b: { plan: Business
 
 // What comes after the Brain, said every time the strategy is approved: the
 // owner never has to guess the next step.
-export function nextSteps(lang: Lang, page: PageState, hasOffer = true): string {
+export function nextSteps(lang: Lang, page: PageState, hasOffer = true, job = false): string {
   const es = lang === "es";
+  // Empleo: the page is for employers; no payments or affiliates to set up.
+  if (job) {
+    const tapJ = es ? "Toca «Armar mi página en Store» para empezar." : "Tap \"Build my page in Store\" to start.";
+    return es
+      ? `¡Listo, tu perfil está aprobado! Esto es lo que sigue:\n1. Store: ${page === "built" ? "ya armé tu página para empleadores" : "ahí se arma tu página para empleadores"} con lo que aprobamos. Agrega una foto tuya y fotos de tu trabajo.\n2. Publicar: cuando te guste, la publicas y te queda un link para mandar con cada solicitud de empleo. Los empleadores te escriben por su chat.\n3. Tus acciones de esta semana: aplica donde te dije, con los mensajes listos para copiar.\n${tapJ}`
+      : `Done, your profile is approved! Here's what comes next:\n1. Store: ${page === "built" ? "I already built your page for employers" : "your page for employers is built there"} from what we approved. Add a photo of you and photos of your work.\n2. Publish: when you like it, publish it and you'll have a link to send with every job application. Employers message you through its chat.\n3. Your actions this week: apply where I told you, with the messages ready to copy.\n${tapJ}`;
+  }
   // Only what the strategy really has (never "tu oferta" when there is none).
   const what = es ? (hasOffer ? "tu servicio, tus precios, tu oferta y tus preguntas" : "tu servicio, tus precios y tus preguntas") : hasOffer ? "your service, prices, offer and FAQ" : "your service, prices and FAQ";
   const store = es

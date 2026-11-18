@@ -169,7 +169,7 @@ function carriedSite(prev: BusinessRow | null): Partial<SiteData> {
 
 // Start a project from the two buttons on /start. The Brain does the rest:
 // no fixed questions here any more.
-export async function startProjectAction(mode: "existing" | "new" | "agent", newProject?: boolean): Promise<{ error: string } | void> {
+export async function startProjectAction(mode: "existing" | "new" | "job" | "agent", newProject?: boolean): Promise<{ error: string } | void> {
   // AI agents are "coming soon": new agent projects can't be started yet.
   if (mode === "agent") return { error: (await getLang()) === "es" ? "Los agentes de IA llegan pronto. Por ahora puedes empezar con un servicio." : "AI agents are coming soon. For now you can start with a service." };
   const check = await checkNewProject(newProject);
@@ -177,7 +177,8 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
   const { userId, previous, countDaily } = check;
   const lang = await getLang();
   try {
-    const m = (mode === "new" ? "new" : "existing") as "existing" | "new" | "agent";
+    // Empleo ("job") runs the new-service road with the job track.
+    const m = (mode === "new" || mode === "job" ? "new" : "existing") as "existing" | "new" | "agent";
     let slug = "";
     for (let i = 0; i < 5 && (!slug || (await isSlugTaken(slug))); i++) slug = `proyecto-${randomBytes(4).toString("hex")}`;
     const business = await createBusiness({
@@ -193,6 +194,7 @@ export async function startProjectAction(mode: "existing" | "new" | "agent", new
       plan: {
         ...EMPTY_PLAN,
         mode: m,
+        track: mode === "job" ? ("job" as const) : ("" as const),
         stage: "interview",
         // The language this flow runs in: the research, the proposal and the
         // page's fixed labels follow it (the old cards used to set it).

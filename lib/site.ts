@@ -31,8 +31,10 @@ export type SiteData = {
   insured: boolean; // declared by the owner
   spanish: boolean; // "Se habla español"
   langs: "" | "es" | "en" | "both"; // the language(s) the owner serves in, from the Brain (shown on the badge)
+  kind: "" | "job"; // "job": a page for employers (Empleo), with its own labels
   yearsInBusiness: number | null;
   googleReviewsUrl: string;
+  metaPixelId: string; // the owner's own Meta (Facebook/Instagram) pixel, digits only ("" = none)
   highlights: string[];
   keyPoints: Point[]; // the checklist in the buy box
   offer: Offer | null; // a REAL promotion given by the owner
@@ -129,8 +131,10 @@ export const EMPTY_SITE: SiteData = {
   insured: false,
   spanish: false,
   langs: "",
+  kind: "",
   yearsInBusiness: null,
   googleReviewsUrl: "",
+  metaPixelId: "",
   highlights: [],
   keyPoints: [],
   offer: null,
@@ -255,8 +259,10 @@ export function parseSite(raw: unknown): SiteData {
     insured: Boolean(obj.insured),
     spanish: Boolean(obj.spanish),
     langs: obj.langs === "es" || obj.langs === "en" || obj.langs === "both" ? obj.langs : "",
+    kind: obj.kind === "job" ? "job" : "",
     yearsInBusiness: Number.isFinite(years) && years > 0 && years < 100 ? Math.round(years) : null,
     googleReviewsUrl: safeUrl(obj.googleReviewsUrl),
+    metaPixelId: cleanPixelId(obj.metaPixelId),
     highlights: (Array.isArray(obj.highlights) ? obj.highlights : [])
       .map((h) => str(h, LIMITS.highlight))
       .filter(Boolean)
@@ -530,4 +536,10 @@ export function storeTheme(accent: string): Record<string, string> {
     "--accent-bright": css(mixRgb(base, W, 0.45)),
     "--accent-ink": css(onWhite(mixRgb(base, K, 0.35))),
   };
+}
+
+// A Meta pixel id is only digits (usually 15–16). Anything else → "".
+export function cleanPixelId(v: unknown): string {
+  const d = String(v ?? "").trim();
+  return /^\d{8,20}$/.test(d) ? d : "";
 }

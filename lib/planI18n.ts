@@ -375,3 +375,98 @@ export const PROJECTS_TEXT = {
     deleteFailed: "We couldn't delete it. Please try again.",
   },
 };
+
+// Empleo (track "job"): the same Brain screens, said for someone looking for a
+// job (employers instead of clients, pay instead of prices).
+const JOB_TEXT = {
+  es: {
+    emptyTitleB: "Busquemos tu empleo",
+    emptySubB: "Cuéntame qué sabes hacer. Investigo tu zona y te muestro primero los 3 empleos que más te convienen, con lo que pagan. Tú decides cuál.",
+    stagesB: ["Conversamos", "Empleos", "Escoges", "Últimos datos", "Investigación", "Tu perfil", "Aprobado"],
+    lockedIdeas: "Estoy buscando empleos que encajen contigo y cuánto pagan en tu zona. Tarda unos minutos.",
+    tasks: {
+      prices: (city: string) => `Buscando cuánto pagan${city ? ` en ${city}` : ""}`,
+      competitors: "Buscando quién está contratando",
+      requirements: (place: string) => `Revisando qué piden${place ? ` en ${place}` : " en tu zona"}`,
+      faq: "Juntando las preguntas de los empleadores",
+      ideas: "Buscando empleos que encajen contigo",
+      strategy: "Armando tu perfil",
+    },
+    ideasSub: "Escogidos según tu experiencia, tu tiempo y lo que se contrata en tu zona. Son referencias, no promesas de empleo ni de sueldo.",
+    typicalPrice: "Pago típico",
+    startCost: "Cuesta",
+    license: "Certificado",
+    demand: "Quién contrata",
+    choose: "Escoger este",
+    moreTitle: "¿Ninguno te convence?",
+    moreSub: "Cuéntame qué no te gustó o qué preferirías, y busco otros empleos distintos.",
+    morePlaceholder: "Ej.: no quiero trabajar de noche, prefiero algo en una oficina o con carros",
+    moreButton: "Buscar otros empleos",
+    moreNoLeft: "Ya vimos varias rondas de empleos. Escoge uno de estos o cuéntale al Cerebro qué trabajo te gustaría.",
+    moreUser: (f: string) => (f ? `Ninguno me convence. ${f}` : "Ninguno me convence. Muéstrame otros empleos."),
+    moreAi: "Perfecto, busco otros empleos distintos con lo que me dijiste. Tarda unos minutos.",
+    proposalTitle: "Tu perfil",
+    blocks: { service: "Tu perfil", packages: "Disponibilidad y pago", faq: "Preguntas de los empleadores" },
+    steps: "Cómo contratarme",
+    customer: "Quién contrata",
+    problem: "Lo que aportas",
+    promise: "Tu presentación",
+    differentiators: "Por qué contratarte",
+    pricingNote: "De dónde sale el pago",
+    marketRef: "Pago de referencia",
+    mediaSub: "Al contratar, la gente quiere ver a la persona. Tu cara en tu página da confianza al empleador.",
+    videoScript: "Guion de tu video para empleadores (30 a 45 segundos, grábalo con el celular)",
+  },
+  en: {
+    emptyTitleB: "Let's find your job",
+    emptySubB: "Tell me what you can do. I'll research your area and show you the 3 jobs that suit you best first, with what they pay. You decide which one.",
+    stagesB: ["Let's talk", "Jobs", "Pick", "Last details", "Research", "Your profile", "Approved"],
+    lockedIdeas: "I'm looking for jobs that fit you and what they pay in your area. It takes a few minutes.",
+    tasks: {
+      prices: (city: string) => `Looking up what it pays${city ? ` in ${city}` : ""}`,
+      competitors: "Looking for who is hiring",
+      requirements: (place: string) => `Checking what employers require${place ? ` in ${place}` : " in your area"}`,
+      faq: "Gathering what employers ask",
+      ideas: "Looking for jobs that fit you",
+      strategy: "Building your profile",
+    },
+    ideasSub: "Picked for your experience, your time and what's hiring in your area. They're references, not promises of a job or a salary.",
+    typicalPrice: "Typical pay",
+    startCost: "Costs",
+    license: "Certificate",
+    demand: "Who's hiring",
+    choose: "Pick this one",
+    moreTitle: "None of these?",
+    moreSub: "Tell me what you didn't like or what you'd prefer, and I'll look for different jobs.",
+    morePlaceholder: "e.g. I don't want night shifts, I'd prefer an office or something with cars",
+    moreButton: "Look for other jobs",
+    moreNoLeft: "We've seen several rounds of jobs. Pick one of these or tell the Brain what job you'd like.",
+    moreUser: (f: string) => (f ? `None of these work for me. ${f}` : "None of these work for me. Show me other jobs."),
+    moreAi: "Got it, I'll look for different jobs with what you told me. It takes a few minutes.",
+    proposalTitle: "Your profile",
+    blocks: { service: "Your profile", packages: "Availability and pay", faq: "What employers ask" },
+    steps: "How to hire me",
+    customer: "Who hires",
+    problem: "What you bring",
+    promise: "How you present yourself",
+    differentiators: "Why hire you",
+    pricingNote: "Where the pay comes from",
+    marketRef: "Reference pay",
+    mediaSub: "When hiring, people want to see the person. Your face on your page builds an employer's trust.",
+    videoScript: "Script for your video to employers (30 to 45 seconds, record it on your phone)",
+  },
+};
+
+// The Brain's screen text for this plan: the job wording for Empleo.
+export function planTextFor<L extends "es" | "en">(lang: L, plan: { mode: string; track?: string } | null | undefined): (typeof PLAN_TEXT)[L] {
+  const base = PLAN_TEXT[lang];
+  if (!plan || plan.mode !== "new" || plan.track !== "job") return base;
+  const j = JOB_TEXT[lang];
+  return {
+    ...base,
+    ...j,
+    chat: { ...base.chat, emptyTitleB: j.emptyTitleB, emptySubB: j.emptySubB },
+    tasks: { ...base.tasks, ...j.tasks },
+    blocks: { ...base.blocks, ...j.blocks },
+  } as (typeof PLAN_TEXT)[L];
+}

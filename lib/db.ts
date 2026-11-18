@@ -571,6 +571,26 @@ async function migrate(): Promise<void> {
       // affiliate's link remembers who brought it (and the commission then),
       // and a payment link the owner makes in that chat carries it, so the
       // commission counts on any device.
+      // Page numbers per day: visits, distinct visitors and "Pedir" taps.
+      // Distinct visitors are counted with a one-way hash (no IP is kept).
+      await sql`
+        CREATE TABLE IF NOT EXISTS page_stats (
+          "businessId" TEXT NOT NULL,
+          day TEXT NOT NULL,
+          views INTEGER NOT NULL DEFAULT 0,
+          uniques INTEGER NOT NULL DEFAULT 0,
+          orders INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY ("businessId", day)
+        )
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS page_visitors (
+          "businessId" TEXT NOT NULL,
+          day TEXT NOT NULL,
+          hash TEXT NOT NULL,
+          PRIMARY KEY ("businessId", day, hash)
+        )
+      `;
       await sql`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "affiliateUserId" TEXT`;
       await sql`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "affiliatePct" INTEGER`;
       await sql`ALTER TABLE payment_links ADD COLUMN IF NOT EXISTS "conversationId" TEXT`;
@@ -1163,7 +1183,8 @@ export async function listMarketplaceRows(limit = 300): Promise<MarketplaceRow[]
       SELECT name, price FROM services WHERE "businessId" = b.id
       ORDER BY featured DESC, "sortOrder" ASC LIMIT 1
     ) s ON true
-    WHERE b.published = 1
+    -- Empleo pages (someone looking for a job) are shared by link, not listed with the services.
+    WHERE b.published = 1 AND COALESCE(b.site->>'kind', '') <> 'job'
     ORDER BY b."createdAt" DESC
     LIMIT ${limit}
   `) as Record<string, unknown>[];
@@ -1199,6 +1220,54 @@ export async function createPageReport(businessId: string, reason: string, detai
 export async function incrementPageViews(businessId: string): Promise<void> {
   await ensureSchema();
   await sql`UPDATE businesses SET "pageViews" = "pageViews" + 1 WHERE id = ${businessId}`;
+}
+
+// ---------- Page numbers (visits, distinct visitors, "Pedir" taps) ----------
+const statDay = (d = new Date()) => d.toISOString().slice(0, 10);
+
+// One visit; `visitor` is a one-way hash of who it is that day (the first visit
+// of that hash that day also counts as a distinct visitor).
+export async function recordPageView(businessId: string, visitor: string): Promise<void> {
+  await ensureSchema();
+  const day = statDay();
+  const fresh = (await sql`
+    INSERT INTO page_visitors ("businessId", day, hash) VALUES (${businessId}, ${day}, ${visitor})
+    ON CONFLICT DO NOTHING RETURNING hash
+  `) as unknown[];
+  const u = fresh.length ? 1 : 0;
+  await sql`
+    INSERT INTO page_stats ("businessId", day, views, uniques) VALUES (${businessId}, ${day}, 1, ${u})
+    ON CONFLICT ("businessId", day) DO UPDATE SET views = page_stats.views + 1, uniques = page_stats.uniques + ${u}
+  `;
+  // Old visitor hashes are no longer needed (the daily counts stay).
+  if (Math.random() < 0.01) await sql`DELETE FROM page_visitors WHERE day < ${statDay(new Date(Date.now() - 3 * 24 * 3600 * 1000))}`;
+}
+
+export async function recordPageOrder(businessId: string): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO page_stats ("businessId", day, orders) VALUES (${businessId}, ${statDay()}, 1)
+    ON CONFLICT ("businessId", day) DO UPDATE SET orders = page_stats.orders + 1
+  `;
+}
+
+export type PageStats = { views: number; uniques: number; orders: number; chats: number; contacts: number; payments: number };
+
+// The page's numbers for the last `days` days (1 = today), in UTC days.
+export async function pageStats(businessId: string, days: number): Promise<PageStats> {
+  await ensureSchema();
+  const n = Math.max(1, Math.min(90, Math.round(days)));
+  const from = statDay(new Date(Date.now() - (n - 1) * 24 * 3600 * 1000));
+  const fromTs = `${from}T00:00:00Z`;
+  const [st, cv, pay] = await Promise.all([
+    sql`SELECT COALESCE(SUM(views),0)::int AS views, COALESCE(SUM(uniques),0)::int AS uniques, COALESCE(SUM(orders),0)::int AS orders FROM page_stats WHERE "businessId" = ${businessId} AND day >= ${from}`,
+    sql`SELECT COUNT(*)::int AS chats, COUNT(*) FILTER (WHERE phone <> '' OR email <> '')::int AS contacts FROM conversations WHERE "businessId" = ${businessId} AND "createdAt" >= ${fromTs}`,
+    sql`SELECT COUNT(*)::int AS payments FROM payment_notices WHERE "businessId" = ${businessId} AND "createdAt" >= ${fromTs}`,
+  ]);
+  const a = (st as Record<string, number>[])[0] ?? {};
+  const b = (cv as Record<string, number>[])[0] ?? {};
+  const c = (pay as Record<string, number>[])[0] ?? {};
+  return { views: a.views ?? 0, uniques: a.uniques ?? 0, orders: a.orders ?? 0, chats: b.chats ?? 0, contacts: b.contacts ?? 0, payments: c.payments ?? 0 };
 }
 
 export async function incrementWhatsappClicks(businessId: string): Promise<void> {
@@ -1764,6 +1833,8 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM research_jobs WHERE "businessId" = ${id}`;
   await sql`DELETE FROM payment_links WHERE "businessId" = ${id}`;
   await sql`DELETE FROM payment_notices WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM page_stats WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM page_visitors WHERE "businessId" = ${id}`;
   await sql`DELETE FROM leads WHERE "businessId" = ${id}`;
   await sql`DELETE FROM conv_messages WHERE "conversationId" IN (SELECT id FROM conversations WHERE "businessId" = ${id})`;
   await sql`DELETE FROM conversations WHERE "businessId" = ${id}`;
@@ -1796,6 +1867,8 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM research_jobs WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM payment_links WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM payment_notices WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM page_stats WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM page_visitors WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM leads WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM conv_messages WHERE "conversationId" IN (SELECT id FROM conversations WHERE "businessId" = ANY(${ids}))`;
     await sql`DELETE FROM conversations WHERE "businessId" = ANY(${ids})`;

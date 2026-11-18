@@ -8,7 +8,7 @@ export type ChatChip = { label: string; send?: boolean; text?: string };
 // What the Brain's last question is about (the chips answer THAT question,
 // not whatever the list says is missing first: it may ask in another order).
 const ASKED_ABOUT: [string, RegExp][] = [
-  ["goal", /(ingreso extra|dinero extra|vivir de (esto|ello|eso)|tiempo completo|extra income|side income|live (from|off) (it|this)|full[- ]time)/i],
+  ["goal", /(ingreso extra|dinero extra|vivir de (esto|ello|eso)|tiempo completo|medio tiempo|part[- ]time|extra income|side income|live (from|off) (it|this)|full[- ]time)/i],
   ["howGetsClients", /(c[oó]mo (te )?(llegan|consigues|encuentran)|c[oó]mo consigues|how do (you get|(your )?(customers|clients|people) find)|how (customers|clients|people) find)/i],
   // "¿En qué ciudad (y en qué país)?" is the city question; "¿En qué país vives?" the country one.
   ["city", /(qu[eé] ciudad|en qu[eé] zona|d[oó]nde (trabajas|vives|atiendes|lo ofrecer[ií]as)|what city|which city|where (do you|would you) (work|live|offer))/i],
@@ -48,6 +48,7 @@ export function answerChips(plan: BusinessPlan, es: boolean, lastAi = ""): ChatC
     case "agentLimits":
       return [s("Sí, confirmado", "Yes, confirmed"), { label: es ? "Quiero cambiar algo" : "I want to change something", text: es ? "Quiero cambiar esto: " : "I want to change this: " }];
     case "workPlace":
+      if (plan.track === "job") return [s("En persona", "In person"), s("Remoto, desde casa", "Remote, from home"), s("Me da igual", "Either works")];
       return [s("En persona", "In person"), s("En línea, desde casa", "Online, from home"), s("Me da igual", "Either works")];
     case "serviceMode":
       return [s("En persona, en mi zona", "In person, in my area"), s("En línea, a distancia", "Online, remote")];
@@ -56,6 +57,7 @@ export function answerChips(plan: BusinessPlan, es: boolean, lastAi = ""): ChatC
     case "toolsReady":
       return [s("Sí", "Yes"), s("No", "No")];
     case "goal":
+      if (plan.track === "job") return [s("Tiempo completo", "Full time"), s("Medio tiempo", "Part time")];
       return [s("Un ingreso extra", "Extra income"), s("Vivir de esto", "To live from it")];
     // Quick answers, never required: the person can always write freely.
     case "howGetsClients":

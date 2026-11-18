@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import StoreChat from "./StoreChat";
+import PageStatsPanel from "./PageStatsPanel";
 import type { ChatChip } from "./ChatPanel";
 import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
@@ -60,6 +61,8 @@ export default function StoreView({
   const [pickKey, setPickKey] = useState(0);
   // Phones: the chat or the preview, one at a time.
   const [pane, setPane] = useState<"chat" | "preview">("chat");
+  // The page's numbers (visits, chats, "Pedir" clicks, payments) and its Meta pixel.
+  const [showStats, setShowStats] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "gaps"; gaps: PublishGap[] } | { kind: "ok" } | { kind: "error" } | null>(null);
 
@@ -206,7 +209,8 @@ export default function StoreView({
     );
 
   const isAgent = business.plan.mode === "agent" || Boolean(business.serviceAgent.name);
-  const category = business.marketCategory ? (es ? business.marketCategory : MARKET_CATEGORY_EN[business.marketCategory as MarketCategory] ?? business.marketCategory) : "";
+  // Empleo pages aren't listed in the marketplace (shared by link).
+  const category = business.site.kind === "job" ? "" : business.marketCategory ? (es ? business.marketCategory : MARKET_CATEGORY_EN[business.marketCategory as MarketCategory] ?? business.marketCategory) : "";
 
   return (
     <div className="chat-screen h-[calc(100dvh-var(--hdr))] md:h-screen flex flex-col">
@@ -282,6 +286,15 @@ export default function StoreView({
                   {es ? "Tu agente" : "Your agent"} →
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setShowStats((v) => !v)}
+                aria-expanded={showStats}
+                className="tap h-8 px-3.5 rounded-full text-[13px] font-semibold"
+                style={showStats ? SOFT_BTN : { background: "#fff", color: INK, boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.16)" }}
+              >
+                {es ? "Estadísticas" : "Stats"}
+              </button>
               <span className="grow" />
               {!business.published && <PreviewLinkButton lang={lang} />}
               <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap h-8 inline-flex items-center px-3 rounded-full text-[13px] text-psub hover:text-pfg">
@@ -301,6 +314,8 @@ export default function StoreView({
                 </button>
               )}
             </div>
+
+            {showStats && <PageStatsPanel businessId={business.id} lang={lang} onClose={() => setShowStats(false)} />}
 
             {planPending && (
               <div className="shrink-0 mx-3 md:mx-4 mt-2.5 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ background: "rgba(22,163,74,0.10)" }}>
@@ -335,7 +350,7 @@ export default function StoreView({
                       <span style={{ color: ACCENT }}>✓ </span>
                       {st.publishedOk}
                       {category ? ` ${st.inMarket}: ${category}.` : ""}
-                      {!business.payReady && onPayments && (
+                      {!business.payReady && onPayments && business.site.kind !== "job" && (
                         <>
                           {" "}
                           <button type="button" onClick={onPayments} className="font-semibold underline underline-offset-2" style={{ color: ACCENT }}>

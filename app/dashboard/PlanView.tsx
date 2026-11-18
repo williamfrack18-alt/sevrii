@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useLang } from "@/components/LangProvider";
-import { PLAN_TEXT } from "@/lib/planI18n";
+import { PLAN_TEXT, planTextFor } from "@/lib/planI18n";
 import { APPROVAL_BLOCKS, type ApprovalBlock, type BusinessPlan, type PlanStage, type Profile } from "@/lib/plan";
 import { approveBlockAction, chooseIdeaAction, confirmProposalAction, finishPlanAction, moreIdeasAction, noOfferAction, otherPackagesAction, resumePlanAction, saveCardsAction, sendPlanChatAction, type PlanChatResponse } from "@/app/planActions";
 import CardFlow from "./CardFlow";
 import { oneConfirmation } from "@/lib/brain/walk";
+import { pageMatchesPlan } from "@/lib/planToStore";
 import { marketRangeText } from "@/lib/brain/checks";
 import { cardTitle, unknownCards } from "@/lib/cards";
 import { MAX_IDEA_ROUNDS, isRestrictedService, missingProfile, profileComplete, shownRequirements } from "@/lib/plan";
@@ -88,7 +89,7 @@ export default function PlanView({
   onNavigate: (view: DashboardView) => void;
 }) {
   const lang = useLang();
-  const t = PLAN_TEXT[lang];
+  const t = planTextFor(lang, business.plan);
   const plan = business.plan;
   const isB = plan.mode === "new";
   // B and C (agent) both start from ideas the Brain researches.
@@ -294,7 +295,7 @@ export default function PlanView({
   const renderToken = ({ kind, arg, msgId }: ChatToken) => {
     if (kind === "part" && isBlock(arg)) return msgId === liveId ? partCard(arg) : <PartRow id={arg} plan={plan} stale={arg === reviewing} />;
     if (kind === "ideas") return plan.ideas.length ? <IdeasCard plan={plan} busy={busy} live={msgId === liveId} passed={msgId !== lastIdeasId} onChoose={(i) => act(() => chooseIdeaAction(i, bizRef.current.id))} onMore={onMore} /> : null;
-    if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} payReady={business.payReady} />;
+    if (kind === "done") return <DoneCard live={msgId === liveId} onNavigate={onNavigate} payReady={business.payReady} job={plan.track === "job"} page={!business.published && !business.site.start ? "todo" : pageMatchesPlan(business.site.fromPlan, business.plan) ? "built" : "stale"} />;
     if (kind === "market") return <MarketInChat plan={plan} />;
     if (kind === "restricted") return msgId === liveId ? restrictedCard : <PassedRow text={es ? "Servicio que Sevrii no publica" : "A service Sevrii doesn't publish"} />;
     if (kind === "summary") return msgId === liveId ? summaryCard : <PassedRow text={plan.stage === "approved" && msgId === lastSummaryId ? (es ? "Tu estrategia confirmada (la ves en «Tu estrategia»)" : "Your confirmed strategy (see \"Your strategy\")") : es ? "Tu estrategia (versión anterior)" : "Your strategy (earlier version)"} />;
@@ -473,7 +474,7 @@ export default function PlanView({
 
 // What each part shows, in its chat card and in the map's detail panel.
 function PartBody({ id, plan }: { id: ApprovalBlock; plan: BusinessPlan }) {
-  const t = PLAN_TEXT[useLang()];
+  const t = planTextFor(useLang(), plan);
   switch (id) {
     case "service":
       return (
@@ -726,7 +727,7 @@ function PartCard({
   onComplete?: (b: ApprovalBlock) => void;
 }) {
   const lang = useLang();
-  const t = PLAN_TEXT[lang];
+  const t = planTextFor(lang, plan);
   const n = APPROVAL_BLOCKS.indexOf(id);
   // Sentences an older length limit cut short (they end in "…"): the full text
   // is gone, so the Brain rewrites them on request (the owner sends it).
@@ -817,7 +818,7 @@ function PartDots({ plan, current }: { plan: BusinessPlan; current: ApprovalBloc
 
 // An earlier card in the chat: one line, opens to read it again.
 function PartRow({ id, plan, stale }: { id: ApprovalBlock; plan: BusinessPlan; stale: boolean }) {
-  const t = PLAN_TEXT[useLang()];
+  const t = planTextFor(useLang(), plan);
   const [open, setOpen] = useState(false);
   const ok = plan.approvals[id] === true;
   return (
@@ -843,7 +844,7 @@ function PartRow({ id, plan, stale }: { id: ApprovalBlock; plan: BusinessPlan; s
 
 // Every part approved but a final check stopped the plan.
 function FinishCard({ plan, busy, onFinish }: { plan: BusinessPlan; busy: boolean; onFinish: () => void }) {
-  const t = PLAN_TEXT[useLang()];
+  const t = planTextFor(useLang(), plan);
   return (
     <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${AMBER}55` }}>
       <span className="text-[14px] text-pfg leading-relaxed">{t.finishChat}</span>
@@ -891,8 +892,28 @@ function RestrictedCard({ ideas, busy, onMore, onNavigate }: { ideas: boolean; b
   );
 }
 
-function DoneCard({ live, onNavigate, payReady }: { live: boolean; onNavigate: (v: DashboardView) => void; payReady: boolean }) {
-  const t = PLAN_TEXT[useLang()];
+// After approving: the way to the page, said as it is now (to build, built,
+// or built from an earlier version), so it never asks to build it again.
+function DoneCard({ live, onNavigate, payReady, page, job = false }: { live: boolean; onNavigate: (v: DashboardView) => void; payReady: boolean; page: "todo" | "built" | "stale"; job?: boolean }) {
+  const lang = useLang();
+  const es = lang === "es";
+  const t = PLAN_TEXT[lang];
+  const title = page === "todo" ? t.doneTitle : page === "built" ? (es ? "Tu página ya está armada" : "Your page is built") : es ? "Tu página tiene la versión anterior" : "Your page has the earlier version";
+  const sub =
+    page === "todo"
+      ? job
+        ? es
+          ? "Tu página para empleadores se arma en Store con esto. Cuando la publiques, manda su link con cada solicitud de empleo."
+          : "Your page for employers is built in Store from this. Once you publish it, send its link with every job application."
+        : t.doneSub
+      : page === "built"
+        ? es
+          ? "Tu página ya tiene lo que aprobaste. Revísala en Store, agrega fotos y publícala cuando te guste."
+          : "Your page already has what you approved. Review it in Store, add photos and publish it when you like it."
+        : es
+          ? "Cambiaste la estrategia después de armar tu página. En Store toca «Actualizar mi página» para pasarle lo nuevo."
+          : "You changed the strategy after building your page. In Store, tap \"Update my page\" to bring in the new version.";
+  const storeLabel = page === "todo" ? t.goStore : page === "built" ? (es ? "Ver mi página en Store" : "See my page in Store") : es ? "Actualizar mi página en Store" : "Update my page in Store";
   if (!live) {
     return (
       <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={INSET}>
@@ -905,21 +926,23 @@ function DoneCard({ live, onNavigate, payReady }: { live: boolean; onNavigate: (
     <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3 min-w-0" style={{ ...CARD, boxShadow: `0 0 0 1px ${RING}` }}>
       <div className="flex items-center gap-2">
         <Check size={16} />
-        <span className="text-[16px] font-semibold text-pfg">{t.doneTitle}</span>
+        <span className="text-[16px] font-semibold text-pfg">{title}</span>
       </div>
-      <p className="text-[13.5px] text-psub leading-relaxed">{t.doneSub}</p>
+      <p className="text-[13.5px] text-psub leading-relaxed">{sub}</p>
       <div className="flex flex-col sm:flex-row gap-2">
         <button type="button" onClick={() => onNavigate("store")} className="h-10 px-5 rounded-full text-[14px] font-semibold" style={BRAND_BTN}>
-          {t.goStore} →
+          {storeLabel} →
         </button>
-        {!payReady && (
+        {!payReady && !job && (
           <button type="button" onClick={() => onNavigate("payments")} className="h-10 px-5 rounded-full text-[14px] font-medium" style={GHOST_BTN}>
             {t.goPayments} →
           </button>
         )}
-        <button type="button" onClick={() => onNavigate("marketing")} className="h-10 px-5 rounded-full text-[14px] font-medium" style={GHOST_BTN}>
-          {t.goMarketing} →
-        </button>
+        {!job && (
+          <button type="button" onClick={() => onNavigate("marketing")} className="h-10 px-5 rounded-full text-[14px] font-medium" style={GHOST_BTN}>
+            {t.goMarketing} →
+          </button>
+        )}
       </div>
     </div>
   );
@@ -927,7 +950,7 @@ function DoneCard({ live, onNavigate, payReady }: { live: boolean; onNavigate: (
 
 // The ideas (new-service path), inside the chat.
 function IdeasCard({ plan, busy, live, passed = false, onChoose, onMore }: { plan: BusinessPlan; busy: boolean; live: boolean; passed?: boolean; onChoose: (i: number) => void; onMore?: (why: string) => void }) {
-  const t = PLAN_TEXT[useLang()];
+  const t = planTextFor(useLang(), plan);
   const es = useLang() === "es";
   // B: the 3 best first, the rest one tap away (people compare better with few).
   const [all, setAll] = useState(false);
@@ -1011,7 +1034,7 @@ function PassedRow({ text }: { text: string }) {
 // end confirms everything (that is the approval) and opens Store.
 function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; busy: boolean; onConfirm: (prices: Record<string, string>) => void; onOther?: () => void }) {
   const lang = useLang();
-  const t = PLAN_TEXT[lang];
+  const t = planTextFor(lang, plan);
   const es = lang === "es";
   const [prices, setPrices] = useState<Record<string, string>>({});
   const unknown = unknownCards(plan.mode, plan.cards);
@@ -1065,7 +1088,7 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
                   <span className="text-[12.5px] text-pmuted">
                     {p.price ? (
                       <>
-                        <b className="font-semibold">{t.marketRef}</b> · {es ? "lo que se cobra en tu zona, no es tu precio. Escribe el tuyo si ya lo sabes:" : "what's charged in your area, not your price. Type yours if you know it:"}
+                        <b className="font-semibold">{t.marketRef}</b> · {plan.track === "job" ? (es ? "lo que se paga en tu zona por este trabajo. Si ya sabes cuánto quieres ganar, escríbelo:" : "what this job pays in your area. If you know how much you want to earn, type it:") : es ? "lo que se cobra en tu zona, no es tu precio. Escribe el tuyo si ya lo sabes:" : "what's charged in your area, not your price. Type yours if you know it:"}
                       </>
                     ) : es ? (
                       "No encontré un precio publicado para este trabajo y no quise inventarlo. Escribe el tuyo si ya lo sabes:"
@@ -1076,14 +1099,14 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
                   <input
                     value={prices[String(i)] ?? ""}
                     onChange={(e) => setPrices((x) => ({ ...x, [String(i)]: e.target.value }))}
-                    placeholder={es ? "Tu precio, con tu moneda" : "Your price, with your currency"}
+                    placeholder={plan.track === "job" ? (es ? "Tu pago esperado, con tu moneda" : "Your expected pay, with your currency") : es ? "Tu precio, con tu moneda" : "Your price, with your currency"}
                     inputMode="decimal"
                     className="h-11 rounded-xl px-4 text-[14.5px] outline-none bg-white"
                     style={{ boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.12)" }}
                   />
                 </div>
               ) : (
-                <span className="text-[12.5px] font-medium" style={{ color: GREEN }}>{es ? "Tu precio" : "Your price"}</span>
+                <span className="text-[12.5px] font-medium" style={{ color: GREEN }}>{plan.track === "job" ? (es ? "Tu pago esperado" : "Your expected pay") : es ? "Tu precio" : "Your price"}</span>
               )}
             </div>
           ))}
@@ -1091,15 +1114,16 @@ function SummaryCard({ plan, busy, onConfirm, onOther }: { plan: BusinessPlan; b
           {plan.guard.warn.length > 0 && <Notes title={t.guardWarn} items={plan.guard.warn} color={AMBER} />}
         </div>
       )}
-      {card(4 + o, t.blocks.offer, <PartBody id="offer" plan={plan} />)}
-      {card(5 + o, t.blocks.faq, plan.faq.length ? <PartBody id="faq" plan={plan} /> : <span className="text-[14px] text-psub">—</span>)}
+      {/* Empleo has no offers or discounts. */}
+      {plan.track !== "job" && card(4 + o, t.blocks.offer, <PartBody id="offer" plan={plan} />)}
+      {card((plan.track === "job" ? 4 : 5) + o, t.blocks.faq, plan.faq.length ? <PartBody id="faq" plan={plan} /> : <span className="text-[14px] text-psub">—</span>)}
       {/* B (new service): how to get the very first client this week, with the
           texts ready to copy (they used to be written and never shown). */}
       {plan.mode === "new" &&
         g.actions.length > 0 &&
         card(
-          6,
-          es ? "Tu primer cliente esta semana" : "Your first client this week",
+          plan.track === "job" ? 5 : 6,
+          plan.track === "job" ? (es ? "Tu primera entrevista esta semana" : "Your first interview this week") : es ? "Tu primer cliente esta semana" : "Your first client this week",
           <ol className="flex flex-col gap-3">
             {g.actions.map((a, i) => (
               <li key={i} className="flex gap-3 min-w-0">
@@ -1250,7 +1274,7 @@ function PriceExamples({ plan, max = 6 }: { plan: BusinessPlan; max?: number }) 
 // While the plan is being written: what the research already found.
 function FoundSoFar({ plan }: { plan: BusinessPlan }) {
   const lang = useLang();
-  const t = PLAN_TEXT[lang];
+  const t = planTextFor(lang, plan);
   const es = lang === "es";
   const m = plan.market;
   const range = priceSpan(m.prices, t);
@@ -1321,7 +1345,7 @@ function IdeaItem(props: { idea: BusinessPlan["ideas"][number]; i: number; plan:
 // and the market reference (what's charged and what it costs to start).
 function ServiceIdeaItem({ idea, i, plan, busy, onChoose }: { idea: BusinessPlan["ideas"][number]; i: number; plan: BusinessPlan; busy: boolean; compact: boolean; onChoose: (i: number) => void }) {
   const lang = useLang();
-  const t = PLAN_TEXT[lang];
+  const t = planTextFor(lang, plan);
   const es = lang === "es";
   const [open, setOpen] = useState(false);
   const mode = idea.delivery === "digital" ? "Digital" : idea.delivery === "fisico" ? (es ? "Físico" : "In person") : idea.delivery === "ambos" ? (es ? "Mixto" : "Mixed") : "";
@@ -1729,7 +1753,7 @@ function SectionHead({ title, sub }: { title: string; sub: string }) {
 
 function Progress({ jobs, plan, compact = false }: { jobs: Job[]; plan: BusinessPlan; compact?: boolean }) {
   const lang = useLang();
-  const t = PLAN_TEXT[lang];
+  const t = planTextFor(lang, plan);
   const label = (k: string) => {
     if (k === "ideas" && plan.mode === "agent") return t.ideasC.task;
     if (k === "strategy" && plan.mode === "existing") return lang === "es" ? "Armando tu plan para más clientes" : "Building your plan for more clients";
@@ -1849,7 +1873,7 @@ const VALUE: Record<"es" | "en", Record<string, string>> = {
 
 function ProfileCard({ plan, bare = false }: { plan: BusinessPlan; bare?: boolean }) {
   const lang = useLang();
-  const t = PLAN_TEXT[lang];
+  const t = planTextFor(lang, plan);
   const p = plan.profile;
   const rows: [string, string][] = [];
   for (const [k, label] of Object.entries(PROFILE_LABELS[lang]) as [keyof Profile, string][]) {
@@ -1885,7 +1909,7 @@ function ProfileCard({ plan, bare = false }: { plan: BusinessPlan; bare?: boolea
 // The research, inside the chat right where it finished: a summary line that
 // opens in place, and what to keep in mind before going on.
 function MarketInChat({ plan }: { plan: BusinessPlan }) {
-  const t = PLAN_TEXT[useLang()];
+  const t = planTextFor(useLang(), plan);
   const [open, setOpen] = useState(false);
   const m = plan.market;
   if (!m.researchedAt) return null;
@@ -1919,7 +1943,7 @@ function MarketInChat({ plan }: { plan: BusinessPlan }) {
 }
 
 function MarketCard({ plan }: { plan: BusinessPlan }) {
-  const t = PLAN_TEXT[useLang()];
+  const t = planTextFor(useLang(), plan);
   return (
     <div className="rounded-[24px] p-5 md:p-6 flex flex-col gap-5 min-w-0" style={CARD}>
       <span className="flex items-center gap-2">
@@ -1938,7 +1962,7 @@ function MarketCard({ plan }: { plan: BusinessPlan }) {
 }
 
 function MarketDetail({ plan }: { plan: BusinessPlan }) {
-  const t = PLAN_TEXT[useLang()];
+  const t = planTextFor(useLang(), plan);
   const m = plan.market;
   return (
     <div className="flex flex-col gap-5 min-w-0">
@@ -2030,7 +2054,7 @@ function MarketDetail({ plan }: { plan: BusinessPlan }) {
 }
 
 function RequirementsList({ plan }: { plan: BusinessPlan }) {
-  const t = PLAN_TEXT[useLang()];
+  const t = planTextFor(useLang(), plan);
   return (
     <div className="flex flex-col gap-3 min-w-0">
       {plan.market.requirements.map((r, i) => (
