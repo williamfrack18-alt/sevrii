@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import StoreChat from "./StoreChat";
 import PageStatsPanel from "./PageStatsPanel";
+import ReviewsPanel from "./ReviewsPanel";
 import type { ChatChip } from "./ChatPanel";
 import { useT, useLang } from "@/components/LangProvider";
 import { STORE_TEXT } from "@/lib/storeI18n";
@@ -63,6 +64,8 @@ export default function StoreView({
   const [pane, setPane] = useState<"chat" | "preview">("chat");
   // The page's numbers (visits, chats, "Pedir" clicks, payments) and its Meta pixel.
   const [showStats, setShowStats] = useState(false);
+  // Verified reviews: answer them or report one.
+  const [showReviews, setShowReviews] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "gaps"; gaps: PublishGap[] } | { kind: "ok" } | { kind: "error" } | null>(null);
 
@@ -295,6 +298,15 @@ export default function StoreView({
               >
                 {es ? "Estadísticas" : "Stats"}
               </button>
+              <button
+                type="button"
+                onClick={() => setShowReviews((v) => !v)}
+                aria-expanded={showReviews}
+                className="tap h-8 px-3.5 rounded-full text-[13px] font-semibold"
+                style={showReviews ? SOFT_BTN : { background: "#fff", color: INK, boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.16)" }}
+              >
+                {es ? "Reseñas" : "Reviews"}
+              </button>
               <span className="grow" />
               {!business.published && <PreviewLinkButton lang={lang} />}
               <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap h-8 inline-flex items-center px-3 rounded-full text-[13px] text-psub hover:text-pfg">
@@ -316,6 +328,7 @@ export default function StoreView({
             </div>
 
             {showStats && <PageStatsPanel businessId={business.id} lang={lang} onClose={() => setShowStats(false)} />}
+            {showReviews && <ReviewsPanel businessId={business.id} lang={lang} onClose={() => setShowReviews(false)} />}
 
             {planPending && (
               <div className="shrink-0 mx-3 md:mx-4 mt-2.5 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ background: "rgba(22,163,74,0.10)" }}>

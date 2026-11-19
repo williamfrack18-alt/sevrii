@@ -225,3 +225,24 @@ export async function emailVisitorReply(business: BusinessRow, conv: Conversatio
     console.error("[notify] visitor reply failed", (err as Error)?.message);
   }
 }
+
+// After a purchase: the customer gets a link to review the business (works on
+// any device; only someone who bought gets it).
+export async function emailReviewLink(business: BusinessRow, to: string, name: string, token: string): Promise<void> {
+  if (!emailReady()) return;
+  try {
+    const es = business.site.lang !== "en";
+    const { html, text } = simpleEmail({
+      title: es ? `¿Cómo te fue con ${business.name}?` : `How did it go with ${business.name}?`,
+      intro: es
+        ? `Hola${name ? ` ${name}` : ""}. Gracias por tu pago. Cuando ${business.name} termine tu servicio, cuéntale a otros cómo te fue: tu reseña aparece en su página como compra verificada.`
+        : `Hi${name ? ` ${name}` : ""}. Thanks for your payment. Once ${business.name} finishes your service, tell others how it went: your review shows on their page as a verified purchase.`,
+      button: es ? "Dejar mi reseña" : "Leave my review",
+      url: `${siteUrl()}/resena/${token}`,
+      outro: es ? "Puedes cambiar tu reseña cuando quieras con este mismo link." : "You can change your review anytime with this same link.",
+    });
+    await sendEmail(to, es ? `Tu reseña para ${business.name}` : `Your review for ${business.name}`, html, text);
+  } catch (err) {
+    console.error("[notify] review link failed", (err as Error)?.message);
+  }
+}

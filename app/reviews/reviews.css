@@ -1,0 +1,12 @@
+/* The verified-review form (pay page, review link page). */
+.rv-form { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; padding: 18px; border-radius: 18px; background: #f6f7f3; text-align: left; }
+.rv-title { font-size: 16px; color: #111; }
+.rv-sub { font-size: 13.5px; line-height: 1.5; color: #52525b; margin: 0; }
+.rv-stars { display: flex; gap: 4px; }
+.rv-stars button { border: 0; background: none; font-size: 30px; line-height: 1; color: #d4d4d8; cursor: pointer; padding: 2px; }
+.rv-stars button.on { color: #f59e0b; }
+.rv-input { width: 100%; box-sizing: border-box; border: 1px solid rgba(10, 10, 10, 0.14); border-radius: 12px; padding: 11px 13px; font: inherit; font-size: 15px; background: #fff; color: #111; resize: none; }
+.rv-btn { border: 0; border-radius: 999px; padding: 13px 18px; font-size: 15px; font-weight: 600; color: #fff; background: var(--accent, #0a0a0a); cursor: pointer; }
+.rv-btn:disabled { opacity: 0.6; }
+.rv-msg { font-size: 13px; color: #b42318; margin: 0; }
+.rv-thanks { font-size: 14px; font-weight: 600; color: #15803d; margin: 0; }

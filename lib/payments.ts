@@ -219,7 +219,7 @@ export async function refreshPayStatus(business: BusinessRow): Promise<PayStatus
 // Sevrii's fee and paid to them later (see lib/affiliates.ts).
 export type CheckoutAffiliate = { userId: string; percent: number };
 
-export async function checkoutForLink(business: BusinessRow, link: PaymentLinkRow, aff: CheckoutAffiliate | null = null): Promise<string> {
+export async function checkoutForLink(business: BusinessRow, link: PaymentLinkRow, aff: CheckoutAffiliate | null = null, customer: { id: string; email: string } | null = null): Promise<string> {
   if (!business.stripeAccountId) throw new Error("business has no Stripe account");
   const commission = aff ? Math.floor((link.amountCents * aff.percent) / 100) : 0;
   const fee = sevriiFeeCents(link.amountCents) + commission;
@@ -239,6 +239,8 @@ export async function checkoutForLink(business: BusinessRow, link: PaymentLinkRo
     "metadata[sevriiBusinessId]": business.id,
     "metadata[sevriiTitle]": link.title.slice(0, 120),
     ...(aff ? { "metadata[sevriiAff]": aff.userId, "metadata[sevriiAffPct]": String(aff.percent) } : {}),
+    // The customer's quick account: their purchase lets them leave a review.
+    ...(customer ? { customer_email: customer.email, "metadata[sevriiCustomer]": customer.id } : {}),
     success_url: `${back}?paid=1&s={CHECKOUT_SESSION_ID}`,
     cancel_url: back,
   };
@@ -337,15 +339,23 @@ export async function getPaidSession(business: BusinessRow, sessionId: string, o
 // What the "back from Stripe" page may say: only what Stripe itself confirms
 // for this exact link (a "?paid=1" typed into the address bar proves nothing).
 export async function paySessionState(business: BusinessRow, sessionId: string, linkId: string): Promise<"paid" | "processing" | null> {
-  if (!business.stripeAccountId || !/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) return null;
+  return (await paySessionInfo(business, sessionId, linkId)).state;
+}
+
+// The same check, with who paid (their quick account) and how much.
+export async function paySessionInfo(business: BusinessRow, sessionId: string, linkId: string): Promise<{ state: "paid" | "processing" | null; customerId: string | null; amountCents: number }> {
+  const none = { state: null, customerId: null, amountCents: 0 };
+  if (!business.stripeAccountId || !/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) return none;
   try {
     const s = await stripe<Session>("GET", `checkout/sessions/${encodeURIComponent(sessionId)}`, {}, { account: business.stripeAccountId });
-    if (s.metadata?.sevriiBusinessId !== business.id || s.metadata?.sevriiLinkId !== linkId) return null;
-    if (s.payment_status === "paid" || s.payment_status === "no_payment_required") return "paid";
-    if (s.status === "complete") return "processing"; // bank payments settle later
-    return null;
+    if (s.metadata?.sevriiBusinessId !== business.id || s.metadata?.sevriiLinkId !== linkId) return none;
+    const customerId = s.metadata?.sevriiCustomer || null;
+    const amountCents = s.amount_total ?? 0;
+    if (s.payment_status === "paid" || s.payment_status === "no_payment_required") return { state: "paid", customerId, amountCents };
+    if (s.status === "complete") return { state: "processing", customerId, amountCents }; // bank payments settle later
+    return none;
   } catch {
-    return null;
+    return none;
   }
 }
 

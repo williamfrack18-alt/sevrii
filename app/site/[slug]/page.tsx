@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { cache, Fragment } from "react";
-import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, recordPageView, addCampaignEvent, campaignBelongs, listAgentReviews, type BusinessRow } from "@/lib/db";
+import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, recordPageView, listBusinessReviews, addCampaignEvent, campaignBelongs, listAgentReviews, type BusinessRow } from "@/lib/db";
 import { cleanCampaignId } from "@/lib/campaignLink";
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
@@ -142,9 +142,11 @@ export default async function PublicBusinessPage({
   const trying = isOwner && !editing && (PAGE_DESIGNS as readonly string[]).includes(designParam);
   const ui = editing || (isOwner && !live) ? await getLang() : "es";
   // Payment links the owner turned on (only when their Stripe account can take payments).
-  const [services, allPayLinks] = await Promise.all([
+  const [services, allPayLinks, reviews] = await Promise.all([
     listServices(business.id),
     business.payStatus === "ready" ? listPaymentLinks(business.id) : Promise.resolve([]),
+    // Verified reviews (only customers who paid): nothing shows until the first one.
+    listBusinessReviews(business.id, 12).catch(() => ({ list: [], avg: null, count: 0 })),
   ]);
   const payLinks = preview ? [] : allPayLinks.filter((l) => l.active).slice(0, 6);
   const payText =
@@ -280,6 +282,8 @@ export default async function PublicBusinessPage({
   const trust: { icon: string; text: string }[] = [];
   if (site.licenseNumber) trust.push({ icon: "✓", text: `${t.license} #${site.licenseNumber}${site.licenseState ? ` (${site.licenseState})` : ""}` });
   if (site.insured) trust.push({ icon: "◇", text: t.insured });
+  if (reviews.count > 0 && reviews.avg !== null)
+    trust.unshift({ icon: "★", text: site.lang === "en" ? `${reviews.avg.toFixed(1)} · ${reviews.count} ${reviews.count === 1 ? "review" : "reviews"}` : `${reviews.avg.toFixed(1)} · ${reviews.count} ${reviews.count === 1 ? "reseña" : "reseñas"}` });
   if (yearsInBusiness) trust.push({ icon: "★", text: t.years(yearsInBusiness) });
   if (site.spanish) trust.push({ icon: "ñ", text: langBadge });
   if (reach.mode === "remote") {
@@ -343,6 +347,7 @@ export default async function PublicBusinessPage({
   } else if (single && ordered[0].price && plainDollars(ordered[0].price) !== null) {
     ld.priceRange = `${dollarPrefix(ordered[0].price)}$${plainDollars(ordered[0].price)}`;
   }
+  if (reviews.count > 0 && reviews.avg !== null) ld.aggregateRating = { "@type": "AggregateRating", ratingValue: reviews.avg, reviewCount: reviews.count };
   const ldJson = JSON.stringify(ld).replace(/</g, "\\u003c");
 
   // The sections under the first screen, each one a block the owner can move,
@@ -526,6 +531,40 @@ export default async function PublicBusinessPage({
               <span className="pay-amount">{usd(l.amountCents)}</span>
               <span className="btn pay pay-cta">💳 {payText.button} →</span>
             </a>
+          ))}
+        </div>
+      </section>
+    ) : null;
+  // Verified reviews: only when there's at least one (a new business shows none).
+  const reviewDate = (iso: string) => (iso ? new Date(iso).toLocaleDateString(site.lang === "en" ? "en-US" : "es-US", { month: "short", year: "numeric" }) : "");
+  const reviewsNode =
+    reviews.count > 0 && reviews.avg !== null ? (
+      <section className="block wrap" id="resenas">
+        <div className="section-head">
+          <span className="eyebrow grad-text">{site.lang === "en" ? "Reviews" : "Reseñas"}</span>
+          <h2>
+            <span className="rv-avg">★ {reviews.avg.toFixed(1)}</span>{" "}
+            <span className="rv-count">{site.lang === "en" ? `${reviews.count} verified ${reviews.count === 1 ? "review" : "reviews"}` : `${reviews.count} ${reviews.count === 1 ? "reseña verificada" : "reseñas verificadas"}`}</span>
+          </h2>
+        </div>
+        <div className="rv-grid">
+          {reviews.list.map((r) => (
+            <article key={r.id} className="rv-card">
+              <div className="rv-stars-row" aria-label={`${r.rating}/5`}>
+                {"★★★★★".slice(0, r.rating)}
+                <span className="rv-off">{"★★★★★".slice(r.rating)}</span>
+              </div>
+              {r.text && <p className="rv-text">{r.text}</p>}
+              <div className="rv-meta">
+                <strong>{r.name}</strong> · {site.lang === "en" ? "Verified purchase" : "Compra verificada"} · {reviewDate(r.createdAt)}
+              </div>
+              {r.reply && (
+                <div className="rv-reply">
+                  <strong>{site.lang === "en" ? `Reply from ${business.name}` : `Respuesta de ${business.name}`}</strong>
+                  <p>{r.reply}</p>
+                </div>
+              )}
+            </article>
           ))}
         </div>
       </section>
@@ -750,6 +789,7 @@ export default async function PublicBusinessPage({
             );
           }
           if (k === "services" && payNode) out.push(<Fragment key="pay">{payNode}</Fragment>);
+          if (k === "photos" && reviewsNode) out.push(<Fragment key="reviews">{reviewsNode}</Fragment>);
           return out;
         })}
       </main>

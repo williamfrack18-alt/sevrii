@@ -2,9 +2,16 @@ import type { Metadata } from "next";
 import { after } from "next/server";
 import { allow, clientIp } from "@/lib/guard";
 import { notifyPaymentReceived } from "@/lib/notify";
-import { getBusinessById, getPaymentLink, getUserById } from "@/lib/db";
+import { randomBytes } from "node:crypto";
+import { getBusinessById, getCustomerById, getPaymentLink, getUserById, recordPurchase, setPurchaseReviewToken } from "@/lib/db";
+import { currentCustomer, hashToken } from "@/lib/customers";
+import { emailReviewLink } from "@/lib/notify";
+import ReviewForm from "@/app/reviews/ReviewForm";
+import QuickAccount from "./QuickAccount";
+import PayWho from "./PayWho";
+import "@/app/reviews/reviews.css";
 import { limitsFor } from "@/lib/billing";
-import { paySessionState } from "@/lib/payments";
+import { paySessionInfo } from "@/lib/payments";
 import { recordAffiliateSessionById } from "@/lib/affiliates";
 import AffRef from "@/app/site/[slug]/AffRef";
 import MetaPixel from "@/app/site/[slug]/MetaPixel";
@@ -93,14 +100,37 @@ export default async function PayPage({
   // Back from Stripe: "received" only when Stripe confirms this payment for
   // this link. Then email the owner (once per payment).
   const sessionId = String(sp.s || "");
+  const customer = available ? await currentCustomer() : null;
   let state: "paid" | "processing" | null = null;
   if (sp.paid === "1" && business && link && /^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) {
     if (await allow(`paynotice:ip:${await clientIp()}`, 30, 60 * 60)) {
-      state = await paySessionState(business, sessionId, link.id);
+      const info = await paySessionInfo(business, sessionId, link.id);
+      state = info.state;
       if (state === "paid") {
         const biz = business;
         after(() => notifyPaymentReceived(biz, sessionId));
         after(() => recordAffiliateSessionById(biz, sessionId));
+        // The purchase (once): it lets the customer review this business. The
+        // review link goes to their email too, for any device.
+        const fresh = await recordPurchase({
+          sessionId,
+          businessId: biz.id,
+          customerId: info.customerId,
+          linkId: link.id,
+          conversationId: link.conversationId,
+          amountCents: info.amountCents || link.amountCents,
+          title: link.title,
+        }).catch(() => false);
+        if (fresh && info.customerId) {
+          const cid = info.customerId;
+          after(async () => {
+            const c = await getCustomerById(cid);
+            if (!c) return;
+            const token = randomBytes(32).toString("hex");
+            await setPurchaseReviewToken(sessionId, hashToken(token));
+            await emailReviewLink(biz, c.email, c.name, token);
+          });
+        }
       }
     }
   }
@@ -138,6 +168,7 @@ export default async function PayPage({
             <div className="pay-amount small">
               {link.title} · {money(link.amountCents)}
             </div>
+            {state === "paid" && <ReviewForm businessId={business.id} businessName={business.name} lang={lang} />}
           </div>
         ) : available && link ? (
           <>
@@ -145,12 +176,19 @@ export default async function PayPage({
             {link.description && <p className="pay-desc">{link.description}</p>}
             <div className="pay-amount">{money(link.amountCents)}</div>
             {sp.error && <p className="pay-error">{sp.error === "rate" ? t.rate : t.error}</p>}
-            <form action={payAction}>
-              <input type="hidden" name="id" value={link.id} />
-              <button type="submit" className="pay-btn">
-                {t.pay(money(link.amountCents))}
-              </button>
-            </form>
+            {customer ? (
+              <>
+                <PayWho name={customer.name} email={customer.email} lang={lang} />
+                <form action={payAction}>
+                  <input type="hidden" name="id" value={link.id} />
+                  <button type="submit" className="pay-btn">
+                    {t.pay(money(link.amountCents))}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <QuickAccount lang={lang} />
+            )}
             <p className="pay-secure">🔒 {t.secure}</p>
           </>
         ) : (

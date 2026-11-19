@@ -6,6 +6,7 @@ import { limitsFor } from "@/lib/billing";
 import { allow, clientIp } from "@/lib/guard";
 import { checkoutForLink, refreshPayStatus } from "@/lib/payments";
 import { affiliateForCheckout } from "@/lib/affiliates";
+import { currentCustomer } from "@/lib/customers";
 
 // A client tapped "Pay": open Stripe Checkout on the business's own account.
 export async function payAction(formData: FormData): Promise<void> {
@@ -31,7 +32,11 @@ export async function payAction(formData: FormData): Promise<void> {
       link.affiliateUserId && link.affiliatePct && link.affiliateUserId !== business.userId
         ? { userId: link.affiliateUserId, percent: link.affiliatePct }
         : await affiliateForCheckout(business);
-    url = await checkoutForLink(business, link, aff);
+    // Paying needs the customer's quick account (name + email): their purchase
+    // is what lets them leave a verified review.
+    const customer = await currentCustomer();
+    if (!customer) redirect(back);
+    url = await checkoutForLink(business, link, aff, { id: customer.id, email: customer.email });
   } catch (err) {
     // redirect() throws on purpose; let it through.
     if ((err as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) throw err;

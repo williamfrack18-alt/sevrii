@@ -591,6 +591,59 @@ async function migrate(): Promise<void> {
           PRIMARY KEY ("businessId", day, hash)
         )
       `;
+      // Verified reviews: a customer makes a quick account (name + email) when
+      // paying, every paid checkout is a purchase, and only someone who bought
+      // can review that business (one review each, editable). The owner can
+      // answer in public or report it; only Sevrii hides one.
+      await sql`
+        CREATE TABLE IF NOT EXISTS customers (
+          id TEXT PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL DEFAULT '',
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS customer_sessions (
+          "tokenHash" TEXT PRIMARY KEY,
+          "customerId" TEXT NOT NULL,
+          "expiresAt" TIMESTAMPTZ NOT NULL
+        )
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS purchases (
+          "sessionId" TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          "customerId" TEXT,
+          "linkId" TEXT,
+          "conversationId" TEXT,
+          "amountCents" INTEGER NOT NULL DEFAULT 0,
+          title TEXT NOT NULL DEFAULT '',
+          "reviewTokenHash" TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS purchases_customer_idx ON purchases ("customerId", "businessId")`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS purchases_review_token_idx ON purchases ("reviewTokenHash") WHERE "reviewTokenHash" IS NOT NULL`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS business_reviews (
+          id TEXT PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          "customerId" TEXT NOT NULL,
+          rating INTEGER NOT NULL,
+          text TEXT NOT NULL DEFAULT '',
+          name TEXT NOT NULL DEFAULT '',
+          reply TEXT NOT NULL DEFAULT '',
+          "replyAt" TIMESTAMPTZ,
+          reported BOOLEAN NOT NULL DEFAULT false,
+          "reportReason" TEXT NOT NULL DEFAULT '',
+          hidden BOOLEAN NOT NULL DEFAULT false,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          UNIQUE ("businessId", "customerId")
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS business_reviews_biz_idx ON business_reviews ("businessId", "createdAt" DESC)`;
       await sql`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "affiliateUserId" TEXT`;
       await sql`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "affiliatePct" INTEGER`;
       await sql`ALTER TABLE payment_links ADD COLUMN IF NOT EXISTS "conversationId" TEXT`;
@@ -1834,6 +1887,8 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM payment_links WHERE "businessId" = ${id}`;
   await sql`DELETE FROM payment_notices WHERE "businessId" = ${id}`;
   await sql`DELETE FROM page_stats WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM business_reviews WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM purchases WHERE "businessId" = ${id}`;
   await sql`DELETE FROM page_visitors WHERE "businessId" = ${id}`;
   await sql`DELETE FROM leads WHERE "businessId" = ${id}`;
   await sql`DELETE FROM conv_messages WHERE "conversationId" IN (SELECT id FROM conversations WHERE "businessId" = ${id})`;
@@ -1868,6 +1923,8 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM payment_links WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM payment_notices WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM page_stats WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM business_reviews WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM purchases WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM page_visitors WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM leads WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM conv_messages WHERE "conversationId" IN (SELECT id FROM conversations WHERE "businessId" = ANY(${ids}))`;
@@ -2952,4 +3009,147 @@ export async function claimMarketingAction(businessId: string, id: string): Prom
 export async function finishMarketingAction(businessId: string, id: string, status: "done" | "failed" | "cancelled", result: string): Promise<void> {
   await ensureSchema();
   await sql`UPDATE marketing_actions SET status = ${status}, result = ${result.slice(0, 600)}, "updatedAt" = now() WHERE id = ${id} AND "businessId" = ${businessId}`;
+}
+
+// ---------- Customers, purchases and verified reviews ----------
+export type CustomerRow = { id: string; email: string; name: string };
+
+export async function upsertCustomer(email: string, name: string): Promise<CustomerRow> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO customers (id, email, name) VALUES (${newId()}, ${email}, ${name})
+    ON CONFLICT (email) DO UPDATE SET name = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE customers.name END
+    RETURNING id, email, name
+  `) as CustomerRow[];
+  return rows[0];
+}
+
+export async function createCustomerSession(customerId: string, tokenHash: string, expiresAt: Date): Promise<void> {
+  await ensureSchema();
+  await sql`INSERT INTO customer_sessions ("tokenHash", "customerId", "expiresAt") VALUES (${tokenHash}, ${customerId}, ${expiresAt.toISOString()})`;
+}
+
+export async function getCustomerBySession(tokenHash: string): Promise<CustomerRow | null> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT c.id, c.email, c.name FROM customer_sessions s JOIN customers c ON c.id = s."customerId"
+    WHERE s."tokenHash" = ${tokenHash} AND s."expiresAt" > now()
+  `) as CustomerRow[];
+  return rows[0] ?? null;
+}
+
+export async function deleteCustomerSession(tokenHash: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM customer_sessions WHERE "tokenHash" = ${tokenHash}`;
+}
+
+export async function getCustomerById(id: string): Promise<CustomerRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT id, email, name FROM customers WHERE id = ${id}`) as CustomerRow[];
+  return rows[0] ?? null;
+}
+
+// A paid checkout (once per Stripe session). True only the first time.
+export async function recordPurchase(p: { sessionId: string; businessId: string; customerId: string | null; linkId: string | null; conversationId: string | null; amountCents: number; title: string }): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO purchases ("sessionId", "businessId", "customerId", "linkId", "conversationId", "amountCents", title)
+    VALUES (${p.sessionId}, ${p.businessId}, ${p.customerId}, ${p.linkId}, ${p.conversationId}, ${p.amountCents}, ${p.title})
+    ON CONFLICT ("sessionId") DO NOTHING RETURNING "sessionId"
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+export async function setPurchaseReviewToken(sessionId: string, tokenHash: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE purchases SET "reviewTokenHash" = ${tokenHash} WHERE "sessionId" = ${sessionId}`;
+}
+
+export async function purchaseByReviewToken(tokenHash: string): Promise<{ businessId: string; customerId: string | null } | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT "businessId", "customerId" FROM purchases WHERE "reviewTokenHash" = ${tokenHash}`) as { businessId: string; customerId: string | null }[];
+  return rows[0] ?? null;
+}
+
+export async function customerBoughtFrom(customerId: string, businessId: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`SELECT 1 FROM purchases WHERE "customerId" = ${customerId} AND "businessId" = ${businessId} LIMIT 1`) as unknown[];
+  return rows.length > 0;
+}
+
+export type BusinessReviewRow = {
+  id: string;
+  businessId: string;
+  customerId: string;
+  rating: number;
+  text: string;
+  name: string;
+  reply: string;
+  replyAt: string | null;
+  reported: boolean;
+  hidden: boolean;
+  createdAt: string;
+};
+
+function bizReviewRow(r: Record<string, unknown>): BusinessReviewRow {
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : "");
+  return {
+    id: String(r.id),
+    businessId: String(r.businessId),
+    customerId: String(r.customerId),
+    rating: Number(r.rating),
+    text: String(r.text ?? ""),
+    name: String(r.name ?? ""),
+    reply: String(r.reply ?? ""),
+    replyAt: r.replyAt ? iso(r.replyAt) : null,
+    reported: Boolean(r.reported),
+    hidden: Boolean(r.hidden),
+    createdAt: iso(r.createdAt),
+  };
+}
+
+export async function saveBusinessReview(r: { businessId: string; customerId: string; rating: number; text: string; name: string }): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO business_reviews (id, "businessId", "customerId", rating, text, name)
+    VALUES (${newId()}, ${r.businessId}, ${r.customerId}, ${r.rating}, ${r.text}, ${r.name})
+    ON CONFLICT ("businessId", "customerId") DO UPDATE SET rating = EXCLUDED.rating, text = EXCLUDED.text, name = EXCLUDED.name, "updatedAt" = now()
+  `;
+}
+
+export async function getBusinessReview(businessId: string, customerId: string): Promise<BusinessReviewRow | null> {
+  await ensureSchema();
+  const rows = (await sql`SELECT * FROM business_reviews WHERE "businessId" = ${businessId} AND "customerId" = ${customerId}`) as Record<string, unknown>[];
+  return rows[0] ? bizReviewRow(rows[0]) : null;
+}
+
+// Public: what the page shows (hidden ones never). Owner: every review.
+export async function listBusinessReviews(businessId: string, limit = 20, owner = false): Promise<{ list: BusinessReviewRow[]; avg: number | null; count: number }> {
+  await ensureSchema();
+  const [rows, agg] = await Promise.all([
+    owner
+      ? sql`SELECT * FROM business_reviews WHERE "businessId" = ${businessId} ORDER BY "createdAt" DESC LIMIT ${limit}`
+      : sql`SELECT * FROM business_reviews WHERE "businessId" = ${businessId} AND hidden = false ORDER BY "createdAt" DESC LIMIT ${limit}`,
+    sql`SELECT AVG(rating)::float AS avg, COUNT(*)::int AS n FROM business_reviews WHERE "businessId" = ${businessId} AND hidden = false`,
+  ]);
+  const a = (agg as { avg: number | null; n: number }[])[0];
+  return { list: (rows as Record<string, unknown>[]).map(bizReviewRow), avg: a?.n ? Math.round((a.avg ?? 0) * 10) / 10 : null, count: a?.n ?? 0 };
+}
+
+export async function replyBusinessReview(businessId: string, id: string, reply: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE business_reviews SET reply = ${reply}, "replyAt" = ${reply ? new Date().toISOString() : null}
+    WHERE id = ${id} AND "businessId" = ${businessId} RETURNING id
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+export async function reportBusinessReview(businessId: string, id: string, reason: string): Promise<boolean> {
+  await ensureSchema();
+  const rows = (await sql`
+    UPDATE business_reviews SET reported = true, "reportReason" = ${reason}
+    WHERE id = ${id} AND "businessId" = ${businessId} RETURNING id
+  `) as unknown[];
+  return rows.length > 0;
 }
