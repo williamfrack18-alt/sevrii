@@ -24,7 +24,7 @@ export default async function AffiliatePanelPage() {
           </Link>
         </div>
       </div>
-      <AffiliatesView business={user.business ? toClientBusiness(user.business) : null} />
+      <AffiliatesView side="promoter" business={user.business ? toClientBusiness(user.business) : null} />
     </div>
   );
 }

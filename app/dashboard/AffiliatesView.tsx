@@ -143,12 +143,16 @@ const TEXT = {
   },
 };
 
-export default function AffiliatesView({ business, onNavigate }: { business: ClientBusiness | null; onNavigate?: (v: DashboardView) => void }) {
+// Two sides of Affiliates: in the dashboard, the owner's program (open their
+// service so others sell it for a commission); in /panel-afiliado, the
+// affiliate's side (promote services and get paid).
+export default function AffiliatesView({ business, onNavigate, side }: { business: ClientBusiness | null; onNavigate?: (v: DashboardView) => void; side?: "owner" | "promoter" }) {
   const lang = useLang();
   const t = TEXT[lang];
+  const o = OWNER_TEXT[lang];
+  const ownerSide = (side ?? (onNavigate && business ? "owner" : "promoter")) === "owner";
   const cacheKey = `affiliates:${business?.id ?? "none"}`;
   const [state, setState] = useState<AffiliatesState | null>(() => cachedView<AffiliatesState>(cacheKey));
-  const [tab, setTab] = useState<"promote" | "mine">("promote");
   useEffect(() => {
     if (state) putView(cacheKey, state);
   }, [state, cacheKey]);
@@ -169,39 +173,27 @@ export default function AffiliatesView({ business, onNavigate }: { business: Cli
       <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
         <div className="dash-head dash-on-dark flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h1 className="dash-title text-[24px] md:text-[28px] font-semibold text-pfg tracking-tight">{t.title}</h1>
+            <h1 className="dash-title text-[24px] md:text-[28px] font-semibold text-pfg tracking-tight">{ownerSide ? t.title : o.promoterTitle}</h1>
             <a href={lang === "es" ? "/afiliados" : "/en/afiliados"} target="_blank" rel="noreferrer" className="text-[13px] text-psub hover:text-pfg underline underline-offset-4">
               {t.how} ↗
             </a>
           </div>
-          <p className="text-[14.5px] text-psub max-w-[640px] leading-relaxed">{t.sub}</p>
+          <p className="text-[14.5px] text-psub max-w-[640px] leading-relaxed">{ownerSide ? o.ownerSub : o.promoterSub}</p>
         </div>
         <div className="dash-panel p-4 md:p-6 flex flex-col gap-6">
-
-        <div className="inline-flex self-start rounded-full p-1" style={INSET} role="tablist">
-          {(["promote", "mine"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="tab"
-              aria-selected={tab === k}
-              onClick={() => setTab(k)}
-              className="h-9 px-4 rounded-full text-[13.5px] font-medium transition"
-              style={tab === k ? { background: "#0A0A0A", color: "#fff" } : { color: "#27272A" }}
-            >
-              {k === "promote" ? t.tabPromote : t.tabMine}
-            </button>
-          ))}
-        </div>
-
         {!state ? (
           <div className="flex justify-center"><SevriiLoader label={t.loading} /></div>
-        ) : tab === "promote" ? (
-          <Promote state={state} t={t} />
+        ) : ownerSide ? (
+          <Mine state={state} setState={setState} t={t} o={o} onNavigate={(v) => (onNavigate ? onNavigate(v) : window.location.assign(`/dashboard?view=${v}`))} />
         ) : (
-          <Mine state={state} setState={setState} t={t} onNavigate={(v) => (onNavigate ? onNavigate(v) : window.location.assign(`/dashboard?view=${v}`))} />
+          <Promote state={state} t={t} />
         )}
         </div>
+        {ownerSide && (
+          <a href="/panel-afiliado" className="dash-on-dark self-start text-[13.5px] text-psub hover:text-pfg underline underline-offset-4">
+            {o.toPromoter} →
+          </a>
+        )}
       </div>
     </div>
   );
@@ -336,15 +328,19 @@ function Promote({ state, t }: { state: AffiliatesState; t: T }) {
   );
 }
 
-function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setState: (s: AffiliatesState) => void; t: T; onNavigate: (v: DashboardView) => void }) {
+function Mine({ state, setState, t, o: ot, onNavigate }: { state: AffiliatesState; setState: (s: AffiliatesState) => void; t: T; o: OT; onNavigate: (v: DashboardView) => void }) {
   const o = state.owner;
   const [form, setForm] = useState<AffiliateSettings | null>(o?.settings ?? null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [copied, setCopied] = useState(false);
   if (!o || !form) return <p className="text-[14px] text-pmuted">{t.nobusiness}</p>;
-  const missing = [!o.published || !o.canPublish ? "publish" : "", !o.payReady ? "payments" : ""].filter(Boolean);
-  // Until the page is published and Payments connected, nothing here can be used.
-  const locked = missing.length > 0;
+  const pageOk = o.published && o.canPublish;
+  const payOk = o.payReady;
+  // Until the page is published and Payments connected, the program can't run.
+  const locked = !pageOk || !payOk;
+  const on = Boolean(o.settings.enabled) && !locked;
+  const invite = "https://www.sevrii.com/ser-afiliado";
 
   async function save(next: AffiliateSettings) {
     setBusy(true);
@@ -360,50 +356,83 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
     setBusy(false);
   }
 
+  const Step = ({ done, n, title, text, action }: { done: boolean; n: number; title: string; text: string; action?: React.ReactNode }) => (
+    <div className="flex items-start gap-3 py-3" style={n > 1 ? { borderTop: `1px solid ${HAIR}` } : undefined}>
+      <span
+        className="h-7 w-7 rounded-full shrink-0 flex items-center justify-center text-[12.5px] font-semibold"
+        style={done ? { background: ACCENT, color: "#fff" } : { background: "rgba(10,10,10,0.07)", color: "#27272A" }}
+      >
+        {done ? "✓" : n}
+      </span>
+      <span className="min-w-0 grow">
+        <span className="block text-[14.5px] font-medium text-pfg">{title}</span>
+        <span className="block text-[13px] text-psub leading-relaxed">{text}</span>
+      </span>
+      {!done && action}
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-5">
-      {missing.length > 0 && (
-        <div className="rounded-[24px] p-4 md:p-5 flex flex-col gap-3" style={{ ...CARD, boxShadow: "0 0 0 1px rgba(245,196,81,0.3)" }}>
-          <span className="text-[14.5px] font-semibold text-pfg">{t.needTitle}</span>
-          {missing.includes("publish") && (
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-[13.5px] text-pfg2">{o.canPublish ? t.needPublish : t.needPlan}</span>
-              <button type="button" onClick={() => onNavigate(o.canPublish ? "store" : "plans")} className="h-9 px-4 rounded-full text-[13px]" style={GHOST}>
-                {o.canPublish ? t.goStore : t.goPlans} →
-              </button>
-            </div>
-          )}
-          {missing.includes("payments") && (
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-[13.5px] text-pfg2">{t.needPayments}</span>
-              <button type="button" onClick={() => onNavigate("payments")} className="h-9 px-4 rounded-full text-[13px]" style={GHOST}>
-                {t.goPayments} →
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <fieldset disabled={locked} aria-disabled={locked} className={`rounded-[24px] p-4 md:p-6 flex flex-col gap-5 min-w-0 ${locked ? "opacity-60" : ""}`} style={CARD}>
-        {locked && <p className="text-[13px] text-psub leading-relaxed">{t.lockedNote}</p>}
-        <label className={`flex items-start justify-between gap-4 ${locked ? "cursor-not-allowed" : "cursor-pointer"}`}>
+      {/* The program: on or off, and what it still needs */}
+      <div className="rounded-[24px] p-4 md:p-6 flex flex-col gap-4" style={CARD}>
+        <div className="flex items-start justify-between gap-4">
           <span className="min-w-0">
-            <span className="block text-[16px] font-semibold text-pfg">{t.open(o.businessName)}</span>
-            <span className="block text-[13.5px] text-psub mt-0.5 leading-relaxed max-w-[560px]">{t.openSub}</span>
+            <span className="flex items-center gap-2 flex-wrap">
+              <span className="text-[17px] font-semibold text-pfg">{ot.programTitle(o.businessName)}</span>
+              <span
+                className="text-[11.5px] font-semibold px-2.5 py-1 rounded-full"
+                style={on ? { background: TINT, color: ACCENT } : locked ? { background: "rgba(245,158,11,0.12)", color: AMBER } : { background: "rgba(10,10,10,0.06)", color: "#52525B" }}
+              >
+                {on ? ot.statusOn : locked ? ot.statusLocked : ot.statusOff}
+              </span>
+            </span>
+            <span className="block text-[13.5px] text-psub mt-1 leading-relaxed max-w-[620px]">{on ? ot.onText : ot.offText}</span>
           </span>
           <button
             type="button"
             role="switch"
-            aria-checked={form.enabled}
+            aria-checked={on}
+            aria-label={ot.toggle}
             disabled={busy || locked}
             onClick={() => save({ ...form, enabled: !form.enabled })}
-            className="relative h-7 w-12 rounded-full shrink-0 transition disabled:opacity-60"
-            style={{ background: form.enabled ? ACCENT : "rgba(10,10,10,0.136)" }}
+            className="relative h-7 w-12 rounded-full shrink-0 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: on ? ACCENT : "rgba(10,10,10,0.136)" }}
           >
-            <span className="absolute top-1 h-5 w-5 rounded-full bg-white transition-all" style={{ left: form.enabled ? 26 : 4 }} />
+            <span className="absolute top-1 h-5 w-5 rounded-full bg-white transition-all" style={{ left: on ? 26 : 4 }} />
           </button>
-        </label>
+        </div>
+        <div className="rounded-2xl px-4" style={INSET}>
+          <Step
+            n={1}
+            done={pageOk}
+            title={ot.stepPage}
+            text={pageOk ? ot.stepPageOk : o.canPublish ? ot.stepPageTodo : ot.stepPlanTodo}
+            action={
+              <button type="button" onClick={() => onNavigate(o.canPublish ? "store" : "plans")} className="h-9 px-4 rounded-full text-[13px] shrink-0 self-center" style={GHOST}>
+                {o.canPublish ? t.goStore : t.goPlans} →
+              </button>
+            }
+          />
+          <Step
+            n={2}
+            done={payOk}
+            title={ot.stepPay}
+            text={payOk ? ot.stepPayOk : ot.stepPayTodo}
+            action={
+              <button type="button" onClick={() => onNavigate("payments")} className="h-9 px-4 rounded-full text-[13px] shrink-0 self-center" style={GHOST}>
+                {t.goPayments} →
+              </button>
+            }
+          />
+          <Step n={3} done={on} title={ot.stepOn} text={on ? ot.stepOnOk : ot.stepOnTodo} />
+        </div>
+      </div>
 
+      {/* Commission and the note for affiliates */}
+      <fieldset disabled={locked} aria-disabled={locked} className={`rounded-[24px] p-4 md:p-6 flex flex-col gap-5 min-w-0 ${locked ? "opacity-60" : ""}`} style={CARD}>
+        <span className="text-[15px] font-semibold text-pfg">{ot.settingsTitle}</span>
+        {locked && <p className="text-[13px] text-psub leading-relaxed -mt-3">{t.lockedNote}</p>}
         <div className="flex flex-col gap-2">
           <span className="text-[13.5px] text-pfg font-medium">{t.percent}</span>
           <div className="flex items-center gap-4">
@@ -420,9 +449,9 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
           </div>
           <span className="text-[12.5px] text-pmuted leading-relaxed">{t.example(form.percent)}</span>
         </div>
-
         <div className="flex flex-col gap-2">
           <span className="text-[13.5px] text-pfg font-medium">{t.pitch}</span>
+          <span className="text-[12.5px] text-pmuted leading-relaxed -mt-1">{ot.pitchHelp}</span>
           <textarea
             rows={3}
             maxLength={600}
@@ -433,7 +462,6 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
             style={INSET}
           />
         </div>
-
         <div className="flex items-center gap-3">
           <button type="button" disabled={busy || locked} onClick={() => save(form)} className="h-10 px-5 rounded-full text-[14px] font-semibold disabled:opacity-60 disabled:cursor-not-allowed" style={BRAND_BTN}>
             {busy ? t.saving : t.save}
@@ -441,6 +469,44 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
           {msg && <span className="text-[13px]" style={{ color: msg === t.saved ? ACCENT : "#DC2626" }}>{msg}</span>}
         </div>
       </fieldset>
+
+      {/* How it works for the owner */}
+      <div className="rounded-[24px] p-4 md:p-6 flex flex-col gap-3" style={CARD}>
+        <span className="text-[15px] font-semibold text-pfg">{ot.rulesTitle}</span>
+        <ul className="flex flex-col gap-2.5">
+          {ot.rules.map((r) => (
+            <li key={r} className="flex gap-2.5 text-[13.5px] text-pfg2 leading-relaxed">
+              <span className="shrink-0 mt-[1px]" style={{ color: ACCENT }}>✓</span>
+              <span>{r}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Getting affiliates */}
+      <div className="rounded-[24px] p-4 md:p-6 flex flex-col gap-3" style={CARD}>
+        <span className="text-[15px] font-semibold text-pfg">{ot.inviteTitle}</span>
+        <span className="text-[13.5px] text-psub leading-relaxed max-w-[700px]">{ot.inviteText}</span>
+        <div className="flex gap-2 items-center flex-wrap">
+          <input readOnly value={invite} onFocus={(e) => e.currentTarget.select()} className="flex-1 min-w-[220px] h-10 rounded-xl px-4 text-[13.5px] text-pfg outline-none" style={INSET} />
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard
+                ?.writeText(invite)
+                .then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1600);
+                })
+                .catch(() => {});
+            }}
+            className="h-10 px-4 rounded-full text-[13.5px] font-medium shrink-0"
+            style={GHOST}
+          >
+            {copied ? t.copied : t.copy}
+          </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
@@ -460,6 +526,80 @@ function Mine({ state, setState, t, onNavigate }: { state: AffiliatesState; setS
     </div>
   );
 }
+
+const OWNER_TEXT = {
+  es: {
+    ownerSub: "Deja que otras personas vendan tu servicio por ti. Tú pones la comisión y solo pagas cuando un afiliado te trae una venta.",
+    promoterTitle: "Gana como afiliado",
+    promoterSub: "Recomienda servicios con tu link y gana la comisión que pone cada negocio por cada cliente que pague.",
+    toPromoter: "¿También quieres ganar recomendando servicios de otros? Abre tu panel de afiliado",
+    programTitle: (n: string) => `Programa de afiliados de ${n}`,
+    statusOn: "Activo",
+    statusOff: "Apagado",
+    statusLocked: "Falta completar",
+    toggle: "Activar o apagar el programa de afiliados",
+    onText: "Tu servicio aparece en el panel de los afiliados con tu comisión. Cada venta que te traigan por Sevrii les paga su parte, sola.",
+    offText: "Cuando lo actives, tu servicio aparece en el panel de los afiliados para que lo recomienden con su link.",
+    stepPage: "Página publicada",
+    stepPageOk: "Tu página está publicada.",
+    stepPageTodo: "Publícala en Store: los afiliados mandan a sus clientes a tu página.",
+    stepPlanTodo: "Publicar y tener afiliados vienen con el plan Starter.",
+    stepPay: "Payments conectado",
+    stepPayOk: "Tus clientes pueden pagarte por Sevrii.",
+    stepPayTodo: "La comisión solo se puede calcular en pagos hechos por Sevrii: conecta Payments.",
+    stepOn: "Programa activado",
+    stepOnOk: "Los afiliados ya pueden recomendar tu servicio.",
+    stepOnTodo: "Elige tu comisión, escribe tu mensaje y activa el programa con el interruptor de arriba.",
+    settingsTitle: "Comisión y mensaje",
+    pitchHelp: "Lo leen los afiliados antes de recomendarte: a quién le sirve tu servicio, qué decir y qué no prometer.",
+    rulesTitle: "Cómo funciona para ti",
+    rules: [
+      "Solo pagas por ventas: cuando el cliente paga por Sevrii (un link de pago, el botón «Cobrar» de Conversaciones o el acceso a tu agente).",
+      "Cada visita que llega por el link de un afiliado cuenta 30 días. Si ese cliente te escribe, lo verás marcado como «Afiliado» en Conversaciones.",
+      "La comisión se descuenta del pago junto con el 5% de Payments, y Sevrii se la paga al afiliado 30 días después.",
+      "Si reembolsas un pago o el cliente lo disputa, la comisión se anula.",
+      "Puedes cambiar la comisión o apagar el programa cuando quieras; lo ya vendido se paga con la comisión de ese momento.",
+    ],
+    inviteTitle: "Consigue afiliados",
+    inviteText: "Invita a clientes felices, creadores o promotores a recomendarte. Con este link crean su cuenta de afiliado gratis y, si tu programa está activo, ven tu servicio y su link para compartirlo.",
+  },
+  en: {
+    ownerSub: "Let other people sell your service for you. You set the commission and only pay when an affiliate brings you a sale.",
+    promoterTitle: "Earn as an affiliate",
+    promoterSub: "Recommend services with your link and earn the commission each business sets for every customer who pays.",
+    toPromoter: "Want to earn by recommending other people's services too? Open your affiliate panel",
+    programTitle: (n: string) => `${n} affiliate program`,
+    statusOn: "On",
+    statusOff: "Off",
+    statusLocked: "Needs setup",
+    toggle: "Turn the affiliate program on or off",
+    onText: "Your service shows in affiliates' panel with your commission. Every sale they bring through Sevrii pays their share automatically.",
+    offText: "Once you turn it on, your service shows in affiliates' panel so they can recommend it with their link.",
+    stepPage: "Page published",
+    stepPageOk: "Your page is published.",
+    stepPageTodo: "Publish it in Store: affiliates send their customers to your page.",
+    stepPlanTodo: "Publishing and affiliates come with the Starter plan.",
+    stepPay: "Payments connected",
+    stepPayOk: "Your customers can pay you through Sevrii.",
+    stepPayTodo: "Commissions can only be worked out on payments made through Sevrii: connect Payments.",
+    stepOn: "Program on",
+    stepOnOk: "Affiliates can now recommend your service.",
+    stepOnTodo: "Pick your commission, write your note and turn the program on with the switch above.",
+    settingsTitle: "Commission and note",
+    pitchHelp: "Affiliates read it before recommending you: who your service is for, what to say and what not to promise.",
+    rulesTitle: "How it works for you",
+    rules: [
+      "You only pay for sales: when the customer pays through Sevrii (a payment link, the «Charge» button in Conversations or access to your agent).",
+      "Each visit through an affiliate's link counts for 30 days. If that customer messages you, you'll see them marked «Affiliate» in Conversations.",
+      "The commission is taken from the payment along with Payments' 5%, and Sevrii pays it to the affiliate 30 days later.",
+      "If you refund a payment or the customer disputes it, the commission is voided.",
+      "You can change the commission or turn the program off anytime; what's already sold is paid at the commission of that moment.",
+    ],
+    inviteTitle: "Get affiliates",
+    inviteText: "Invite happy customers, creators or promoters to recommend you. With this link they create a free affiliate account and, if your program is on, they see your service and their link to share it.",
+  },
+};
+type OT = (typeof OWNER_TEXT)["es"];
 
 function Sales({ title, empty, sales, t }: { title: string; empty: string; sales: AffSale[]; t: T }) {
   const lang = useLang();
