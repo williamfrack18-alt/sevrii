@@ -178,7 +178,11 @@ export function BuyActions({
   chat,
   ctaNote,
   lang,
+  chatOnly = false,
 }: {
+  // The packages are already listed under the photos (with their own buttons):
+  // no picker or price box here, so the chat comes right up.
+  chatOnly?: boolean;
   services: ChoiceService[];
   labels: { chooseLabel: string; selected: string; priceOnRequest: string; payNow: string };
   chat: { slug: string; businessName: string; logoUrl: string; ownerName: string; ownerPhoto: string; lang: Lang; campaign?: string; agent?: ChatAgent | null; hello?: string } | null;
@@ -187,11 +191,11 @@ export function BuyActions({
 }) {
   const [sel, setSel] = useState(0);
   const [picked, setPicked] = useState<string | undefined>();
-  const svc = services[sel];
+  const svc = chatOnly ? undefined : services[sel];
 
   return (
     <>
-      {services.length > 1 && (
+      {!chatOnly && services.length > 1 && (
         <div className="selector">
           <div className="selector-label">{labels.chooseLabel}</div>
           <div className="chip-row">

@@ -719,6 +719,7 @@ export default async function PublicBusinessPage({
               chat={hasChat && !editing ? { slug: business.slug, businessName: business.name, logoUrl: site.logoUrl, ownerName: site.ownerName, ownerPhoto: site.ownerPhotoUrl, lang: site.lang, campaign: campaign || undefined, agent: chatAgent, hello } : null}
               ctaNote={site.ctaNote}
               lang={site.lang}
+              chatOnly={onTop("packages") && ordered.length > 1}
               labels={{ chooseLabel: t.chooseLabel, selected: t.selected, priceOnRequest: t.priceOnRequest, payNow: t.payNow }}
             />
           </div>
