@@ -825,7 +825,7 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
 .chat-glass [style*="color: rgb(21, 128, 61)"],
 .chat-glass [style*="color:#15803D" i],
 .chat-glass [style*="color: rgb(20, 83, 45)"],
-.chat-glass [style*="color:#14532D" i] { color: #4ADE80 !important; }
+.chat-glass [style*="color:#14532D" i] { color: #86CFA5 !important; }
 .chat-dark .chat-surface [style*="color: rgb(120, 53, 15)"],
 .chat-dark .chat-surface [style*="color:#78350F" i],
 .chat-dark .chat-surface [style*="color: rgb(180, 83, 9)"],
@@ -1002,3 +1002,108 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
     border-radius: 16px;
   }
 }
+
+/* ==================================================================
+   Redesign (Nov 2026): every section sits on Sevrii's dark green, the
+   same gradient as the chats, and stays minimal: the work is in faint
+   glass panels with white text, buttons are white pills, and green is
+   only for small "on / done" marks (never a bright green). Components
+   built for the light panel are re-coloured by .chat-glass, which the
+   main frame carries (see DashboardTabs); the extra rules are below.
+   ================================================================== */
+.theme-panel.dash-dark { background: #020a06; }
+.dash-dark .dash-rail {
+  background:
+    radial-gradient(ellipse 130% 45% at 0% 0%, rgba(28, 90, 61, 0.5), transparent 70%),
+    #03100a !important;
+  box-shadow: none !important;
+}
+.dash-dark .dash-main {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 108%, rgba(34, 197, 94, 0.16), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(22, 163, 74, 0.08), transparent 70%),
+    linear-gradient(180deg, #050605 0%, #06110a 45%, #0a2716 100%);
+}
+.dash-dark .chat-screen { background: transparent; }
+.dash-dark .dash-rail .dash-nav.on svg { color: #fff; }
+.dash-dark .dash-head .dash-stage .dash-stage-on { background: rgba(134, 207, 165, 0.14) !important; color: #86CFA5 !important; }
+@media (min-width: 768px) {
+  .dash-dark .dash-main { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07); }
+}
+
+/* The section panels: faint glass instead of white */
+.dash-dark .dash-panel:not(.chat-dark) {
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.92);
+}
+.dash-panel .sevrii-loader-logo,
+.chat-glass .bg-white .sevrii-loader-logo,
+.chat-glass .p-card .sevrii-loader-logo {
+  background: linear-gradient(115deg, #ffffff 0%, #ffffff 35%, #3ddc84 50%, #ffffff 65%, #ffffff 100%);
+  background-size: 300% 100%;
+}
+.dash-panel .sevrii-loader-ring::before { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08); }
+
+/* More light pieces, re-coloured for the green */
+.chat-glass .p-inset,
+.chat-glass .bg-cream,
+.chat-glass .bg-mint,
+.chat-glass .seg,
+.chat-glass .p-chip,
+.chat-glass .card {
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09) !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  color: #fff;
+}
+.chat-glass .p-chip:hover { background: rgba(255, 255, 255, 0.12) !important; }
+.chat-glass .p-chip.on,
+.chat-glass .seg-btn.on,
+.chat-glass .btn-primary,
+.chat-glass .p-btn.light { background: #fff !important; color: #0a0a0a !important; }
+.chat-glass .seg-btn { color: rgba(255, 255, 255, 0.62); }
+.chat-glass .btn-ghost { background: transparent !important; color: #fff !important; border-color: rgba(255, 255, 255, 0.2) !important; }
+.chat-glass .input { background: rgba(0, 0, 0, 0.28) !important; color: #fff !important; border-color: rgba(255, 255, 255, 0.14) !important; }
+.chat-glass .text-ink { color: #fff !important; }
+.chat-glass .text-muted { color: rgba(255, 255, 255, 0.62) !important; }
+.chat-glass .text-mutedLight { color: rgba(255, 255, 255, 0.45) !important; }
+.chat-glass .border-border { border-color: rgba(255, 255, 255, 0.09) !important; }
+.chat-glass .bg-border,
+.chat-glass .bg-black\/\[0\.06\],
+.chat-glass .bg-black\/10 { background: rgba(255, 255, 255, 0.1) !important; }
+.chat-glass .hover\:bg-psoft:hover,
+.chat-glass .hover\:bg-black\/\[0\.04\]:hover,
+.chat-glass .hover\:bg-black\/\[0\.05\]:hover,
+.chat-glass .hover\:bg-black\/\[0\.06\]:hover { background: rgba(255, 255, 255, 0.08) !important; }
+.chat-glass .hover\:text-pfg:hover { color: #fff !important; }
+/* Dark hairlines (borders and 1px rings) would vanish on the green */
+.chat-glass [style*="solid rgba(10, 10, 10"],
+.chat-glass [style*="solid rgba(10,10,10"] { border-color: rgba(255, 255, 255, 0.09) !important; }
+.chat-glass [style*="rgba(10, 10, 10, 0.0"][style*="0px 0px 0px 1px"],
+.chat-glass [style*="rgba(10, 10, 10, 0.1"][style*="0px 0px 0px 1px"],
+.chat-glass [style*="0 0 0 1px rgba(10,10,10"],
+.chat-glass [style*="0 0 0 1px rgba(10, 10, 10"] { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important; }
+/* A white chat or page shown as a picture stays white */
+.chat-glass .agent-look, .chat-glass iframe { color-scheme: light; }
+/* Windows opened over a section get a solid green, not glass */
+.chat-glass [aria-modal="true"] .bg-pbg,
+.chat-glass [role="dialog"] .bg-pbg,
+.chat-glass [role="menu"],
+.chat-glass [role="listbox"] {
+  background: #07160d !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 24px 60px -20px rgba(0, 0, 0, 0.8) !important;
+}
+/* The phone menu sheet */
+.dash-dark .dash-sheet { background: #07160d; color: #fff; }
+.dash-dark .dash-sheet-row { color: #fff; }
+.dash-dark .dash-sheet-row:active { background: rgba(255, 255, 255, 0.06); }
+.dash-dark .dash-sheet-row svg:first-child { color: rgba(255, 255, 255, 0.6); }
+.dash-dark .dash-sheet-row.on svg:first-child { color: #86CFA5; }
+.dash-dark .dash-sheet .text-pfg { color: #fff; }
+.dash-dark .dash-sheet .text-pmuted, .dash-dark .dash-sheet .text-pfaint { color: rgba(255, 255, 255, 0.55); }
+.dash-dark .dash-sheet .bg-black\/10, .dash-dark .dash-sheet .bg-black\/\[0\.06\] { background: rgba(255, 255, 255, 0.12); }
+.dash-dark .dash-tab-badge { box-shadow: 0 0 0 2px #03100a; }
+/* The chat's own composer keeps its glass pill (no box inside it) */
+.chat-glass .chat-dark textarea.chat-input,
+.chat-glass .chat-dark input.chat-input { background: transparent !important; box-shadow: none !important; }

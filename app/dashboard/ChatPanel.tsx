@@ -82,7 +82,7 @@ const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mov|mp4|webm)$/i
 const SOFT = "rgba(255,255,255,0.92)";
 const DIM = "rgba(255,255,255,0.6)";
 const GLASS = { background: "rgba(255,255,255,0.07)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1)" } as const;
-const LIVE = "#4ADE80";
+const LIVE = "#86CFA5";
 
 // Sevrii's chat: a dark green gradient panel, Sevrii's mark beside each
 // reply (turning while it thinks or writes, with a soft sound when a reply
@@ -106,6 +106,7 @@ export default function ChatPanel({
   head,
   dock,
   dockLabel,
+  dockInChat = false,
   chips,
   // The microphone is in every chat (Brain, Store, Agent, Marketing).
   voice = true,
@@ -149,6 +150,9 @@ export default function ChatPanel({
   // behind a summary button above the composer on phones and tablets.
   dock?: React.ReactNode;
   dockLabel?: string;
+  // Cerebro: the card goes inside the conversation, as its last item (no side
+  // panel, no button above the composer).
+  dockInChat?: boolean;
   chips?: ChatChip[];
   // Microphone (dictate and send) and replies read aloud, when the browser supports them.
   voice?: boolean;
@@ -823,6 +827,7 @@ export default function ChatPanel({
           })}
           {/* What follows a reply (e.g. the part to review) shows once the reply is written. */}
           {!revealing && tail && <div className="chat-surface">{tail}</div>}
+          {dockInChat && dock && !revealing && <div className="chat-surface">{dock}</div>}
           {uploadRow}
           {waiting && (
             <div className="flex items-center gap-3 min-h-6 text-[14px]" style={{ color: DIM }} role="status" aria-live="polite">
@@ -842,7 +847,7 @@ export default function ChatPanel({
       {!composerInline && (
       <div className="shrink-0 px-4 md:px-6 pt-1 md:pt-0 pb-3">
         <div className="max-w-[760px] mx-auto">
-          {dock && (
+          {dock && !dockInChat && (
             <button
               type="button"
               onClick={() => setDockOpen(true)}
@@ -865,14 +870,14 @@ export default function ChatPanel({
     </div>
 
     {/* Wide screens: the project's card stays beside the conversation */}
-    {dock && (
+    {dock && !dockInChat && (
       <aside className="chat-glass hidden lg:block w-[400px] xl:w-[440px] shrink-0 min-h-0 overflow-y-auto px-5 pt-4 pb-6" aria-label={label}>
         {dock}
       </aside>
     )}
 
     {/* Phones and tablets: the same card in a sheet, back to the chat in one tap */}
-    {dock && dockOpen && (
+    {dock && !dockInChat && dockOpen && (
       <div className="lg:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={label}>
         <button type="button" aria-label={lang === "es" ? "Cerrar" : "Close"} className="absolute inset-0 w-full bg-black/35" onClick={() => setDockOpen(false)} />
         <div className="chat-glass absolute left-0 right-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[28px] px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]" style={{ background: "linear-gradient(180deg, #07130c 0%, #0a2716 100%)" }}>

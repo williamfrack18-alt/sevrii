@@ -395,7 +395,7 @@ function Stat({ label, value, accent = false, onClick }: { label: string; value:
 
 function Tag({ children, green = false }: { children: React.ReactNode; green?: boolean }) {
   return (
-    <span className="h-7 px-3 rounded-full text-[12.5px] font-medium flex items-center" style={green ? { background: GREEN, color: "#fff" } : { background: "rgba(255,255,255,.92)", color: "#0A0A0A" }}>
+    <span className="h-7 px-3 rounded-full text-[12.5px] font-medium flex items-center" style={green ? { background: GREEN, color: "#fff" } : { background: "rgba(255,255,255,.14)", color: "#fff", backdropFilter: "blur(8px)" }}>
       {children}
     </span>
   );

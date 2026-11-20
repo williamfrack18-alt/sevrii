@@ -445,6 +445,7 @@ export default function PlanView({
           tailKey={`${tailKey}:${notice}:${pipeErr}`}
           composerInline={plan.mode !== "agent" && (plan.stage === "choose" || plan.stage === "proposal")}
           dock={dock}
+          dockInChat
           dockLabel={plan.stage === "approved" || plan.stage === "proposal" ? (lang === "es" ? "Tu estrategia" : "Your strategy") : lang === "es" ? "Lo que ya sé de ti" : "What I know about you"}
           onSend={async (text) => {
             const res = await sendPlanChatAction(text, bizRef.current.id);

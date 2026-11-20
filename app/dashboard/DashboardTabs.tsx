@@ -444,7 +444,7 @@ export default function DashboardTabs({
       {moreOpen && (
         <div className="md:hidden fixed inset-0 z-[45]" role="dialog" aria-modal="true" aria-label={lang === "es" ? "Menú" : "Menu"}>
           <button type="button" aria-label={lang === "es" ? "Cerrar" : "Close"} className="dash-sheet-backdrop" onClick={() => setMoreOpen(false)} />
-          <div className="dash-sheet">
+          <div className="dash-sheet chat-glass">
             <div className="mx-auto mt-2.5 mb-2 h-1 w-10 rounded-full bg-black/10" />
             <div className="px-5 pt-2 pb-3 flex items-center gap-3">
               {avatar}
@@ -707,7 +707,7 @@ export default function DashboardTabs({
       </aside>
 
       {/* Main content */}
-      <main className="dash-main grow min-w-0">
+      <main className="dash-main chat-glass grow min-w-0">
         {view === "projects" && (
           <ProjectsView
             projects={liveProjects}
