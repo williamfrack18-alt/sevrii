@@ -9,8 +9,10 @@ import {
   listReceivedPayments,
   MAX_AMOUNT_CENTS,
   MIN_AMOUNT_CENTS,
+  connectSessionSecret,
   onboardingUrl,
   paymentsReady,
+  stripePublishableKey,
   payLinkUrl,
   refreshPayState,
   type ReceivedPayment,
@@ -26,6 +28,8 @@ export type PaymentsState = {
   error?: "stripe";
   // Payments is part of the paid plan (Starter): the free plan sees what it does.
   allowed: boolean;
+  // Stripe's screens inside the panel (empty: send the owner to Stripe instead).
+  publishableKey?: string;
 };
 
 async function requireBusiness() {
@@ -44,7 +48,7 @@ export async function loadPaymentsAction(): Promise<PaymentsState> {
   const { user, business } = await requireBusiness();
   const links = (await listPaymentLinks(business.id)).map(toClient);
   const allowed = limitsFor(user).payments;
-  const base: PaymentsState = { ready: paymentsReady(), status: (business.payStatus as PayStatus) || "none", links, payments: [], allowed };
+  const base: PaymentsState = { ready: paymentsReady(), status: (business.payStatus as PayStatus) || "none", links, payments: [], allowed, publishableKey: allowed && paymentsReady() ? stripePublishableKey() : "" };
   if (!base.ready || !business.stripeAccountId) return base;
   try {
     const { status, blocked } = await refreshPayState(business);
@@ -70,6 +74,23 @@ export async function startOnboardingAction(): Promise<{ url?: string; error?: "
     const msg = (err as Error)?.message || "";
     console.error("[payments] onboarding failed", msg);
     // The platform hasn't finished turning on Stripe Connect yet.
+    if (/connect/i.test(msg) && /sign(ed)? up|platform|review|activate/i.test(msg)) return { error: "connect" };
+    return { error: "failed" };
+  }
+}
+
+// A session for Stripe's screens inside the panel (sign-up, payments,
+// deposits, account). Stripe's script asks again whenever one runs out.
+export async function connectSessionAction(): Promise<{ secret?: string; error?: "not_ready" | "rate" | "connect" | "failed" | "plan" }> {
+  const { user, business } = await requireBusiness();
+  if (!limitsFor(user).payments) return { error: "plan" };
+  if (!paymentsReady() || !stripePublishableKey()) return { error: "not_ready" };
+  if (!(await allow(`payments:session:${business.id}`, 60, 60 * 60))) return { error: "rate" };
+  try {
+    return { secret: await connectSessionSecret(business, user.email) };
+  } catch (err) {
+    const msg = (err as Error)?.message || "";
+    console.error("[payments] account session failed", msg);
     if (/connect/i.test(msg) && /sign(ed)? up|platform|review|activate/i.test(msg)) return { error: "connect" };
     return { error: "failed" };
   }

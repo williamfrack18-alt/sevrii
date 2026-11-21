@@ -18,6 +18,7 @@ import {
 import type { ClientBusiness, ClientService } from "./types";
 import { offerTarget } from "@/lib/serviceAgentConfig";
 import { activeOffer } from "@/lib/site";
+import { StripeBanner, StripeMoney, StripeOnboarding } from "./StripeEmbedded";
 
 // Same minimum as the server (MIN_AMOUNT_CENTS in lib/payments.ts).
 const MIN_CENTS = 1500;
@@ -64,9 +65,17 @@ export default function PaymentsView({ business, services, onPlans }: { business
   const [state, setState] = useState<PaymentsState | null>(() => cachedView<PaymentsState>(cacheKey));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Stripe's sign-up open right here, inside Sevrii (like Shopify Payments).
+  const [embedOpen, setEmbedOpen] = useState(false);
   useEffect(() => {
     if (state) putView(cacheKey, state);
   }, [state, cacheKey]);
+
+  async function reload() {
+    try {
+      setState(await loadPaymentsAction());
+    } catch {}
+  }
 
   useEffect(() => {
     let alive = true;
@@ -81,6 +90,12 @@ export default function PaymentsView({ business, services, onPlans }: { business
   }, [business.id]);
 
   async function goStripe() {
+    // With Stripe's screens available, the sign-up opens inside the panel.
+    if (state?.publishableKey) {
+      setErr(null);
+      setEmbedOpen(true);
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
@@ -124,11 +139,41 @@ export default function PaymentsView({ business, services, onPlans }: { business
       <div className="dash-panel p-5 md:p-8">
       {state.error && <p className="mb-6 text-[14px] text-red-600">{t.errLoad}</p>}
 
-      {ready ? (
+      {!ready && embedOpen && state.publishableKey ? (
+        <div className="max-w-[820px] min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+            <div className="min-w-0">
+              <h1 className="font-serif text-[28px] md:text-[36px] leading-[1.1] mb-2">{lang === "es" ? "Activa tus cobros" : "Turn on payments"}</h1>
+              <p className="text-[14px] text-muted leading-relaxed max-w-[560px]">
+                {lang === "es"
+                  ? "Lo haces aquí mismo, sin salir de Sevrii. Stripe pide tus datos y tu cuenta de banco para enviarte el dinero; Sevrii nunca ve tus datos bancarios."
+                  : "Right here, without leaving Sevrii. Stripe asks for your details and bank account to send you the money; Sevrii never sees your bank details."}
+              </p>
+            </div>
+            <button type="button" onClick={() => setEmbedOpen(false)} className="btn-ghost shrink-0">
+              {lang === "es" ? "← Volver" : "← Back"}
+            </button>
+          </div>
+          <StripeOnboarding
+            publishableKey={state.publishableKey}
+            businessId={business.id}
+            lang={lang}
+            onExit={() => {
+              setEmbedOpen(false);
+              reload();
+            }}
+          />
+        </div>
+      ) : ready ? (
         <ReadyView state={state} setState={setState} services={services} business={business} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center">
           <div className="min-w-0">
+            {state.publishableKey && state.status !== "none" && (
+              <div className="mb-6">
+                <StripeBanner publishableKey={state.publishableKey} businessId={business.id} lang={lang} />
+              </div>
+            )}
             <h1 className="font-serif text-[32px] md:text-[46px] leading-[1.05] mb-4 break-words">{t.title}</h1>
             <p className="text-muted text-[16px] leading-relaxed max-w-[520px]">{t.lead}</p>
 
@@ -350,10 +395,21 @@ function ReadyView({
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <h1 className="font-serif text-[32px] md:text-[42px] leading-[1.05]">{t.title}</h1>
-        <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer" className="btn-ghost">
-          {t.openStripe} ↗
-        </a>
+        {state.publishableKey ? (
+          <a href="#tu-dinero" className="btn-ghost">
+            {lang === "es" ? "Tu dinero ↓" : "Your money ↓"}
+          </a>
+        ) : (
+          <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer" className="btn-ghost">
+            {t.openStripe} ↗
+          </a>
+        )}
       </div>
+      {state.publishableKey && (
+        <div className="mb-6 empty:hidden">
+          <StripeBanner publishableKey={state.publishableKey} businessId={business.id} lang={lang} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-8">
         {/* New link */}
@@ -500,6 +556,13 @@ function ReadyView({
           )}
         </div>
       </div>
+
+      {/* Like Shopify Payments: deposits, every payment and the bank account, inside Sevrii */}
+      {state.publishableKey && (
+        <div id="tu-dinero" className="mt-10 pt-8 border-t border-border scroll-mt-6">
+          <StripeMoney publishableKey={state.publishableKey} businessId={business.id} lang={lang} />
+        </div>
+      )}
     </div>
   );
 }

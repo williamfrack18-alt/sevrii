@@ -35,6 +35,14 @@ export function paymentsReady(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY);
 }
 
+// Stripe's publishable key, for its screens embedded in the panel (Payments
+// like Shopify Payments). Public by design; without it the panel falls back to
+// sending the owner to Stripe's own pages.
+export function stripePublishableKey(): string {
+  const k = (process.env.STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "").trim();
+  return /^pk_(live|test)_[A-Za-z0-9]+$/.test(k) ? k : "";
+}
+
 export function payLinkUrl(id: string): string {
   return `${siteUrl()}/pay/${id}`;
 }
@@ -160,6 +168,27 @@ export async function onboardingUrl(business: BusinessRow, email: string): Promi
     },
   });
   return link.url;
+}
+
+// A short-lived session for Stripe's screens inside the panel: sign-up and
+// what Stripe still asks, the alerts banner, payments (refunds, disputes),
+// deposits and balance, and the account (bank account, details). The account
+// is the same full Stripe account as before: Stripe keeps the money and covers
+// fraud and chargebacks.
+export async function connectSessionSecret(business: BusinessRow, email: string): Promise<string> {
+  const account = await ensureAccount(business, email);
+  const session = await stripe<{ client_secret: string }>("POST", "account_sessions", {
+    account,
+    "components[account_onboarding][enabled]": "true",
+    "components[notification_banner][enabled]": "true",
+    "components[account_management][enabled]": "true",
+    "components[payments][enabled]": "true",
+    "components[payments][features][refund_management]": "true",
+    "components[payments][features][dispute_management]": "true",
+    "components[payments][features][capture_payments]": "true",
+    "components[payouts][enabled]": "true",
+  });
+  return session.client_secret;
 }
 
 type V2Account = {
