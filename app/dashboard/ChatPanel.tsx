@@ -80,7 +80,7 @@ const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mov|mp4|webm)$/i
 // white text, translucent bubbles and a dark composer. Cards from the Brain,
 // Store or Marketing keep their own light surface.
 const SOFT = "rgba(255,255,255,0.92)";
-const DIM = "rgba(255,255,255,0.6)";
+const DIM = "rgba(255,255,255,0.72)";
 const GLASS = { background: "rgba(255,255,255,0.07)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1)" } as const;
 const LIVE = "#86CFA5";
 

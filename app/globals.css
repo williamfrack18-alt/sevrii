@@ -1107,3 +1107,66 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
 /* The chat's own composer keeps its glass pill (no box inside it) */
 .chat-glass .chat-dark textarea.chat-input,
 .chat-glass .chat-dark input.chat-input { background: transparent !important; box-shadow: none !important; }
+
+/* Darker green and lighter text (like a dark admin side menu): the green is
+   a deep near-black, and grey text reads brighter on it. */
+.theme-panel.dash-dark { background: #010503; }
+.dash-dark .dash-rail {
+  background:
+    radial-gradient(ellipse 130% 40% at 0% 0%, rgba(28, 90, 61, 0.26), transparent 70%),
+    #020704 !important;
+}
+.dash-dark .dash-main {
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 110%, rgba(34, 197, 94, 0.09), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(22, 163, 74, 0.05), transparent 70%),
+    linear-gradient(180deg, #020403 0%, #030906 55%, #051509 100%);
+}
+.dash-dark .dash-topbar { background: rgba(2, 7, 4, 0.92); }
+.dash-dark .dash-tabbar { background: rgba(2, 7, 4, 0.95); }
+.dash-dark .dash-sheet { background: #040d07; }
+.chat-glass [aria-modal="true"] .bg-pbg,
+.chat-glass [role="dialog"] .bg-pbg,
+.chat-glass [role="menu"],
+.chat-glass [role="listbox"] { background: #050f09 !important; }
+/* Brighter text */
+.dash-dark .dash-rail .dash-nav { color: rgba(255, 255, 255, 0.88); }
+.dash-dark .dash-rail .dash-nav.dash-sub { color: rgba(255, 255, 255, 0.74); }
+.dash-dark .dash-rail .text-pfg2:not([role="menu"] *) { color: rgba(255, 255, 255, 0.9); }
+.dash-dark .dash-rail .text-pmuted:not([role="menu"] *),
+.dash-dark .dash-rail .text-pfaint:not([role="menu"] *),
+.dash-dark .dash-topbar .text-pfaint { color: rgba(255, 255, 255, 0.64); }
+.dash-dark .dash-rail .dash-soon { color: rgba(255, 255, 255, 0.82); }
+.dash-dark .dash-tab { color: rgba(255, 255, 255, 0.62); }
+.dash-dark .dash-sheet .text-pmuted, .dash-dark .dash-sheet .text-pfaint { color: rgba(255, 255, 255, 0.66); }
+.chat-dark .chat-surface .text-pfg2,
+.chat-dark .chat-surface [style*="color: rgb(63, 63, 70)"],
+.chat-dark .chat-surface [style*="color:#3F3F46" i],
+.chat-glass .text-pfg2,
+.chat-glass [style*="color: rgb(63, 63, 70)"],
+.chat-glass [style*="color:#3F3F46" i] { color: rgba(255, 255, 255, 0.92) !important; }
+.chat-dark .chat-surface .text-psub,
+.chat-dark .chat-surface .text-pmuted,
+.chat-dark .chat-surface [style*="color: rgb(82, 82, 91)"],
+.chat-dark .chat-surface [style*="color:#52525B" i],
+.chat-dark .chat-surface [style*="color: rgb(113, 113, 122)"],
+.chat-dark .chat-surface [style*="color:#71717A" i],
+.chat-dark .chat-surface [style*="color: rgb(91, 91, 91)"],
+.chat-dark .chat-surface [style*="color:#5b5b5b" i],
+.chat-glass .text-psub,
+.chat-glass .text-pmuted,
+.chat-glass .text-muted,
+.chat-glass [style*="color: rgb(82, 82, 91)"],
+.chat-glass [style*="color:#52525B" i],
+.chat-glass [style*="color: rgb(113, 113, 122)"],
+.chat-glass [style*="color:#71717A" i],
+.chat-glass [style*="color: rgb(91, 91, 91)"],
+.chat-glass [style*="color:#5b5b5b" i] { color: rgba(255, 255, 255, 0.74) !important; }
+.chat-dark .chat-surface .text-pfaint,
+.chat-dark .chat-surface [style*="color: rgb(161, 161, 170)"],
+.chat-dark .chat-surface [style*="color:#A1A1AA" i],
+.chat-glass .text-pfaint,
+.chat-glass .text-mutedLight,
+.chat-glass [style*="color: rgb(161, 161, 170)"],
+.chat-glass [style*="color:#A1A1AA" i] { color: rgba(255, 255, 255, 0.58) !important; }
+.dash-dark .dash-on-dark .p-display-sub { color: rgba(255, 255, 255, 0.68); }
