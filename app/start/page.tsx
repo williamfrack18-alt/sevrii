@@ -13,6 +13,10 @@ import { logoutAction } from "@/app/actions";
 import { cookies } from "next/headers";
 import { isStartPath } from "@/lib/startPath";
 
+
+// Not for search results (search engines can still follow its links).
+export const metadata = { robots: { index: false, follow: true } };
+
 export default async function StartPage({ searchParams }: { searchParams: Promise<{ new?: string; path?: string; checkout?: string; session_id?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

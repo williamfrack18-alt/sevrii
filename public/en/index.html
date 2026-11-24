@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Sevrii language detection: EN/ES auto-switch -->
 <script>
 (function(){
@@ -23,7 +25,7 @@
         var lang = ((navigator.language || (navigator.languages && navigator.languages[0]) || '') + '').toLowerCase();
         if (lang.indexOf('en') === 0) {
           localStorage.setItem('sevrii_lang', 'en');
-          if (path !== enTarget) { window.location.href = enTarget; }
+          if (path !== enTarget && !/bot|crawl|spider|slurp|bingpreview|facebookexternalhit|lighthouse|headless/i.test(navigator.userAgent || '')) { window.location.href = enTarget; }
         } else {
           localStorage.setItem('sevrii_lang', 'es');
         }
@@ -61,9 +63,29 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 });
 </script>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sevrii | All Your Services in One Place</title>
+<meta name="description" content="Find services near you and AI agents in one place. And if you offer a service, Sevrii builds your page, gets you paid and brings you customers.">
+<!-- SEO -->
+<link rel="canonical" href="https://www.sevrii.com/en">
+<link rel="alternate" hreflang="es" href="https://www.sevrii.com/">
+<link rel="alternate" hreflang="en" href="https://www.sevrii.com/en">
+<link rel="alternate" hreflang="x-default" href="https://www.sevrii.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Sevrii">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="es_US">
+<meta property="og:url" content="https://www.sevrii.com/en">
+<meta property="og:title" content="Sevrii | All Your Services in One Place">
+<meta property="og:description" content="Find services near you and AI agents in one place. And if you offer a service, Sevrii builds your page, gets you paid and brings you customers.">
+<meta property="og:image" content="https://www.sevrii.com/assets/og-sevrii-en.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sevrii | All Your Services in One Place">
+<meta name="twitter:description" content="Find services near you and AI agents in one place. And if you offer a service, Sevrii builds your page, gets you paid and brings you customers.">
+<meta name="twitter:image" content="https://www.sevrii.com/assets/og-sevrii-en.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Organization", "@id": "https://www.sevrii.com/#org", "name": "Sevrii", "url": "https://www.sevrii.com/", "logo": "https://www.sevrii.com/icon-512.png"}, {"@type": "WebSite", "@id": "https://www.sevrii.com/#website", "name": "Sevrii", "url": "https://www.sevrii.com/en", "inLanguage": "en", "publisher": {"@id": "https://www.sevrii.com/#org"}}]}</script>
+<!-- /SEO -->
 <link rel="icon" href="/favicon.ico?v=2" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">

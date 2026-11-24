@@ -12,6 +12,10 @@ import { cookies } from "next/headers";
 import { BUY_COOKIE, readBuy } from "@/lib/buyIntent";
 import { PLANS } from "@/lib/plans";
 
+
+// Not for search results (search engines can still follow its links).
+export const metadata = { robots: { index: false, follow: true } };
+
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const t = getDict(await getLang());
   const sp = (await searchParams) ?? {};

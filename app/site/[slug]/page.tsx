@@ -103,7 +103,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title,
     description,
     alternates: { canonical: `${SITE_URL}/site/${business.slug}` },
-    openGraph: { title, description, images: image ? [image] : undefined, type: "website" },
+    openGraph: { title, description, images: image ? [image] : undefined, type: "website", url: `${SITE_URL}/site/${business.slug}`, locale: site.lang === "en" ? "en_US" : "es_US" },
     twitter: { card: image ? "summary_large_image" : "summary", title, description },
   };
 }
@@ -348,6 +348,19 @@ export default async function PublicBusinessPage({
     ld.priceRange = `${dollarPrefix(ordered[0].price)}$${plainDollars(ordered[0].price)}`;
   }
   if (reviews.count > 0 && reviews.avg !== null) ld.aggregateRating = { "@type": "AggregateRating", ratingValue: reviews.avg, reviewCount: reviews.count };
+  ld["@id"] = `${pageUrl}#business`;
+  ld.inLanguage = site.lang === "en" ? "en" : "es";
+  // What it sells, with the price only when it's a plain US-dollar amount.
+  const catalog = ordered.slice(0, 20).map((sv) => {
+    const offer: Record<string, unknown> = { "@type": "Offer", itemOffered: { "@type": "Service", name: sv.name, ...(sv.description?.trim() ? { description: sv.description.trim().slice(0, 300) } : {}) } };
+    const n = sv.price ? plainDollars(sv.price) : null;
+    if (n !== null && sv.price && dollarPrefix(sv.price) === "") {
+      offer.price = String(n);
+      offer.priceCurrency = "USD";
+    }
+    return offer;
+  });
+  if (catalog.length) ld.hasOfferCatalog = { "@type": "OfferCatalog", name: business.name, itemListElement: catalog };
   const ldJson = JSON.stringify(ld).replace(/</g, "\\u003c");
 
   // The sections under the first screen, each one a block the owner can move,

@@ -11,6 +11,10 @@ import DashboardTabs from "./DashboardTabs";
 import { DASHBOARD_VIEWS, toClientBusiness, type DashboardView } from "./types";
 
 // Marketing's cloud browser makes videos in steps of up to a few minutes (server actions of this page).
+
+// Not for search results (search engines can still follow its links).
+export const metadata = { robots: { index: false, follow: true } };
+
 export const maxDuration = 300;
 
 export default async function DashboardPage({

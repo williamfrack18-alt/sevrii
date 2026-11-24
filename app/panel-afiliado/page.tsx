@@ -9,6 +9,10 @@ import { toClientBusiness } from "@/app/dashboard/types";
 
 // The affiliate panel for people without a project of their own (and a
 // shortcut for everyone else). Owners also find it in the dashboard.
+
+// Not for search results (search engines can still follow its links).
+export const metadata = { robots: { index: false, follow: true } };
+
 export default async function AffiliatePanelPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

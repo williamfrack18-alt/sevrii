@@ -8,6 +8,10 @@ import GoogleButton, { OrDivider } from "@/components/GoogleButton";
 import { googleReady } from "@/lib/google";
 import { ACCOUNT_TEXT } from "@/lib/accountI18n";
 
+
+// Not for search results (search engines can still follow its links).
+export const metadata = { robots: { index: false, follow: true } };
+
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const lang = await getLang();
   const t = getDict(lang);
