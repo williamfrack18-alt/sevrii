@@ -707,7 +707,7 @@ export default function DashboardTabs({
       </aside>
 
       {/* Main content */}
-      <main className="dash-main chat-glass grow min-w-0">
+      <main className="dash-main grow min-w-0">
         {view === "projects" && (
           <ProjectsView
             projects={liveProjects}

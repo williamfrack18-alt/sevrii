@@ -68,29 +68,29 @@ export default function PlansView({
           through; the cards sit on top of its lower half. */}
       <div className="relative overflow-hidden pb-[240px] md:pb-[300px]">
         <div className="relative h-14 px-4 md:px-6 flex items-center">
-          <span className="text-[17px] font-semibold text-white">
-            Sevrii <span className="font-normal" style={{ color: "rgba(255,255,255,.55)" }}>· {t.nav}</span>
+          <span className="text-[17px] font-semibold text-pfg">
+            Sevrii <span className="font-normal text-pmuted">· {t.nav}</span>
           </span>
         </div>
         <div className="relative max-w-[1180px] mx-auto px-4 md:px-8 pt-6 md:pt-14">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
             <div>
-              <div className="text-[15px] mb-3" style={{ color: "#3ddc84" }}>{t.nav}</div>
-              <h1 className="text-[36px] md:text-[56px] leading-[1.08] font-light text-white" style={{ letterSpacing: "-1.5px" }}>{t.title}</h1>
-              <p className="text-[15px] md:text-[16px] mt-3 max-w-[620px] leading-relaxed" style={{ color: "rgba(255,255,255,.72)" }}>{t.sub}</p>
+              <div className="text-[15px] mb-3" style={{ color: ACCENT }}>{t.nav}</div>
+              <h1 className="text-[36px] md:text-[56px] leading-[1.08] font-light text-pfg" style={{ letterSpacing: "-1.5px" }}>{t.title}</h1>
+              <p className="text-[15px] md:text-[16px] mt-3 max-w-[620px] leading-relaxed text-psub">{t.sub}</p>
             </div>
             {(plan.yearlyReady || !plan.billingReady) && (
-            <div className="flex items-center gap-1 rounded-full p-1 self-start md:self-auto backdrop-blur" style={{ background: "rgba(255,255,255,.1)", boxShadow: "0 0 0 1px rgba(255,255,255,.18)" }}>
+            <div className="flex items-center gap-1 rounded-full p-1 self-start md:self-auto backdrop-blur" style={{ background: "#fff", boxShadow: "0 0 0 1px rgba(10,10,10,.1)" }}>
               {[false, true].map((y) => (
                 <button
                   key={String(y)}
                   type="button"
                   onClick={() => setYearly(y)}
                   className="h-10 md:h-9 px-4 rounded-full text-[13.5px] font-medium whitespace-nowrap"
-                  style={yearly === y ? { background: "#fff", color: "#0A0A0A" } : { color: "#fff" }}
+                  style={yearly === y ? { background: "#0A0A0A", color: "#fff" } : { color: "#0A0A0A" }}
                 >
                   {y ? t.yearly : t.monthly}
-                  {y && <span className="ml-1.5 text-[11.5px]" style={{ color: yearly ? GREEN : "#3ddc84" }}>{t.yearlySave}</span>}
+                  {y && <span className="ml-1.5 text-[11.5px]" style={{ color: yearly ? "#86CFA5" : GREEN }}>{t.yearlySave}</span>}
                 </button>
               ))}
             </div>
@@ -118,7 +118,7 @@ export default function PlansView({
                 className="rounded-[24px] p-5 flex flex-col gap-4"
                 style={{
                   background: "#FFFFFF",
-                  boxShadow: isCurrent ? `0 0 0 2px ${RING}, 0 30px 60px -30px rgba(0,0,0,.8)` : recommended ? "0 0 0 2px #3ddc84, 0 30px 70px -25px rgba(61,220,132,.45)" : "0 0 0 1px rgba(255,255,255,.06), 0 30px 60px -30px rgba(0,0,0,.8)",
+                  boxShadow: isCurrent ? `0 0 0 2px ${RING}, 0 1px 2px rgba(10,10,10,.04)` : recommended ? "0 0 0 2px #16A34A, 0 1px 2px rgba(10,10,10,.04)" : "0 0 0 1px rgba(10,10,10,.08), 0 1px 2px rgba(10,10,10,.04)",
                 }}
               >
                 <div className="flex items-center justify-between gap-2 min-h-[24px]">
@@ -194,13 +194,13 @@ export default function PlansView({
           })}
         </div>
 
-        <div className="flex flex-col gap-1.5 text-[13px]" style={{ color: "rgba(255,255,255,.6)" }}>
+        <div className="flex flex-col gap-1.5 text-[13px] text-pmuted">
           <span>• {t.adsNote}</span>
           <span>• {t.capitalNote}</span>
         </div>
 
         <div className="flex flex-col gap-3">
-          <h2 className="text-[20px] font-semibold text-white">{t.compareTitle}</h2>
+          <h2 className="text-[20px] font-semibold text-pfg">{t.compareTitle}</h2>
           <div className="rounded-[24px] overflow-x-auto" style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(10,10,10,.04), 0 10px 30px -14px rgba(10,10,10,.14), 0 0 0 1px rgba(10,10,10,.05)" }}>
             <table className="w-full min-w-[640px] text-[13.5px]">
               <thead>

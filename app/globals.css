@@ -1170,3 +1170,60 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
 .chat-glass [style*="color: rgb(161, 161, 170)"],
 .chat-glass [style*="color:#A1A1AA" i] { color: rgba(255, 255, 255, 0.58) !important; }
 .dash-dark .dash-on-dark .p-display-sub { color: rgba(255, 255, 255, 0.68); }
+
+/* ==================================================================
+   White work area (like Shopify): the frame and the side menu stay in
+   Sevrii's dark green; every section is on a light page with white cards
+   and dark text. The chats (Cerebro, Store, Agent, Marketing) keep their
+   dark-green screen inside the frame.
+   ================================================================== */
+.dash-dark .dash-main { background: #F5F5F3; color: #0A0A0A; }
+@media (min-width: 768px) {
+  .dash-dark .dash-main { box-shadow: none; }
+}
+.dash-dark .chat-screen {
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 110%, rgba(34, 197, 94, 0.12), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(22, 163, 74, 0.06), transparent 70%),
+    linear-gradient(180deg, #020403 0%, #040b07 50%, #07190d 100%);
+}
+/* White cards with a hairline, on the light page */
+.dash-dark .dash-panel:not(.chat-dark) {
+  background: #fff;
+  color: #0A0A0A;
+  box-shadow: 0 0 0 1px rgba(10, 10, 10, 0.07), 0 1px 2px rgba(10, 10, 10, 0.04);
+}
+.dash-panel:not(.chat-dark) .sevrii-loader-logo {
+  background: linear-gradient(115deg, #0A0A0A 0%, #0A0A0A 35%, #16A34A 50%, #0A0A0A 65%, #0A0A0A 100%);
+  background-size: 300% 100%;
+  filter: none;
+}
+.dash-panel:not(.chat-dark) .sevrii-loader-ring::before { box-shadow: inset 0 0 0 2px rgba(10, 10, 10, 0.06); }
+.dash-main > .sevrii-loader-screen, .dash-main .sevrii-loader-label { color: #52525B; }
+/* Titles and text written straight on the page: dark again (not white) */
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .dash-title { color: #0A0A0A !important; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .text-pfg,
+.dash-dark .dash-main .dash-on-dark:not(.chat-screen *) .text-pfg,
+.dash-dark .dash-main .dash-on-dark.text-pfg:not(.chat-screen *) { color: #0A0A0A; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .text-pfg2,
+.dash-dark .dash-main .dash-on-dark:not(.chat-screen *) .text-pfg2 { color: #27272A; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .text-psub,
+.dash-dark .dash-main .dash-on-dark:not(.chat-screen *) .text-psub { color: #52525B; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .text-pmuted,
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .text-pfaint,
+.dash-dark .dash-main .dash-on-dark:not(.chat-screen *) .text-pmuted,
+.dash-dark .dash-main .dash-on-dark.text-pmuted:not(.chat-screen *),
+.dash-dark .dash-main .dash-on-dark:not(.chat-screen *) .text-pfaint { color: #71717A; }
+.dash-dark .dash-main .dash-on-dark:not(.chat-screen *) .p-display { color: #0A0A0A; }
+.dash-dark .dash-main .dash-on-dark:not(.chat-screen *) .p-display-sub { color: #71717A; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) a[style],
+.dash-dark .dash-main .dash-head:not(.chat-screen *) button[style] { background: #fff !important; color: #0A0A0A !important; box-shadow: 0 0 0 1px rgba(10, 10, 10, 0.1) !important; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .dash-primary { background: #0A0A0A !important; color: #fff !important; box-shadow: none !important; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .dash-chip-s { background: #fff !important; color: #0A0A0A !important; box-shadow: 0 0 0 1px rgba(10, 10, 10, 0.1) !important; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .dash-stage span[style] { color: #71717A !important; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .dash-stage .dash-stage-on { background: #DCFCE7 !important; color: #15803D !important; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .dash-stage .h-px { background: rgba(10, 10, 10, 0.12) !important; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .dash-step-off { background: rgba(10, 10, 10, 0.12) !important; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .hover\:text-pfg:hover { color: #0A0A0A; }
+.dash-dark .dash-main .dash-head:not(.chat-screen *) .hover\:bg-black\/\[0\.06\]:hover { background: rgba(10, 10, 10, 0.06); }
+.dash-dark .dash-main .p-chip.on:not(.chat-screen *) { background: #0A0A0A; color: #fff; }
