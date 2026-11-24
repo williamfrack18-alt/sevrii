@@ -997,7 +997,7 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
 .dash-root > .sevrii-loader-screen.is-cover { pointer-events: none; transition: opacity 0.2s ease; animation-duration: 0.12s; }
 @media (min-width: 768px) {
   .dash-dark.dash-root > .sevrii-loader-screen.is-cover {
-    inset: 8px 8px 8px var(--rail-w, 256px);
+    inset: 8px 8px 8px var(--rail-w, 224px);
     padding-left: 0;
     border-radius: 16px;
   }

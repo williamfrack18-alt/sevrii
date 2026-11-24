@@ -395,7 +395,7 @@ export default function DashboardTabs({
     // --hdr (set in globals.css on .dash-root) = height of the mobile chrome:
     // top bar + bottom tab bar + safe areas; 0 on desktop.
     // Full-height views use calc(100dvh - var(--hdr)).
-    <div className="dash-root theme-panel dash-dark flex flex-col md:flex-row" style={{ ["--rail-w" as string]: railOpen ? "256px" : "76px" }}>
+    <div className="dash-root theme-panel dash-dark flex flex-col md:flex-row" style={{ ["--rail-w" as string]: railOpen ? "224px" : "76px" }}>
       {moving && <SevriiLoader cover leaving={moving === "leaving"} />}
       {/* Keeps the logo's image ready, so it's there from the first change of section. */}
       <span aria-hidden="true" className="sevrii-loader-logo" style={{ position: "fixed", left: -20, top: -20, width: 4, height: 4, opacity: 0.01, pointerEvents: "none", animation: "none" }} />
@@ -485,7 +485,7 @@ export default function DashboardTabs({
 
       {/* Desktop rail: collapsed to icons by default, expands with the toggle */}
       <aside
-        className={`hidden md:flex ${railOpen ? "w-[256px] min-w-[256px] p-4 overflow-y-auto overflow-x-hidden" : "w-[76px] min-w-[76px] px-3 py-4"} shrink-0 sticky top-0 z-30 h-screen flex-col justify-between ${railAnim ? "transition-[width,min-width] duration-200" : ""} bg-pcard dash-rail`}
+        className={`hidden md:flex ${railOpen ? "w-[224px] min-w-[224px] p-4 overflow-y-auto overflow-x-hidden" : "w-[76px] min-w-[76px] px-3 py-4"} shrink-0 sticky top-0 z-30 h-screen flex-col justify-between ${railAnim ? "transition-[width,min-width] duration-200" : ""} bg-pcard dash-rail`}
         style={{ boxShadow: "1px 0 0 rgba(10,10,10,.06)" }}
       >
         <div className="min-w-0">
