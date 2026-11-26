@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAIN_OFF, START_TEXT_NO_BRAIN } from "@/lib/brainOff";
 import { useState, useTransition } from "react";
 import { useLang, useT } from "@/components/LangProvider";
 import { startProjectAction } from "@/app/actions";
@@ -13,6 +14,7 @@ export default function PathPicker({ newProject = false, initial = null }: { new
   const [error, setError] = useState("");
   const t = useT();
   const es = useLang() === "es";
+  const nb = START_TEXT_NO_BRAIN[es ? "es" : "en"];
 
   function go(mode: "existing" | "new" | "job") {
     setError("");
@@ -47,7 +49,7 @@ export default function PathPicker({ newProject = false, initial = null }: { new
           </svg>
           <div className="flex flex-col gap-1.5">
             <h3 className="text-[18px] font-semibold">{newProject ? t.start.newProjectExistingTitle : t.start.existingTitle}</h3>
-            <p className="text-[14px] text-muted leading-relaxed">{newProject ? t.start.newProjectExistingText : t.start.existingText}</p>
+            <p className="text-[14px] text-muted leading-relaxed">{newProject ? (BRAIN_OFF ? nb.newProjectExistingText : t.start.newProjectExistingText) : t.start.existingText}</p>
           </div>
         </button>
         <button type="button" onClick={() => setSelected("new")} className={cardStyle(selected === "new")}>
@@ -57,7 +59,7 @@ export default function PathPicker({ newProject = false, initial = null }: { new
           </svg>
           <div className="flex flex-col gap-1.5">
             <h3 className="text-[18px] font-semibold">{newProject ? t.start.newProjectNewTitle : t.start.newTitle}</h3>
-            <p className="text-[14px] text-muted leading-relaxed">{newProject ? t.start.newProjectNewText : t.start.newText}</p>
+            <p className="text-[14px] text-muted leading-relaxed">{BRAIN_OFF ? (newProject ? nb.newProjectNewText : nb.newText) : newProject ? t.start.newProjectNewText : t.start.newText}</p>
           </div>
         </button>
         {/* Empleo: working for someone else, with the same help (research, profile, page). */}
@@ -69,7 +71,7 @@ export default function PathPicker({ newProject = false, initial = null }: { new
           </svg>
           <div className="flex flex-col gap-1.5">
             <h3 className="text-[18px] font-semibold">{t.start.jobTitle}</h3>
-            <p className="text-[14px] text-muted leading-relaxed">{t.start.jobText}</p>
+            <p className="text-[14px] text-muted leading-relaxed">{BRAIN_OFF ? nb.jobText : t.start.jobText}</p>
           </div>
         </button>
       </div>
@@ -90,7 +92,7 @@ export default function PathPicker({ newProject = false, initial = null }: { new
         ))}
       </div>
 
-      <p className="text-[13px] text-mutedLight italic">{t.start.note}</p>
+      <p className="text-[13px] text-mutedLight italic">{BRAIN_OFF ? nb.note : t.start.note}</p>
 
       <button
         type="button"

@@ -38,6 +38,7 @@ import { EMPTY_PLAN } from "@/lib/plan";
 import { isAdmin, limitsFor } from "@/lib/billing";
 import { EMPTY_SITE, type SiteData } from "@/lib/site";
 import { getCurrentUser, setActiveProject, PROJECT_COOKIE } from "@/lib/session";
+import { BRAIN_OFF } from "@/lib/brainOff";
 import { getLang } from "@/lib/lang";
 import { getDict } from "@/lib/i18n";
 
@@ -190,7 +191,7 @@ export async function startProjectAction(mode: "existing" | "new" | "job" | "age
       city: null,
       pitch: "",
       whatsapp: previous?.whatsapp ?? null,
-      site: { ...EMPTY_SITE, ...carriedSite(previous), lang },
+      site: { ...EMPTY_SITE, ...carriedSite(previous), lang, ...(BRAIN_OFF && mode === "job" ? { kind: "job" as const } : {}) },
       plan: {
         ...EMPTY_PLAN,
         mode: m,
@@ -224,7 +225,8 @@ export async function startProjectAction(mode: "existing" | "new" | "job" | "age
           : "We couldn't create the project. Please try again in a moment; if it keeps happening, contact us.",
     };
   }
-  redirect("/dashboard?view=plan");
+  // While the Brain is off, the project starts in Store (its chat builds the page).
+  redirect(BRAIN_OFF ? "/dashboard?view=store" : "/dashboard?view=plan");
 }
 
 // Each browser tab works on the project it shows. When a tab comes back to the
@@ -247,7 +249,7 @@ export async function switchProjectAction(projectId: string) {
     await setActiveProject(projectId);
   }
   revalidatePath("/dashboard");
-  redirect("/dashboard?view=plan");
+  redirect(BRAIN_OFF ? "/dashboard?view=store" : "/dashboard?view=plan");
 }
 
 // Delete one project for good (its strategy, page, campaigns and payment links).

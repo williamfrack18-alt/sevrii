@@ -12,6 +12,7 @@ import { ACCENT } from "@/lib/brand";
 import { logoutAction } from "@/app/actions";
 import { cookies } from "next/headers";
 import { isStartPath } from "@/lib/startPath";
+import { BRAIN_OFF, START_TEXT_NO_BRAIN } from "@/lib/brainOff";
 
 
 // Not for search results (search engines can still follow its links).
@@ -36,7 +37,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   const lang = await getLang();
   const t = getDict(lang);
   // Where they are in the whole road, said in words (not only bars).
-  const STEPS = lang === "es" ? ["Tu cuenta", "Qué vas a crear", "Conversas con el Cerebro", "Tu página y tus anuncios"] : ["Your account", "What you'll create", "You talk with the Brain", "Your page and your ads"];
+  const STEPS = BRAIN_OFF ? START_TEXT_NO_BRAIN[lang === "es" ? "es" : "en"].steps : lang === "es" ? ["Tu cuenta", "Qué vas a crear", "Conversas con el Cerebro", "Tu página y tus anuncios"] : ["Your account", "What you'll create", "You talk with the Brain", "Your page and your ads"];
 
   return (
     <div className="theme-dark bg-cream flex flex-col items-center py-14 px-6">

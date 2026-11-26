@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAIN_OFF } from "@/lib/brainOff";
 import { useEffect, useRef, useState } from "react";
 import StoreChat from "./StoreChat";
 import PageStatsPanel from "./PageStatsPanel";
@@ -612,6 +613,7 @@ function PreviewLinkButton({ lang }: { lang: "es" | "en" }) {
 }
 
 export function storeLocked(b: ClientBusiness): boolean {
+  if (BRAIN_OFF) return false;
   return !b.published && b.plan.stage !== "approved";
 }
 

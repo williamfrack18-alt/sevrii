@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAIN_OFF } from "@/lib/brainOff";
 import { useState, useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
 import { PLAN_TEXT, PROJECTS_TEXT } from "@/lib/planI18n";
@@ -132,7 +133,9 @@ export default function ProjectsView({
   const name = firstName(business.site.ownerName || active?.ownerName || projects.find((p) => p.ownerName)?.ownerName || "");
   void userEmail;
   const approved = Boolean(business.marketing.approvedAt);
-  const flags = [business.plan.ready, business.published, business.payReady, approved];
+  // While the Brain is off, there is no strategy step: the page comes first.
+  const flags = BRAIN_OFF ? [business.published, business.payReady, approved] : [business.plan.ready, business.published, business.payReady, approved];
+  const stepNames = BRAIN_OFF ? tx.steps.slice(1) : tx.steps;
   // A step only counts once every step before it is done; one done ahead of
   // time shows as such instead of skipping the line.
   const steps = flags.map((f, i) => f && flags.slice(0, i).every(Boolean));
@@ -143,7 +146,7 @@ export default function ProjectsView({
   const next: { title: string; sub: string; view: DashboardView } =
     unreadChats > 0
       ? { title: tx.next.chats(unreadChats), sub: tx.next.chatsSub, view: "chats" }
-      : !business.plan.ready
+      : !business.plan.ready && !BRAIN_OFF
         ? { title: tx.next.plan, sub: tx.next.planSub, view: "plan" }
         : !business.published
           ? { title: tx.next.store, sub: tx.next.storeSub, view: "store" }
@@ -315,7 +318,7 @@ export default function ProjectsView({
               <span className="text-[20px] font-medium tracking-[-0.01em] text-pfg">{tx.progress}</span>
               <span className="text-[14px] text-pmuted -mt-1.5">{tx.progressSub(done, steps.length)}</span>
               <ul className="flex flex-col gap-1.5 mt-1">
-                {tx.steps.map((s, i) => (
+                {stepNames.map((s, i) => (
                   <li key={s} className="flex items-center gap-2.5 text-[14.5px]" style={{ color: steps[i] ? "#0A0A0A" : "#A1A1AA" }}>
                     <span className="h-5 w-5 rounded-full flex items-center justify-center shrink-0" style={steps[i] ? { background: GREEN } : { boxShadow: "inset 0 0 0 1.5px #D4D4D8" }}>
                       {steps[i] && (
@@ -326,7 +329,7 @@ export default function ProjectsView({
                     </span>
                     <span className="min-w-0">
                       {s}
-                      {early[i] && <span className="block text-[12px] text-pmuted leading-snug">{tx.early(tx.steps[flags.findIndex((f) => !f)] ?? "")}</span>}
+                      {early[i] && <span className="block text-[12px] text-pmuted leading-snug">{tx.early(stepNames[flags.findIndex((f) => !f)] ?? "")}</span>}
                     </span>
                   </li>
                 ))}

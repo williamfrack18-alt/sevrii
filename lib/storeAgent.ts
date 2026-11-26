@@ -919,6 +919,16 @@ export function storeGreeting(lang: Lang, b: BusinessRow, serviceCount: number):
       ? `Tu página ya está armada con lo que aprobamos. A la derecha la ves tal como está (en el teléfono, toca «Vista previa»). Aquí puedo agregar fotos o un video, cambiar el título, la oferta o los precios. ¿Qué quieres cambiar?`
       : `Your page is built from what we approved. On the right you see it as it is (on a phone, tap "Preview"). Here I can add photos or a video, change the headline, the offer or the prices. What do you want to change?`;
   }
+  // A brand-new project (still "Proyecto nuevo"), e.g. straight from /start
+  // while the Brain is off: no placeholder name in the greeting.
+  if (b.site.kind === "job")
+    return es
+      ? "¡Hola! Voy a armar contigo tu página para conseguir empleo, para que quienes contratan te conozcan y te escriban. Para empezar: ¿qué trabajo buscas y qué experiencia tienes?"
+      : "Hi! I'll build your job-seeking page with you, so employers get to know you and message you. To start: what job are you looking for, and what experience do you have?";
+  if (isPlaceholderName(b.name))
+    return es
+      ? "¡Hola! Voy a armar contigo tu página para que más clientes te escriban. Para empezar: ¿qué servicio quieres vender y cuánto cuesta?"
+      : "Hi! I'll build your page with you so more customers message you. To start: what service do you want to sell, and how much does it cost?";
   return es
     ? `¡Hola! Voy a armar contigo la página de ${b.name} para que más clientes te escriban. Para empezar: ¿qué servicio quieres vender y cuánto cuesta?`
     : `Hi! I'll build ${b.name}'s page with you so more customers message you. To start: what service do you want to sell, and how much does it cost?`;

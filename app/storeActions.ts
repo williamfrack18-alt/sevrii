@@ -1,5 +1,6 @@
 "use server";
 
+import { BRAIN_OFF } from "@/lib/brainOff";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { del, head, put } from "@vercel/blob";
@@ -292,7 +293,7 @@ export async function sendStoreChatAction(message: string, area: "store" | "agen
 
   if (!text) return respond(business);
   // The store opens only after the Brain's strategy is approved (checked here too).
-  if (!business.published && business.plan.stage !== "approved")
+  if (!BRAIN_OFF && !business.published && business.plan.stage !== "approved")
     return { ...(await respond(business)), notice: lang === "es" ? "Tu tienda se abre cuando apruebes tu estrategia en el Cerebro." : "Your store opens once you approve your strategy in the Brain." };
 
   if (history.length === 0) {
@@ -368,7 +369,7 @@ export async function chooseStartAction(mode: string, design?: string): Promise<
   const valid = (START_MODES as readonly string[]).includes(mode);
   const pick = (PAGE_DESIGNS as readonly string[]).includes(String(design)) ? (design as PageDesign) : "classic";
   // The store opens only after the strategy is approved (same gate as the screen).
-  const open = business.published || business.plan.stage === "approved";
+  const open = BRAIN_OFF || business.published || business.plan.stage === "approved";
   let ok = false;
   // Already chosen (a second tab, a double tap): nothing is redone, so the
   // owner's layout and texts since then are never reset.
@@ -396,8 +397,12 @@ export async function chooseStartAction(mode: string, design?: string): Promise<
       : "";
     const note = empty
       ? es
-        ? "Tu página está creada, pero tu estrategia del Cerebro todavía no tiene lo necesario para llenarla. Dime qué servicio vendes y cuánto cobras, y la armo contigo."
-        : "Your page is created, but your Brain strategy doesn't have enough to fill it yet. Tell me what service you sell and what you charge, and I'll build it with you."
+        ? BRAIN_OFF
+          ? "Tu página está creada. Dime qué servicio vendes y cuánto cobras, y la armo contigo."
+          : "Tu página está creada, pero tu estrategia del Cerebro todavía no tiene lo necesario para llenarla. Dime qué servicio vendes y cuánto cobras, y la armo contigo."
+        : BRAIN_OFF
+          ? "Your page is created. Tell me what service you sell and what you charge, and I'll build it with you."
+          : "Your page is created, but your Brain strategy doesn't have enough to fill it yet. Tell me what service you sell and what you charge, and I'll build it with you."
       : mode === "blank"
         ? es
           ? "Empezamos con tu página en blanco. Dime qué quieres poner primero (por ejemplo tus paquetes y precios, cómo trabajas o tus preguntas frecuentes) y lo agrego con lo que aprobaste en el Cerebro. A la derecha ves tu página tal como va quedando."
