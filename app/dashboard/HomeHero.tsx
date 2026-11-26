@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { homeStatsAction, type HomeStatsState } from "@/app/pageStatsActions";
 import { cachedView, loadView, putView } from "./viewCache";
-import { WORLD_DOTS } from "@/lib/worldDots";
+import HomeGlobe from "./HomeGlobe";
 
 // The top of Inicio, like an admin home: the page's last 30 days in one line
 // (visits, sales, orders, conversion, visitors right now), a big greeting, and
@@ -54,27 +54,6 @@ function Spark({ values }: { values: number[] }) {
   );
 }
 
-function WorldMap({ places, label, visitors }: { places: HomeStatsState["places"]; label: string; visitors: (n: number) => string }) {
-  const top = Math.max(1, ...places.map((p) => p.n));
-  return (
-    <svg viewBox="0 0 360 138" className="w-full h-auto" role="img" aria-label={label}>
-      <path d={WORLD_DOTS} stroke="#CFCFCA" strokeWidth="1.25" strokeLinecap="round" fill="none" />
-      {places.map((p, i) => {
-        const x = p.lng + 180;
-        const y = 80 - p.lat;
-        if (x < 0 || x > 360 || y < 0 || y > 138) return null;
-        const r = 0.9 + 1.5 * Math.sqrt(p.n / top);
-        return (
-          <g key={`${p.lat},${p.lng},${i}`}>
-            <title>{`${p.city || p.country || ""}${p.city || p.country ? " · " : ""}${visitors(p.n)}`}</title>
-            <circle cx={x} cy={y} r={r * 2} fill="#16A34A" opacity="0.12" />
-            <circle cx={x} cy={y} r={r} fill="#16A34A" />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
 
 export default function HomeHero({ businessId, name, lang }: { businessId: string; name: string; lang: "es" | "en" }) {
   const t = TEXT[lang];
@@ -146,16 +125,16 @@ export default function HomeHero({ businessId, name, lang }: { businessId: strin
       </div>
       {s && !s.published && <p className="relative z-[1] -mt-4 md:-mt-8 text-[12.5px] text-pmuted">{t.draft}</p>}
 
-      {/* The greeting over the world map */}
-      <div className="relative">
+      {/* The greeting over the globe (drag it to spin it) */}
+      <div className="relative h-[330px] md:h-[440px] overflow-hidden -mx-4 md:mx-0">
         <div
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-10 md:-top-16 w-[150%] md:w-full max-w-[1040px]"
-          style={{ WebkitMaskImage: "radial-gradient(ellipse 70% 75% at 50% 50%, #000 45%, transparent 100%)", maskImage: "radial-gradient(ellipse 70% 75% at 50% 50%, #000 45%, transparent 100%)" }}
+          className="absolute left-1/2 -translate-x-1/2 top-0 w-[360px] md:w-[540px]"
+          style={{ WebkitMaskImage: "linear-gradient(#000 62%, transparent 92%)", maskImage: "linear-gradient(#000 62%, transparent 92%)" }}
         >
-          <WorldMap places={s?.places ?? []} label={t.mapLabel} visitors={t.visitors} />
+          <HomeGlobe places={s?.places ?? []} label={t.mapLabel} visitors={t.visitors} />
         </div>
-        <div className="relative text-center py-6 md:py-16">
-          <h1 className="text-[28px] md:text-[44px] leading-[1.12] font-semibold tracking-[-0.02em] text-pfg">
+        <div className="pointer-events-none relative h-full flex items-center justify-center text-center px-4">
+          <h1 className="text-[28px] md:text-[44px] leading-[1.12] font-semibold tracking-[-0.02em] text-pfg" style={{ textShadow: "0 0 24px #F5F5F3, 0 0 12px #F5F5F3" }}>
             {greeting}
             <br />
             {t.grow}
