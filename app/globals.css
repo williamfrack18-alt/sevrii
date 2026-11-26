@@ -1227,3 +1227,22 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
 .dash-dark .dash-main .dash-head:not(.chat-screen *) .hover\:text-pfg:hover { color: #0A0A0A; }
 .dash-dark .dash-main .dash-head:not(.chat-screen *) .hover\:bg-black\/\[0\.06\]:hover { background: rgba(10, 10, 10, 0.06); }
 .dash-dark .dash-main .p-chip.on:not(.chat-screen *) { background: #0A0A0A; color: #fff; }
+
+/* Starry dark green (like a night sky): the side menu and frame, and the top
+   of Inicio behind the globe. The dots are one small tile (stars.png). */
+.theme-panel.dash-dark {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.32)),
+    url(/assets/stars.png) repeat,
+    radial-gradient(ellipse 80% 50% at 12% 18%, rgba(20, 78, 66, 0.5), transparent 70%),
+    linear-gradient(180deg, #04100d 0%, #061713 40%, #020504 85%, #000 100%) !important;
+  background-attachment: fixed !important;
+}
+.dash-dark .dash-rail { background: transparent !important; }
+.home-stars {
+  background:
+    url(/assets/stars.png) repeat,
+    radial-gradient(ellipse 70% 60% at 50% 38%, rgba(22, 92, 78, 0.85), transparent 72%),
+    linear-gradient(180deg, #071713 0%, #0b2924 45%, #030c0a 100%);
+  color: #fff;
+}

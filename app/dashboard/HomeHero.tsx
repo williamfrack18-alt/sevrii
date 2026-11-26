@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { homeStatsAction, type HomeStatsState } from "@/app/pageStatsActions";
 import { cachedView, loadView, putView } from "./viewCache";
-import HomeGlobe from "./HomeGlobe";
+import dynamic from "next/dynamic";
+
+// The globe (and its map data) loads on its own, after the numbers.
+const HomeGlobe = dynamic(() => import("./HomeGlobe"), { ssr: false });
 
 // The top of Inicio, like an admin home: the page's last 30 days in one line
 // (visits, sales, orders, conversion, visitors right now), a big greeting, and
@@ -49,7 +52,7 @@ function Spark({ values }: { values: number[] }) {
   const pts = values.map((v, i) => `${((i / Math.max(1, values.length - 1)) * w).toFixed(1)},${(max > 0 ? h - 1.5 - (v / max) * (h - 3) : h - 1.5).toFixed(1)}`).join(" ");
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="shrink-0">
-      <polyline points={pts} fill="none" stroke="#16A34A" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" opacity={max > 0 ? 1 : 0.35} />
+      <polyline points={pts} fill="none" stroke="#86CFA5" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" opacity={max > 0 ? 1 : 0.35} />
     </svg>
   );
 }
@@ -97,44 +100,44 @@ export default function HomeHero({ businessId, name, lang }: { businessId: strin
   const greeting = `${hour === null ? t.hello : t.greet(hour)}${first ? `, ${first}` : ""}!`;
 
   return (
-    <section className="relative flex flex-col gap-8 md:gap-12">
+    <section className="home-stars relative flex flex-col gap-6 md:gap-8 rounded-[24px] md:rounded-[28px] overflow-hidden px-4 md:px-8 pt-5 md:pt-7 -mx-1 md:mx-0">
       {/* The numbers, in one line */}
       <div className="relative z-[1] -mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto">
         <div className="min-w-max md:min-w-0 flex items-start gap-6 md:gap-0 md:justify-between">
-          <div className="flex flex-col gap-0.5 text-[13px] md:text-[14px] text-psub pt-0.5 md:pr-6">
+          <div className="flex flex-col gap-0.5 text-[13px] md:text-[14px] pt-0.5 md:pr-6" style={{ color: "rgba(255,255,255,.82)" }}>
             <span>{t.range}</span>
-            <span className="text-pmuted">{t.scope}</span>
+            <span style={{ color: "rgba(255,255,255,.55)" }}>{t.scope}</span>
           </div>
           {metrics.map((m) => (
             <div key={m.label} className="flex flex-col gap-1 md:px-4">
-              <span className="text-[13px] md:text-[14px] text-psub underline decoration-dotted decoration-[rgba(10,10,10,.25)] underline-offset-4">{m.label}</span>
+              <span className="text-[13px] md:text-[14px] underline decoration-dotted decoration-[rgba(255,255,255,.3)] underline-offset-4" style={{ color: "rgba(255,255,255,.72)" }}>{m.label}</span>
               <span className="flex items-center gap-2">
-                <span className="text-[16px] md:text-[17px] font-semibold text-pfg tabular-nums">{m.value}</span>
+                <span className="text-[16px] md:text-[17px] font-semibold text-white tabular-nums">{m.value}</span>
                 {m.series.length > 1 && <Spark values={m.series} />}
               </span>
             </div>
           ))}
-          <div className="flex items-center gap-2 text-[13px] md:text-[14px] text-psub md:pl-4 pt-0.5 whitespace-nowrap">
-            {t.live} <span className="font-semibold text-pfg tabular-nums">{s ? nf.format(s.live) : "—"}</span>
+          <div className="flex items-center gap-2 text-[13px] md:text-[14px] md:pl-4 pt-0.5 whitespace-nowrap" style={{ color: "rgba(255,255,255,.72)" }}>
+            {t.live} <span className="font-semibold text-white tabular-nums">{s ? nf.format(s.live) : "—"}</span>
             <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
-              {s && s.live > 0 && <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: "rgba(22,163,74,.45)" }} />}
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={s && s.live > 0 ? { background: "#16A34A" } : { boxShadow: "inset 0 0 0 1.5px #16A34A" }} />
+              {s && s.live > 0 && <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: "rgba(134,207,165,.5)" }} />}
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={s && s.live > 0 ? { background: "#86CFA5" } : { boxShadow: "inset 0 0 0 1.5px #86CFA5" }} />
             </span>
           </div>
         </div>
       </div>
-      {s && !s.published && <p className="relative z-[1] -mt-4 md:-mt-8 text-[12.5px] text-pmuted">{t.draft}</p>}
+      {s && !s.published && <p className="relative z-[1] -mt-3 md:-mt-5 text-[12.5px]" style={{ color: "rgba(255,255,255,.55)" }}>{t.draft}</p>}
 
       {/* The greeting over the globe (drag it to spin it) */}
-      <div className="relative h-[330px] md:h-[440px] overflow-hidden -mx-4 md:mx-0">
+      <div className="relative h-[330px] md:h-[450px] overflow-hidden -mx-4 md:-mx-8">
         <div
-          className="absolute left-1/2 -translate-x-1/2 top-0 w-[360px] md:w-[540px]"
-          style={{ WebkitMaskImage: "linear-gradient(#000 62%, transparent 92%)", maskImage: "linear-gradient(#000 62%, transparent 92%)" }}
+          className="absolute left-1/2 -translate-x-1/2 top-0 w-[370px] md:w-[580px]"
+          style={{ WebkitMaskImage: "linear-gradient(#000 66%, transparent 94%)", maskImage: "linear-gradient(#000 66%, transparent 94%)" }}
         >
-          <HomeGlobe places={s?.places ?? []} label={t.mapLabel} visitors={t.visitors} />
+          <HomeGlobe dark places={s?.places ?? []} label={t.mapLabel} visitors={t.visitors} />
         </div>
         <div className="pointer-events-none relative h-full flex items-center justify-center text-center px-4">
-          <h1 className="text-[28px] md:text-[44px] leading-[1.12] font-semibold tracking-[-0.02em] text-pfg" style={{ textShadow: "0 0 24px #F5F5F3, 0 0 12px #F5F5F3" }}>
+          <h1 className="text-[28px] md:text-[44px] leading-[1.12] font-semibold tracking-[-0.02em] text-white" style={{ textShadow: "0 2px 24px rgba(0,0,0,.65), 0 0 2px rgba(0,0,0,.4)" }}>
             {greeting}
             <br />
             {t.grow}
