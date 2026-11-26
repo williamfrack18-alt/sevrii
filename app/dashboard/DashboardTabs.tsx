@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAIN_OFF } from "@/lib/brainOff";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { keepProjectAction, logoutAction, switchProjectAction } from "@/app/actions";
 import StoreView, { StrategyGate, storeLocked } from "./StoreView";
@@ -157,7 +158,7 @@ export default function DashboardTabs({
   const pt = PLAN_TEXT[lang];
   const bt = PLANS_TEXT[lang];
   const limits = PLANS[plan.id].limits;
-  const [view, setViewState] = useState<DashboardView>(initialView);
+  const [view, setViewState] = useState<DashboardView>(BRAIN_OFF && initialView === "plan" ? "store" : initialView);
   // Store opens a small sub-menu with the chats ("Conversaciones").
   const [storeOpen, setStoreOpen] = useState(true);
   // The project switcher at the top of the side menu (opens a list of projects).
@@ -194,7 +195,7 @@ export default function DashboardTabs({
   // A link to /dashboard?view=… while the dashboard is already open keeps this
   // component mounted, so follow the new section from the URL.
   useEffect(() => {
-    setViewState(initialView);
+    setViewState(BRAIN_OFF && initialView === "plan" ? "store" : initialView);
   }, [initialView]);
   const [currentBusiness, setCurrentBusiness] = useState<ClientBusiness>(business);
   // This tab's project stays the active one whenever the tab is in front
@@ -274,7 +275,8 @@ export default function DashboardTabs({
   const homeLabel = lang === "es" ? "Inicio" : "Home";
   const items: { id: DashboardView; label: string; soon?: boolean }[] = [
     { id: "projects", label: homeLabel },
-    { id: "plan", label: pt.nav.plan },
+    // The Brain is off for now (lib/brainOff.ts): not in the menu.
+    ...(BRAIN_OFF ? [] : [{ id: "plan" as DashboardView, label: pt.nav.plan }]),
     { id: "store", label: t.dashboard.store },
     ...(isAgent ? [{ id: "agent" as DashboardView, label: agentLabel }] : []),
     // In the order of the road: the page (Store), then charging (Payments),
@@ -321,10 +323,12 @@ export default function DashboardTabs({
   // Capital, Marketing, plan, account) in the sheet the avatar opens at the top right.
   const tabs: { id: DashboardView; label: string }[] = [
     { id: "projects", label: homeLabel },
-    { id: "plan", label: pt.nav.plan },
+    ...(BRAIN_OFF ? [] : [{ id: "plan" as DashboardView, label: pt.nav.plan }]),
     { id: "store", label: t.dashboard.store },
     { id: "chats", label: "Chats" },
     { id: "payments", label: "Payments" },
+    // With the Brain off, Afiliados takes its place in the bottom bar.
+    ...(BRAIN_OFF ? [{ id: "affiliates" as DashboardView, label: lang === "es" ? "Afiliados" : "Affiliates" }] : []),
   ];
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
@@ -369,7 +373,7 @@ export default function DashboardTabs({
   );
   const sheetRows: { id: DashboardView; label: string; meta?: React.ReactNode }[] = [
     ...(isAgent ? [{ id: "agent" as DashboardView, label: agentLabel }] : []),
-    { id: "affiliates", label: lang === "es" ? "Afiliados" : "Affiliates" },
+    ...(BRAIN_OFF ? [] : [{ id: "affiliates" as DashboardView, label: lang === "es" ? "Afiliados" : "Affiliates" }]),
     { id: "capital", label: "Capital", meta: <span className="dash-soon">{t.dashboard.soon}</span> },
     { id: "marketing", label: t.dashboard.marketing },
     {
@@ -546,7 +550,7 @@ export default function DashboardTabs({
                       disabled={switching}
                       onClick={() => {
                         setSwitcherOpen(false);
-                        if (here) setView("plan");
+                        if (here) setView(BRAIN_OFF ? "store" : "plan");
                         else startSwitch(() => switchProjectAction(p.id));
                       }}
                       className="w-full text-left flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-psoft transition disabled:opacity-60"

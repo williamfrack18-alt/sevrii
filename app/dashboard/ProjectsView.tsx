@@ -220,7 +220,7 @@ export default function ProjectsView({
                 <div key={p.id} className="relative w-[248px] md:w-auto">
                   <button
                     type="button"
-                    onClick={() => (isOpen ? onNavigate("plan") : start(() => switchProjectAction(p.id)))}
+                    onClick={() => (isOpen ? onNavigate(BRAIN_OFF ? "store" : "plan") : start(() => switchProjectAction(p.id)))}
                     className="group relative block w-full h-[300px] md:h-[280px] rounded-[28px] overflow-hidden text-left transition hover:-translate-y-0.5"
                     style={{ boxShadow: isOpen ? `0 0 0 2.5px ${GREEN}` : "0 10px 30px -14px rgba(10,10,10,.25)" }}
                   >
