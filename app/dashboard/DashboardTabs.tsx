@@ -596,7 +596,7 @@ export default function DashboardTabs({
           <nav className="flex flex-col gap-1">
             {items.map((it, i) => (
               <div key={it.id}>
-                {railOpen && i === 1 && <div className="text-[11.5px] text-pfaint mt-5 mb-2 px-3">{t.dashboard.pillarsLabel}</div>}
+                {railOpen && i === 1 && <div className="h-3" />}
                 {!railOpen && i === 1 && <div className="h-px bg-black/[0.06] my-2 mx-2" />}
                 <button
                   type="button"

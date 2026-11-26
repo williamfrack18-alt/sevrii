@@ -126,6 +126,7 @@ export default function PaymentsView({ business, services, onPlans }: { business
 
   return (
     <div className="px-4 md:px-10 pb-6 md:pb-12 max-w-[1180px]">
+      {(ready || (embedOpen && state.publishableKey)) && (
       <div className="dash-head flex flex-wrap items-center gap-3 mb-5">
         <span className="dash-title text-[15px] font-medium" style={{ color: ACCENT }}>
           03 · Payments
@@ -136,8 +137,9 @@ export default function PaymentsView({ business, services, onPlans }: { business
           </span>
         )}
       </div>
+      )}
 
-      <div className="dash-panel p-5 md:p-8">
+      <div className={ready || (embedOpen && state.publishableKey) ? "dash-panel p-5 md:p-8" : "pt-6 md:pt-12"}>
       {state.error && <p className="mb-6 text-[14px] text-red-600">{t.errLoad}</p>}
 
       {!ready && embedOpen && state.publishableKey ? (
@@ -168,15 +170,16 @@ export default function PaymentsView({ business, services, onPlans }: { business
       ) : ready ? (
         <ReadyView state={state} setState={setState} services={services} business={business} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center">
-          <div className="min-w-0">
+        <div className="glow-card p-5 md:p-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-10 lg:gap-14 items-center">
+          <div className="min-w-0 lg:order-2">
+            <div className="glow-n mb-5">03 · Payments</div>
             {state.publishableKey && state.status !== "none" && (
               <div className="mb-6">
                 <StripeBanner publishableKey={state.publishableKey} businessId={business.id} lang={lang} />
               </div>
             )}
-            <h1 className="text-[34px] md:text-[52px] leading-[1.05] font-light tracking-[-0.035em] text-pfg mb-4 break-words">{t.title}</h1>
-            <p className="text-muted text-[16px] leading-relaxed max-w-[520px]">{t.lead}</p>
+            <h1 className="glow-h mb-4">{t.title}</h1>
+            <p className="glow-lead">{t.lead}</p>
 
             {state.blocked ? (
               <div className="mt-8 card p-5">
@@ -204,7 +207,7 @@ export default function PaymentsView({ business, services, onPlans }: { business
                 <ol className="mt-8 border-t border-border">
                   {t.steps.map(([title, text], i) => (
                     <li key={title} className="py-4 border-b border-border flex gap-4">
-                      <span className="text-[14px] font-medium w-5 shrink-0" style={{ color: ACCENT }}>
+                      <span className="text-[14px] font-medium w-5 shrink-0" style={{ color: "#3ddc84" }}>
                         {i + 1}
                       </span>
                       <div>
@@ -227,17 +230,16 @@ export default function PaymentsView({ business, services, onPlans }: { business
                     type="button"
                     onClick={goStripe}
                     disabled={busy}
-                    className="mt-6 inline-flex items-center justify-center rounded-full px-6 py-3 text-[15px] font-semibold disabled:opacity-60"
-                    style={BRAND_BTN}
+                    className="glow-btn mt-6"
                   >
                     {busy ? t.opening : state.status === "pending" ? t.continue : t.start}
                   </button>
                 ) : (
-                  <div className="mt-6 rounded-[20px] p-5 flex flex-col gap-3" style={{ background: "rgba(10,10,10,0.034)", border: "1px solid rgba(10,10,10,0.068)" }}>
+                  <div className="glow-box mt-6 p-5 flex flex-col gap-3">
                     <div className="text-[16px] font-[500]">{t.needPlanTitle}</div>
                     <p className="text-[14px] text-muted leading-relaxed">{t.needPlanText(PLANS.starter.monthly)}</p>
                     {onPlans && (
-                      <button type="button" onClick={onPlans} className="self-start inline-flex items-center justify-center rounded-full px-6 py-3 text-[15px] font-semibold" style={BRAND_BTN}>
+                      <button type="button" onClick={onPlans} className="glow-btn self-start">
                         {t.seePlans} →
                       </button>
                     )}
@@ -247,13 +249,13 @@ export default function PaymentsView({ business, services, onPlans }: { business
             )}
             {err && <p className="mt-4 text-[14px] text-red-600">{err}</p>}
 
-            <div className="mt-8 rounded-[24px] p-4" style={{ background: "rgba(10,10,10,0.034)", border: "1px solid rgba(10,10,10,0.068)" }}>
+            <div className="glow-box mt-8 p-4">
               <div className="text-[14px] font-medium mb-1">{t.feeTitle}</div>
               <div className="text-[13.5px] text-muted leading-relaxed">{t.feeText}</div>
             </div>
           </div>
 
-          <div className="soon-stage photo min-h-[460px] lg:min-h-[560px]" style={{ backgroundImage: `url(${PAY_PHOTO})` }}>
+          <div className="soon-stage photo min-h-[420px] lg:min-h-[560px] lg:order-1" style={{ backgroundImage: `url(${PAY_PHOTO})` }}>
             <div className="soon-mock">
               <div className="soon-toast">
                 <b>✓</b>

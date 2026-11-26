@@ -2,7 +2,6 @@
 
 import { useT, useLang } from "@/components/LangProvider";
 import { PLANS_TEXT } from "@/lib/plansI18n";
-import { ACCENT } from "@/lib/panel";
 
 // Payments and Capital don't exist yet. This screen explains what each one
 // will do and shows an illustrative preview — it never pretends to work.
@@ -35,26 +34,24 @@ export default function ComingSoonView({
 
   return (
     <div className="px-4 md:px-10 pt-6 md:pt-12 pb-8 md:pb-12 max-w-[1180px]">
-      <div className="dash-panel p-6 md:p-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center">
-        <div>
-          <div className="flex items-center gap-3 mb-5">
-            <span className="text-[15px] font-medium" style={{ color: ACCENT }}>
-              {n} · {name}
-            </span>
-            <span className="dash-soon">{d.soon}</span>
+      <div className="glow-card p-5 md:p-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-10 lg:gap-14 items-center">
+        <div className="min-w-0 lg:order-2">
+          <div className="glow-n mb-5">
+            {n} · {name}
+            <span className="glow-tag">{d.soon}</span>
           </div>
-          <h1 className="text-[36px] md:text-[52px] leading-[1.05] font-light tracking-[-0.035em] text-pfg mb-4">{copy.title}</h1>
-          <p className="text-muted text-[16px] leading-relaxed max-w-[520px]">{copy.lead}</p>
-          <ul className="mt-8 border-t border-border">
+          <h1 className="glow-h mb-4">{copy.title}</h1>
+          <p className="glow-lead">{copy.lead}</p>
+          <ul className="glow-points mt-8">
             {copy.points.map(([title, text]) => (
-              <li key={title} className="py-4 border-b border-border">
-                <div className="text-[16px] font-[450] mb-1">{title}</div>
-                <div className="text-[14px] text-muted">{text}</div>
+              <li key={title}>
+                <b>{title}</b>
+                <span>{text}</span>
               </li>
             ))}
           </ul>
           {pillar === "capital" && (
-            <div className="mt-8 rounded-2xl p-5 flex flex-col gap-3" style={{ background: "#FFFFFF", boxShadow: "0 0 0 1px rgba(10,10,10,.08)" }}>
+            <div className="glow-box mt-8 p-5 flex flex-col gap-3">
               <div className="text-[15px] font-[450]">{es ? "Qué te falta para activarlo" : "What you need to unlock it"}</div>
               {[
                 [payReady, es ? "Activa Payments para cobrar con tarjeta desde Sevrii" : "Turn on Payments to get paid by card through Sevrii"],
@@ -62,33 +59,33 @@ export default function ComingSoonView({
                 [false, es ? "Te avisamos cuando el socio financiero abra las solicitudes" : "We'll let you know when the financial partner opens applications"],
               ].map(([done, text], i) => (
                 <div key={i} className="flex items-start gap-3 text-[14px]">
-                  <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-[1px]" style={done ? { background: ACCENT, color: "#fff" } : { boxShadow: "inset 0 0 0 1.5px rgba(10,10,10,.25)", color: "#52525B" }}>
+                  <span className="h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold mt-[1px]" style={done ? { background: "#3ddc84", color: "#04150c" } : { boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,.35)", color: "rgba(255,255,255,.75)" }}>
                     {done ? "✓" : i + 1}
                   </span>
-                  <span className={done ? "text-muted line-through" : ""}>{text as string}</span>
+                  <span style={{ color: done ? "rgba(255,255,255,.5)" : "rgba(255,255,255,.85)" }} className={done ? "line-through" : ""}>{text as string}</span>
                 </div>
               ))}
               {!payReady && onPayments && (
-                <button type="button" onClick={onPayments} className="self-start mt-1 text-[13.5px] font-semibold underline underline-offset-4" style={{ color: ACCENT }}>
+                <button type="button" onClick={onPayments} className="glow-link self-start mt-1 text-[13.5px] font-semibold">
                   {es ? "Ir a Payments →" : "Go to Payments →"}
                 </button>
               )}
             </div>
           )}
           <div className="flex flex-wrap items-center gap-4 mt-8">
-            <button type="button" onClick={onBack} className="btn-ghost">
+            <button type="button" onClick={onBack} className="glow-btn">
               {d.backHome}
             </button>
-            <span className="text-[13px] text-mutedLight">{d.notReady}</span>
+            <span className="text-[13px]" style={{ color: "rgba(255,255,255,.5)" }}>{d.notReady}</span>
           </div>
           {pillar === "payments" && onPlans && (
-            <button type="button" onClick={onPlans} className="mt-5 text-[13.5px] underline underline-offset-4" style={{ color: ACCENT }}>
+            <button type="button" onClick={onPlans} className="glow-link mt-5 text-[13.5px]">
               {lk.paymentsPro} {lk.seePlans} →
             </button>
           )}
         </div>
 
-        <div className="soon-stage photo min-h-[460px] lg:min-h-[560px]" style={{ backgroundImage: `url(${photo})` }}>
+        <div className="soon-stage photo min-h-[420px] lg:min-h-[560px] lg:order-1" style={{ backgroundImage: `url(${photo})` }}>
           <span className="soon-preview-tag">{d.preview}</span>
           {pillar === "payments" ? (
             <div className="soon-mock">

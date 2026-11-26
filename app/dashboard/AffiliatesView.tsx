@@ -156,6 +156,17 @@ export default function AffiliatesView({ business, onNavigate, side }: { busines
   useEffect(() => {
     if (state) putView(cacheKey, state);
   }, [state, cacheKey]);
+  // First visit: the landing's green card with "Comenzar"; the program panel
+  // shows after that (or right away once the program is on or has sales).
+  const introKey = `aff-intro:${business?.id ?? "none"}`;
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    try {
+      setStarted(Boolean(window.localStorage.getItem(introKey)));
+    } catch {}
+  }, [introKey]);
+  const own = state?.owner;
+  const showIntro = ownerSide && Boolean(own) && !started && !own?.settings.enabled && !own?.sales.length && !own?.stats.affiliates;
 
   useEffect(() => {
     let alive = true;
@@ -167,6 +178,30 @@ export default function AffiliatesView({ business, onNavigate, side }: { busines
       alive = false;
     };
   }, [business?.id]);
+
+  if (showIntro && own) {
+    return (
+      <div className="min-h-screen px-4 md:px-10 pb-6 md:pb-10 pearl-page pt-5 md:pt-10">
+        <div className="max-w-[1180px] mx-auto flex flex-col gap-6">
+          <AffIntro
+            o={o}
+            lang={lang}
+            percent={own.settings.percent || 20}
+            service={own.businessName}
+            onStart={() => {
+              try {
+                window.localStorage.setItem(introKey, "1");
+              } catch {}
+              setStarted(true);
+            }}
+          />
+          <a href="/panel-afiliado" className="self-start text-[13.5px] text-psub hover:text-pfg underline underline-offset-4">
+            {o.toPromoter} →
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen px-4 md:px-10 pb-6 md:pb-10 ${ownerSide ? "pearl-page pt-5 md:pt-10" : ""}`}>
@@ -201,6 +236,57 @@ export default function AffiliatesView({ business, onNavigate, side }: { busines
 }
 
 type T = (typeof TEXT)["es"];
+
+const AFF_PHOTO = "https://images.pexels.com/photos/7480527/pexels-photo-7480527.jpeg?auto=compress&cs=tinysrgb&w=1240";
+
+// The landing's Afiliados section (sevrii.com/ofrecerservicios), as a card.
+function AffIntro({ o, lang, percent, service, onStart }: { o: OT; lang: "es" | "en"; percent: number; service: string; onStart: () => void }) {
+  const cut = Math.round(120 * percent) / 100;
+  return (
+    <div className="glow-card p-5 md:p-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-10 lg:gap-14 items-center">
+      <div className="min-w-0 lg:order-2">
+        <div className="glow-n mb-5">05 · {lang === "es" ? "Afiliados" : "Affiliates"}</div>
+        <h1 className="glow-h mb-4">{o.ownerHeadline}</h1>
+        <p className="glow-lead">{o.introLead}</p>
+        <ul className="glow-points mt-8">
+          {o.introPoints.map(([b, text]) => (
+            <li key={b}>
+              <b>{b}</b>
+              <span>{text}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-wrap items-center gap-3 mt-8">
+          <button type="button" onClick={onStart} className="glow-btn">
+            {o.introStart}
+          </button>
+          <a href={lang === "es" ? "/afiliados" : "/en/afiliados"} target="_blank" rel="noreferrer" className="glow-ghost">
+            {lang === "es" ? "Ver cómo funciona" : "See how it works"} ↗
+          </a>
+        </div>
+      </div>
+      <div className="soon-stage photo min-h-[420px] lg:min-h-[560px] lg:order-1 !items-start !justify-start" style={{ backgroundImage: `url(${AFF_PHOTO})` }} role="img" aria-label={o.introAlt}>
+        <div className="soon-toast !absolute right-[8%] top-7">
+          <b>✓</b>
+          {o.introToast}
+        </div>
+        <div className="soon-card wide !absolute left-5 bottom-5 md:left-7 md:bottom-7">
+          <div className="lbl">{o.introCard}</div>
+          <div className="svc truncate">{service}</div>
+          <div className="pct">
+            <span>{o.introPct}</span>
+            <b>{percent}%</b>
+          </div>
+          <div className="sale">
+            <span>{o.introSale}</span>
+            <strong>${cut % 1 ? cut.toFixed(2) : cut}</strong>
+          </div>
+          <div className="foot">{o.introFoot}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Promote({ state, t }: { state: AffiliatesState; t: T }) {
   const e = state.earnings;
@@ -530,6 +616,19 @@ function Mine({ state, setState, t, o: ot, onNavigate }: { state: AffiliatesStat
 
 const OWNER_TEXT = {
   es: {
+    introLead: "Abre tu servicio a afiliados: creadores, promotores y clientes felices lo recomiendan con su link. Solo pagas comisión cuando alguien compra.",
+    introPoints: [
+      ["Tú pones la comisión", "Entre 5% y 50% de lo que paga el cliente."],
+      ["Solo pagas por ventas", "Cuenta cuando el cliente paga por Sevrii: con un link de pago o el acceso a tu agente."],
+      ["Sin sorpresas", "La comisión se paga a los 30 días, así los reembolsos no cuentan."],
+    ] as [string, string][],
+    introStart: "Comenzar",
+    introToast: "Venta por afiliado",
+    introCard: "Tu programa de afiliados",
+    introPct: "Comisión",
+    introSale: "Venta de $120 por @dani",
+    introFoot: "Ejemplo ilustrativo · se paga a los 30 días",
+    introAlt: "Creadora de contenido grabando con su teléfono",
     ownerHeadline: "Que otros vendan tu servicio por ti.",
     ownerSub: "Deja que otras personas vendan tu servicio por ti. Tú pones la comisión y solo pagas cuando un afiliado te trae una venta.",
     promoterTitle: "Gana como afiliado",
@@ -566,6 +665,19 @@ const OWNER_TEXT = {
     inviteText: "Invita a clientes felices, creadores o promotores a recomendarte. Con este link crean su cuenta de afiliado gratis y, si tu programa está activo, ven tu servicio y su link para compartirlo.",
   },
   en: {
+    introLead: "Open your service to affiliates: creators, promoters and happy customers recommend it with their link. You only pay commission when someone buys.",
+    introPoints: [
+      ["You set the commission", "Between 5% and 50% of what the customer pays."],
+      ["You only pay for sales", "It counts when the customer pays through Sevrii: with a payment link or access to your agent."],
+      ["No surprises", "The commission is paid after 30 days, so refunds don't count."],
+    ] as [string, string][],
+    introStart: "Get started",
+    introToast: "Affiliate sale",
+    introCard: "Your affiliate program",
+    introPct: "Commission",
+    introSale: "$120 sale by @dani",
+    introFoot: "Illustrative example · paid after 30 days",
+    introAlt: "Content creator recording with her phone",
     ownerHeadline: "Let others sell your service for you.",
     ownerSub: "Let other people sell your service for you. You set the commission and only pay when an affiliate brings you a sale.",
     promoterTitle: "Earn as an affiliate",
