@@ -1,5 +1,6 @@
 "use client";
 
+import HomeHero from "./HomeHero";
 import { BRAIN_OFF } from "@/lib/brainOff";
 import { useState, useTransition } from "react";
 import { useLang } from "@/components/LangProvider";
@@ -163,11 +164,13 @@ export default function ProjectsView({
   return (
     <div className="min-h-[calc(100dvh-var(--hdr))] md:min-h-screen">
       <div className="max-w-[1120px] mx-auto px-4 md:px-10 pt-5 md:pt-14 pb-12 md:pb-20 flex flex-col gap-5 md:gap-6">
-        {/* Greeting + the projects, first */}
-        <header className="flex items-end justify-between gap-3 pt-1 pb-1 md:pb-2">
-          <div className="dash-on-dark min-w-0">
-            <h1 className="p-display">{tx.hello(name)}</h1>
-            <p className="p-display p-display-sub mt-0.5">{tx.sub}</p>
+        {/* The page's numbers, the greeting and the visitors' map */}
+        <HomeHero businessId={business.id} name={name} lang={lang} />
+
+        {/* Then every project */}
+        <header className="flex items-end justify-between gap-3 pt-2 md:pt-4">
+          <div className="min-w-0">
+            <h2 className="text-[20px] md:text-[22px] font-semibold tracking-[-0.01em] text-pfg">{lang === "es" ? "Tus proyectos" : "Your projects"}</h2>
           </div>
           {projects.length > 1 && (
             <button

@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { cache, Fragment } from "react";
-import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, recordPageView, listBusinessReviews, addCampaignEvent, campaignBelongs, listAgentReviews, type BusinessRow } from "@/lib/db";
+import { getBusinessBySlug, getUserById, listServices, listPaymentLinks, incrementPageViews, recordPageView, listBusinessReviews, addCampaignEvent, campaignBelongs, listAgentReviews, type BusinessRow, type VisitPlace } from "@/lib/db";
 import { cleanCampaignId } from "@/lib/campaignLink";
 import { limitsFor } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/session";
@@ -161,8 +161,20 @@ export default async function PublicBusinessPage({
   // Count real visitors only: not the owner, not link-preview bots, once per IP per hour.
   if (!isOwner && live) {
     try {
-      const ua = (await headers()).get("user-agent") || "";
+      const h = await headers();
+      const ua = h.get("user-agent") || "";
       const ip = await clientIp();
+      // The hosting's coarse location of the visit (for the map on Inicio).
+      const latRaw = h.get("x-vercel-ip-latitude");
+      const lngRaw = h.get("x-vercel-ip-longitude");
+      let city = "";
+      try {
+        city = decodeURIComponent(h.get("x-vercel-ip-city") || "");
+      } catch {}
+      const place: VisitPlace | null =
+        latRaw && lngRaw && Number.isFinite(Number(latRaw)) && Number.isFinite(Number(lngRaw))
+          ? { lat: Number(latRaw), lng: Number(lngRaw), country: (h.get("x-vercel-ip-country") || "").toUpperCase(), city }
+          : null;
       // Counted after the page is sent, so the visitor never waits for it.
       if (!BOT_UA.test(ua)) {
         const id = business.id;
@@ -172,7 +184,7 @@ export default async function PublicBusinessPage({
           // and distinct visitors by a one-way hash of IP + browser + day.
           if (await allow(`pview:${ip}:${id}`, 30, 60 * 60)) {
             const visitor = createHash("sha256").update(`${id}|${new Date().toISOString().slice(0, 10)}|${ip}|${ua}`).digest("hex").slice(0, 32);
-            await recordPageView(id, visitor);
+            await recordPageView(id, visitor, place);
           }
         });
         if (campaign) {

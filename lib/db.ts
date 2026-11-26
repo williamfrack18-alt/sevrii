@@ -591,6 +591,23 @@ async function migrate(): Promise<void> {
           PRIMARY KEY ("businessId", day, hash)
         )
       `;
+      // When each visitor was last on the page: "visitantes en vivo" on Inicio.
+      await sql`ALTER TABLE page_visitors ADD COLUMN IF NOT EXISTS "seenAt" TIMESTAMPTZ NOT NULL DEFAULT now()`;
+      // Where visitors come from, for the map on Inicio: a count per day and
+      // per coarse place (about 50 km), from the hosting's own location of the
+      // request. No IP, no exact place.
+      await sql`
+        CREATE TABLE IF NOT EXISTS page_geo (
+          "businessId" TEXT NOT NULL,
+          day TEXT NOT NULL,
+          lat REAL NOT NULL,
+          lng REAL NOT NULL,
+          country TEXT NOT NULL DEFAULT '',
+          city TEXT NOT NULL DEFAULT '',
+          n INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY ("businessId", day, lat, lng)
+        )
+      `;
       // Verified reviews: a customer makes a quick account (name + email) when
       // paying, every paid checkout is a purchase, and only someone who bought
       // can review that business (one review each, editable). The owner can
@@ -1280,14 +1297,28 @@ const statDay = (d = new Date()) => d.toISOString().slice(0, 10);
 
 // One visit; `visitor` is a one-way hash of who it is that day (the first visit
 // of that hash that day also counts as a distinct visitor).
-export async function recordPageView(businessId: string, visitor: string): Promise<void> {
+export type VisitPlace = { lat: number; lng: number; country: string; city: string };
+
+export async function recordPageView(businessId: string, visitor: string, place: VisitPlace | null = null): Promise<void> {
   await ensureSchema();
   const day = statDay();
-  const fresh = (await sql`
+  const seen = (await sql`
     INSERT INTO page_visitors ("businessId", day, hash) VALUES (${businessId}, ${day}, ${visitor})
-    ON CONFLICT DO NOTHING RETURNING hash
-  `) as unknown[];
-  const u = fresh.length ? 1 : 0;
+    ON CONFLICT ("businessId", day, hash) DO UPDATE SET "seenAt" = now()
+    RETURNING (xmax = 0) AS fresh
+  `) as { fresh: boolean }[];
+  const u = seen[0]?.fresh ? 1 : 0;
+  // A new visitor today: one more on the map, at a place rounded to ~50 km.
+  if (u && place && Number.isFinite(place.lat) && Number.isFinite(place.lng)) {
+    const lat = Math.round(place.lat * 2) / 2;
+    const lng = Math.round(place.lng * 2) / 2;
+    await sql`
+      INSERT INTO page_geo ("businessId", day, lat, lng, country, city, n)
+      VALUES (${businessId}, ${day}, ${lat}, ${lng}, ${place.country.slice(0, 2)}, ${place.city.slice(0, 60)}, 1)
+      ON CONFLICT ("businessId", day, lat, lng) DO UPDATE SET n = page_geo.n + 1
+    `;
+    if (Math.random() < 0.01) await sql`DELETE FROM page_geo WHERE day < ${statDay(new Date(Date.now() - 120 * 24 * 3600 * 1000))}`;
+  }
   await sql`
     INSERT INTO page_stats ("businessId", day, views, uniques) VALUES (${businessId}, ${day}, 1, ${u})
     ON CONFLICT ("businessId", day) DO UPDATE SET views = page_stats.views + 1, uniques = page_stats.uniques + ${u}
@@ -1321,6 +1352,61 @@ export async function pageStats(businessId: string, days: number): Promise<PageS
   const b = (cv as Record<string, number>[])[0] ?? {};
   const c = (pay as Record<string, number>[])[0] ?? {};
   return { views: a.views ?? 0, uniques: a.uniques ?? 0, orders: a.orders ?? 0, chats: b.chats ?? 0, contacts: b.contacts ?? 0, payments: c.payments ?? 0 };
+}
+
+export type HomeStats = {
+  days: number;
+  sessions: number;
+  uniques: number;
+  salesCents: number;
+  orders: number;
+  live: number;
+  // One value per day, oldest first (for the little lines).
+  series: { sessions: number[]; sales: number[]; orders: number[]; conversion: number[] };
+  places: { lat: number; lng: number; n: number; city: string; country: string }[];
+};
+
+// Inicio's numbers for the last 30 days: visits, sales, orders, conversion,
+// visitors right now, and where visitors came from.
+export async function homeStats(businessId: string, days = 30): Promise<HomeStats> {
+  await ensureSchema();
+  const n = Math.max(1, Math.min(90, Math.round(days)));
+  const dayList = Array.from({ length: n }, (_, i) => statDay(new Date(Date.now() - (n - 1 - i) * 24 * 3600 * 1000)));
+  const from = dayList[0];
+  const fromTs = `${from}T00:00:00Z`;
+  const [st, pu, live, geo] = await Promise.all([
+    sql`SELECT day, views, uniques FROM page_stats WHERE "businessId" = ${businessId} AND day >= ${from}`,
+    sql`SELECT to_char("createdAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, COUNT(*)::int AS orders, COALESCE(SUM("amountCents"),0)::int AS cents FROM purchases WHERE "businessId" = ${businessId} AND "createdAt" >= ${fromTs} GROUP BY 1`,
+    sql`SELECT COUNT(*)::int AS live FROM page_visitors WHERE "businessId" = ${businessId} AND "seenAt" > now() - interval '5 minutes'`,
+    sql`SELECT lat, lng, SUM(n)::int AS n, MAX(city) AS city, MAX(country) AS country FROM page_geo WHERE "businessId" = ${businessId} AND day >= ${from} GROUP BY lat, lng ORDER BY n DESC LIMIT 300`,
+  ]);
+  const byDay = new Map<string, { views: number; uniques: number; orders: number; cents: number }>();
+  for (const d of dayList) byDay.set(d, { views: 0, uniques: 0, orders: 0, cents: 0 });
+  for (const r of st as { day: string; views: number; uniques: number }[]) {
+    const x = byDay.get(r.day);
+    if (x) Object.assign(x, { views: Number(r.views) || 0, uniques: Number(r.uniques) || 0 });
+  }
+  for (const r of pu as { day: string; orders: number; cents: number }[]) {
+    const x = byDay.get(r.day);
+    if (x) Object.assign(x, { orders: Number(r.orders) || 0, cents: Number(r.cents) || 0 });
+  }
+  const rows = dayList.map((d) => byDay.get(d)!);
+  const sum = (k: "views" | "uniques" | "orders" | "cents") => rows.reduce((a, r) => a + r[k], 0);
+  return {
+    days: n,
+    sessions: sum("views"),
+    uniques: sum("uniques"),
+    salesCents: sum("cents"),
+    orders: sum("orders"),
+    live: Number((live as { live: number }[])[0]?.live) || 0,
+    series: {
+      sessions: rows.map((r) => r.views),
+      sales: rows.map((r) => r.cents),
+      orders: rows.map((r) => r.orders),
+      conversion: rows.map((r) => (r.uniques ? r.orders / r.uniques : 0)),
+    },
+    places: (geo as { lat: number; lng: number; n: number; city: string; country: string }[]).map((g) => ({ lat: Number(g.lat), lng: Number(g.lng), n: Number(g.n) || 0, city: g.city || "", country: g.country || "" })),
+  };
 }
 
 export async function incrementWhatsappClicks(businessId: string): Promise<void> {
@@ -1890,6 +1976,7 @@ export async function deleteBusinessForUser(userId: string, businessId: string):
   await sql`DELETE FROM business_reviews WHERE "businessId" = ${id}`;
   await sql`DELETE FROM purchases WHERE "businessId" = ${id}`;
   await sql`DELETE FROM page_visitors WHERE "businessId" = ${id}`;
+  await sql`DELETE FROM page_geo WHERE "businessId" = ${id}`;
   await sql`DELETE FROM leads WHERE "businessId" = ${id}`;
   await sql`DELETE FROM conv_messages WHERE "conversationId" IN (SELECT id FROM conversations WHERE "businessId" = ${id})`;
   await sql`DELETE FROM conversations WHERE "businessId" = ${id}`;
@@ -1926,6 +2013,7 @@ export async function deleteUserEverything(userId: string): Promise<string[]> {
     await sql`DELETE FROM business_reviews WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM purchases WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM page_visitors WHERE "businessId" = ANY(${ids})`;
+    await sql`DELETE FROM page_geo WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM leads WHERE "businessId" = ANY(${ids})`;
     await sql`DELETE FROM conv_messages WHERE "conversationId" IN (SELECT id FROM conversations WHERE "businessId" = ANY(${ids}))`;
     await sql`DELETE FROM conversations WHERE "businessId" = ANY(${ids})`;

@@ -3,7 +3,7 @@
 import { getCurrentUser } from "@/lib/session";
 import { allow, clientIp } from "@/lib/guard";
 import { limitsFor } from "@/lib/billing";
-import { getBusinessBySlug, getUserById, pageStats, patchBusinessSite, recordPageOrder, type PageStats } from "@/lib/db";
+import { getBusinessBySlug, getUserById, homeStats, pageStats, patchBusinessSite, recordPageOrder, type HomeStats, type PageStats } from "@/lib/db";
 import { cleanPixelId } from "@/lib/site";
 
 // A visitor tapped "Pedir" on a service: counted on live pages, never the owner.
@@ -31,6 +31,16 @@ export async function pageStatsAction(): Promise<PageStatsState | null> {
   if (!b) return null;
   const [today, week, month] = await Promise.all([pageStats(b.id, 1), pageStats(b.id, 7), pageStats(b.id, 30)]);
   return { today, week, month, pixelId: b.site.metaPixelId, published: Boolean(b.published) };
+}
+
+export type HomeStatsState = HomeStats & { published: boolean };
+
+// Inicio: the open project's last 30 days, visitors right now and the map.
+export async function homeStatsAction(): Promise<HomeStatsState | null> {
+  const user = await getCurrentUser();
+  const b = user?.business;
+  if (!b) return null;
+  return { ...(await homeStats(b.id, 30)), published: Boolean(b.published) };
 }
 
 // The owner's own Meta pixel for their page ("" removes it).
