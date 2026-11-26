@@ -169,18 +169,19 @@ export default function AffiliatesView({ business, onNavigate, side }: { busines
   }, [business?.id]);
 
   return (
-    <div className="min-h-screen px-4 md:px-10 pb-6 md:pb-10">
+    <div className={`min-h-screen px-4 md:px-10 pb-6 md:pb-10 ${ownerSide ? "pearl-page pt-5 md:pt-10" : ""}`}>
       <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
-        <div className="dash-head dash-on-dark flex flex-col gap-2">
+        <div className={ownerSide ? "flex flex-col gap-2" : "dash-head dash-on-dark flex flex-col gap-2"}>
+          {ownerSide && <span className="pearl-eyebrow">05 · {t.title}</span>}
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h1 className="dash-title text-[24px] md:text-[28px] font-semibold text-pfg tracking-tight">{ownerSide ? t.title : o.promoterTitle}</h1>
-            <a href={lang === "es" ? "/afiliados" : "/en/afiliados"} target="_blank" rel="noreferrer" className="text-[13px] text-psub hover:text-pfg underline underline-offset-4">
+            <h1 className={ownerSide ? "pearl-title" : "dash-title text-[24px] md:text-[28px] font-semibold text-pfg tracking-tight"}>{ownerSide ? o.ownerHeadline : o.promoterTitle}</h1>
+            <a href={lang === "es" ? "/afiliados" : "/en/afiliados"} target="_blank" rel="noreferrer" className={ownerSide ? "pearl-btn" : "text-[13px] text-psub hover:text-pfg underline underline-offset-4"}>
               {t.how} ↗
             </a>
           </div>
           <p className="text-[14.5px] text-psub max-w-[640px] leading-relaxed">{ownerSide ? o.ownerSub : o.promoterSub}</p>
         </div>
-        <div className="dash-panel p-4 md:p-6 flex flex-col gap-6">
+        <div className={ownerSide ? "flex flex-col gap-6" : "dash-panel p-4 md:p-6 flex flex-col gap-6"}>
         {!state ? (
           <div className="flex justify-center"><SevriiLoader label={t.loading} /></div>
         ) : ownerSide ? (
@@ -190,7 +191,7 @@ export default function AffiliatesView({ business, onNavigate, side }: { busines
         )}
         </div>
         {ownerSide && (
-          <a href="/panel-afiliado" className="dash-on-dark self-start text-[13.5px] text-psub hover:text-pfg underline underline-offset-4">
+          <a href="/panel-afiliado" className="self-start text-[13.5px] text-psub hover:text-pfg underline underline-offset-4">
             {o.toPromoter} →
           </a>
         )}
@@ -529,6 +530,7 @@ function Mine({ state, setState, t, o: ot, onNavigate }: { state: AffiliatesStat
 
 const OWNER_TEXT = {
   es: {
+    ownerHeadline: "Que otros vendan tu servicio por ti.",
     ownerSub: "Deja que otras personas vendan tu servicio por ti. Tú pones la comisión y solo pagas cuando un afiliado te trae una venta.",
     promoterTitle: "Gana como afiliado",
     promoterSub: "Recomienda servicios con tu link y gana la comisión que pone cada negocio por cada cliente que pague.",
@@ -564,6 +566,7 @@ const OWNER_TEXT = {
     inviteText: "Invita a clientes felices, creadores o promotores a recomendarte. Con este link crean su cuenta de afiliado gratis y, si tu programa está activo, ven tu servicio y su link para compartirlo.",
   },
   en: {
+    ownerHeadline: "Let others sell your service for you.",
     ownerSub: "Let other people sell your service for you. You set the commission and only pay when an affiliate brings you a sale.",
     promoterTitle: "Earn as an affiliate",
     promoterSub: "Recommend services with your link and earn the commission each business sets for every customer who pays.",

@@ -1362,7 +1362,9 @@ export type HomeStats = {
   orders: number;
   live: number;
   // One value per day, oldest first (for the little lines).
-  series: { sessions: number[]; sales: number[]; orders: number[]; conversion: number[] };
+  series: { sessions: number[]; uniques: number[]; sales: number[]; orders: number[]; conversion: number[] };
+  // The first day of the series (YYYY-MM-DD, UTC).
+  from: string;
   places: { lat: number; lng: number; n: number; city: string; country: string }[];
 };
 
@@ -1401,12 +1403,99 @@ export async function homeStats(businessId: string, days = 30): Promise<HomeStat
     live: Number((live as { live: number }[])[0]?.live) || 0,
     series: {
       sessions: rows.map((r) => r.views),
+      uniques: rows.map((r) => r.uniques),
       sales: rows.map((r) => r.cents),
       orders: rows.map((r) => r.orders),
       conversion: rows.map((r) => (r.uniques ? r.orders / r.uniques : 0)),
     },
+    from,
     places: (geo as { lat: number; lng: number; n: number; city: string; country: string }[]).map((g) => ({ lat: Number(g.lat), lng: Number(g.lng), n: Number(g.n) || 0, city: g.city || "", country: g.country || "" })),
   };
+}
+
+export type BusinessCustomer = {
+  key: string;
+  name: string;
+  email: string;
+  phone: string;
+  orders: number;
+  spentCents: number;
+  lastAt: string;
+  firstAt: string;
+  // Their chat on the page, if they wrote (opens it in Conversaciones).
+  conversationId: string | null;
+  affiliate: boolean;
+  source: "paid" | "chat";
+};
+
+// The business's customers: whoever paid through Sevrii (their quick account)
+// and whoever left a name, phone or email in the page chat, as one list.
+export async function listBusinessCustomers(businessId: string): Promise<BusinessCustomer[]> {
+  await ensureSchema();
+  const [paid, chats] = await Promise.all([
+    sql`
+      SELECT p."customerId" AS id, COALESCE(c.name, '') AS name, COALESCE(c.email, '') AS email,
+             COUNT(*)::int AS orders, COALESCE(SUM(p."amountCents"), 0)::int AS cents,
+             MAX(p."createdAt") AS last, MIN(p."createdAt") AS first,
+             BOOL_OR(p."conversationId" IS NOT NULL) AS from_chat, MAX(p."conversationId") AS conv
+      FROM purchases p LEFT JOIN customers c ON c.id = p."customerId"
+      WHERE p."businessId" = ${businessId} AND p."customerId" IS NOT NULL
+      GROUP BY p."customerId", c.name, c.email
+      ORDER BY last DESC LIMIT 1000
+    `,
+    sql`
+      SELECT id, name, phone, email, "lastMessageAt" AS last, "createdAt" AS first, ("affiliateUserId" IS NOT NULL) AS aff
+      FROM conversations
+      WHERE "businessId" = ${businessId} AND (name <> '' OR phone <> '' OR email <> '')
+      ORDER BY "lastMessageAt" DESC LIMIT 1000
+    `,
+  ]);
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : "");
+  const out: BusinessCustomer[] = [];
+  const byEmail = new Map<string, BusinessCustomer>();
+  for (const r of paid as Record<string, unknown>[]) {
+    const c: BusinessCustomer = {
+      key: `p:${r.id}`,
+      name: String(r.name || ""),
+      email: String(r.email || ""),
+      phone: "",
+      orders: Number(r.orders) || 0,
+      spentCents: Number(r.cents) || 0,
+      lastAt: iso(r.last),
+      firstAt: iso(r.first),
+      conversationId: (r.conv as string) || null,
+      affiliate: false,
+      source: "paid",
+    };
+    out.push(c);
+    if (c.email) byEmail.set(c.email.toLowerCase(), c);
+  }
+  for (const r of chats as Record<string, unknown>[]) {
+    const email = String(r.email || "");
+    const known = email ? byEmail.get(email.toLowerCase()) : undefined;
+    if (known) {
+      // Same person: the paid record gets their phone and chat.
+      known.phone ||= String(r.phone || "");
+      known.conversationId ||= String(r.id);
+      known.affiliate ||= Boolean(r.aff);
+      if (!known.name) known.name = String(r.name || "");
+      continue;
+    }
+    out.push({
+      key: `c:${r.id}`,
+      name: String(r.name || ""),
+      email,
+      phone: String(r.phone || ""),
+      orders: 0,
+      spentCents: 0,
+      lastAt: iso(r.last),
+      firstAt: iso(r.first),
+      conversationId: String(r.id),
+      affiliate: Boolean(r.aff),
+      source: "chat",
+    });
+  }
+  return out.sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1));
 }
 
 export async function incrementWhatsappClicks(businessId: string): Promise<void> {

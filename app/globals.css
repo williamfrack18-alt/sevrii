@@ -1246,3 +1246,42 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
     linear-gradient(180deg, #071713 0%, #0b2924 45%, #030c0a 100%);
   color: #fff;
 }
+
+/* ==================================================================
+   Pearl sections (Conversaciones, Estadísticas, Clientes, Afiliados):
+   a warm pearl-white page with white cards and soft hairlines.
+   ================================================================== */
+.pearl-page { background: #F8F6F1; min-height: 100%; }
+.dash-dark .dash-main:has(.pearl-page) { background: #F8F6F1; }
+.pearl-card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 0 0 1px rgba(40, 32, 16, 0.07), 0 1px 2px rgba(40, 32, 16, 0.04);
+}
+.pearl-soft { background: #FBFAF7; }
+.pearl-line { border-color: rgba(40, 32, 16, 0.08) !important; }
+.pearl-pill {
+  height: 32px; padding: 0 12px; border-radius: 9999px; font-size: 13px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 6px; color: #52525B; background: transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.pearl-pill:hover { background: rgba(40, 32, 16, 0.05); color: #0A0A0A; }
+.pearl-pill.on { background: #0A0A0A; color: #fff; }
+.pearl-pill .n { font-size: 11.5px; opacity: 0.6; }
+.pearl-btn {
+  height: 34px; padding: 0 14px; border-radius: 9999px; font-size: 13px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 6px; color: #0A0A0A; background: #fff;
+  box-shadow: 0 0 0 1px rgba(40, 32, 16, 0.12); transition: background 0.15s ease;
+}
+.pearl-btn:hover { background: #F8F6F1; }
+.pearl-btn.dark { background: #0A0A0A; color: #fff; box-shadow: none; }
+.pearl-btn.dark:hover { background: #262626; }
+.pearl-eyebrow { font-size: 14px; font-weight: 500; color: #15803D; }
+.pearl-title { font-size: 30px; line-height: 1.08; font-weight: 300; letter-spacing: -0.03em; color: #0A0A0A; }
+@media (min-width: 768px) { .pearl-title { font-size: 40px; } }
+
+/* The landing's pillar picture (Payments, Capital): a photo with the card over it */
+.soon-stage.photo { background-color: #0f1a14; background-size: cover; background-position: center; align-items: flex-end; justify-content: flex-end; padding: 28px; }
+.soon-stage.photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.38) 100%); }
+.soon-stage.photo > * { position: relative; z-index: 1; }
+.soon-stage.photo .soon-preview-tag { position: absolute; z-index: 2; }

@@ -1,5 +1,7 @@
 "use client";
 
+import StatsView from "./StatsView";
+import CustomersView from "./CustomersView";
 import { BRAIN_OFF } from "@/lib/brainOff";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { keepProjectAction, logoutAction, switchProjectAction } from "@/app/actions";
@@ -36,6 +38,17 @@ function initials(name: string): string {
 }
 
 const ICONS: Record<DashboardView, React.JSX.Element> = {
+  stats: (
+    <>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </>
+  ),
+  customers: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6" />
+    </>
+  ),
   plans: (
     <>
       <path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z" />
@@ -252,7 +265,7 @@ export default function DashboardTabs({
       movingTimers.current = [setTimeout(() => setMoving("leaving"), 260), setTimeout(() => setMoving(""), 460)];
     }
     setViewState(next);
-    if (next === "store" || next === "chats") setStoreOpen(true);
+    if (next === "store" || next === "chats" || next === "stats" || next === "customers") setStoreOpen(true);
     // Keep the URL in sync so a refresh or a shared link opens the same section.
     window.history.replaceState(null, "", next === "projects" ? "/dashboard" : `/dashboard?view=${next}`);
     // On a computer the section scrolls inside its frame; on a phone, the page.
@@ -372,6 +385,8 @@ export default function DashboardTabs({
     </svg>
   );
   const sheetRows: { id: DashboardView; label: string; meta?: React.ReactNode }[] = [
+    { id: "stats", label: lang === "es" ? "Estadísticas" : "Analytics" },
+    { id: "customers", label: lang === "es" ? "Clientes" : "Customers" },
     ...(isAgent ? [{ id: "agent" as DashboardView, label: agentLabel }] : []),
     ...(BRAIN_OFF ? [] : [{ id: "affiliates" as DashboardView, label: lang === "es" ? "Afiliados" : "Affiliates" }]),
     { id: "capital", label: "Capital", meta: <span className="dash-soon">{t.dashboard.soon}</span> },
@@ -642,6 +657,27 @@ export default function DashboardTabs({
                     {!railOpen && unreadChats > 0 && <span className="absolute top-2 right-3 h-2 w-2 rounded-full bg-pgreen" />}
                   </button>
                 )}
+                {/* Under Conversaciones: the page's numbers and the customers */}
+                {it.id === "store" &&
+                  (storeOpen || !railOpen) &&
+                  ([
+                    ["stats", lang === "es" ? "Estadísticas" : "Analytics"],
+                    ["customers", lang === "es" ? "Clientes" : "Customers"],
+                  ] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setView(id)}
+                      title={railOpen ? undefined : label}
+                      aria-label={label}
+                      aria-current={view === id ? "page" : undefined}
+                      className={`dash-nav w-full mt-1 ${railOpen ? "dash-sub" : "!justify-center !px-0 relative h-11"} ${view === id ? "on" : ""}`}
+                    >
+                      <NavIcon id={id} />
+                      {!railOpen && <span className="rail-tip">{label}</span>}
+                      {railOpen && <span className="grow text-left whitespace-nowrap truncate">{label}</span>}
+                    </button>
+                  ))}
               </div>
             ))}
           </nav>
@@ -739,6 +775,19 @@ export default function DashboardTabs({
         )}
         {view === "chats" && (
           <ChatsView businessId={currentBusiness.id} published={currentBusiness.published} onStore={() => setView("store")} />
+        )}
+        {view === "stats" && <StatsView key={currentBusiness.id} businessId={currentBusiness.id} lang={lang} />}
+        {view === "customers" && (
+          <CustomersView
+            key={currentBusiness.id}
+            businessId={currentBusiness.id}
+            lang={lang}
+            onOpenChat={(id) => {
+              setView("chats");
+              // Conversaciones opens this chat (it reads ?c= when it starts).
+              window.history.replaceState(null, "", `/dashboard?view=chats&c=${encodeURIComponent(id)}`);
+            }}
+          />
         )}
         {view === "store" && (
           <StoreView

@@ -143,6 +143,12 @@ const I = {
     </>
   ),
   bell: <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </>
+  ),
   back: <path d="M15 18l-6-6 6-6" />,
   send: <path d="M12 19V5M5 12l7-7 7 7" />,
 };
@@ -169,6 +175,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
     return new URLSearchParams(window.location.search).get("c");
   });
   const [filter, setFilter] = useState<"all" | "needs" | "unread">("all");
+  const [q, setQ] = useState("");
   const [showAlerts, setShowAlerts] = useState(false);
   const [me, setMe] = useState<{ name: string; photo: string } | null>(null);
   const [editName, setEditName] = useState(false);
@@ -304,35 +311,64 @@ export default function ChatsView({ businessId, published, onStore }: { business
 
   const unread = (list ?? []).filter((c) => c.ownerUnread > 0).length;
   const needs = (list ?? []).filter((c) => c.handoff).length;
-  const shown = (list ?? []).filter((c) => (filter === "needs" ? c.handoff : filter === "unread" ? c.ownerUnread > 0 : true));
-  const line = "1px solid rgba(10,10,10,0.068)";
-  const quiet = "h-10 md:h-8 px-3 rounded-lg text-[13px] text-psub hover:text-pfg hover:bg-black/[0.06] inline-flex items-center gap-1.5 transition-colors";
+  const query = q.trim().toLowerCase();
+  const shown = (list ?? [])
+    .filter((c) => (filter === "needs" ? c.handoff : filter === "unread" ? c.ownerUnread > 0 : true))
+    .filter((c) => !query || `${c.name} ${c.phone} ${c.email} ${c.lastMessage}`.toLowerCase().includes(query));
+  const line = "1px solid rgba(40,32,16,0.08)";
   const initial = (n: string) => (n || "?").trim().slice(0, 1).toUpperCase();
+  const clean = (m: string) => m.replace(/\s*\[\[(pay|case:[A-Za-z0-9_-]+)\]\]\s*$/, "").replace(/^📷\s+https:\/\/\S+$/, lang === "es" ? "📷 Foto" : "📷 Photo");
+  // A soft color per person, always the same for the same name.
+  const tone = (n: string) => {
+    const tones = [
+      ["#E7F4EC", "#14532D"],
+      ["#FDF0E1", "#7C4A12"],
+      ["#E8EFFB", "#1E3A8A"],
+      ["#F6E8F1", "#831843"],
+      ["#EEEAF9", "#4C1D95"],
+      ["#EFEFEA", "#3F3F46"],
+    ];
+    let h = 0;
+    for (const ch of n || "?") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return tones[h % tones.length];
+  };
+  const Avatar = ({ name, size = 40 }: { name: string; size?: number }) => {
+    const [bg, fg] = tone(name);
+    return (
+      <span className="rounded-full flex items-center justify-center font-semibold shrink-0" style={{ width: size, height: size, background: bg, color: fg, fontSize: size * 0.38 }}>
+        {initial(name)}
+      </span>
+    );
+  };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-var(--hdr))] md:h-screen text-pfg">
+    <div className="pearl-page flex flex-col h-[calc(100dvh-var(--hdr))] md:h-[calc(100vh-16px)] text-pfg">
       {/* Header */}
-      <div className="dash-head shrink-0 h-14 px-4 md:px-6 flex items-center justify-between gap-3" style={{ borderBottom: line }}>
-        <div className="flex items-baseline gap-2 min-w-0">
-          <h1 className="dash-title text-[15px] font-medium tracking-[-0.01em] text-pfg">{t.title}</h1>
-          {unread > 0 && <span className="text-[13px] text-pmuted">{unread}</span>}
+      <div className="shrink-0 px-4 md:px-8 pt-4 md:pt-7 pb-3 md:pb-5 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[24px] md:text-[30px] font-semibold tracking-[-0.02em] text-pfg leading-tight">{t.title}</h1>
+          <p className="text-[13.5px] text-psub mt-1">
+            {list === null
+              ? " "
+              : lang === "es"
+                ? `${list.length} ${list.length === 1 ? "conversación" : "conversaciones"}${unread ? ` · ${unread} sin leer` : ""}${needs ? ` · ${needs} te ${needs === 1 ? "necesita" : "necesitan"}` : ""}`
+                : `${list.length} ${list.length === 1 ? "conversation" : "conversations"}${unread ? ` · ${unread} unread` : ""}${needs ? ` · ${needs} need you` : ""}`}
+          </p>
         </div>
-        <button type="button" onClick={() => setShowAlerts((v) => !v)} className={`${quiet} -mr-2 md:mr-0 shrink-0`} style={showAlerts ? { color: "#0A0A0A", background: "rgba(10,10,10,0.051)" } : undefined}>
+        <button type="button" onClick={() => setShowAlerts((v) => !v)} className={`pearl-btn shrink-0 ${showAlerts ? "dark" : ""}`}>
           <Icon d={I.bell} size={15} /> {t.alerts}
         </button>
       </div>
 
-      {/* Everything below the title: one white panel on the dark page */}
-      <div className="dash-panel flex-1 min-h-0 flex flex-col overflow-hidden mx-2 md:mx-4 mb-2 md:mb-4">
       {showAlerts && (
-        <div className="shrink-0 px-4 md:px-6 pt-4 max-h-[50vh] overflow-y-auto" style={{ borderBottom: line }}>
+        <div className="shrink-0 mx-3 md:mx-8 mb-3 pearl-card px-4 md:px-6 pt-4 max-h-[50vh] overflow-y-auto">
           <StoreNotify />
         </div>
       )}
       {!published && (
-        <div className="shrink-0 px-4 md:px-6 py-2.5 text-[13px] text-psub flex flex-wrap items-center gap-x-3 gap-y-1" style={{ borderBottom: line }}>
+        <div className="shrink-0 mx-3 md:mx-8 mb-3 rounded-2xl px-4 py-3 text-[13px] text-pfg2 flex flex-wrap items-center gap-x-3 gap-y-1" style={{ background: "#FDF6E7", boxShadow: "0 0 0 1px rgba(180,120,20,.15)" }}>
           <span>{t.draft}</span>
-          <button type="button" onClick={onStore} className="text-pfg underline underline-offset-4 decoration-white/30 hover:decoration-white">
+          <button type="button" onClick={onStore} className="font-medium text-pfg underline underline-offset-4">
             {t.goStore}
           </button>
         </div>
@@ -341,59 +377,65 @@ export default function ChatsView({ businessId, published, onStore }: { business
       {list === null ? (
         <div className="flex-1" />
       ) : list.length === 0 ? (
-        <div className="m-auto text-center px-6">
-          <p className="text-[15px] text-pfg">{t.empty}</p>
-          <p className="text-[13.5px] text-pmuted mt-1.5">{t.emptySub}</p>
+        <div className="flex-1 mx-3 md:mx-8 mb-3 md:mb-8 pearl-card flex">
+          <div className="m-auto text-center px-6 py-16 flex flex-col items-center gap-3">
+            <span className="h-14 w-14 rounded-2xl flex items-center justify-center" style={{ background: "#E7F4EC", color: "#15803D" }}>
+              <Icon d={I.bell} size={24} />
+            </span>
+            <p className="text-[16px] font-medium text-pfg">{t.empty}</p>
+            <p className="text-[13.5px] text-psub max-w-[360px] leading-relaxed">{t.emptySub}</p>
+          </div>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)] md:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="flex-1 min-h-0 px-3 md:px-8 pb-3 md:pb-8 grid grid-cols-[minmax(0,1fr)] md:grid-cols-[320px_minmax(0,1fr)] gap-3 md:gap-4">
           {/* List */}
-          <div className={`min-h-0 min-w-0 flex-col ${openId ? "hidden md:flex" : "flex"}`} style={{ borderRight: line }}>
-            <div className="shrink-0 flex gap-5 px-4 md:px-5 h-11 items-end" style={{ borderBottom: line }}>
-              {(
-                [
-                  ["all", t.all, list.length],
-                  ["needs", t.needs, needs],
-                  ["unread", t.unreadF, unread],
-                ] as const
-              ).map(([k, label, n]) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setFilter(k)}
-                  className="pb-2.5 pt-3 md:pt-0 text-[13px] -mb-px transition-colors whitespace-nowrap"
-                  style={filter === k ? { color: "#0A0A0A", borderBottom: "1.5px solid #0A0A0A" } : { color: "#8a8a8a", borderBottom: "1.5px solid transparent" }}
-                >
-                  {label}
-                  {n ? <span className="ml-1.5 text-pfaint">{n}</span> : null}
-                </button>
-              ))}
+          <div className={`pearl-card min-h-0 min-w-0 flex-col overflow-hidden ${openId ? "hidden md:flex" : "flex"}`}>
+            <div className="shrink-0 p-3 flex flex-col gap-2.5" style={{ borderBottom: line }}>
+              <label className="flex items-center gap-2 h-10 px-3 rounded-full pearl-soft text-pfaint" style={{ boxShadow: "inset 0 0 0 1px rgba(40,32,16,.08)" }}>
+                <Icon d={I.search} size={15} />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={lang === "es" ? "Buscar por nombre o mensaje" : "Search by name or message"} className="flex-1 min-w-0 bg-transparent outline-none text-[16px] md:text-[13.5px] text-pfg placeholder:text-pfaint" />
+              </label>
+              <div className="flex gap-1 overflow-x-auto no-scrollbar">
+                {(
+                  [
+                    ["all", t.all, list.length],
+                    ["needs", t.needs, needs],
+                    ["unread", t.unreadF, unread],
+                  ] as const
+                ).map(([k, label, n]) => (
+                  <button key={k} type="button" onClick={() => setFilter(k)} className={`pearl-pill shrink-0 ${filter === k ? "on" : ""}`}>
+                    {label}
+                    {n ? <span className="n">{n}</span> : null}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              {shown.length === 0 && <p className="text-[13px] text-pfaint px-4 md:px-5 py-5">{t.noneFilter}</p>}
+            <div className="flex-1 overflow-y-auto p-1.5">
+              {shown.length === 0 && <p className="text-[13px] text-pfaint px-3 py-5">{t.noneFilter}</p>}
               {shown.map((c) => {
                 const on = c.id === openId;
+                const nm = c.name || t.visitor;
                 return (
                   <button
                     key={c.id}
                     type="button"
                     onClick={() => setOpenId(c.id)}
-                    className="w-full min-w-0 text-left px-4 md:px-5 py-3.5 flex items-center md:items-stretch gap-3 transition-colors hover:bg-black/[0.03] active:bg-black/[0.05]"
-                    style={{ background: on ? "rgba(10,10,10,0.043)" : undefined, borderBottom: "1px solid rgba(10,10,10,0.034)" }}
+                    className="w-full min-w-0 text-left px-3 py-3 rounded-2xl flex items-center gap-3 transition-colors hover:bg-[#F8F6F1]"
+                    style={on ? { background: "#F3F0E8" } : undefined}
                   >
-                    <div className="w-11 h-11 md:w-9 md:h-9 rounded-full flex items-center justify-center text-[14px] md:text-[13px] font-medium shrink-0 text-pfg2" style={{ background: "#FFFFFF" }}>
-                      {initial(c.name || t.visitor)}
-                    </div>
+                    <span className="relative">
+                      <Avatar name={nm} size={42} />
+                      {c.ownerUnread > 0 && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full" style={{ background: "#16A34A", boxShadow: "0 0 0 2px #fff" }} />}
+                    </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`min-w-0 text-[15px] md:text-[14px] truncate ${c.ownerUnread ? "text-pfg font-medium" : "text-pfg2"}`}>{c.name || t.visitor}</span>
+                        <span className={`min-w-0 text-[14.5px] truncate ${c.ownerUnread ? "font-semibold text-pfg" : "font-medium text-pfg2"}`}>{nm}</span>
                         <span className="text-[11.5px] text-pfaint shrink-0">{when(c.lastMessageAt, lang)}</span>
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                        <span className={`min-w-0 text-[13.5px] md:text-[13px] truncate ${c.ownerUnread ? "text-pfg2" : "text-pfaint"}`}>{c.lastMessage.replace(/\s*\[\[(pay|case:[A-Za-z0-9_-]+)\]\]\s*$/, "").replace(/^📷\s+https:\/\/\S+$/, lang === "es" ? "📷 Foto" : "📷 Photo")}</span>
-                        {c.affiliate && <span className="shrink-0 text-[10.5px] font-medium px-1.5 py-0.5 rounded-md text-[#137a3d] bg-[#e8f6ee]">{t.affTag}</span>}
-                        {c.handoff && <span className="ml-auto shrink-0 text-[11px] text-[#e0b54a]">{t.needsYou}</span>}
-                        {!c.handoff && c.ownerUnread > 0 && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
+                      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                        <span className={`min-w-0 text-[13px] truncate ${c.ownerUnread ? "text-pfg2" : "text-pmuted"}`}>{clean(c.lastMessage)}</span>
+                        {c.affiliate && <span className="shrink-0 text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md" style={{ color: "#137a3d", background: "#E7F4EC" }}>{t.affTag}</span>}
+                        {c.handoff && <span className="shrink-0 text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md" style={{ color: "#92400E", background: "#FDF0E1" }}>{t.needsYou}</span>}
                       </div>
                     </div>
                   </button>
@@ -403,64 +445,72 @@ export default function ChatsView({ businessId, published, onStore }: { business
           </div>
 
           {/* Thread */}
-          <div className={`min-h-0 min-w-0 flex-col ${openId ? "flex max-md:fixed max-md:inset-0 max-md:z-50 max-md:bg-pbg max-md:pt-[env(safe-area-inset-top)]" : "hidden md:flex"}`}>
+          <div className={`pearl-card min-h-0 min-w-0 flex-col overflow-hidden ${openId ? "flex max-md:fixed max-md:inset-0 max-md:z-50 max-md:rounded-none max-md:pt-[env(safe-area-inset-top)]" : "hidden md:flex"}`}>
             {!current ? (
-              <div className="m-auto text-[13.5px] text-pfaint">{t.pick}</div>
+              <div className="m-auto text-center px-6 flex flex-col items-center gap-3">
+                <span className="h-14 w-14 rounded-2xl flex items-center justify-center" style={{ background: "#F3F0E8", color: "#52525B" }}>
+                  <Icon d={I.send} size={22} />
+                </span>
+                <p className="text-[15px] font-medium text-pfg">{t.pick}</p>
+                <p className="text-[13px] text-pmuted max-w-[300px]">{lang === "es" ? "Aquí ves lo que escribió tu cliente y lo que respondió la IA. Puedes contestar tú cuando quieras." : "Here you see what your customer wrote and what the AI answered. You can reply yourself any time."}</p>
+              </div>
             ) : (
               <>
-                <div className="shrink-0 h-14 md:h-16 px-4 md:px-6 flex items-center gap-1 md:gap-3" style={{ borderBottom: line }}>
-                  <button type="button" className="md:hidden -ml-2 h-10 w-10 shrink-0 flex items-center justify-center text-pfg" onClick={() => setOpenId(null)} aria-label={t.back}>
+                <div className="shrink-0 px-3 md:px-5 py-3 flex items-center gap-2 md:gap-3" style={{ borderBottom: line }}>
+                  <button type="button" className="md:hidden -ml-1 h-10 w-10 shrink-0 flex items-center justify-center text-pfg" onClick={() => setOpenId(null)} aria-label={t.back}>
                     <Icon d={I.back} size={20} />
                   </button>
+                  <Avatar name={current.name || t.visitor} size={40} />
                   <div className="min-w-0 mr-auto">
-                    <div className="text-[15px] md:text-[14.5px] font-medium text-pfg truncate">{current.name || t.visitor}</div>
-                    <div className="text-[12.5px] text-pfaint truncate">
+                    <div className="text-[15px] font-semibold text-pfg truncate">{current.name || t.visitor}</div>
+                    <div className="text-[12.5px] text-pmuted truncate flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: current.aiEnabled ? "#16A34A" : "#A1A1AA" }} />
                       {[current.phone ? formatPhone(current.phone) : "", current.email].filter(Boolean).join("  ·  ") || (current.aiEnabled ? t.aiOn : t.aiOff)}
                     </div>
                   </div>
                   {current.phone && (
-                    <a href={`tel:${current.phone}`} className={`${quiet} max-md:w-10 max-md:px-0 justify-center shrink-0`} aria-label={t.call}>
-                      <Icon d={I.phone} size={14} /> <span className="hidden sm:inline">{t.call}</span>
+                    <a href={`tel:${current.phone}`} className="pearl-btn max-md:w-9 max-md:px-0 justify-center shrink-0" aria-label={t.call}>
+                      <Icon d={I.phone} size={14} /> <span className="hidden lg:inline">{t.call}</span>
                     </a>
                   )}
                   {current.email && (
-                    <a href={`mailto:${current.email}`} className={`${quiet} max-md:w-10 max-md:px-0 justify-center shrink-0`} aria-label={t.email}>
-                      <Icon d={I.mail} size={15} /> <span className="hidden sm:inline">{t.email}</span>
+                    <a href={`mailto:${current.email}`} className="pearl-btn max-md:w-9 max-md:px-0 justify-center shrink-0" aria-label={t.email}>
+                      <Icon d={I.mail} size={15} /> <span className="hidden lg:inline">{t.email}</span>
                     </a>
                   )}
                   {current.handoff && (
-                    <button type="button" onClick={resolve} className={`${quiet} hidden md:inline-flex`}>
+                    <button type="button" onClick={resolve} className="pearl-btn hidden md:inline-flex">
                       {t.resolve}
                     </button>
                   )}
-                  <button type="button" onClick={() => setPay((p) => (p ? null : { title: "", amount: "", busy: false, error: "", url: "", aff: false, copied: false }))} className={`${quiet} hidden md:inline-flex`}>
+                  <button type="button" onClick={() => setPay((p) => (p ? null : { title: "", amount: "", busy: false, error: "", url: "", aff: false, copied: false }))} className={`pearl-btn hidden md:inline-flex ${pay ? "dark" : ""}`}>
                     {t.charge}
                   </button>
-                  <button type="button" onClick={toggleAi} className="hidden md:inline-flex h-8 px-3 rounded-lg text-[13px] text-pfg items-center transition-colors" style={{ border: "1px solid rgba(10,10,10,0.119)" }}>
+                  <button type="button" onClick={toggleAi} className="pearl-btn hidden md:inline-flex">
                     {current.aiEnabled ? t.turnAiOff : t.turnAiOn}
                   </button>
                 </div>
                 {/* Mobile: the thread actions get their own row so the header never overflows */}
-                <div className="md:hidden shrink-0 px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar" style={{ borderBottom: line }}>
-                  <button type="button" onClick={toggleAi} className="h-10 px-4 rounded-full text-[13.5px] text-pfg inline-flex items-center shrink-0 whitespace-nowrap" style={{ border: "1px solid rgba(10,10,10,0.119)" }}>
+                <div className="md:hidden shrink-0 px-3 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar" style={{ borderBottom: line }}>
+                  <button type="button" onClick={toggleAi} className="pearl-btn shrink-0 whitespace-nowrap">
                     {current.aiEnabled ? t.turnAiOff : t.turnAiOn}
                   </button>
                   {current.handoff && (
-                    <button type="button" onClick={resolve} className="h-10 px-4 rounded-full text-[13.5px] text-pfg2 inline-flex items-center shrink-0 whitespace-nowrap" style={{ background: "rgba(10,10,10,0.051)" }}>
+                    <button type="button" onClick={resolve} className="pearl-btn shrink-0 whitespace-nowrap">
                       {t.resolve}
                     </button>
                   )}
-                  <button type="button" onClick={() => setPay((p) => (p ? null : { title: "", amount: "", busy: false, error: "", url: "", aff: false, copied: false }))} className="h-10 px-4 rounded-full text-[13.5px] text-pfg2 inline-flex items-center shrink-0 whitespace-nowrap" style={{ background: "rgba(10,10,10,0.051)" }}>
+                  <button type="button" onClick={() => setPay((p) => (p ? null : { title: "", amount: "", busy: false, error: "", url: "", aff: false, copied: false }))} className={`pearl-btn shrink-0 whitespace-nowrap ${pay ? "dark" : ""}`}>
                     {t.charge}
                   </button>
                 </div>
                 {current.affiliate && (
-                  <div className="shrink-0 px-4 md:px-6 py-2 text-[12.5px] leading-[1.45]" style={{ borderBottom: line, background: current.affiliate.open ? "#f1faf5" : "rgba(10,10,10,0.025)", color: current.affiliate.open ? "#0b5130" : "#6b6b6b" }}>
+                  <div className="shrink-0 px-4 md:px-6 py-2 text-[12.5px] leading-[1.45]" style={{ borderBottom: line, background: current.affiliate.open ? "#F1FAF5" : "#FBFAF7", color: current.affiliate.open ? "#0b5130" : "#6b6b6b" }}>
                     {current.affiliate.open ? t.affLine(current.affiliate.code, current.affiliate.percent) : t.affOld(current.affiliate.code)}
                   </div>
                 )}
 
-                <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto">
+                <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto pearl-soft">
                   <div className="max-w-[720px] mx-auto px-4 md:px-8 py-4 md:py-6 flex flex-col gap-1">
                     {msgs.map((m, i) => {
                       const prev = msgs[i - 1];
@@ -469,18 +519,19 @@ export default function ChatsView({ businessId, published, onStore }: { business
                       return (
                         <div key={m.seq} className={`flex flex-col ${mine ? "items-end" : "items-start"} ${head ? "mt-4" : ""}`}>
                           {head && (
-                            <span className="text-[11.5px] text-pfaint mb-1 px-1">
+                            <span className="text-[11.5px] text-pmuted mb-1 px-1 flex items-center gap-1.5">
+                              {m.role === "ai" && <span className="text-[10px] font-semibold px-1.5 py-[1px] rounded" style={{ background: "#E7F4EC", color: "#15803D" }}>IA</span>}
                               {m.role === "visitor" ? current.name || t.visitor : m.role === "owner" ? (me?.name ? `${t.you} · ${me.name}` : t.you) : t.ai}
                             </span>
                           )}
                           <div
-                            className="max-w-[85%] md:max-w-[78%] px-3.5 py-2 text-[15px] md:text-[14px] leading-[1.5] md:leading-[1.55] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                            className="max-w-[85%] md:max-w-[78%] px-3.5 py-2.5 text-[15px] md:text-[14px] leading-[1.5] md:leading-[1.55] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
                             style={
                               m.role === "visitor"
-                                ? { background: "#FFFFFF", color: "#0A0A0A", borderRadius: 14, boxShadow: "0 0 0 1px rgba(10,10,10,.06)" }
+                                ? { background: "#FFFFFF", color: "#0A0A0A", borderRadius: "18px 18px 18px 6px", boxShadow: "0 0 0 1px rgba(40,32,16,.07)" }
                                 : m.role === "owner"
-                                  ? { background: "#052E16", color: "#fff", borderRadius: 14 }
-                                  : { background: "transparent", color: "#27272A", borderRadius: 14, border: "1px solid rgba(10,10,10,0.102)" }
+                                  ? { background: "#0A0A0A", color: "#fff", borderRadius: "18px 18px 6px 18px" }
+                                  : { background: "#EAF5EE", color: "#14532D", borderRadius: "18px 18px 6px 18px" }
                             }
                           >
                             {/^📷\s+https:\/\/\S+$/.test(m.content) ? (
@@ -498,13 +549,13 @@ export default function ChatsView({ businessId, published, onStore }: { business
                   </div>
                 </div>
 
-                <div className="shrink-0 px-4 md:px-6 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:pb-4" style={{ borderTop: line }}>
+                <div className="shrink-0 px-3 md:px-6 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:pb-4 bg-white" style={{ borderTop: line }}>
                   <div className="max-w-[720px] mx-auto">
                     {pay && (
-                      <div className="mb-3 rounded-xl p-3" style={{ background: "#FFFFFF", border: "1px solid rgba(10,10,10,0.068)" }}>
+                      <div className="mb-3 rounded-2xl p-3.5 pearl-soft" style={{ boxShadow: "0 0 0 1px rgba(40,32,16,.08)" }}>
                         <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-[13.5px] font-medium text-pfg">{t.payTitle}</span>
-                          <button type="button" onClick={() => setPay(null)} className="text-[12.5px] text-pfaint hover:text-pfg tap">
+                          <span className="text-[13.5px] font-semibold text-pfg">{t.payTitle}</span>
+                          <button type="button" onClick={() => setPay(null)} className="text-[12.5px] text-pmuted hover:text-pfg tap">
                             {t.close}
                           </button>
                         </div>
@@ -512,10 +563,10 @@ export default function ChatsView({ businessId, published, onStore }: { business
                           <div className="flex flex-col gap-2">
                             <p className="text-[12.5px] text-psub">{t.payDone}</p>
                             <div className="flex gap-2 items-center">
-                              <input readOnly value={pay.url} className="flex-1 min-w-0 h-10 md:h-9 rounded-lg px-3 text-[13px] text-pfg bg-transparent outline-none" style={{ border: "1px solid rgba(10,10,10,0.119)" }} onFocus={(e) => e.currentTarget.select()} />
+                              <input readOnly value={pay.url} className="flex-1 min-w-0 h-10 rounded-full px-4 text-[13px] text-pfg bg-white outline-none" style={{ boxShadow: "inset 0 0 0 1px rgba(40,32,16,.12)" }} onFocus={(e) => e.currentTarget.select()} />
                               <button
                                 type="button"
-                                className="h-10 md:h-9 px-4 rounded-lg text-[13px] font-medium bg-pfg text-pfg shrink-0"
+                                className="pearl-btn dark h-10 shrink-0"
                                 onClick={() => {
                                   navigator.clipboard?.writeText(pay.url).then(() => setPay((p) => (p ? { ...p, copied: true } : p))).catch(() => {});
                                 }}
@@ -534,15 +585,15 @@ export default function ChatsView({ businessId, published, onStore }: { business
                             }}
                           >
                             <div className="flex max-md:flex-col gap-2">
-                              <input value={pay.title} onChange={(e) => setPay({ ...pay, title: e.target.value })} placeholder={t.payConcept} maxLength={80} className="flex-1 min-w-0 h-10 md:h-9 rounded-lg px-3 text-[16px] md:text-[13.5px] text-pfg outline-none bg-transparent placeholder:text-pfaint" style={{ border: "1px solid rgba(10,10,10,0.119)" }} />
-                              <input value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} placeholder={t.payAmount} inputMode="decimal" maxLength={10} className="md:w-[130px] min-w-0 h-10 md:h-9 rounded-lg px-3 text-[16px] md:text-[13.5px] text-pfg outline-none bg-transparent placeholder:text-pfaint" style={{ border: "1px solid rgba(10,10,10,0.119)" }} />
+                              <input value={pay.title} onChange={(e) => setPay({ ...pay, title: e.target.value })} placeholder={t.payConcept} maxLength={80} className="flex-1 min-w-0 h-10 rounded-full px-4 text-[16px] md:text-[13.5px] text-pfg outline-none bg-white placeholder:text-pfaint" style={{ boxShadow: "inset 0 0 0 1px rgba(40,32,16,.12)" }} />
+                              <input value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} placeholder={t.payAmount} inputMode="decimal" maxLength={10} className="md:w-[130px] min-w-0 h-10 rounded-full px-4 text-[16px] md:text-[13.5px] text-pfg outline-none bg-white placeholder:text-pfaint" style={{ boxShadow: "inset 0 0 0 1px rgba(40,32,16,.12)" }} />
                             </div>
                             {pay.error && <p className="text-[12.5px] text-[#b42318]">{pay.error}</p>}
                             <div className="flex flex-wrap gap-2">
-                              <button type="submit" disabled={pay.busy} className="h-10 md:h-9 px-4 rounded-lg text-[13px] font-medium bg-pfg text-pfg disabled:opacity-40">
+                              <button type="submit" disabled={pay.busy} className="pearl-btn dark disabled:opacity-40">
                                 {pay.busy ? t.payWorking : t.paySend}
                               </button>
-                              <button type="button" disabled={pay.busy} onClick={() => charge(false)} className="h-10 md:h-9 px-4 rounded-lg text-[13px] text-pfg2 disabled:opacity-40" style={{ background: "rgba(10,10,10,0.051)" }}>
+                              <button type="button" disabled={pay.busy} onClick={() => charge(false)} className="pearl-btn disabled:opacity-40">
                                 {t.payCopyOnly}
                               </button>
                             </div>
@@ -559,23 +610,26 @@ export default function ChatsView({ businessId, published, onStore }: { business
                             onChange={(e) => setNameDraft(e.target.value)}
                             placeholder={t.namePh}
                             maxLength={40}
-                            className="flex-1 min-w-0 h-10 md:h-9 rounded-lg px-3 text-[16px] md:text-[13.5px] text-pfg outline-none bg-transparent placeholder:text-pfaint"
-                            style={{ border: "1px solid rgba(10,10,10,0.119)" }}
+                            className="flex-1 min-w-0 h-10 rounded-full px-4 text-[16px] md:text-[13.5px] text-pfg outline-none bg-white placeholder:text-pfaint"
+                            style={{ boxShadow: "inset 0 0 0 1px rgba(40,32,16,.12)" }}
                           />
-                          <button type="button" onClick={saveName} disabled={nameDraft.trim().length < 2} className="h-10 md:h-9 px-4 rounded-lg text-[13px] font-medium bg-pfg text-pfg disabled:opacity-40 shrink-0">
+                          <button type="button" onClick={saveName} disabled={nameDraft.trim().length < 2} className="pearl-btn dark h-10 disabled:opacity-40 shrink-0">
                             {t.save}
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex max-md:flex-wrap items-center justify-between gap-x-3 gap-y-1 md:gap-3 mb-2 text-[12px] text-pfaint min-w-0">
-                        <span>{current.aiEnabled ? t.aiOn : t.aiOff}</span>
+                      <div className="flex max-md:flex-wrap items-center justify-between gap-x-3 gap-y-1 md:gap-3 mb-2 text-[12px] text-pmuted min-w-0">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: current.aiEnabled ? "#16A34A" : "#A1A1AA" }} />
+                          {current.aiEnabled ? t.aiOn : t.aiOff}
+                        </span>
                         {me?.name && (
                           <span className="min-w-0 break-words">
-                            {t.seenAs} <span className="text-pfg2">{me.name}</span> ·{" "}
+                            {t.seenAs} <span className="text-pfg2 font-medium">{me.name}</span> ·{" "}
                             <button
                               type="button"
-                              className="hover:text-pfg tap"
+                              className="hover:text-pfg tap underline underline-offset-2"
                               onClick={() => {
                                 setNameDraft(me.name);
                                 setEditName(true);
@@ -588,8 +642,8 @@ export default function ChatsView({ businessId, published, onStore }: { business
                       </div>
                     )}
                     <form
-                      className="flex items-end gap-2 rounded-xl px-3 py-1.5 md:py-2"
-                      style={{ background: "#FFFFFF", border: "1px solid rgba(10,10,10,0.068)" }}
+                      className="flex items-center gap-2 rounded-full pl-4 pr-1.5 py-1.5 pearl-soft"
+                      style={{ boxShadow: "inset 0 0 0 1px rgba(40,32,16,.1)" }}
                       onSubmit={(e) => {
                         e.preventDefault();
                         reply();
@@ -600,7 +654,7 @@ export default function ChatsView({ businessId, published, onStore }: { business
                         onChange={(e) => setDraft(e.target.value)}
                         placeholder={t.placeholder}
                         maxLength={2000}
-                        className="flex-1 min-w-0 h-10 md:h-9 bg-transparent text-[16px] md:text-[14px] text-pfg outline-none placeholder:text-pfaint"
+                        className="flex-1 min-w-0 h-9 bg-transparent text-[16px] md:text-[14px] text-pfg outline-none placeholder:text-pfaint"
                       />
                       {/* Dictate the reply: it goes in the box to read before sending. */}
                       <Dictate lang={lang} base={draft} onText={(x) => setDraft(x.slice(0, 2000))} disabled={busy} />
@@ -608,7 +662,8 @@ export default function ChatsView({ businessId, published, onStore }: { business
                         type="submit"
                         disabled={busy || !draft.trim()}
                         aria-label={t.send}
-                        className="h-10 w-10 md:h-8 md:w-8 shrink-0 rounded-lg flex items-center justify-center bg-pfg text-pfg disabled:bg-psoft disabled:text-pfaint transition-colors"
+                        className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center transition-colors disabled:opacity-35"
+                        style={{ background: "#0A0A0A", color: "#fff" }}
                       >
                         <Icon d={I.send} size={16} />
                       </button>
@@ -620,7 +675,6 @@ export default function ChatsView({ businessId, published, onStore }: { business
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

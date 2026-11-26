@@ -19,6 +19,7 @@ import type { ClientBusiness, ClientService } from "./types";
 import { offerTarget } from "@/lib/serviceAgentConfig";
 import { activeOffer } from "@/lib/site";
 import { StripeBanner, StripeMoney, StripeOnboarding } from "./StripeEmbedded";
+import { PAY_PHOTO } from "./ComingSoonView";
 
 // Same minimum as the server (MIN_AMOUNT_CENTS in lib/payments.ts).
 const MIN_CENTS = 1500;
@@ -127,7 +128,7 @@ export default function PaymentsView({ business, services, onPlans }: { business
     <div className="px-4 md:px-10 pb-6 md:pb-12 max-w-[1180px]">
       <div className="dash-head flex flex-wrap items-center gap-3 mb-5">
         <span className="dash-title text-[15px] font-medium" style={{ color: ACCENT }}>
-          {t.eyebrow}
+          03 · Payments
         </span>
         {ready && (
           <span className="text-[12px] font-medium px-3 py-1 rounded-full" style={{ background: TINT, color: ACCENT }}>
@@ -174,7 +175,7 @@ export default function PaymentsView({ business, services, onPlans }: { business
                 <StripeBanner publishableKey={state.publishableKey} businessId={business.id} lang={lang} />
               </div>
             )}
-            <h1 className="font-serif text-[32px] md:text-[46px] leading-[1.05] mb-4 break-words">{t.title}</h1>
+            <h1 className="text-[34px] md:text-[52px] leading-[1.05] font-light tracking-[-0.035em] text-pfg mb-4 break-words">{t.title}</h1>
             <p className="text-muted text-[16px] leading-relaxed max-w-[520px]">{t.lead}</p>
 
             {state.blocked ? (
@@ -252,7 +253,7 @@ export default function PaymentsView({ business, services, onPlans }: { business
             </div>
           </div>
 
-          <div className="soon-stage">
+          <div className="soon-stage photo min-h-[460px] lg:min-h-[560px]" style={{ backgroundImage: `url(${PAY_PHOTO})` }}>
             <div className="soon-mock">
               <div className="soon-toast">
                 <b>✓</b>
@@ -394,7 +395,7 @@ function ReadyView({
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
-        <h1 className="font-serif text-[32px] md:text-[42px] leading-[1.05]">{t.title}</h1>
+        <h1 className="text-[32px] md:text-[44px] leading-[1.05] font-light tracking-[-0.035em] text-pfg">{t.title}</h1>
         {state.publishableKey ? (
           <a href="#tu-dinero" className="btn-ghost">
             {lang === "es" ? "Tu dinero ↓" : "Your money ↓"}

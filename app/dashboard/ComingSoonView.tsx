@@ -6,6 +6,9 @@ import { ACCENT } from "@/lib/panel";
 
 // Payments and Capital don't exist yet. This screen explains what each one
 // will do and shows an illustrative preview — it never pretends to work.
+export const PAY_PHOTO = "https://images.unsplash.com/photo-1687422808248-f807f4ea2a2e?auto=format&fit=crop&w=1240&q=70";
+export const CAPITAL_PHOTO = "https://images.unsplash.com/photo-1687422811062-a966b55cb217?auto=format&fit=crop&w=1240&q=70";
+
 export default function ComingSoonView({
   pillar,
   onBack,
@@ -25,11 +28,13 @@ export default function ComingSoonView({
   const lk = PLANS_TEXT[useLang()].lock;
   const d = t.dashboard;
   const copy = pillar === "payments" ? d.payments : d.capital;
-  const n = pillar === "payments" ? "04" : "05";
+  // Same numbers and pictures as the landing (sevrii.com/ofrecerservicios).
+  const n = pillar === "payments" ? "03" : "04";
+  const photo = pillar === "payments" ? PAY_PHOTO : CAPITAL_PHOTO;
   const name = pillar === "payments" ? "Payments" : "Capital";
 
   return (
-    <div className="px-4 md:px-10 pt-20 md:pt-32 pb-8 md:pb-12 max-w-[1180px]">
+    <div className="px-4 md:px-10 pt-6 md:pt-12 pb-8 md:pb-12 max-w-[1180px]">
       <div className="dash-panel p-6 md:p-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center">
         <div>
           <div className="flex items-center gap-3 mb-5">
@@ -38,7 +43,7 @@ export default function ComingSoonView({
             </span>
             <span className="dash-soon">{d.soon}</span>
           </div>
-          <h1 className="font-serif text-[36px] md:text-[48px] leading-[1.05] mb-4">{copy.title}</h1>
+          <h1 className="text-[36px] md:text-[52px] leading-[1.05] font-light tracking-[-0.035em] text-pfg mb-4">{copy.title}</h1>
           <p className="text-muted text-[16px] leading-relaxed max-w-[520px]">{copy.lead}</p>
           <ul className="mt-8 border-t border-border">
             {copy.points.map(([title, text]) => (
@@ -83,7 +88,7 @@ export default function ComingSoonView({
           )}
         </div>
 
-        <div className="soon-stage">
+        <div className="soon-stage photo min-h-[460px] lg:min-h-[560px]" style={{ backgroundImage: `url(${photo})` }}>
           <span className="soon-preview-tag">{d.preview}</span>
           {pillar === "payments" ? (
             <div className="soon-mock">
