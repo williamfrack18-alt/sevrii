@@ -1232,10 +1232,10 @@ body { font-feature-settings: "ss01" 0; text-rendering: optimizeLegibility; -web
    of Inicio behind the globe. The dots are one small tile (stars.png). */
 .theme-panel.dash-dark {
   background:
-    linear-gradient(rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.32)),
+    linear-gradient(rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.58)),
     url(/assets/stars.png) repeat,
-    radial-gradient(ellipse 80% 50% at 12% 18%, rgba(20, 78, 66, 0.5), transparent 70%),
-    linear-gradient(180deg, #04100d 0%, #061713 40%, #020504 85%, #000 100%) !important;
+    radial-gradient(ellipse 80% 50% at 12% 18%, rgba(20, 78, 66, 0.3), transparent 70%),
+    linear-gradient(180deg, #030b09 0%, #041210 40%, #010303 85%, #000 100%) !important;
   background-attachment: fixed !important;
 }
 .dash-dark .dash-rail { background: transparent !important; }
