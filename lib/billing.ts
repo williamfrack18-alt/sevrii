@@ -8,13 +8,16 @@ import {
   updateUserPlan,
   type UserRow,
 } from "./db";
-import { PLANS, type ClientPlan, type PlanId, type PlanLimits } from "./plans";
+import { PLANS, cleanCode, priceFor, type Billing, type ClientPlan, type PlanId, type PlanLimits } from "./plans";
 
 // Billing with Stripe, using its REST API directly (no extra package).
 // Keys live only in Vercel env vars, set by the founder:
 //   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
-//   STRIPE_PRICE_STARTER_MONTHLY, STRIPE_PRICE_STARTER_YEARLY (optional)
+//   STRIPE_PRICE_STARTER_MONTHLY (any Starter price: its product is what is sold;
+//   the amount and period come from STARTER_PRICES in lib/plans.ts)
 // SEVRII_ADMIN_EMAILS (comma separated) get every feature, for testing.
+// SEVRII_DISCOUNT_CODES (comma separated): codes that lower Starter to
+// CODE_PRICES ($89 / $165 / $297). Remove one + redeploy to end it.
 
 const emailList = (v: string | undefined) =>
   (v || "")
@@ -44,13 +47,25 @@ export function isStaffAdmin(user: Who): boolean {
   return Boolean(user.googleSub || user.emailVerifiedAt) && ADMIN_EMAILS.includes(user.email.toLowerCase());
 }
 
+// Is this a discount code the founder set up? (Never trusts the browser.)
+export function validCode(code: string | null | undefined): boolean {
+  const c = cleanCode(code);
+  if (!c) return false;
+  return (process.env.SEVRII_DISCOUNT_CODES || "")
+    .split(",")
+    .map((x) => cleanCode(x))
+    .filter(Boolean)
+    .includes(c);
+}
+
 export function billingReady(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.STRIPE_PRICE_STARTER_MONTHLY);
 }
 
-// The yearly option is only offered when its Stripe price exists.
+// Every period is sold from the same Starter product, so they're all ready
+// together.
 export function yearlyReady(): boolean {
-  return billingReady() && Boolean(process.env.STRIPE_PRICE_STARTER_YEARLY);
+  return billingReady();
 }
 
 // Where Stripe sends people back. Never built from request headers.
@@ -192,10 +207,13 @@ async function cancelDuplicate(sub: Sub & { latest_invoice?: string | null }): P
 
 export class AlreadySubscribed extends Error {}
 
-export async function createCheckoutUrl(user: UserRow, interval: "month" | "year", opts: { successPath?: string; cancelPath?: string } = {}): Promise<string> {
-  // Never charge a different interval than the one the person chose.
-  const price = interval === "year" ? process.env.STRIPE_PRICE_STARTER_YEARLY : process.env.STRIPE_PRICE_STARTER_MONTHLY;
-  if (!price) throw new Error(`no Starter ${interval} price configured`);
+export async function createCheckoutUrl(user: UserRow, billing: Billing, opts: { successPath?: string; cancelPath?: string; code?: string } = {}): Promise<string> {
+  // Never charge a different period or amount than the one the person chose.
+  const coded = validCode(opts.code);
+  const chosen = priceFor(billing, coded);
+  if (!chosen) throw new Error(`unknown billing period ${billing}`);
+  const price = process.env.STRIPE_PRICE_STARTER_MONTHLY || process.env.STRIPE_PRICE_STARTER_YEARLY;
+  if (!price) throw new Error("no Starter price configured");
   const customer = await ensureCustomer(user);
   // Already paying (maybe the webhook hasn't arrived yet)? Sync instead of selling twice.
   const live = await findLiveSubscription(customer);
@@ -208,25 +226,19 @@ export async function createCheckoutUrl(user: UserRow, interval: "month" | "year
   const origin = siteUrl();
   const tax: Record<string, string> =
     process.env.STRIPE_AUTOMATIC_TAX === "1" ? { "automatic_tax[enabled]": "true", "customer_update[address]": "auto" } : {};
-  // The price people see on the Plans page is the one they're charged. If the
-  // Stripe price on file is another amount (e.g. the old $29), the same
-  // product is sold at the current price, with no manual change in Stripe.
-  // People already subscribed keep the price they signed up with.
-  const expected = interval === "year" ? (PLANS.starter.yearlyPerMonth ?? PLANS.starter.monthly) * 12 * 100 : PLANS.starter.monthly * 100;
-  let line: Record<string, string> = { "line_items[0][price]": price };
-  try {
-    const pr = await stripe<{ unit_amount?: number | null; product?: string; currency?: string }>("GET", `prices/${encodeURIComponent(price)}`);
-    if (pr.unit_amount !== expected && pr.product) {
-      line = {
-        "line_items[0][price_data][currency]": pr.currency || "usd",
-        "line_items[0][price_data][product]": pr.product,
-        "line_items[0][price_data][unit_amount]": String(expected),
-        "line_items[0][price_data][recurring][interval]": interval,
-      };
-    }
-  } catch (err) {
-    console.error("[billing] couldn't read the Starter price; using it as configured", (err as Error)?.message);
-  }
+  // The price people see on the Plans page is the one they're charged: the
+  // Starter product on file, sold at the chosen period's amount (every 3 or 6
+  // months, or yearly). People already subscribed keep what they signed up for.
+  const pr = await stripe<{ product?: string; currency?: string }>("GET", `prices/${encodeURIComponent(price)}`);
+  if (!pr.product) throw new Error("the Starter price has no product");
+  const yearly = billing === "year";
+  const line: Record<string, string> = {
+    "line_items[0][price_data][currency]": pr.currency || "usd",
+    "line_items[0][price_data][product]": pr.product,
+    "line_items[0][price_data][unit_amount]": String(chosen.total * 100),
+    "line_items[0][price_data][recurring][interval]": yearly ? "year" : "month",
+    "line_items[0][price_data][recurring][interval_count]": yearly ? "1" : String(chosen.months),
+  };
   const session = await stripe<{ url: string }>("POST", "checkout/sessions", {
     ...tax,
     mode: "subscription",
@@ -237,7 +249,10 @@ export async function createCheckoutUrl(user: UserRow, interval: "month" | "year
     "subscription_data[metadata][userId]": user.id,
     // Which plan this is, also when the price was made here (not a known price id).
     "subscription_data[metadata][plan]": "starter",
-    allow_promotion_codes: "true",
+    "subscription_data[metadata][billing]": billing,
+    ...(coded ? { "subscription_data[metadata][code]": cleanCode(opts.code) } : {}),
+    // A Sevrii code already lowered the price: no second discount on Stripe.
+    allow_promotion_codes: coded ? "false" : "true",
     success_url: `${origin}${opts.successPath ?? "/dashboard?view=plans&checkout=success&session_id={CHECKOUT_SESSION_ID}"}`,
     cancel_url: `${origin}${opts.cancelPath ?? "/dashboard?view=plans&checkout=cancel"}`,
   });

@@ -1,6 +1,8 @@
 // Sevrii plans. Pure data, shared by server and UI.
-// Free → Starter ($39) → Pro ($79) → Team ($149). Each plan includes the one
-// below it.
+// Free → Starter. Starter is paid every 3 months ($105), 6 months ($195) or
+// a year ($349), less with a discount code: same features, only the period
+// changes. Pro and Team stay
+// here for the code that checks them, but they aren't shown or sold.
 // - Free: the Brain and the page as a draft.
 // - Starter (the paid plan): the page published, Payments (payment links,
 //   5 % per payment), Affiliates (others sell the service for a commission)
@@ -43,8 +45,8 @@ export const PLANS: Record<PlanId, PlanDef> = {
   },
   starter: {
     id: "starter",
-    monthly: 39,
-    yearlyPerMonth: 32, // 17% off, like the others: $384 a year
+    monthly: 29, // the lowest it comes to per month (paid yearly); see STARTER_PRICES
+    yearlyPerMonth: 29,
     available: true,
     limits: { projects: 1, canPublish: true, marketing: false, autoMarketing: false, payments: true, affiliates: true, aiPerDay: 60, aiPerMonth: 800, researchPerMonth: 10, aiBudgetUsd: 12 },
   },
@@ -63,6 +65,48 @@ export const PLANS: Record<PlanId, PlanDef> = {
     limits: { projects: 10, canPublish: true, marketing: true, autoMarketing: true, payments: true, affiliates: true, aiPerDay: 240, aiPerMonth: 5000, researchPerMonth: 60, aiBudgetUsd: 60 },
   },
 };
+
+// How Starter is paid. Same plan, same features: only the billing period
+// changes. There's no monthly plan. Prices are what people see and what Stripe
+// charges; a discount code (set by the founder) lowers them to CODE_PRICES.
+export type Billing = "quarter" | "semester" | "year";
+export const BILLINGS: Billing[] = ["quarter", "semester", "year"];
+export type StarterPrice = { months: number; total: number; perMonth: number };
+export const STARTER_PRICES: Record<Billing, StarterPrice> = {
+  quarter: { months: 3, total: 105, perMonth: 35 },
+  semester: { months: 6, total: 195, perMonth: 32.5 },
+  year: { months: 12, total: 349, perMonth: 29 },
+};
+export const CODE_PRICES: Record<Billing, StarterPrice> = {
+  quarter: { months: 3, total: 89, perMonth: 29.67 },
+  semester: { months: 6, total: 165, perMonth: 27.5 },
+  year: { months: 12, total: 297, perMonth: 24.75 },
+};
+// Against paying $39 a month.
+export const SAVINGS: Record<Billing, { es: string; en: string }> = {
+  quarter: { es: "Ahorras 10 %", en: "Save 10%" },
+  semester: { es: "1 mes gratis", en: "1 month free" },
+  year: { es: "3 meses gratis", en: "3 months free" },
+};
+export function priceFor(b: Billing, coded = false): StarterPrice {
+  return (coded ? CODE_PRICES : STARTER_PRICES)[b];
+}
+export function perMonth(b: Billing, coded = false): number {
+  return priceFor(b, coded).perMonth;
+}
+// "$24.75" style, without trailing zeros on whole amounts.
+export function usd(n: number): string {
+  return `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
+}
+export function readBilling(v: string | null | undefined): Billing | null {
+  // "month" (the old monthly link) now opens the shortest period.
+  return v === "quarter" || v === "semester" || v === "year" ? v : v === "month" ? "quarter" : null;
+}
+// A discount code as typed: letters, numbers, - and _ (2 to 32), uppercased.
+export function cleanCode(v: string | null | undefined): string {
+  const c = (v ?? "").trim().toUpperCase();
+  return /^[A-Z0-9_-]{2,32}$/.test(c) ? c : "";
+}
 
 export type Feature = "publish" | "marketing" | "projects" | "autoMarketing" | "payments" | "affiliates";
 

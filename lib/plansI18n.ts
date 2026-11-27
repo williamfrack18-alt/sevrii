@@ -7,7 +7,7 @@ type Group = { title: string; rows: Row[] };
 const es = {
   nav: "Planes",
   title: "Escoge tu plan",
-  sub: "Empiezas gratis. Cuando quieras dar el siguiente paso, escoges el plan que lo incluye. Cada plan trae todo lo del anterior.",
+  sub: "Empiezas gratis. Cuando quieras publicar y cobrar, eliges Starter y cada cuánto pagarlo: trimestral, semestral o anual.",
   monthly: "Mensual",
   yearly: "Anual",
   yearlySave: "ahorra 17 %",
@@ -117,7 +117,7 @@ const es = {
 const en: typeof es = {
   nav: "Plans",
   title: "Choose your plan",
-  sub: "You start free. When you want the next step, pick the plan that includes it. Each plan has everything in the one before.",
+  sub: "You start free. When you want to publish and get paid, choose Starter and how often to pay: quarterly, half-yearly or yearly.",
   monthly: "Monthly",
   yearly: "Yearly",
   yearlySave: "save 17%",

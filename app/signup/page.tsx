@@ -9,8 +9,9 @@ import GoogleButton, { OrDivider } from "@/components/GoogleButton";
 import RotatingHeadline from "@/components/RotatingHeadline";
 import { googleReady } from "@/lib/google";
 import { cookies } from "next/headers";
-import { BUY_COOKIE, readBuy } from "@/lib/buyIntent";
-import { PLANS } from "@/lib/plans";
+import { BUY_COOKIE, readBuy, readBuyCode } from "@/lib/buyIntent";
+import { validCode } from "@/lib/billing";
+import { priceFor, usd } from "@/lib/plans";
 
 
 // Not for search results (search engines can still follow its links).
@@ -26,11 +27,12 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   const path = jar.get("sevrii_path")?.value ?? "";
   // Chose Starter on sevrii.com/precios: they pay right after creating the account.
   const buying = readBuy(jar.get(BUY_COOKIE)?.value);
+  const coded = validCode(readBuyCode(jar.get(BUY_COOKIE)?.value));
   const lang = await getLang();
   const subtitle = buying
     ? lang === "es"
-      ? `Crea tu cuenta y pasas directo a pagar el plan Starter (${buying === "year" ? `$${(PLANS.starter.yearlyPerMonth ?? PLANS.starter.monthly) * 12} al año` : `$${PLANS.starter.monthly} al mes`}). Cancelas cuando quieras.`
-      : `Create your account and go straight to paying for the Starter plan (${buying === "year" ? `$${(PLANS.starter.yearlyPerMonth ?? PLANS.starter.monthly) * 12} a year` : `$${PLANS.starter.monthly} a month`}). Cancel any time.`
+      ? `Crea tu cuenta y pasas directo a pagar el plan Starter (${usd(priceFor(buying, coded).total)} ${buying === "year" ? "al año" : buying === "semester" ? "cada 6 meses" : "cada 3 meses"}). Cancelas cuando quieras.`
+      : `Create your account and go straight to paying for the Starter plan (${usd(priceFor(buying, coded).total)} ${buying === "year" ? "a year" : buying === "semester" ? "every 6 months" : "every 3 months"}). Cancel any time.`
     : t.auth.signupSubtitleFor[path] ?? t.auth.signupSubtitle;
   return (
     <div className="theme-dark flex">

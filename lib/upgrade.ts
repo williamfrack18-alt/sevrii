@@ -53,7 +53,7 @@ export function upgradeText(l: LimitInfo, lang: "es" | "en") {
     body,
     gainsTitle: next ? (es ? `Con ${planName(next)} tienes:` : `With ${planName(next)} you get:`) : "",
     gains: next ? GAINS[lang][next] ?? [] : [],
-    price: next && l.canUpgrade ? (es ? `$${PLANS[next].monthly}/mes` : `$${PLANS[next].monthly}/mo`) : "",
+    price: next && l.canUpgrade ? (es ? `desde $${PLANS[next].monthly}/mes` : `from $${PLANS[next].monthly}/mo`) : "",
     soon: next && !l.canUpgrade ? (es ? `${planName(next)} llega pronto.` : `${planName(next)} is coming soon.`) : "",
     cta: es ? "Mejorar plan" : "Upgrade plan",
     later,

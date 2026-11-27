@@ -19,7 +19,6 @@ import {
 } from "./db";
 import { HIDEABLE, LIMITS, PAGE_DESIGNS, PAGE_SECTIONS, missingForSales, normalizePhone, parseSite, publishGaps, safeUrl, sectionOrder, type Hideable, type PageDesign, type PageSection, type SiteData } from "./site";
 import { publishBusiness } from "./marketplace";
-import { PLANS } from "./plans";
 import { isPlaceholderName, renameProject } from "./projectName";
 import { ownerPricedPackages, pageMatchesPlan, planFingerprint, planReadyForStore, refPriceUnconfirmed } from "./planToStore";
 import { AGENT_LIMITS, AGENT_MIN_CENTS, agentMissing, offerPriceLabel, offerTarget, parseServiceAgent, parseTask, taskMissing, welcomeLabel } from "./serviceAgentConfig";
@@ -653,7 +652,7 @@ async function runTool(
       if (!publishConsent(Boolean(input.publish), ctx.ownerLast ?? "", ctx.lastAssistant ?? ""))
         return "not done: the owner didn't explicitly ask for this in their last message. Nothing changed. Don't ask again unless they bring it up.";
       if (input.publish && !ctx.canPublish) {
-        return `not published: the owner is on the Free plan. Publishing needs the Starter plan ($${PLANS.starter.monthly}/month), which also includes Payments, Affiliates and Capital (coming soon). Tell them their page is ready as a draft and that they can choose Starter in Plans (left menu) to publish it.`;
+        return `not published: the owner is on the Free plan. Publishing needs the Starter plan ($105 every 3 months, $195 every 6 months or $349 a year), which also includes Payments, Affiliates and Capital (coming soon). Tell them their page is ready as a draft and that they can choose Starter in Plans (left menu) to publish it.`;
       }
       if (input.publish) {
         const gaps = publishGaps({ category: b.category, whatsapp: b.whatsapp, site: b.site, serviceCount: ctx.services.length });

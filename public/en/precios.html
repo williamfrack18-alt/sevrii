@@ -24,7 +24,7 @@
 <meta name="twitter:title" content="Pricing | Sevrii">
 <meta name="twitter:description" content="Start free: build your services page with AI. Pay when you want to publish it, get paid and get customers.">
 <meta name="twitter:image" content="https://www.sevrii.com/assets/og-sevrii-en.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Sevrii", "url": "https://www.sevrii.com/en/precios", "applicationCategory": "BusinessApplication", "operatingSystem": "Web", "inLanguage": "en", "publisher": {"@type": "Organization", "name": "Sevrii", "url": "https://www.sevrii.com/"}, "offers": [{"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD"}, {"@type": "Offer", "name": "Starter", "price": "39", "priceCurrency": "USD"}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Sevrii", "url": "https://www.sevrii.com/en/precios", "applicationCategory": "BusinessApplication", "operatingSystem": "Web", "inLanguage": "en", "publisher": {"@type": "Organization", "name": "Sevrii", "url": "https://www.sevrii.com/"}, "offers": [{"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD"}, {"@type": "Offer", "name": "Starter quarterly", "price": "105", "priceCurrency": "USD"}, {"@type": "Offer", "name": "Starter half-yearly", "price": "195", "priceCurrency": "USD"}, {"@type": "Offer", "name": "Starter yearly", "price": "349", "priceCurrency": "USD"}]}</script>
 <!-- /SEO -->
 <link rel="icon" href="/favicon.ico?v=2" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png?v=2">
@@ -149,6 +149,16 @@ footer{border-top:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.55)}
 footer a:hover{color:#fff}
 @media (max-width:820px){.links{display:none}}
 @media (max-width:480px){.acts .btn-ghost{display:none}.logo span{display:none}footer a{margin:0 16px 0 0}}
+.promo{margin:18px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.promo label{font-size:14px;color:rgba(255,255,255,.78)}
+.promo-row{display:flex;gap:8px}
+.promo input{height:44px;width:180px;border-radius:999px;border:0;padding:0 16px;font:500 15px var(--font);letter-spacing:.04em;text-transform:uppercase;color:#fff;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);outline:none}
+.promo input::placeholder{color:rgba(255,255,255,.45);text-transform:none;letter-spacing:0}
+.promo input:focus{box-shadow:inset 0 0 0 1.5px #3ddc84}
+.promo .btn{height:44px;padding:0 20px;background:#fff;color:#0a0a0a;border:0}
+.promo-msg{width:100%;font-size:13.5px;min-height:18px;color:#8ff0bb}
+.promo-msg.bad{color:#fca5a5}
+.price s.was{font-size:14px;color:var(--muted);margin-right:4px}
 </style>
 </head>
 <body class="page-glow">
@@ -162,8 +172,7 @@ footer a:hover{color:#fff}
 </nav></header>
 <div class="wrap">
   <section class="top">
-    <div><div class="eyebrow">Pricing</div><h1>Choose your plan</h1><p>You start free. When you want the next step, pick the plan that includes it. Each plan has everything in the one before.</p></div>
-    <div class="toggle" role="group"><button type="button" class="on" data-b="m">Monthly</button><button type="button" data-b="y">Yearly<small>save 17%</small></button></div>
+    <div><div class="eyebrow">Pricing</div><h1>Choose your plan</h1><p>Start free. When you want to publish and get paid, choose Starter and how often to pay for it: quarterly, half-yearly or yearly. All three include the same.</p></div>
   </section>
 </div>
 </div>
@@ -174,42 +183,35 @@ footer a:hover{color:#fff}
   <p class="sum">To find your service and see your page before paying.</p>
   <ul class="f"><li class="" style="display:none" data-brain-off><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Full Brain: interview, research of your area and proposal</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Your sales page built, as a draft</span></li><li class="no"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2.2" stroke-linecap="round"><path d="M6 12h12"/></svg><span>Publishing your page</span></li><li class="no"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2.2" stroke-linecap="round"><path d="M6 12h12"/></svg><span>Payments, Affiliates and Capital</span></li><li class="no"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2.2" stroke-linecap="round"><path d="M6 12h12"/></svg><span>Marketing</span></li></ul><p class="caps">1 project · 2 research runs a month · 150 AI messages a month</p>
   <div><a class="btn btn-block btn-soft" href="/signup">Start free</a></div>
-</article><article class="card hot">
-  <div class="head"><b>Starter</b></div>
-  <div><div class="price"><b data-m="$39" data-y="$32">$39</b><span>/mo</span></div><div class="sub" data-m="To start selling" data-y="$384 a year">To start selling</div></div>
-  <p class="sum">Publish your page, charge your customers and let others sell your service.</p>
+</article><article class="card">
+  <div class="head"><b>Quarterly</b><span class="pill g">Save 10%</span></div>
+  <div><div class="price"><s class="was" data-was hidden>$105</s><b data-list="$105" data-code="$89">$105</b><span>every 3 months</span></div><div class="sub" data-list="Comes to $35/mo" data-code="Comes to $29.67/mo">Comes to $35/mo</div></div>
+  <p class="sum">The full Starter plan. Only how often you pay changes.</p>
   <ul class="f"><li class="all"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Everything in Free</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Your page published on sevrii.com, with chat to answer your customers</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Payments: charge with payment links (5% per payment)</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Affiliates: other people sell your service and you pay them a commission</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Capital: credit for your business (coming soon)</span></li></ul><p class="caps">1 project · 10 research runs a month · 800 AI messages a month</p>
-  <div><a class="btn btn-block btn-ink" href="/comprar?billing=month" data-m="/comprar?billing=month" data-y="/comprar?billing=year">Choose Starter</a></div>
+  <div><a class="btn btn-block btn-ink" href="/comprar?billing=quarter" data-buy="quarter">Choose quarterly</a></div>
 </article><article class="card">
-  <div class="head"><b>Pro</b><span class="pill a">Coming soon</span></div>
-  <div><div class="price"><b data-m="$79" data-y="$66">$79</b><span>/mo</span></div><div class="sub" data-m="To grow" data-y="$792 a year">To grow</div></div>
-  <p class="sum">Sevrii does your marketing for you.</p>
-  <ul class="f"><li class="all"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Everything in Starter</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Marketing: your strategy and campaigns ready</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>The agent launches and manages your Facebook and Instagram ads, with your approval</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Up to 3 projects</span></li></ul>
-  <div style="flex-grow:1"></div>
-  <div><span class="btn btn-block btn-off" aria-disabled="true">Coming soon</span></div>
-</article><article class="card">
-  <div class="head"><b>Team</b><span class="pill a">Coming soon</span></div>
-  <div><div class="price"><b data-m="$149" data-y="$124">$149</b><span>/mo</span></div><div class="sub" data-m="For businesses with a team" data-y="$1,488 a year">For businesses with a team</div></div>
-  <p class="sum">For businesses with several people.</p>
-  <div style="flex-grow:1"></div>
-  <div><span class="btn btn-block btn-off" aria-disabled="true">Coming soon</span></div>
+  <div class="head"><b>Half-yearly</b><span class="pill g">1 month free</span></div>
+  <div><div class="price"><s class="was" data-was hidden>$195</s><b data-list="$195" data-code="$165">$195</b><span>every 6 months</span></div><div class="sub" data-list="Comes to $32.50/mo" data-code="Comes to $27.50/mo">Comes to $32.50/mo</div></div>
+  <p class="sum">The full Starter plan. Only how often you pay changes.</p>
+  <ul class="f"><li class="all"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Everything in Free</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Your page published on sevrii.com, with chat to answer your customers</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Payments: charge with payment links (5% per payment)</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Affiliates: other people sell your service and you pay them a commission</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Capital: credit for your business (coming soon)</span></li></ul><p class="caps">1 project · 10 research runs a month · 800 AI messages a month</p>
+  <div><a class="btn btn-block btn-ink" href="/comprar?billing=semester" data-buy="semester">Choose half-yearly</a></div>
+</article><article class="card hot">
+  <div class="head"><b>Yearly</b><span class="pill g">3 months free</span></div>
+  <div><div class="price"><s class="was" data-was hidden>$349</s><b data-list="$349" data-code="$297">$349</b><span>per year</span></div><div class="sub" data-list="Comes to $29/mo" data-code="Comes to $24.75/mo">Comes to $29/mo</div></div>
+  <p class="sum">The full Starter plan. Only how often you pay changes.</p>
+  <ul class="f"><li class="all"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Everything in Free</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Your page published on sevrii.com, with chat to answer your customers</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Payments: charge with payment links (5% per payment)</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Affiliates: other people sell your service and you pay them a commission</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Capital: credit for your business (coming soon)</span></li></ul><p class="caps">1 project · 10 research runs a month · 800 AI messages a month</p>
+  <div><a class="btn btn-block btn-ink" href="/comprar?billing=year" data-buy="year">Choose yearly</a></div>
 </article></section>
+  <form class="promo" id="promo"><label for="promo-in">Have a discount code?</label><div class="promo-row"><input id="promo-in" name="code" placeholder="Your code" autocomplete="off" autocapitalize="characters" maxlength="32"><button type="submit" class="btn btn-soft">Apply</button></div><p class="promo-msg" id="promo-msg" role="status"></p></form>
   <div class="notes"><span>• You pay for ads directly to Meta; that money never goes through Sevrii.</span></div>
   <section class="band">
     <div class="box"><h3>Payments: 5% per payment, all included (Starter plan)</h3><div class="big">5%</div><p>You charge by card with your payment links. 5% in total comes off each payment, Stripe's fee included: from $100, you get $95. The money goes straight to your Stripe account.</p><small>International cards, currency conversion or instant payouts may have extra Stripe costs.</small></div>
-    <div class="box"><h3>You pay for your ads, directly to Meta</h3><p>With Marketing (Pro plan, coming soon) you connect your own Facebook account. Each ad launches only with your OK, and Meta charges your card. What you pay for your Sevrii plan is separate from what you spend on ads.</p></div>
+    <div class="box"><h3>You pay for your ads, directly to Meta</h3><p>With Marketing (coming soon) you connect your own Facebook account. Each ad launches only with your OK, and Meta charges your card. What you pay for your Sevrii plan is separate from what you spend on ads.</p></div>
   </section>
   <section class="soon"><div class="box"><div><h3>Coming soon</h3><p>AI Agents and Robots: not for sale yet.</p></div><span class="pill a">Coming soon</span></div></section>
-  <section class="faq"><h2>Frequently asked questions</h2><details><summary>Can I cancel anytime?</summary><p>Yes. You cancel from the Plan section of your account and keep what you paid for until the end of the period.</p></details><details><summary>What happens if I reach a limit?</summary><p>We let you know in your dashboard. You can wait for next month or switch to a plan with more usage.</p></details><details><summary>Do prices include taxes?</summary><p>Prices are in US dollars and applicable taxes may be added.</p></details></section>
+  <section class="faq"><h2>Frequently asked questions</h2><details><summary>Can I cancel anytime?</summary><p>Yes. You cancel from the Plan section of your account and keep your plan until the end of the period you paid for (3, 6 or 12 months).</p></details><details><summary>What happens if I reach a limit?</summary><p>We let you know in your dashboard. You can wait for next month; usage renews every month, whether you pay quarterly, half-yearly or yearly.</p></details><details><summary>Do prices include taxes?</summary><p>Prices are in US dollars and applicable taxes may be added.</p></details></section>
 </main>
 <footer><div class="wrap row"><span>© 2026 Sevrii. All rights reserved.</span><span><a href="/en/privacidad">Privacy</a><a href="/en/terminos">Terms and Conditions</a></span></div></footer>
-<script>
-document.querySelectorAll('.toggle button').forEach(function(b){b.addEventListener('click',function(){
-  var k=b.getAttribute('data-b');
-  document.querySelectorAll('.toggle button').forEach(function(x){x.classList.toggle('on',x===b)});
-  document.querySelectorAll('[data-m]').forEach(function(el){var v=el.getAttribute('data-'+k);if(el.tagName==='A')el.setAttribute('href',v);else el.textContent=v;});
-})});
-</script>
 <script>
 (function(){var c=document.getElementById('network');if(!c)return;var x=c.getContext('2d'),hero=c.closest('.hero'),W,H,d=Math.min(2,window.devicePixelRatio||1);
 function rs(){W=c.clientWidth;H=c.clientHeight;c.width=W*d;c.height=H*d;x.setTransform(d,0,0,d,0,0)}rs();window.addEventListener('resize',rs);
@@ -219,6 +221,18 @@ function st(){x.clearRect(0,0,W,H);P.forEach(function(p){if(!still){p.x+=p.vx;p.
 for(var i=0;i<P.length;i++){for(var j=i+1;j<P.length;j++){var q=Math.hypot(P[i].x-P[j].x,P[i].y-P[j].y);if(q<140){x.strokeStyle='rgba(255,255,255,'+((1-q/140)*.3)+')';x.lineWidth=1;x.beginPath();x.moveTo(P[i].x,P[i].y);x.lineTo(P[j].x,P[j].y);x.stroke()}}
 if(m.on){var q2=Math.hypot(P[i].x-m.x,P[i].y-m.y);if(q2<180){x.strokeStyle='rgba(255,255,255,'+((1-q2/180)*.45)+')';x.beginPath();x.moveTo(P[i].x,P[i].y);x.lineTo(m.x,m.y);x.stroke()}}
 x.fillStyle='rgba(255,255,255,.75)';x.beginPath();x.arc(P[i].x,P[i].y,1.4,0,Math.PI*2);x.fill()}if(!still)requestAnimationFrame(st)}st()})();
+</script>
+<script>
+(function(){var f=document.getElementById('promo');if(!f)return;var inp=document.getElementById('promo-in'),msg=document.getElementById('promo-msg');
+var T={ok:"Code {c} applied: you're seeing the discounted price.",bad:"That code isn't valid.",rate:"Too many codes tried. Try again in a while."};
+function apply(code){document.querySelectorAll('[data-code]').forEach(function(el){el.textContent=el.getAttribute(code?'data-code':'data-list')});
+document.querySelectorAll('[data-was]').forEach(function(el){el.hidden=!code});
+document.querySelectorAll('a[data-buy]').forEach(function(a){a.setAttribute('href','/comprar?billing='+a.getAttribute('data-buy')+(code?'&code='+encodeURIComponent(code):''))});}
+f.addEventListener('submit',function(e){e.preventDefault();var c=(inp.value||'').trim().toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,32);if(!c)return;msg.className='promo-msg';msg.textContent='…';
+fetch('/api/promo?code='+encodeURIComponent(c),{cache:'no-store'}).then(function(r){return r.json().catch(function(){return {ok:false}}).then(function(j){j.status=r.status;return j})}).then(function(j){
+if(j.ok){apply(c);msg.textContent=T.ok.replace('{c}',c)}else{apply('');msg.className='promo-msg bad';msg.textContent=j.status===429?T.rate:T.bad}}).catch(function(){msg.className='promo-msg bad';msg.textContent=T.bad})});
+var q=new URLSearchParams(location.search).get('codigo')||new URLSearchParams(location.search).get('code');if(q){inp.value=q;f.requestSubmit?f.requestSubmit():f.dispatchEvent(new Event('submit'))}
+})();
 </script>
 </body>
 </html>

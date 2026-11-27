@@ -4,21 +4,31 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/session";
 import { joinPlanWaitlist } from "@/lib/db";
-import { AlreadySubscribed, billingReady, createCheckoutUrl, createPortalUrl, effectivePlan, yearlyReady } from "@/lib/billing";
+import { AlreadySubscribed, billingReady, createCheckoutUrl, createPortalUrl, effectivePlan, validCode, yearlyReady } from "@/lib/billing";
 import { allow } from "@/lib/guard";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { PLANS, cleanCode, readBilling, type Billing, type PlanId } from "@/lib/plans";
 
 export type BillingResult = { url?: string; error?: "not_ready" | "failed" | "already" | "rate" };
 
 // Starter is the only plan for sale today. Stripe Checkout handles the card.
-export async function startCheckoutAction(interval: "month" | "year"): Promise<BillingResult> {
+// A discount code typed on Plans: is it valid? (Limited, so codes can't be guessed.)
+export async function checkCodeAction(code: string): Promise<{ ok: boolean; error?: "rate" }> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!billingReady() || (interval === "year" && !yearlyReady())) return { error: "not_ready" };
+  if (!(await allow(`billing:code:${user.id}`, 15, 60 * 60))) return { ok: false, error: "rate" };
+  return { ok: validCode(code) };
+}
+
+export async function startCheckoutAction(billing: Billing, code = ""): Promise<BillingResult> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const period = readBilling(billing);
+  if (!period) return { error: "failed" };
+  if (!billingReady() || !yearlyReady()) return { error: "not_ready" };
   if (effectivePlan(user) !== "free") return { error: "already" };
   if (!(await allow(`billing:checkout:${user.id}`, 10, 60 * 60))) return { error: "rate" };
   try {
-    return { url: await createCheckoutUrl(user, interval === "year" ? "year" : "month") };
+    return { url: await createCheckoutUrl(user, period, { code: cleanCode(code) }) };
   } catch (err) {
     if (err instanceof AlreadySubscribed) {
       revalidatePath("/dashboard");
