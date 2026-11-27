@@ -15,13 +15,13 @@ export default function LoginForm() {
         <label htmlFor="email" className="text-[13px] font-medium text-ink">
           {t.auth.email}
         </label>
-        <input id="email" name="email" type="email" placeholder={t.auth.emailPlaceholder} className="input" required />
+        <input id="email" name="email" type="email" autoComplete="username" placeholder={t.auth.emailPlaceholder} className="input" required />
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="password" className="text-[13px] font-medium text-ink">
           {t.auth.password}
         </label>
-        <input id="password" name="password" type="password" className="input" required />
+        <input id="password" name="password" type="password" autoComplete="current-password" className="input" required />
       </div>
       {state?.error && <p className="text-[13px] text-red-600">{state.error}</p>}
       <SubmitButton>{t.auth.loginButton}</SubmitButton>

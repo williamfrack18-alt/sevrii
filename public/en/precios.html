@@ -159,6 +159,48 @@ footer a:hover{color:#fff}
 .promo-msg{width:100%;font-size:13.5px;min-height:18px;color:#8ff0bb}
 .promo-msg.bad{color:#fca5a5}
 .price s.was{font-size:14px;color:var(--muted);margin-right:4px}
+/* Same look as Planes in the panel: dark starry green, glass cards */
+.page-glow{background:url(/assets/stars.png) repeat,radial-gradient(ellipse 65% 40% at 50% 0%,rgba(24,110,78,.55),transparent 70%),radial-gradient(ellipse 50% 35% at 85% 60%,rgba(20,90,64,.22),transparent 70%),linear-gradient(180deg,#04120d 0%,#020a07 55%,#010504 100%)}
+html,body{background:#020a07}
+.hero .video-bg{background:radial-gradient(ellipse 70% 80% at 50% 10%,rgba(28,110,78,.35),transparent 70%)}
+.hero .horizon{opacity:.55}
+.top{flex-direction:column;align-items:center;text-align:center}
+@media (min-width:768px){.top{flex-direction:column;align-items:center;justify-content:center}}
+.top p{margin-left:auto;margin-right:auto}
+.top .eyebrow{display:inline-flex;align-items:center;height:28px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:550;color:#8ff0bb;background:rgba(61,220,132,.1);box-shadow:inset 0 0 0 1px rgba(91,227,154,.3)}
+.grid{gap:16px}
+@media (min-width:1024px){.grid{padding-top:18px}}
+.grid .card{position:relative;color:#fff;border-radius:28px;padding:26px 22px 22px;background:linear-gradient(180deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,.025) 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),0 30px 60px -40px rgba(0,0,0,.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:transform .25s ease,box-shadow .25s ease}
+.grid .card:hover{transform:translateY(-4px);box-shadow:inset 0 0 0 1px rgba(91,227,154,.35),0 40px 70px -40px rgba(61,220,132,.35)}
+.grid .card.hot{background:radial-gradient(ellipse 90% 55% at 50% 0%,rgba(61,220,132,.32),transparent 70%),linear-gradient(180deg,#11402d 0%,#0a2a1e 55%,#06190f 100%);box-shadow:inset 0 0 0 1.5px rgba(91,227,154,.75),0 0 0 6px rgba(61,220,132,.07),0 40px 90px -30px rgba(61,220,132,.55)}
+@media (min-width:1024px){.grid .card.hot{transform:translateY(-14px)}.grid .card.hot:hover{transform:translateY(-18px)}}
+.grid .card.hot::before{content:attr(data-ribbon);position:absolute;top:-13px;left:50%;transform:translateX(-50%);height:26px;padding:0 14px;display:inline-flex;align-items:center;border-radius:999px;font-size:12px;font-weight:650;color:#04150c;background:linear-gradient(180deg,#7cf0b0 0%,#3ddc84 100%);box-shadow:0 8px 20px -6px rgba(61,220,132,.6);white-space:nowrap}
+.grid .head b{font-size:17px;color:#fff}
+.grid .pill.g{background:rgba(61,220,132,.16);color:#8ff0bb}
+.grid .card.hot .pill.g{background:rgba(255,255,255,.14);color:#fff}
+.grid .price b{font-size:44px;line-height:1;letter-spacing:-.03em;color:#fff}
+.grid .price span{color:rgba(255,255,255,.52);font-size:13.5px}
+.grid .price s.was{color:rgba(255,255,255,.5)}
+.grid .sub{color:#8ff0bb;font-size:13px}
+.grid .card:first-child .sub{color:rgba(255,255,255,.52)}
+.grid .sum{color:rgba(255,255,255,.76)}
+.grid ul.f{padding-top:16px;border-top:1px solid rgba(255,255,255,.1)}
+.grid ul.f li{color:#fff}
+.grid ul.f li.all{color:rgba(255,255,255,.6)}
+.grid ul.f li.no{color:rgba(255,255,255,.35)}
+.grid ul.f li svg{stroke:#5BE39A}
+.grid ul.f li.no svg{stroke:rgba(255,255,255,.3)}
+.grid .caps{background:rgba(255,255,255,.05);color:rgba(255,255,255,.55)}
+.grid .btn-block{height:48px;font-size:14.5px}
+.grid .btn-ink{color:#fff;background:linear-gradient(180deg,#2f8a63 0%,#1f6c4c 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
+.grid .btn-ink:hover{filter:brightness(1.08)}
+.grid .card.hot .btn-ink{background:#fff;color:#04150c;box-shadow:none}
+.grid .btn-soft{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85)}
+.promo{justify-content:center;margin:28px auto 0;padding:12px 18px;width:fit-content;max-width:100%;border-radius:22px;background:rgba(255,255,255,.045);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);backdrop-filter:blur(8px)}
+.promo-msg{text-align:center}
+.promo-msg:empty{display:none}
+.notes{align-items:center;text-align:center}
+.box{background:linear-gradient(180deg,rgba(255,255,255,.06) 0%,rgba(255,255,255,.02) 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);backdrop-filter:blur(8px)}
 </style>
 </head>
 <body class="page-glow">
@@ -195,7 +237,7 @@ footer a:hover{color:#fff}
   <p class="sum">The full Starter plan. Only how often you pay changes.</p>
   <ul class="f"><li class="all"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Everything in Free</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Your page published on sevrii.com, with chat to answer your customers</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Payments: charge with payment links (5% per payment)</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Affiliates: other people sell your service and you pay them a commission</span></li><li class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Capital: credit for your business (coming soon)</span></li></ul><p class="caps">1 project · 10 research runs a month · 800 AI messages a month</p>
   <div><a class="btn btn-block btn-ink" href="/comprar?billing=semester" data-buy="semester">Choose half-yearly</a></div>
-</article><article class="card hot">
+</article><article class="card hot" data-ribbon="Best price">
   <div class="head"><b>Yearly</b><span class="pill g">3 months free</span></div>
   <div><div class="price"><s class="was" data-was hidden>$349</s><b data-list="$349" data-code="$297">$349</b><span>per year</span></div><div class="sub" data-list="Comes to $29/mo" data-code="Comes to $24.75/mo">Comes to $29/mo</div></div>
   <p class="sum">The full Starter plan. Only how often you pay changes.</p>

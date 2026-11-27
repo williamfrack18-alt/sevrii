@@ -14,19 +14,20 @@ export default function SignupForm() {
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="email" className="text-[13px] font-medium text-ink">
+        <label htmlFor="signup-email" className="text-[13px] font-medium text-ink">
           {t.auth.email}
         </label>
-        <input id="email" name="email" type="email" placeholder={t.auth.emailPlaceholder} className="input" required />
+        <input id="signup-email" name="email" type="email" autoComplete="off" data-1p-ignore data-lpignore="true" placeholder={t.auth.emailPlaceholder} className="input" required />
       </div>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="password" className="text-[13px] font-medium text-ink">
+        <label htmlFor="new-password" className="text-[13px] font-medium text-ink">
           {t.auth.password}
         </label>
         <input
-          id="password"
+          id="new-password"
           name="password"
           type="password"
+          autoComplete="new-password"
           placeholder={t.auth.passwordPlaceholder}
           className="input"
           minLength={8}

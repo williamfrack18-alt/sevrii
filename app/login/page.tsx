@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const err = sp.error === "google_cancel" ? t.auth.errGoogleCancel : sp.error === "busy" ? t.auth.errTooMany : sp.error ? t.auth.errGoogle : null;
   const google = googleReady();
   return (
-    <div className="theme-dark flex flex-col">
+    <div className="theme-dark auth-night flex flex-col">
       <header className="h-[78px] px-6 sm:px-10 flex items-center justify-between">
         <BrandMark />
         <LangToggle />

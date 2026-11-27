@@ -4,7 +4,7 @@ import LangToggle from "@/components/LangToggle";
 // The same simple frame as the login page: logo, language, centered column.
 export default function AuthShell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="theme-dark flex flex-col min-h-dvh">
+    <div className="theme-dark auth-night flex flex-col min-h-dvh">
       <header className="h-[78px] px-6 sm:px-10 flex items-center justify-between">
         <BrandMark />
         <LangToggle />

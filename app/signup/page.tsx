@@ -35,14 +35,8 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
       : `Create your account and go straight to paying for the Starter plan (${usd(priceFor(buying, coded).total)} ${buying === "year" ? "a year" : buying === "semester" ? "every 6 months" : "every 3 months"}). Cancel any time.`
     : t.auth.signupSubtitleFor[path] ?? t.auth.signupSubtitle;
   return (
-    <div className="theme-dark flex">
-      <div
-        className="hidden md:flex w-[44%] p-14 flex-col justify-between"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(46,122,85,0.48), transparent 70%), linear-gradient(160deg,#0f4d34 0%,#0a3322 45%,#061c13 100%)",
-        }}
-      >
+    <div className="theme-dark auth-night flex">
+      <div className="auth-stars hidden md:flex w-[44%] p-14 flex-col justify-between">
         <BrandMark />
         <RotatingHeadline items={t.auth.signupSlides} />
         <div className="text-[13px]" style={{ color: "rgba(255,255,255,.55)" }}>
