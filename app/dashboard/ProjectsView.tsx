@@ -26,10 +26,11 @@ function firstName(owner: string): string {
 }
 
 // Photo-less project cards: black and graphite, never a washed-out green.
+// Same dark green as Inicio's globe.
 const FILLS = [
-  "linear-gradient(160deg, #262626 0%, #0A0A0A 70%)",
-  "linear-gradient(160deg, #303030 0%, #141414 70%)",
-  "linear-gradient(160deg, #1C1C1C 0%, #050505 70%)",
+  "radial-gradient(circle at 30% 20%, #1d5a45 0%, #0c2a20 55%, #05140f 100%)",
+  "radial-gradient(circle at 70% 20%, #22634c 0%, #0e3025 55%, #061711 100%)",
+  "radial-gradient(circle at 50% 10%, #184c3b 0%, #0a251c 55%, #04100c 100%)",
 ];
 
 const TEXT = {
@@ -167,6 +168,8 @@ export default function ProjectsView({
         {/* The page's numbers, the greeting and the visitors' map */}
         <HomeHero businessId={business.id} name={name} lang={lang} />
 
+        <div className="home-green flex flex-col gap-5 md:gap-6">
+
         {/* Then every project */}
         <header className="flex items-end justify-between gap-3 pt-2 md:pt-4">
           <div className="min-w-0">
@@ -273,7 +276,7 @@ export default function ProjectsView({
             ) : atLimit ? (
               <button type="button" onClick={() => onNavigate("plans")} className="w-[248px] md:w-auto h-[300px] md:h-[280px] p-card p-6 flex flex-col items-center justify-center gap-3 text-center">
                 <span className="h-14 w-14 rounded-full bg-psoft flex items-center justify-center">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <rect x="5" y="11" width="14" height="9" rx="2" />
                     <path d="M8 11V8a4 4 0 0 1 8 0v3" />
                   </svg>
@@ -322,10 +325,10 @@ export default function ProjectsView({
               <span className="text-[14px] text-pmuted -mt-1.5">{tx.progressSub(done, steps.length)}</span>
               <ul className="flex flex-col gap-1.5 mt-1">
                 {stepNames.map((s, i) => (
-                  <li key={s} className="flex items-center gap-2.5 text-[14.5px]" style={{ color: steps[i] ? "#0A0A0A" : "#A1A1AA" }}>
-                    <span className="h-5 w-5 rounded-full flex items-center justify-center shrink-0" style={steps[i] ? { background: GREEN } : { boxShadow: "inset 0 0 0 1.5px #D4D4D8" }}>
+                  <li key={s} className="flex items-center gap-2.5 text-[14.5px]" style={{ color: steps[i] ? "#fff" : "rgba(255,255,255,.5)" }}>
+                    <span className="h-5 w-5 rounded-full flex items-center justify-center shrink-0" style={steps[i] ? { background: "#3ddc84" } : { boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,.3)" }}>
                       {steps[i] && (
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#04150c" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M5 12.5l4.5 4.5L19 7.5" />
                         </svg>
                       )}
@@ -348,6 +351,8 @@ export default function ProjectsView({
           <Stat label={tx.unread} value={unreadChats} accent={unreadChats > 0} onClick={() => onNavigate("chats")} />
         </section>
 
+        </div>
+
         <p className="sr-only">
           {PLAN_TEXT[lang].nav.projects}: {projects.length}
         </p>
@@ -361,7 +366,7 @@ function Thumb({ src, label, size }: { src: string; label: string; size: number 
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt="" className="rounded-[20px] object-cover shrink-0" style={{ width: size, height: size }} />
   ) : (
-    <span className="rounded-[20px] shrink-0 flex items-center justify-center text-white text-[26px] font-medium" style={{ width: size, height: size, background: "linear-gradient(150deg, #262626 0%, #0A0A0A 75%)" }}>
+    <span className="rounded-[20px] shrink-0 flex items-center justify-center text-white text-[26px] font-medium" style={{ width: size, height: size, background: "radial-gradient(circle at 30% 20%, #2a7a5c 0%, #123d2f 60%, #08201a 100%)" }}>
       {initials(label)}
     </span>
   );
@@ -385,7 +390,7 @@ function Stat({ label, value, accent = false, onClick }: { label: string; value:
   const body = (
     <>
       <span className="text-[13px] md:text-[14px] text-pmuted">{label}</span>
-      <span className="text-[30px] md:text-[40px] leading-none font-medium tracking-[-0.03em] tabular-nums" style={{ color: accent ? "#15803D" : "#0A0A0A" }}>
+      <span className="text-[30px] md:text-[40px] leading-none font-medium tracking-[-0.03em] tabular-nums" style={{ color: accent ? "#3ddc84" : "#fff" }}>
         {value.toLocaleString("en-US")}
       </span>
     </>

@@ -237,7 +237,7 @@ export default function AffiliatesView({ business, onNavigate, side }: { busines
 
 type T = (typeof TEXT)["es"];
 
-const AFF_PHOTO = "https://images.pexels.com/photos/7480527/pexels-photo-7480527.jpeg?auto=compress&cs=tinysrgb&w=1240";
+const AFF_PHOTO = "https://images.unsplash.com/photo-1543525469-65b61cc2bc06?auto=format&fit=crop&w=1240&q=70";
 
 // The landing's Afiliados section (sevrii.com/ofrecerservicios), as a card.
 function AffIntro({ o, lang, percent, service, onStart }: { o: OT; lang: "es" | "en"; percent: number; service: string; onStart: () => void }) {
@@ -628,7 +628,7 @@ const OWNER_TEXT = {
     introPct: "Comisión",
     introSale: "Venta de $120 por @dani",
     introFoot: "Ejemplo ilustrativo · se paga a los 30 días",
-    introAlt: "Creadora de contenido grabando con su teléfono",
+    introAlt: "Persona grabando con su teléfono",
     ownerHeadline: "Que otros vendan tu servicio por ti.",
     ownerSub: "Deja que otras personas vendan tu servicio por ti. Tú pones la comisión y solo pagas cuando un afiliado te trae una venta.",
     promoterTitle: "Gana como afiliado",
@@ -677,7 +677,7 @@ const OWNER_TEXT = {
     introPct: "Commission",
     introSale: "$120 sale by @dani",
     introFoot: "Illustrative example · paid after 30 days",
-    introAlt: "Content creator recording with her phone",
+    introAlt: "Person recording with their phone",
     ownerHeadline: "Let others sell your service for you.",
     ownerSub: "Let other people sell your service for you. You set the commission and only pay when an affiliate brings you a sale.",
     promoterTitle: "Earn as an affiliate",

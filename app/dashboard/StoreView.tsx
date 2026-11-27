@@ -15,10 +15,9 @@ import { pageMatchesPlan, planReadyForStore } from "@/lib/planToStore";
 import { cardsFor } from "@/lib/cards";
 import { isPlaceholderName, type PageDesign, type PublishGap } from "@/lib/site";
 import { MARKET_CATEGORY_EN, type MarketCategory } from "@/lib/marketCategories";
-import { ACCENT, BRAND_BTN, GREEN, INK, TINT } from "@/lib/panel";
+import { ACCENT, BRAND_BTN, INK } from "@/lib/panel";
 
 type Msgs = { id: string; role: string; content: string }[];
-const SOFT_BTN = { background: "rgba(10,10,10,0.068)", color: "#27272A" } as const;
 
 // Store: a narrow chat on the left and, filling the rest, the real page as it
 // is right now (it reloads after every change). On a phone one button switches
@@ -91,6 +90,8 @@ export default function StoreView({
   const liveUrl = `/site/${business.slug}`;
   // "Editar mi página": the same preview, in edit mode (texts, parts, design).
   const [editMode, setEditMode] = useState(false);
+  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  const [menu, setMenu] = useState(false);
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.origin === window.location.origin && e.data?.type === "sevrii-edit-done") {
@@ -266,66 +267,103 @@ export default function StoreView({
         {/* The page itself, big, as it is right now */}
         <section className={`${pane === "preview" ? "flex" : "hidden"} md:flex flex-1 min-w-0 min-h-0 flex-col px-2 md:pl-0 md:pr-4 md:pt-4 pb-2 md:pb-4`} aria-label={es ? "Vista previa de tu página" : "Preview of your page"}>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-[24px] bg-white" style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.04), 0 30px 60px -30px rgba(0,0,0,0.85)" }}>
-            <div className="shrink-0 px-3 md:px-4 py-2.5 flex flex-wrap items-center gap-2" style={{ borderBottom: "1px solid rgba(10,10,10,0.068)" }}>
-              <span
-                className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12.5px] font-semibold max-w-full truncate"
-                style={business.published ? { background: TINT, color: ACCENT } : { background: "rgba(10,10,10,0.051)", color: "#3F3F46" }}
+            {/* Toolbar: view/edit on the left, the page's address in the
+                middle, tools and the main action on the right. */}
+            <div className="store-bar shrink-0 px-2.5 md:px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid rgba(10,10,10,0.07)" }}>
+              <div className="store-seg shrink-0" role="tablist" aria-label={es ? "Ver o editar tu página" : "View or edit your page"}>
+                {([false, true] as const).map((ed) => (
+                  <button
+                    key={String(ed)}
+                    type="button"
+                    role="tab"
+                    aria-selected={editMode === ed}
+                    onClick={() => {
+                      if (editMode === ed) return;
+                      setEditMode(ed);
+                      bump();
+                    }}
+                    className={editMode === ed ? "on" : ""}
+                  >
+                    {ed ? <BarIcon d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" /> : <BarIcon d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5" />}
+                    <span className="hidden sm:inline">{ed ? (es ? "Editar" : "Edit") : es ? "Vista previa" : "Preview"}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* The address, like a browser: status, link, open */}
+              <a
+                href={liveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={business.published ? t.dashboard.openLive : st.viewDraft}
+                className="store-url min-w-0 flex-1 max-w-[460px] mx-auto"
               >
-                <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: business.published ? GREEN : "#A1A1AA" }} />
-                {business.published ? `${es ? "Publicada" : "Published"}${category ? ` · ${category}` : ""}` : es ? "Borrador" : "Draft"}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditMode((v) => !v);
-                  bump();
-                }}
-                className="tap h-8 px-3.5 rounded-full text-[13px] font-semibold"
-                style={editMode ? SOFT_BTN : { background: "#fff", color: INK, boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.16)" }}
-              >
-                {editMode ? (es ? "Terminar de editar" : "Finish editing") : es ? "Editar mi página" : "Edit my page"}
-              </button>
-              {isAgent && onAgent && (
-                <button type="button" onClick={onAgent} className="tap h-8 px-3.5 rounded-full text-[13px] font-semibold" style={SOFT_BTN}>
-                  {es ? "Tu agente" : "Your agent"} →
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowStats((v) => !v)}
-                aria-expanded={showStats}
-                className="tap h-8 px-3.5 rounded-full text-[13px] font-semibold"
-                style={showStats ? SOFT_BTN : { background: "#fff", color: INK, boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.16)" }}
-              >
-                {es ? "Estadísticas" : "Stats"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowReviews((v) => !v)}
-                aria-expanded={showReviews}
-                className="tap h-8 px-3.5 rounded-full text-[13px] font-semibold"
-                style={showReviews ? SOFT_BTN : { background: "#fff", color: INK, boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.16)" }}
-              >
-                {es ? "Reseñas" : "Reviews"}
-              </button>
-              <span className="grow" />
-              {!business.published && <PreviewLinkButton lang={lang} />}
-              <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="tap h-8 inline-flex items-center px-3 rounded-full text-[13px] text-psub hover:text-pfg">
-                {business.published ? t.dashboard.openLive : st.viewDraft} ↗
+                <span className={`store-dot ${business.published ? "on" : ""}`} aria-hidden="true" />
+                <span className="font-semibold shrink-0" style={{ color: business.published ? ACCENT : "#52525B" }}>
+                  {business.published ? (es ? "Publicada" : "Live") : es ? "Borrador" : "Draft"}
+                </span>
+                <span className="truncate text-[#71717A] hidden lg:inline">sevrii.com/site/{business.slug}</span>
+                {category && <span className="truncate text-[#A1A1AA] hidden xl:inline">· {category}</span>}
+                <span className="ml-auto shrink-0 text-[#71717A]" aria-hidden="true">
+                  <BarIcon d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" size={14} />
+                </span>
               </a>
-              {business.published ? (
-                <button type="button" disabled={busy} onClick={() => publish(false)} className="tap h-8 px-3.5 rounded-full text-[13px] font-medium disabled:opacity-50" style={SOFT_BTN}>
-                  {st.unpublish}
+
+              <div className="shrink-0 flex items-center gap-1">
+                <div className="hidden lg:block">
+                <div className="store-seg" role="group" aria-label={es ? "Tamaño de la vista" : "Preview size"}>
+                  {(["desktop", "phone"] as const).map((d) => (
+                    <button key={d} type="button" aria-pressed={device === d} onClick={() => setDevice(d)} className={`icon ${device === d ? "on" : ""}`} title={d === "desktop" ? (es ? "Computadora" : "Desktop") : es ? "Celular" : "Phone"}>
+                      {d === "desktop" ? <BarIcon d="M3 5h18v11H3zM8 20h8M12 16v4" /> : <BarIcon d="M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM11 18h2" />}
+                    </button>
+                  ))}
+                </div>
+                </div>
+                <button type="button" onClick={() => setShowStats((v) => !v)} aria-expanded={showStats} className={`store-tool ${showStats ? "on" : ""}`} title={es ? "Estadísticas" : "Stats"}>
+                  <BarIcon d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+                  <span className="hidden 2xl:inline">{es ? "Estadísticas" : "Stats"}</span>
                 </button>
-              ) : canPublish ? (
-                <button type="button" disabled={busy} onClick={() => publish(true)} className="tap h-8 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60" style={BRAND_BTN}>
-                  {busy ? st.publishing : st.publish}
+                <button type="button" onClick={() => setShowReviews((v) => !v)} aria-expanded={showReviews} className={`store-tool ${showReviews ? "on" : ""}`} title={es ? "Reseñas" : "Reviews"}>
+                  <BarIcon d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
+                  <span className="hidden 2xl:inline">{es ? "Reseñas" : "Reviews"}</span>
                 </button>
-              ) : (
-                <button type="button" onClick={onPlans} className="tap h-8 px-3.5 rounded-full text-[13px] font-semibold" style={{ background: TINT, color: ACCENT }}>
-                  {lk.publishChip} →
-                </button>
-              )}
+                <div className="relative">
+                  <button type="button" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-haspopup="menu" className={`store-tool ${menu ? "on" : ""}`} title={es ? "Más opciones" : "More options"}>
+                    <BarIcon d="M5 12h.01M12 12h.01M19 12h.01" size={18} />
+                  </button>
+                  {menu && (
+                    <>
+                      <button type="button" aria-label={st.close} className="fixed inset-0 z-[30] cursor-default" onClick={() => setMenu(false)} />
+                      <div role="menu" className="store-menu">
+                        <a role="menuitem" href={liveUrl} target="_blank" rel="noopener noreferrer" onClick={() => setMenu(false)}>
+                          {business.published ? t.dashboard.openLive : st.viewDraft} ↗
+                        </a>
+                        {!business.published && <PreviewLinkButton lang={lang} />}
+                        {isAgent && onAgent && (
+                          <button type="button" role="menuitem" onClick={() => { setMenu(false); onAgent(); }}>
+                            {es ? "Tu agente" : "Your agent"} →
+                          </button>
+                        )}
+                        {business.published && (
+                          <button type="button" role="menuitem" disabled={busy} onClick={() => { setMenu(false); publish(false); }} className="muted">
+                            {st.unpublish}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {!business.published &&
+                  (canPublish ? (
+                    <button type="button" disabled={busy} onClick={() => publish(true)} className="store-publish ml-1">
+                      {busy ? st.publishing : st.publish}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={onPlans} className="store-publish soft ml-1">
+                      {lk.publishChip} →
+                    </button>
+                  ))}
+              </div>
             </div>
 
             {showStats && <PageStatsPanel businessId={business.id} lang={lang} onClose={() => setShowStats(false)} />}
@@ -383,15 +421,17 @@ export default function StoreView({
               </div>
             )}
 
-            <iframe
-              ref={frameRef}
-              key={`${business.slug}-${previewKey}-${editMode ? "e" : "v"}`}
-              src={editMode ? `${liveUrl}?editar=1` : liveUrl}
-              onLoad={onFrameLoad}
-              title={business.published ? t.dashboard.livePageTitle : es ? "Vista previa de tu página (borrador)" : "Preview of your page (draft)"}
-              className="w-full flex-1 min-h-0 border-0 block"
-              style={{ background: "#fff" }}
-            />
+            <div className={`flex-1 min-h-0 flex ${device === "phone" ? "store-phone-stage" : ""}`}>
+              <iframe
+                ref={frameRef}
+                key={`${business.slug}-${previewKey}-${editMode ? "e" : "v"}`}
+                src={editMode ? `${liveUrl}?editar=1` : liveUrl}
+                onLoad={onFrameLoad}
+                title={business.published ? t.dashboard.livePageTitle : es ? "Vista previa de tu página (borrador)" : "Preview of your page (draft)"}
+                className={`border-0 block ${device === "phone" ? "store-phone" : "w-full flex-1 min-h-0"}`}
+                style={{ background: "#fff" }}
+              />
+            </div>
           </div>
         </section>
       </div>
@@ -586,6 +626,14 @@ function Thumb({ slug, design, label }: { slug: string; design: PageDesign; labe
 }
 
 // Draft pages: a link to show the page to someone before publishing.
+function BarIcon({ d, size = 16 }: { d: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
+
 function PreviewLinkButton({ lang }: { lang: "es" | "en" }) {
   const [state, setState] = useState<"idle" | "copied" | "error">("idle");
   const es = lang === "es";
@@ -604,8 +652,7 @@ function PreviewLinkButton({ lang }: { lang: "es" | "en" }) {
       type="button"
       onClick={copy}
       title={es ? "Cualquiera con este enlace ve tu borrador. El chat y los pagos se activan al publicar." : "Anyone with this link sees your draft. Chat and payments switch on when you publish."}
-      className="hidden sm:inline-flex text-[12px] px-3 py-1 rounded-full font-medium"
-      style={{ background: "rgba(10,10,10,0.068)", color: "#27272A" }}
+      role="menuitem"
     >
       {state === "copied" ? (es ? "Enlace copiado" : "Link copied") : state === "error" ? (es ? "No se pudo copiar, inténtalo otra vez" : "Couldn't copy, try again") : es ? "Copiar enlace de vista previa" : "Copy preview link"}
     </button>

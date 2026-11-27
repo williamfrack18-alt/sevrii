@@ -744,7 +744,6 @@ export default function ChatPanel({
       <div className="dash-panel chat-dark flex-1 min-h-0 flex flex-col px-4 overflow-y-auto mx-2 md:mx-4 mb-2 md:mb-4">
         <div className="w-full max-w-[760px] mx-auto flex-1 flex flex-col">
           <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-10">
-            <Mark size={52} />
             <h1 className="text-[26px] md:text-[34px] leading-tight font-normal tracking-[-0.02em] text-white">{texts.emptyTitle}</h1>
             <p className="text-[15px] max-w-[520px]" style={{ color: DIM }}>{texts.emptySub}</p>
           </div>
@@ -768,7 +767,6 @@ export default function ChatPanel({
           {head && <div className="chat-surface">{head}</div>}
           {messages.length === 0 && greeting && (
             <div className="min-w-0 flex flex-col gap-2.5">
-              <Mark />
               <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words" style={{ color: SOFT }}>
                 {greeting}
               </div>
@@ -810,7 +808,6 @@ export default function ChatPanel({
               <div key={m.id} className="min-w-0 flex flex-col gap-3.5" style={typing ? { animation: "dash-fade .3s ease both" } : undefined}>
                 {(text || typing) && (
                   <div className="min-w-0 flex flex-col gap-2.5">
-                    <Mark live={typing} />
                     <div className="min-w-0 text-[15px] md:text-[15.5px] leading-[1.65] md:leading-[1.7] whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: SOFT }} aria-busy={typing || undefined}>
                       <Rich text={text} />
                       {typing && <span className="inline-block w-[7px] h-[1.05em] ml-0.5 align-[-0.15em] rounded-sm animate-pulse" style={{ background: LIVE }} aria-hidden="true" />}
